@@ -8,7 +8,7 @@
 
     <!-- Filter Bar -->
     <div class="filter-bar">
-      <select v-model="filterStatus" class="fsm" @change="filter">
+      <select v-model="filterStatus" class="fsm" @change="fetchRecords">
         <option value="">All Status</option>
         <option value="pending">Pending</option>
         <option value="scheduled">Scheduled</option>
@@ -25,27 +25,30 @@
       <div class="icard">
         <div class="icard-header">
           <span class="icard-title">Testing Queue</span>
-          <span class="ibadge ibadge-pending">{{ pending.length }} pending</span>
+          <span class="ibadge ibadge-pending">{{ pendingCount }} pending</span>
         </div>
-        <div v-if="filtered.length === 0" class="empty-state">
+        <div v-if="loading" style="text-align:center;padding:44px">
+          <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+        </div>
+        <div v-else-if="records.length === 0" class="empty-state">
           <h3>No testing records found</h3>
           <p>No records match your current filters.</p>
         </div>
         <div v-else>
           <div
-            v-for="t in filtered"
+            v-for="t in records"
             :key="t.id"
             class="qr"
             @click="openRecord(t)"
           >
-            <div class="qav">{{ initials(t.student_first, t.student_last) }}</div>
+            <div class="qav">{{ initials(t.student?.first_name, t.student?.last_name) }}</div>
             <div class="qi">
               <div class="qn">
-                {{ t.student_first }} {{ t.student_last }}
-                <span class="qid">{{ t.student_id }}</span>
+                {{ t.student?.first_name }} {{ t.student?.last_name }}
+                <span class="qid">{{ t.student?.student_id }}</span>
               </div>
               <div class="qmeta">
-                Referred by {{ t.referred_by }} · {{ formatDate(t.created_at) }}
+                Referred by {{ t.referred_by?.name }} · {{ formatDate(t.created_at) }}
               </div>
               <div v-if="t.tests_administered?.length" style="font-size:12px;color:var(--slate);margin-top:4px">
                 Tests: {{ t.tests_administered.join(', ') }}
@@ -83,13 +86,13 @@
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div>
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Testing Record #{{ selectedRecord.id }}</div>
-            <div style="font-size:12px;color:var(--stone)">{{ selectedRecord.student_first }} {{ selectedRecord.student_last }}</div>
+            <div style="font-size:12px;color:var(--stone)">{{ selectedRecord.student?.first_name }} {{ selectedRecord.student?.last_name }}</div>
           </div>
           <button class="ibtn ibtn-g ibtn-sm" @click="selectedRecord = null">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
 
-          <!-- Status Update -->
+          <!-- Status -->
           <div>
             <label class="ifl">Status</label>
             <select v-model="selectedRecord.status" class="ifse">
@@ -165,25 +168,18 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
+import { testingAPI } from '../../api/index';
 
-const filterStatus  = ref('');
+const toast        = inject('toast');
+const filterStatus = ref('');
 const selectedRecord = ref(null);
+const loading      = ref(true);
+const records      = ref([]);
 
-const availableTests = ['MMPI-2', 'SCL-90', 'Beck Depression Inventory', 'Hamilton Anxiety Scale', 'Raven\'s Progressive Matrices', 'WAIS-IV'];
+const availableTests = ['MMPI-2', 'SCL-90', 'Beck Depression Inventory', 'Hamilton Anxiety Scale', "Raven's Progressive Matrices", 'WAIS-IV'];
 
-const records = ref([
-  { id: 1, student_first: 'Ana',  student_last: 'Versoza',  student_id: '2021-0089', referred_by: 'Dr. Maria Reyes',  status: 'scheduled',   tests_administered: ['MMPI-2', 'SCL-90'],            testing_date: '2026-07-15', assessment_summary: '', findings: '', recommendations: '', created_at: '2026-07-03' },
-  { id: 2, student_first: 'Luz',  student_last: 'Bacani',   student_id: '2020-0201', referred_by: 'Ms. Ana Cruz',     status: 'pending',     tests_administered: [],                              testing_date: '',           assessment_summary: '', findings: '', recommendations: '', created_at: '2026-07-06' },
-  { id: 3, student_first: 'Tito', student_last: 'Ramos',    student_id: '2022-0033', referred_by: 'Dr. Maria Reyes',  status: 'completed',   tests_administered: ['Beck Depression Inventory'],   testing_date: '2026-07-08', assessment_summary: 'Moderate depression symptoms observed.', findings: 'BDI score of 21 indicating moderate depression.', recommendations: 'Continued counseling and possible referral to psychiatrist.', created_at: '2026-06-28' },
-  { id: 4, student_first: 'Nina', student_last: 'Castillo', student_id: '2023-0099', referred_by: 'Ms. Ana Cruz',     status: 'report_sent', tests_administered: ['Hamilton Anxiety Scale'],      testing_date: '2026-07-01', assessment_summary: 'Mild to moderate anxiety.', findings: 'HAM-A score of 18.', recommendations: 'Stress management sessions recommended.', created_at: '2026-06-25' },
-]);
-
-const filtered = computed(() => {
-  return records.value.filter(r => !filterStatus.value || r.status === filterStatus.value);
-});
-
-const pending = computed(() => records.value.filter(r => r.status === 'pending'));
+const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
 
 const stats = computed(() => [
   { label: 'Pending',     value: records.value.filter(r => r.status === 'pending').length,     iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
@@ -192,7 +188,21 @@ const stats = computed(() => [
   { label: 'Report Sent', value: records.value.filter(r => r.status === 'report_sent').length, iconBg: 'var(--purple-lt)',iconColor: 'var(--purple)',icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>' },
 ]);
 
-function openRecord(t) { selectedRecord.value = { ...t, tests_administered: [...(t.tests_administered || [])] }; }
+async function fetchRecords() {
+  loading.value = true;
+  try {
+    const res = await testingAPI.index({ status: filterStatus.value });
+    records.value = res.data.data || res.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+}
+
+function openRecord(t) {
+  selectedRecord.value = { ...t, tests_administered: [...(t.tests_administered || [])] };
+}
 
 function toggleTest(test) {
   if (!selectedRecord.value.tests_administered) selectedRecord.value.tests_administered = [];
@@ -201,19 +211,54 @@ function toggleTest(test) {
   else selectedRecord.value.tests_administered.splice(idx, 1);
 }
 
-function saveRecord() {
-  const idx = records.value.findIndex(r => r.id === selectedRecord.value.id);
-  if (idx !== -1) records.value[idx] = { ...selectedRecord.value };
-  selectedRecord.value = null;
+async function saveRecord() {
+  try {
+    await testingAPI.update(selectedRecord.value.id, {
+      status:              selectedRecord.value.status,
+      tests_administered:  selectedRecord.value.tests_administered,
+      testing_date:        selectedRecord.value.testing_date,
+      assessment_summary:  selectedRecord.value.assessment_summary,
+      findings:            selectedRecord.value.findings,
+      recommendations:     selectedRecord.value.recommendations,
+    });
+    const idx = records.value.findIndex(r => r.id === selectedRecord.value.id);
+    if (idx !== -1) records.value[idx] = { ...selectedRecord.value };
+    selectedRecord.value = null;
+    toast?.success('Testing record saved.');
+  } catch (e) {
+    toast?.error('Failed to save record.');
+  }
 }
 
-function sendToGcu() {
-  selectedRecord.value.status = 'report_sent';
-  saveRecord();
+async function sendToGcu() {
+  try {
+    await testingAPI.sendToGcu(selectedRecord.value.id, {
+      assessment_summary: selectedRecord.value.assessment_summary,
+      findings:           selectedRecord.value.findings,
+      recommendations:    selectedRecord.value.recommendations,
+    });
+    selectedRecord.value.status = 'report_sent';
+    const idx = records.value.findIndex(r => r.id === selectedRecord.value.id);
+    if (idx !== -1) records.value[idx].status = 'report_sent';
+    selectedRecord.value = null;
+    toast?.success('Report sent to GCU.');
+  } catch (e) {
+    toast?.error('Failed to send report.');
+  }
 }
 
-function filter() {}
-function resetFilters() { filterStatus.value = ''; }
-function initials(first, last) { return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?'; }
-function formatDate(date) { return date ? new Date(date).toLocaleDateString() : '—'; }
+function resetFilters() {
+  filterStatus.value = '';
+  fetchRecords();
+}
+
+function initials(first, last) {
+  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
+}
+
+function formatDate(date) {
+  return date ? new Date(date).toLocaleDateString() : '—';
+}
+
+onMounted(() => fetchRecords());
 </script>

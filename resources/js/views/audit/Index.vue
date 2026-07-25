@@ -10,9 +10,9 @@
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="search" type="text" class="sin" placeholder="Search description or user..." style="width:220px" />
+        <input v-model="filters.search" type="text" class="sin" placeholder="Search description or user..." style="width:220px" @input="fetchLogs" />
       </div>
-      <select v-model="filterAction" class="fsm">
+      <select v-model="filters.action" class="fsm" @change="fetchLogs">
         <option value="">All Actions</option>
         <option value="login">Login</option>
         <option value="logout">Logout</option>
@@ -26,7 +26,7 @@
         <option value="closed">Closed</option>
         <option value="exported">Exported</option>
       </select>
-      <input v-model="filterDate" type="date" class="ifi" style="width:160px" />
+      <input v-model="filters.date_from" type="date" class="ifi" style="width:160px" @change="fetchLogs" />
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button class="ibtn ibtn-o ibtn-sm" style="margin-left:auto">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -36,7 +36,10 @@
 
     <!-- Audit Log Table -->
     <div class="icard">
-      <div v-if="filtered.length === 0" class="empty-state">
+      <div v-if="loading" style="text-align:center;padding:44px">
+        <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+      </div>
+      <div v-else-if="logs.length === 0" class="empty-state">
         <h3>No audit logs found</h3>
         <p>Try adjusting your search or filters.</p>
       </div>
@@ -53,7 +56,12 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="log in filtered" :key="log.id" style="cursor:pointer" @click="openLog(log)">
+            <tr
+              v-for="log in logs"
+              :key="log.id"
+              style="cursor:pointer"
+              @click="openLog(log)"
+            >
               <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">{{ log.created_at }}</td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
@@ -75,11 +83,13 @@
       </div>
 
       <!-- Pagination -->
-      <div style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:12px;color:var(--stone)">Showing {{ filtered.length }} of {{ logs.length }} entries</span>
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">
+          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+        </span>
         <div style="display:flex;gap:6px">
-          <button class="ibtn ibtn-o ibtn-sm">Prev</button>
-          <button class="ibtn ibtn-o ibtn-sm">Next</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
         </div>
       </div>
     </div>
@@ -133,45 +143,35 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted } from 'vue';
+import { auditAPI } from '../../api/index';
 
-const search       = ref('');
-const filterAction = ref('');
-const filterDate   = ref('');
-const selectedLog  = ref(null);
+const loading    = ref(true);
+const logs       = ref([]);
+const pagination = ref({});
+const selectedLog = ref(null);
+const filters    = ref({ search: '', action: '', date_from: '' });
 
-const logs = ref([
-  { id: 1,  user_name: 'Dr. Maria Reyes',      user_role: 'gcu_staff',  action: 'login',          description: 'User Dr. Maria Reyes logged in.',                                    ip_address: '192.168.1.12', model_type: null,         model_id: null, old_values: null, new_values: null,                           created_at: '2026-07-12 08:01:22' },
-  { id: 2,  user_name: 'Prof. Juan Dela Cruz',  user_role: 'faculty',    action: 'created',        description: 'Submitted referral REF-2026-0001 for student 2023-0041.',            ip_address: '10.0.0.45',   model_type: 'Referral',   model_id: 1,    old_values: null, new_values: { status: 'submitted' },        created_at: '2026-07-12 08:15:44' },
-  { id: 3,  user_name: 'Dr. Maria Reyes',      user_role: 'gcu_staff',  action: 'acknowledged',   description: 'Acknowledged referral REF-2026-0001 and created case CASE-2026-0001.',ip_address: '192.168.1.12', model_type: 'Referral',   model_id: 1,    old_values: { status: 'submitted' }, new_values: { status: 'acknowledged' }, created_at: '2026-07-12 09:02:11' },
-  { id: 4,  user_name: 'Dr. Maria Reyes',      user_role: 'gcu_staff',  action: 'created',        description: 'Logged session #1 for case CASE-2026-0001.',                         ip_address: '192.168.1.12', model_type: 'SessionNote',model_id: 1,    old_values: null, new_values: null,                           created_at: '2026-07-12 10:30:00' },
-  { id: 5,  user_name: 'Ms. Grace Tamayo',     user_role: 'tmdu_staff', action: 'status_updated', description: 'Updated testing record #1 status to scheduled.',                    ip_address: '192.168.1.15', model_type: 'TestingRecord',model_id:1,   old_values: { status: 'pending' }, new_values: { status: 'scheduled' },    created_at: '2026-07-12 11:00:33' },
-  { id: 6,  user_name: 'Mr. Ramon Valdez',     user_role: 'sdu_head',   action: 'created',        description: 'Submitted referral REF-2026-0002 for student 2023-0112.',            ip_address: '192.168.1.22', model_type: 'Referral',   model_id: 2,    old_values: null, new_values: { status: 'submitted' },        created_at: '2026-07-12 11:45:00' },
-  { id: 7,  user_name: 'Dr. Maria Reyes',      user_role: 'gcu_staff',  action: 'viewed',         description: 'Viewed student profile 2023-0041.',                                  ip_address: '192.168.1.12', model_type: 'Student',    model_id: 1,    old_values: null, new_values: null,                           created_at: '2026-07-12 13:20:15' },
-  { id: 8,  user_name: 'Ms. Ana Cruz',         user_role: 'gcu_staff',  action: 'assigned',       description: 'Assigned referral REF-2026-0003 to user #2.',                        ip_address: '192.168.1.8',  model_type: 'Referral',   model_id: 3,    old_values: { assigned_to: null }, new_values: { assigned_to: 2 },         created_at: '2026-07-12 14:05:44' },
-  { id: 9,  user_name: 'System Administrator', user_role: 'admin',      action: 'created',        description: 'Created user account for Ms. Grace Tamayo (tmdu_staff).',            ip_address: '192.168.1.1',  model_type: 'User',       model_id: 5,    old_values: null, new_values: { role: 'tmdu_staff' },         created_at: '2026-07-11 09:00:00' },
-  { id: 10, user_name: 'Dr. Maria Reyes',      user_role: 'gcu_staff',  action: 'closed',         description: 'Closed case CASE-2026-0005.',                                        ip_address: '192.168.1.12', model_type: 'CaseFile',   model_id: 5,    old_values: { status: 'resolved' }, new_values: { status: 'closed' },       created_at: '2026-07-11 15:30:00' },
-  { id: 11, user_name: 'Prof. Juan Dela Cruz',  user_role: 'faculty',    action: 'logout',         description: 'User Prof. Juan Dela Cruz logged out.',                              ip_address: '10.0.0.45',   model_type: null,         model_id: null, old_values: null, new_values: null,                           created_at: '2026-07-11 17:00:00' },
-  { id: 12, user_name: 'Ms. Grace Tamayo',     user_role: 'tmdu_staff', action: 'report_sent',    description: 'Testing report sent to GCU for record #3.',                         ip_address: '192.168.1.15', model_type: 'TestingRecord',model_id:3,   old_values: { status: 'completed' }, new_values: { status: 'report_sent' }, created_at: '2026-07-10 11:00:00' },
-]);
-
-const filtered = computed(() => {
-  return logs.value.filter(l => {
-    const matchSearch = !search.value ||
-      l.description.toLowerCase().includes(search.value.toLowerCase()) ||
-      l.user_name.toLowerCase().includes(search.value.toLowerCase());
-    const matchAction = !filterAction.value || l.action === filterAction.value;
-    const matchDate   = !filterDate.value   || l.created_at.startsWith(filterDate.value);
-    return matchSearch && matchAction && matchDate;
-  });
-});
+async function fetchLogs(page = 1) {
+  loading.value = true;
+  try {
+    const res = await auditAPI.index({ ...filters.value, page });
+    logs.value       = res.data.data;
+    pagination.value = res.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+}
 
 function openLog(log) { selectedLog.value = log; }
 
+function changePage(page) { fetchLogs(page); }
+
 function resetFilters() {
-  search.value       = '';
-  filterAction.value = '';
-  filterDate.value   = '';
+  filters.value = { search: '', action: '', date_from: '' };
+  fetchLogs();
 }
 
 function actionStyle(action) {
@@ -215,4 +215,6 @@ function roleStyle(role) {
 function initials(name) {
   return name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
+
+onMounted(() => fetchLogs());
 </script>

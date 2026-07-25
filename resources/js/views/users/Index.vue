@@ -10,9 +10,9 @@
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="search" type="text" class="sin" placeholder="Search name or email..." style="width:220px" />
+        <input v-model="filters.search" type="text" class="sin" placeholder="Search name or email..." style="width:220px" @input="fetchUsers" />
       </div>
-      <select v-model="filterRole" class="fsm">
+      <select v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
         <option value="admin">Admin</option>
         <option value="gcu_staff">GCU Staff</option>
@@ -20,11 +20,6 @@
         <option value="tmdu_staff">TMDU Staff</option>
         <option value="faculty">Faculty</option>
         <option value="dean_secretary">Dean's Secretary</option>
-      </select>
-      <select v-model="filterStatus" class="fsm">
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click="openCreate">
@@ -35,7 +30,10 @@
 
     <!-- Users Table -->
     <div class="icard">
-      <div v-if="filtered.length === 0" class="empty-state">
+      <div v-if="loading" style="text-align:center;padding:44px">
+        <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+      </div>
+      <div v-else-if="users.length === 0" class="empty-state">
         <h3>No users found</h3>
         <p>Try adjusting your search or filters.</p>
       </div>
@@ -53,7 +51,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in filtered" :key="u.id">
+            <tr v-for="u in users" :key="u.id">
               <td>
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(u.name) }}</div>
@@ -66,7 +64,7 @@
               <td style="font-family:var(--mono);font-size:12px">{{ u.employee_id || '—' }}</td>
               <td><span class="ibadge" :style="roleStyle(u.role)">{{ roleLabel(u.role) }}</span></td>
               <td style="font-size:12px">{{ u.unit || u.college || '—' }}</td>
-              <td style="font-size:12px;color:var(--stone)">{{ u.last_login ? formatDate(u.last_login) : 'Never' }}</td>
+              <td style="font-size:12px;color:var(--stone)">{{ u.last_login_at ? formatDate(u.last_login_at) : 'Never' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
@@ -87,6 +85,17 @@
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">
+          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+        </span>
+        <div style="display:flex;gap:6px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
+        </div>
       </div>
     </div>
 
@@ -146,6 +155,7 @@
           <div v-if="!isEditing">
             <label class="ifl">Password <span style="color:var(--red)">*</span></label>
             <input v-model="userForm.password" type="password" class="ifi" placeholder="Min. 8 characters" />
+            <input v-model="userForm.password_confirmation" type="password" class="ifi" placeholder="Confirm password" style="margin-top:8px" />
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
@@ -162,71 +172,82 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, onMounted, inject } from 'vue';
+import { userAPI } from '../../api/index';
 
-const search       = ref('');
-const filterRole   = ref('');
-const filterStatus = ref('');
-const showModal    = ref(false);
-const isEditing    = ref(false);
-
-const users = ref([
-  { id: 1, name: 'System Administrator', email: 'admin@bsu.edu.ph',    employee_id: 'BSU-ADMIN-001', role: 'admin',          unit: 'OSS',  college: null, is_active: true,  last_login: '2026-07-12' },
-  { id: 2, name: 'Dr. Maria Reyes',      email: 'mreyes@bsu.edu.ph',   employee_id: 'BSU-GCU-001',  role: 'gcu_staff',      unit: 'GCU',  college: null, is_active: true,  last_login: '2026-07-12' },
-  { id: 3, name: 'Ms. Ana Cruz',         email: 'acruz@bsu.edu.ph',    employee_id: 'BSU-GCU-002',  role: 'gcu_staff',      unit: 'GCU',  college: null, is_active: true,  last_login: '2026-07-11' },
-  { id: 4, name: 'Mr. Ramon Valdez',     email: 'rvaldez@bsu.edu.ph',  employee_id: 'BSU-SDU-001',  role: 'sdu_head',       unit: 'SDU',  college: null, is_active: true,  last_login: '2026-07-10' },
-  { id: 5, name: 'Ms. Grace Tamayo',     email: 'gtamayo@bsu.edu.ph',  employee_id: 'BSU-TMDU-001', role: 'tmdu_staff',     unit: 'TMDU', college: null, is_active: true,  last_login: '2026-07-09' },
-  { id: 6, name: 'Prof. Juan Dela Cruz', email: 'jdelacruz@bsu.edu.ph',employee_id: 'BSU-FAC-001',  role: 'faculty',        unit: null,   college: 'CIT',is_active: true,  last_login: '2026-07-08' },
-  { id: 7, name: 'Ms. Liza Santos',      email: 'lsantos@bsu.edu.ph',  employee_id: 'BSU-DS-001',   role: 'dean_secretary', unit: null,   college: 'CIT',is_active: false, last_login: '2026-06-30' },
-]);
+const toast      = inject('toast');
+const loading    = ref(true);
+const showModal  = ref(false);
+const isEditing  = ref(false);
+const users      = ref([]);
+const pagination = ref({});
+const filters    = ref({ search: '', role: '' });
 
 const userForm = ref({
-  name: '', email: '', employee_id: '', role: '', unit: '', college: '', password: '',
+  name: '', email: '', employee_id: '', role: '',
+  unit: '', college: '', password: '', password_confirmation: '',
 });
 
-const filtered = computed(() => {
-  return users.value.filter(u => {
-    const matchSearch = !search.value ||
-      u.name.toLowerCase().includes(search.value.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.value.toLowerCase());
-    const matchRole   = !filterRole.value   || u.role === filterRole.value;
-    const matchStatus = !filterStatus.value ||
-      (filterStatus.value === 'active' ? u.is_active : !u.is_active);
-    return matchSearch && matchRole && matchStatus;
-  });
-});
+async function fetchUsers(page = 1) {
+  loading.value = true;
+  try {
+    const res = await userAPI.index({ ...filters.value, page });
+    users.value      = res.data.data;
+    pagination.value = res.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+}
 
 function openCreate() {
   isEditing.value = false;
-  userForm.value  = { name: '', email: '', employee_id: '', role: '', unit: '', college: '', password: '' };
+  userForm.value  = { name: '', email: '', employee_id: '', role: '', unit: '', college: '', password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
 function openEdit(u) {
   isEditing.value = true;
-  userForm.value  = { ...u };
+  userForm.value  = { ...u, password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
-function saveUser() {
-  if (!userForm.value.name || !userForm.value.email || !userForm.value.role) return;
-  if (isEditing.value) {
-    const idx = users.value.findIndex(u => u.id === userForm.value.id);
-    if (idx !== -1) users.value[idx] = { ...userForm.value };
-  } else {
-    users.value.push({ ...userForm.value, id: users.value.length + 1, is_active: true, last_login: null });
+async function saveUser() {
+  if (!userForm.value.name || !userForm.value.email || !userForm.value.role) {
+    toast?.error('Please fill in all required fields.');
+    return;
   }
-  showModal.value = false;
+  try {
+    if (isEditing.value) {
+      await userAPI.update(userForm.value.id, userForm.value);
+      toast?.success('User updated successfully.');
+    } else {
+      await userAPI.store(userForm.value);
+      toast?.success('User created successfully.');
+    }
+    showModal.value = false;
+    fetchUsers();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to save user.');
+  }
 }
 
-function toggleActive(u) {
-  u.is_active = !u.is_active;
+async function toggleActive(u) {
+  try {
+    await userAPI.toggleActive(u.id);
+    u.is_active = !u.is_active;
+    toast?.success(`User ${u.is_active ? 'activated' : 'deactivated'}.`);
+  } catch (e) {
+    toast?.error('Failed to update user status.');
+  }
 }
+
+function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  search.value       = '';
-  filterRole.value   = '';
-  filterStatus.value = '';
+  filters.value = { search: '', role: '' };
+  fetchUsers();
 }
 
 function roleLabel(role) {
@@ -256,4 +277,6 @@ function initials(name) {
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '—';
 }
+
+onMounted(() => fetchUsers());
 </script>

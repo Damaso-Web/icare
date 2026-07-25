@@ -4,70 +4,37 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 
-class CaseFile extends Model
+class SessionNote extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $table = 'cases';
+    use HasFactory;
 
     protected $fillable = [
-        'case_number',
+        'case_id',
         'student_id',
-        'referral_id',
-        'primary_counselor_id',
-        'current_unit',
-        'case_type',
-        'status',
-        'opened_date',
-        'closed_date',
-        'target_resolution_date',
-        'total_sessions',
-        'last_session_at',
-        'presenting_concern',
-        'background_info',
-        'interventions_applied',
-        'outcomes',
-        'recommendations',
-        'closure_summary',
-        'is_recurring',
-        'requires_follow_up',
-        'referred_to_tmdu',
-        'referred_externally',
-        'external_referral_destination',
+        'recorded_by_user_id',
+        'session_number',
+        'session_date',
+        'session_start_time',
+        'session_end_time',
+        'duration_minutes',
+        'session_type',
+        'observations',
+        'interventions',
+        'student_response',
+        'next_steps',
+        'student_showed_up',
+        'mood_rating',
+        'follow_up_needed',
     ];
 
     protected $casts = [
-        'opened_date'            => 'date',
-        'closed_date'            => 'date',
-        'target_resolution_date' => 'date',
-        'last_session_at'        => 'datetime',
-        'is_recurring'           => 'boolean',
-        'requires_follow_up'     => 'boolean',
-        'referred_to_tmdu'       => 'boolean',
-        'referred_externally'    => 'boolean',
+        'session_date'      => 'date',
+        'student_showed_up' => 'boolean',
+        'follow_up_needed'  => 'boolean',
     ];
 
-    protected static function booted(): void
-    {
-        static::creating(function (CaseFile $case) {
-            $year = now()->year;
-            $count = static::whereYear('created_at', $year)->count() + 1;
-            $case->case_number = 'CASE-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
-        });
-    }
-
-    // Relationships
-    public function student()      { return $this->belongsTo(Student::class); }
-    public function referral()     { return $this->belongsTo(Referral::class); }
-    public function counselor()    { return $this->belongsTo(User::class, 'primary_counselor_id'); }
-    public function sessionNotes() { return $this->hasMany(SessionNote::class, 'case_id')->orderBy('session_date'); }
-    public function appointments() { return $this->hasMany(Appointment::class, 'case_id')->orderBy('appointment_date'); }
-    public function testingRecord(){ return $this->hasOne(TestingRecord::class, 'case_id'); }
-    public function handoffs()     { return $this->hasMany(CaseHandoff::class, 'case_id'); }
-    public function documents()    { return $this->morphMany(Document::class, 'documentable'); }
-
-    // Helpers
-    public function isOpen(): bool { return !in_array($this->status, ['resolved', 'closed']); }
+    public function case()       { return $this->belongsTo(CaseFile::class, 'case_id'); }
+    public function student()    { return $this->belongsTo(Student::class); }
+    public function recordedBy() { return $this->belongsTo(User::class, 'recorded_by_user_id'); }
 }

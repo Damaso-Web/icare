@@ -29,7 +29,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
-              <input v-model="form.student_id" class="ifi" placeholder="e.g. 2023-12345" required />
+              <input v-model="form.student_id_input" class="ifi" placeholder="e.g. 2023-0041" required />
             </div>
             <div>
               <label class="ifl">Full Name <span style="color:var(--red)">*</span></label>
@@ -53,12 +53,12 @@
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
               <select v-model="form.college" class="ifse" required>
                 <option value="">Select college...</option>
-                <option>CIS</option>
+                <option>CIT</option>
                 <option>CAS</option>
-                <option>COE</option>
-                <option>CHET</option>
-                <option>CTE</option>
-                <option>CHK</option>
+                <option>CEA</option>
+                <option>CB</option>
+                <option>CED</option>
+                <option>CA</option>
               </select>
             </div>
             <div>
@@ -84,8 +84,8 @@
                 <option value="consultation">Scholarship / Grant Assistance</option>
                 <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
                 <option value="disciplinary">Student Housing (Dormitories)</option>
-                <option value="other">For Student Employment (SA/SPES)</option>
-                <option value="others">Others</option>
+                <option value="others">For Student Employment (SA/SPES)</option>
+                <option value="other">Others</option>
               </select>
             </div>
             <div>
@@ -117,7 +117,7 @@
             <textarea
               v-model="form.nature_of_concern"
               class="ifta"
-              placeholder="Describe the student's concern in detail. Include observed behaviors, academic performance issues, or disciplinary incidents..."
+              placeholder="Describe the student's concern in detail..."
               required
             ></textarea>
           </div>
@@ -152,15 +152,17 @@
 <script setup>
 import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
+import { referralAPI, studentAPI } from '../../api/index';
 
 const router = useRouter();
 const toast  = inject('toast');
+
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
 
 const form = ref({
-  student_id:            '',
+  student_id_input:      '',
   student_name:          '',
   program:               '',
   year_level:            '1st Year',
@@ -172,34 +174,79 @@ const form = ref({
   referral_source:       'faculty',
   nature_of_concern:     '',
   previous_interventions:'',
+  student_id:            null,
 });
 
 async function handleSubmit() {
   error.value   = '';
   success.value = '';
 
-  if (!form.value.student_id || !form.value.student_name || !form.value.college || !form.value.referral_type || !form.value.nature_of_concern) {
+  if (!form.value.student_id_input || !form.value.student_name ||
+      !form.value.college || !form.value.referral_type ||
+      !form.value.nature_of_concern) {
     error.value = 'Please fill in all required fields.';
     return;
   }
 
   loading.value = true;
-  setTimeout(() => {
-    loading.value = false;
-    success.value = 'Referral submitted successfully! GCU has been notified.';
+
+  try {
+    // Search for student by student_id
+    let studentId = form.value.student_id;
+
+    if (!studentId) {
+      const searchRes = await studentAPI.index({ search: form.value.student_id_input });
+      const found = searchRes.data.data?.find(
+        s => s.student_id === form.value.student_id_input
+      );
+
+      if (found) {
+        studentId = found.id;
+      } else {
+        // Student not found — create a new student record
+        const newStudent = await studentAPI.store({
+          student_id:  form.value.student_id_input,
+          first_name:  form.value.student_name.split(',')[1]?.trim() || form.value.student_name,
+          last_name:   form.value.student_name.split(',')[0]?.trim() || form.value.student_name,
+          year_level:  form.value.year_level,
+          college:     form.value.college,
+          program:     form.value.program,
+          section:     form.value.section,
+        });
+        studentId = newStudent.data.id;
+      }
+    }
+
+    // Submit referral
+    await referralAPI.store({
+      student_id:         studentId,
+      referral_type:      form.value.referral_type,
+      nature_of_concern:  form.value.nature_of_concern,
+      urgency_level:      form.value.urgency_level,
+      is_self_referred:   form.value.referral_source === 'self',
+    });
+
     toast?.success('Referral submitted successfully!');
+    success.value = 'Referral submitted successfully! GCU has been notified.';
     setTimeout(() => router.push({ name: 'referrals' }), 1500);
-  }, 1000);
+
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Failed to submit referral.';
+    toast?.error(error.value);
+  } finally {
+    loading.value = false;
+  }
 }
 
 function clearForm() {
   error.value   = '';
   success.value = '';
   form.value = {
-    student_id: '', student_name: '', program: '', year_level: '1st Year',
-    college: '', section: '', referral_type: '', urgency_level: 'medium',
-    preferred_date: '', referral_source: 'faculty',
-    nature_of_concern: '', previous_interventions: '',
+    student_id_input: '', student_name: '', program: '',
+    year_level: '1st Year', college: '', section: '',
+    referral_type: '', urgency_level: 'medium', preferred_date: '',
+    referral_source: 'faculty', nature_of_concern: '',
+    previous_interventions: '', student_id: null,
   };
 }
 </script>

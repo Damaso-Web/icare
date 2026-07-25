@@ -10,9 +10,9 @@
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="search" type="text" class="sin" placeholder="Search name or student ID..." style="width:240px" @input="fetchStudents"/>
+        <input v-model="filters.search" type="text" class="sin" placeholder="Search name or student ID..." style="width:240px" @input="fetchStudents"/>
       </div>
-      <select v-model="filterCollege" class="fsm" @change="fetchStudents">
+      <select v-model="filters.college" class="fsm" @change="fetchStudents">
         <option value="">All Colleges</option>
         <option>CIT</option>
         <option>CAS</option>
@@ -21,7 +21,7 @@
         <option>CED</option>
         <option>CA</option>
       </select>
-      <select v-model="filterYear" class="fsm" @change="fetchStudents">
+      <select v-model="filters.year_level" class="fsm" @change="fetchStudents">
         <option value="">All Year Levels</option>
         <option>1st Year</option>
         <option>2nd Year</option>
@@ -99,22 +99,15 @@
 import { ref, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
 
-const students      = ref([]);
-const loading       = ref(true);
-const pagination    = ref({});
-const search        = ref('');
-const filterCollege = ref('');
-const filterYear    = ref('');
+const students   = ref([]);
+const loading    = ref(true);
+const pagination = ref({});
+const filters    = ref({ search: '', college: '', year_level: '' });
 
 async function fetchStudents(page = 1) {
   loading.value = true;
   try {
-    const res = await studentAPI.index({
-      search:     search.value,
-      college:    filterCollege.value,
-      year_level: filterYear.value,
-      page,
-    });
+    const res = await studentAPI.index({ ...filters.value, page });
     students.value   = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -125,9 +118,7 @@ async function fetchStudents(page = 1) {
 }
 
 function resetFilters() {
-  search.value        = '';
-  filterCollege.value = '';
-  filterYear.value    = '';
+  filters.value = { search: '', college: '', year_level: '' };
   fetchStudents();
 }
 
