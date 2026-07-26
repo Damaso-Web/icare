@@ -7,6 +7,8 @@ use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\CaseHandoff;
 use App\Models\TestingRecord;
+use App\Models\User;
+use App\Notifications\UnreachableStudentNotification;
 use Illuminate\Http\Request;
 
 class CaseController extends Controller
@@ -185,5 +187,39 @@ class CaseController extends Controller
 
         AuditLog::record('handoff', "Case {$case->case_number} handed off to {$request->to_unit}.", $case);
         return response()->json($case);
+    }
+
+    // FR 2.7: Alert Dean's Secretary for Unreachable Students
+    public function flagUnreachable(Request $request, CaseFile $case)
+    {
+        $request->validate([
+            'notes' => 'nullable|string',
+        ]);
+
+        $case->update([
+            'student_unreachable'     => true,
+            'unreachable_flagged_at'  => now(),
+            'unreachable_flagged_by'  => $request->user()->id,
+            'unreachable_notes'       => $request->notes,
+        ]);
+
+        // Find Dean's Secretary of the student's college
+        $deanSecretaries = User::where('role', 'dean_secretary')
+            ->where('college', $case->student->college)
+            ->where('is_active', true)
+            ->get();
+
+        // Send notification to each Dean's Secretary
+        foreach ($deanSecretaries as $secretary) {
+            $secretary->notify(new UnreachableStudentNotification($case, $request->notes ?? ''));
+        }
+
+        AuditLog::record('unreachable_flagged', "Student flagged as unreachable for case {$case->case_number}.", $case);
+
+        return response()->json([
+            'message'  => 'Student flagged as unreachable. Dean\'s Secretary has been notified.',
+            'case'     => $case,
+            'notified' => $deanSecretaries->count(),
+        ]);
     }
 }

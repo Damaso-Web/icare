@@ -61,6 +61,11 @@
                 <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.last_session_at) }}</div>
               </div>
             </div>
+            <!-- Unreachable Banner -->
+            <div v-if="caseFile.student_unreachable" style="margin:0 16px 16px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
+              <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Student flagged as unreachable. Dean's Secretary has been notified.
+            </div>
           </div>
 
           <!-- Presenting Concern -->
@@ -122,6 +127,7 @@
                     <th>Time</th>
                     <th>Staff</th>
                     <th>Status</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -131,6 +137,17 @@
                     <td style="font-size:12px">{{ a.start_time }}</td>
                     <td style="font-size:12px">{{ a.staff?.name }}</td>
                     <td><span class="ibadge" :class="'ibadge-' + a.status">{{ a.status }}</span></td>
+                    <td>
+                      <button
+                        v-if="a.status === 'no_show' && !a.no_show_escalated"
+                        class="ibtn ibtn-sm"
+                        style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);font-size:11px"
+                        @click="escalateNoShow(a)"
+                      >
+                        Escalate
+                      </button>
+                      <span v-if="a.no_show_escalated" style="font-size:11px;color:var(--fog)">Escalated</span>
+                    </td>
                   </tr>
                 </tbody>
               </table>
@@ -157,6 +174,15 @@
               <button class="ibtn ibtn-blue" style="width:100%;justify-content:center" @click="referToTmdu">
                 <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Refer to TMDU
+              </button>
+              <button
+                class="ibtn"
+                style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
+                @click="showUnreachableModal = true"
+                :disabled="caseFile.student_unreachable"
+              >
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                {{ caseFile.student_unreachable ? 'Student Flagged Unreachable' : 'Flag as Unreachable' }}
               </button>
               <button class="ibtn" style="width:100%;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="showCloseModal = true">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -342,6 +368,32 @@
         </div>
       </div>
 
+      <!-- Flag Unreachable Modal -->
+      <div v-if="showUnreachableModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUnreachableModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Flag Student as Unreachable</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showUnreachableModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--amber)">
+              ⚠ This will notify the Dean's Secretary of {{ caseFile.student?.college }} that the student is unreachable.
+            </div>
+            <div>
+              <label class="ifl">Notes / Reason</label>
+              <textarea v-model="unreachableNotes" class="ifta" placeholder="Describe attempts made to contact the student..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="flagUnreachable">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                Flag as Unreachable
+              </button>
+              <button class="ibtn ibtn-o" @click="showUnreachableModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
@@ -349,16 +401,18 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
-import { caseAPI, sessionNoteAPI } from '../../api/index';
+import { caseAPI, sessionNoteAPI, appointmentAPI } from '../../api/index';
 
 const route  = useRoute();
 const toast  = inject('toast');
 
-const loading         = ref(true);
-const showSessionModal = ref(false);
-const showCloseModal   = ref(false);
-const showStatusModal  = ref(false);
-const newStatus        = ref('');
+const loading              = ref(true);
+const showSessionModal     = ref(false);
+const showCloseModal       = ref(false);
+const showStatusModal      = ref(false);
+const showUnreachableModal = ref(false);
+const newStatus            = ref('');
+const unreachableNotes     = ref('');
 
 const caseFile     = ref({});
 const sessionNotes = ref([]);
@@ -385,7 +439,11 @@ async function logSession() {
     caseFile.value.total_sessions++;
     showSessionModal.value = false;
     toast?.success('Session logged successfully.');
-    sessionForm.value = { session_date: '', session_start_time: '', session_end_time: '', session_type: 'follow_up', observations: '', interventions: '', student_response: '', next_steps: '', mood_rating: '', student_showed_up: true };
+    sessionForm.value = {
+      session_date: '', session_start_time: '', session_end_time: '',
+      session_type: 'follow_up', observations: '', interventions: '',
+      student_response: '', next_steps: '', mood_rating: '', student_showed_up: true,
+    };
   } catch (e) {
     toast?.error('Failed to log session.');
   }
@@ -409,7 +467,7 @@ async function closeCase() {
   }
   try {
     const res = await caseAPI.close(caseFile.value.id, closeForm.value);
-    caseFile.value = res.data;
+    caseFile.value = { ...caseFile.value, ...res.data };
     showCloseModal.value = false;
     toast?.success('Case closed successfully.');
   } catch (e) {
@@ -425,6 +483,27 @@ async function referToTmdu() {
     toast?.success('Case referred to TMDU.');
   } catch (e) {
     toast?.error('Failed to refer to TMDU.');
+  }
+}
+
+async function flagUnreachable() {
+  try {
+    await caseAPI.flagUnreachable(caseFile.value.id, { notes: unreachableNotes.value });
+    caseFile.value.student_unreachable = true;
+    showUnreachableModal.value         = false;
+    toast?.success("Student flagged as unreachable. Dean's Secretary has been notified.");
+  } catch (e) {
+    toast?.error('Failed to flag student as unreachable.');
+  }
+}
+
+async function escalateNoShow(appointment) {
+  try {
+    await appointmentAPI.escalateNoShow(appointment.id);
+    appointment.no_show_escalated = true;
+    toast?.success("No-show escalated to Dean's Secretary.");
+  } catch (e) {
+    toast?.error('Failed to escalate no-show.');
   }
 }
 

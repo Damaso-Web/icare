@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Appointment;
 use App\Models\StaffAvailability;
+use App\Models\User;
+use App\Notifications\NoShowEscalationNotification;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -127,10 +129,10 @@ class AppointmentController extends Controller
         $request->validate(['cancellation_reason' => 'required|string']);
 
         $appointment->update([
-            'status'              => 'cancelled',
-            'cancellation_reason' => $request->cancellation_reason,
-            'cancelled_at'        => now(),
-            'cancelled_by_user_id'=> $request->user()->id,
+            'status'               => 'cancelled',
+            'cancellation_reason'  => $request->cancellation_reason,
+            'cancelled_at'         => now(),
+            'cancelled_by_user_id' => $request->user()->id,
         ]);
 
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
@@ -148,6 +150,36 @@ class AppointmentController extends Controller
 
         AuditLog::record('checked_in', "Student checked in for appointment {$appointment->appointment_code}.", $appointment);
         return response()->json($appointment);
+    }
+
+    // FR 2.6: Escalate No-Show to Dean's Secretary
+    public function escalateNoShow(Request $request, Appointment $appointment)
+    {
+        // Mark appointment as no_show
+        $appointment->update([
+            'status'               => 'no_show',
+            'no_show_escalated'    => true,
+            'no_show_escalated_at' => now(),
+        ]);
+
+        // Find Dean's Secretary of the student's college
+        $deanSecretaries = User::where('role', 'dean_secretary')
+            ->where('college', $appointment->student->college)
+            ->where('is_active', true)
+            ->get();
+
+        // Send notification to each Dean's Secretary
+        foreach ($deanSecretaries as $secretary) {
+            $secretary->notify(new NoShowEscalationNotification($appointment));
+        }
+
+        AuditLog::record('no_show_escalated', "No-show escalated for appointment {$appointment->appointment_code} to Dean's Secretary.", $appointment);
+
+        return response()->json([
+            'message'    => 'No-show escalated to Dean\'s Secretary.',
+            'appointment'=> $appointment,
+            'notified'   => $deanSecretaries->count(),
+        ]);
     }
 
     public function availability(Request $request)

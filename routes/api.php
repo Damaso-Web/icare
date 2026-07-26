@@ -52,6 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cases/{case}/refer-external', [CaseController::class, 'referExternal']);
     Route::post('cases/{case}/handoff',        [CaseController::class, 'handoff']);
 
+
+    Route::post('cases/{case}/flag-unreachable',            [CaseController::class, 'flagUnreachable']);
+
     // Session Notes
     Route::get('cases/{case}/session-notes',           [SessionNoteController::class, 'index']);
     Route::post('cases/{case}/session-notes',          [SessionNoteController::class, 'store']);
@@ -65,6 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{appointment}/cancel',     [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
+    Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 
