@@ -5,3 +5,5 @@
 /public/hot
 /public/storage
 .phpunit.result.cache
+.env.backup
+ca.pem
