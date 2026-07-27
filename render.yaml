@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: icare-backend
+    env: php
+    buildCommand: |
+      composer install --no-dev --optimize-autoloader --no-security-blocking
+      php artisan config:cache
+      php artisan route:cache
+      php artisan view:cache
+    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    envVars:
+      - key: APP_NAME
+        value: iCARE
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: DB_CONNECTION
+        value: mysql
+      - key: DB_HOST
+        value: mysql-90dc979-anabua70-3857.a.aivencloud.com
+      - key: DB_PORT
+        value: 11220
+      - key: DB_DATABASE
+        value: defaultdb
+      - key: DB_USERNAME
+        value: avnadmin
