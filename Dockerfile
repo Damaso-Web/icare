@@ -2,7 +2,9 @@ FROM richarvey/nginx-php-fpm:3.1.6
 
 COPY . .
 
-RUN composer install --no-dev --optimize-autoloader --no-security-blocking
+ENV COMPOSER_ALLOW_SUPERUSER 1
+
+RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
 
 # Image config
 ENV SKIP_COMPOSER 1
@@ -15,8 +17,5 @@ ENV REAL_IP_HEADER 1
 ENV APP_ENV production
 ENV APP_DEBUG false
 ENV LOG_CHANNEL stderr
-
-# Allow composer to run as root
-ENV COMPOSER_ALLOW_SUPERUSER 1
 
 CMD ["/start.sh"]
