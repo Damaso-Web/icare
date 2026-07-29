@@ -1,7 +1,7 @@
 FROM richarvey/nginx-php-fpm:3.1.6
 
-# Install Node.js and npm using Alpine's package manager
-RUN apk add --no-cache nodejs npm
+# Install Node.js (current version, v22+)
+RUN apk add --no-cache nodejs-current npm
 
 # Copy application source
 COPY . .
