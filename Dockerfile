@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     libonig-dev \
     libxml2-dev \
+    nodejs \
+    npm \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd
 
 # Enable Apache mod_rewrite
@@ -25,8 +27,11 @@ WORKDIR /var/www/html
 # Copy project files
 COPY . .
 
-# Install dependencies
+# Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --ignore-platform-reqs
+
+# Install Node dependencies and build frontend
+RUN npm install && npm run build
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
