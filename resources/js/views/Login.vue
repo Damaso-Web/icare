@@ -18,7 +18,7 @@
           <div class="lp-feat"><div class="lp-dot"></div>Psychological testing &amp; assessment (TMDU)</div>
           <div class="lp-feat"><div class="lp-dot"></div>Reports, analytics &amp; audit logs</div>
         </div>
-        <div class="lp-foot">Batangas State University · Batangas City · 2026</div>
+        <div class="lp-foot">Benguet State University · La Trinidad Benguet · 2026</div>
       </div>
 
       <!-- Right Panel -->

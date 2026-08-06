@@ -80,10 +80,6 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
-              <button class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Log Session
-              </button>
             </div>
             <div v-if="sessionNotes.length === 0" class="empty-state">
               <h3>No sessions yet</h3>
@@ -103,7 +99,10 @@
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Next Steps</div>
                   <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
                 </div>
-                <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:6px">
+                Recorded by {{ note.recorded_by?.name }}
+                <span v-if="note.session_start_time"> · {{ note.session_start_time }} – {{ note.session_end_time }}</span>
+              </div>
               </div>
             </div>
           </div>
@@ -171,10 +170,22 @@
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Appointment
               </router-link>
-              <button class="ibtn ibtn-blue" style="width:100%;justify-content:center" @click="referToTmdu">
+              <!-- Refer to TMDU — only show if not yet referred -->
+              <button
+                v-if="!caseFile.referred_to_tmdu"
+                class="ibtn ibtn-blue"
+                style="width:100%;justify-content:center"
+                @click="referToTmdu"
+              >
                 <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Refer to TMDU
               </button>
+              <div
+                v-if="caseFile.referred_to_tmdu"
+                style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center"
+              >
+                ✓ Already referred to TMDU
+              </div>
               <button
                 class="ibtn"
                 style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
@@ -184,7 +195,12 @@
                 <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 {{ caseFile.student_unreachable ? 'Student Flagged Unreachable' : 'Flag as Unreachable' }}
               </button>
-              <button class="ibtn" style="width:100%;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="showCloseModal = true">
+              <button
+                v-if="caseFile.status !== 'closed'"
+                class="ibtn"
+                style="width:100%;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
+                @click="showCloseModal = true"
+              >
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 Close Case
               </button>

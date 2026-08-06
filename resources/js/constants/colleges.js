@@ -1,0 +1,33 @@
+export const COLLEGES = [
+  'College of Agriculture (CA)',
+  'College of Arts and Humanities (CAH)',
+  'College of Engineering (CE)',
+  'College of Forestry (CF)',
+  'College of Home Economics and Technology (CHET)',
+  'College of Human Kinetics (CHK)',
+  'College of Information Sciences (CIS)',
+  'College of Natural Sciences (CNS)',
+  'College of Numeracy and Applied Sciences (CNAS)',
+  'College of Nursing (CON)',
+  'College of Public Administration and Governance (CPAG)',
+  'College of Social Sciences (CSS)',
+  'College of Teacher Education (CTE)',
+  'College of Veterinary Medicine (CVM)',
+];
+
+export const COLLEGE_ABBREVS = {
+  'College of Agriculture (CA)':                          'CA',
+  'College of Arts and Humanities (CAH)':                 'CAH',
+  'College of Engineering (CE)':                          'CE',
+  'College of Forestry (CF)':                             'CF',
+  'College of Home Economics and Technology (CHET)':      'CHET',
+  'College of Human Kinetics (CHK)':                      'CHK',
+  'College of Information Sciences (CIS)':                'CIS',
+  'College of Natural Sciences (CNS)':                    'CNS',
+  'College of Numeracy and Applied Sciences (CNAS)':      'CNAS',
+  'College of Nursing (CON)':                             'CON',
+  'College of Public Administration and Governance (CPAG)':'CPAG',
+  'College of Social Sciences (CSS)':                     'CSS',
+  'College of Teacher Education (CTE)':                   'CTE',
+  'College of Veterinary Medicine (CVM)':                 'CVM',
+};

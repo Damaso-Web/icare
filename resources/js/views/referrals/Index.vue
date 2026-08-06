@@ -12,13 +12,6 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @input="fetchReferrals" style="width:220px"/>
       </div>
-      <select v-model="filters.urgency" class="fsm" @change="fetchReferrals">
-        <option value="">All Urgency</option>
-        <option value="critical">Critical</option>
-        <option value="high">High</option>
-        <option value="medium">Medium</option>
-        <option value="low">Low</option>
-      </select>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
@@ -29,13 +22,15 @@
         <option value="closed">Closed</option>
       </select>
       <select v-model="filters.type" class="fsm" @change="fetchReferrals">
-        <option value="">All Types</option>
-        <option value="counseling">Counseling</option>
-        <option value="academic_coaching">Academic Coaching</option>
-        <option value="admission_slip">Admission Slip</option>
+        <option value="">All Services</option>
+        <option value="counseling">Class Attendance / Absent / Tardy</option>
+        <option value="academic_coaching">Academic Deficiency</option>
         <option value="psychological_testing">Psychological Testing</option>
-        <option value="disciplinary">Disciplinary</option>
-        <option value="consultation">Consultation</option>
+        <option value="consultation">Scholarship / Grant Assistance</option>
+        <option value="admission_slip">Student Organizations &amp; Activities</option>
+        <option value="disciplinary">Student Housing (Dormitories)</option>
+        <option value="others">For Student Employment (SA/SPES)</option>
+        <option value="other">Others</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <router-link :to="{ name: 'referral-create' }" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto">
@@ -108,7 +103,7 @@ import { referralAPI } from '../../api/index';
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', urgency: '', type: '' });
+const filters = ref({ search: '', status: '', type: '' });
 
 async function fetchReferrals(page = 1) {
   loading.value = true;

@@ -3,10 +3,23 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Submit a Referral</h1>
-      <p>Complete this form to refer a student to the Guidance &amp; Counseling Unit.</p>
+      <p>Complete this form to refer a student to the Office of Student Services.</p>
     </div>
 
-    <div class="icard" style="max-width:720px">
+    <div class="icard" style="max-width:780px">
+
+      <!-- Document Code Header -->
+      <div style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+        <div style="font-size:11px;color:var(--stone)">
+          <div><strong>Document Code:</strong> QF-OSS-01</div>
+          <div><strong>Revision No.:</strong> 01</div>
+        </div>
+        <div style="font-size:11px;color:var(--stone);text-align:right">
+          <div><strong>Effectivity:</strong> 07/04/23</div>
+          <div><strong>Ctrl No.:</strong> 25-2</div>
+        </div>
+      </div>
+
       <div class="icard-body">
 
         <!-- Success / Error -->
@@ -26,22 +39,53 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
+          <!-- Student ID -->
+          <div style="margin-bottom:14px">
+            <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="form.student_id_input"
+              class="ifi"
+              placeholder="e.g. 2302021"
+              required
+            />
+          </div>
+
+          <!-- Name Fields -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:14px;margin-bottom:14px">
+            <div>
+              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" required />
+            </div>
+            <div>
+              <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
+              <input v-model="form.first_name" class="ifi" placeholder="Juan" required />
+            </div>
+            <div>
+              <label class="ifl">Middle Name</label>
+              <input v-model="form.middle_name" class="ifi" placeholder="Santos" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <input v-model="form.suffix" class="ifi" placeholder="Jr." />
+            </div>
+          </div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-              <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
-              <input v-model="form.student_id_input" class="ifi" placeholder="e.g. 2023-0041" required />
+              <label class="ifl">College <span style="color:var(--red)">*</span></label>
+              <select v-model="form.college" class="ifse" required>
+                <option value="">Select college...</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
             </div>
             <div>
-              <label class="ifl">Full Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.student_name" class="ifi" placeholder="Last, First Middle" required />
+              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+              <input v-model="form.program" class="ifi" placeholder="e.g. Bachelor of Science in Information Technology" required />
             </div>
             <div>
-              <label class="ifl">Program</label>
-              <input v-model="form.program" class="ifi" placeholder="e.g. BSIT" />
-            </div>
-            <div>
-              <label class="ifl">Year Level</label>
-              <select v-model="form.year_level" class="ifse">
+              <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
+              <select v-model="form.year_level" class="ifse" required>
+                <option value="">Select year level...</option>
                 <option>1st Year</option>
                 <option>2nd Year</option>
                 <option>3rd Year</option>
@@ -50,20 +94,33 @@
               </select>
             </div>
             <div>
-              <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="form.college" class="ifse" required>
-                <option value="">Select college...</option>
-                <option>CIT</option>
-                <option>CAS</option>
-                <option>CEA</option>
-                <option>CB</option>
-                <option>CED</option>
-                <option>CA</option>
-              </select>
+              <label class="ifl">Section</label>
+              <input v-model="form.section" class="ifi" placeholder="e.g. A" />
+            </div>
+          </div>
+
+          <!-- Referred By Section -->
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
+            Referred By
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+            <div>
+              <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
+              <input v-model="form.referrer_name_input" class="ifi" placeholder="Full name of person referring" required />
             </div>
             <div>
-              <label class="ifl">Section / Class</label>
-              <input v-model="form.section" class="ifi" placeholder="e.g. BSIT 3-A" />
+              <label class="ifl">Position / Role</label>
+              <input v-model="form.referrer_position" class="ifi" placeholder="e.g. Instructor, Adviser" />
+            </div>
+            <div>
+              <label class="ifl">Department / College</label>
+              <input v-model="form.referrer_department" class="ifi" placeholder="e.g. College of Information Sciences" />
+            </div>
+            <div>
+              <label class="ifl">Contact Number</label>
+              <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" />
             </div>
           </div>
 
@@ -78,7 +135,7 @@
               <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
               <select v-model="form.referral_type" class="ifse" required>
                 <option value="">Select service...</option>
-                <option value="counseling">Class Attendance / Absent / Tardy On</option>
+                <option value="counseling">Class Attendance / Absent / Tardy</option>
                 <option value="academic_coaching">Academic Deficiency</option>
                 <option value="psychological_testing">Psychological Testing</option>
                 <option value="consultation">Scholarship / Grant Assistance</option>
@@ -86,14 +143,6 @@
                 <option value="disciplinary">Student Housing (Dormitories)</option>
                 <option value="others">For Student Employment (SA/SPES)</option>
                 <option value="other">Others</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Urgency Level <span style="color:var(--red)">*</span></label>
-              <select v-model="form.urgency_level" class="ifse" required>
-                <option value="low">🟢 Low — can wait up to 2 weeks</option>
-                <option value="medium">🟡 Medium — schedule this week</option>
-                <option value="high">🔴 High — contact student ASAP</option>
               </select>
             </div>
             <div>
@@ -124,12 +173,23 @@
 
           <div style="margin-bottom:14px">
             <label class="ifl">Previous Interventions (if any)</label>
+            <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
             <textarea
               v-model="form.previous_interventions"
               class="ifta"
               style="min-height:60px"
               placeholder="Describe any prior support or actions already taken..."
             ></textarea>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
+              <div>
+                <label class="ifl">By</label>
+                <input v-model="form.intervention_by" class="ifi" placeholder="Name of OSS Personnel" />
+              </div>
+              <div>
+                <label class="ifl">Date</label>
+                <input v-model="form.intervention_date" type="date" class="ifi" />
+              </div>
+            </div>
           </div>
 
           <!-- Actions -->
@@ -153,9 +213,12 @@
 import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { referralAPI, studentAPI } from '../../api/index';
+import { COLLEGES } from '../../constants/colleges';
 
 const router = useRouter();
 const toast  = inject('toast');
+
+const colleges = COLLEGES;
 
 const error   = ref('');
 const success = ref('');
@@ -163,27 +226,34 @@ const loading = ref(false);
 
 const form = ref({
   student_id_input:      '',
-  student_name:          '',
+  last_name:             '',
+  first_name:            '',
+  middle_name:           '',
+  suffix:                '',
   program:               '',
-  year_level:            '1st Year',
+  year_level:            '',
   college:               '',
   section:               '',
+  referrer_name_input:   '',
+  referrer_position:     '',
+  referrer_department:   '',
+  referrer_contact:      '',
   referral_type:         '',
-  urgency_level:         'medium',
   preferred_date:        '',
   referral_source:       'faculty',
   nature_of_concern:     '',
   previous_interventions:'',
-  student_id:            null,
+  intervention_by:       '',
+  intervention_date:     '',
 });
 
 async function handleSubmit() {
   error.value   = '';
   success.value = '';
 
-  if (!form.value.student_id_input || !form.value.student_name ||
-      !form.value.college || !form.value.referral_type ||
-      !form.value.nature_of_concern) {
+  if (!form.value.student_id_input || !form.value.last_name ||
+      !form.value.first_name || !form.value.college ||
+      !form.value.referral_type || !form.value.nature_of_concern) {
     error.value = 'Please fill in all required fields.';
     return;
   }
@@ -191,30 +261,28 @@ async function handleSubmit() {
   loading.value = true;
 
   try {
-    // Search for student by student_id
-    let studentId = form.value.student_id;
+    // Search for existing student
+    let studentId = null;
+    const searchRes = await studentAPI.index({ search: form.value.student_id_input });
+    const found = searchRes.data.data?.find(
+      s => s.student_id === form.value.student_id_input
+    );
 
-    if (!studentId) {
-      const searchRes = await studentAPI.index({ search: form.value.student_id_input });
-      const found = searchRes.data.data?.find(
-        s => s.student_id === form.value.student_id_input
-      );
-
-      if (found) {
-        studentId = found.id;
-      } else {
-        // Student not found — create a new student record
-        const newStudent = await studentAPI.store({
-          student_id:  form.value.student_id_input,
-          first_name:  form.value.student_name.split(',')[1]?.trim() || form.value.student_name,
-          last_name:   form.value.student_name.split(',')[0]?.trim() || form.value.student_name,
-          year_level:  form.value.year_level,
-          college:     form.value.college,
-          program:     form.value.program,
-          section:     form.value.section,
-        });
-        studentId = newStudent.data.id;
-      }
+    if (found) {
+      studentId = found.id;
+    } else {
+      // Create new student with separate name fields
+      const newStudent = await studentAPI.store({
+        student_id:  form.value.student_id_input,
+        first_name:  form.value.first_name,
+        last_name:   form.value.last_name,
+        middle_name: form.value.middle_name,
+        year_level:  form.value.year_level,
+        college:     form.value.college,
+        program:     form.value.program,
+        section:     form.value.section,
+      });
+      studentId = newStudent.data.id;
     }
 
     // Submit referral
@@ -222,7 +290,7 @@ async function handleSubmit() {
       student_id:         studentId,
       referral_type:      form.value.referral_type,
       nature_of_concern:  form.value.nature_of_concern,
-      urgency_level:      form.value.urgency_level,
+      urgency_level:      'medium',
       is_self_referred:   form.value.referral_source === 'self',
     });
 
@@ -242,11 +310,13 @@ function clearForm() {
   error.value   = '';
   success.value = '';
   form.value = {
-    student_id_input: '', student_name: '', program: '',
-    year_level: '1st Year', college: '', section: '',
-    referral_type: '', urgency_level: 'medium', preferred_date: '',
+    student_id_input: '', last_name: '', first_name: '',
+    middle_name: '', suffix: '', program: '', year_level: '',
+    college: '', section: '', referrer_name_input: '',
+    referrer_position: '', referrer_department: '',
+    referrer_contact: '', referral_type: '', preferred_date: '',
     referral_source: 'faculty', nature_of_concern: '',
-    previous_interventions: '', student_id: null,
+    previous_interventions: '', intervention_by: '', intervention_date: '',
   };
 }
 </script>

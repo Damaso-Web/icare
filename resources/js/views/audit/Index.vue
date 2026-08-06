@@ -8,10 +8,10 @@
 
     <!-- Filter Bar -->
     <div class="filter-bar">
-      <div class="sw">
-        <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="filters.search" type="text" class="sin" placeholder="Search description or user..." style="width:220px" @input="fetchLogs" />
-      </div>
+      <select v-model="filters.user_id" class="fsm" @change="fetchLogs">
+        <option value="">All Users</option>
+        <option v-for="u in userList" :key="u.id" :value="u.id">{{ u.name }}</option>
+      </select>
       <select v-model="filters.action" class="fsm" @change="fetchLogs">
         <option value="">All Actions</option>
         <option value="login">Login</option>
@@ -144,13 +144,14 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { auditAPI } from '../../api/index';
+import { auditAPI, userAPI } from '../../api/index';
 
-const loading    = ref(true);
-const logs       = ref([]);
-const pagination = ref({});
+const loading     = ref(true);
+const logs        = ref([]);
+const pagination  = ref({});
 const selectedLog = ref(null);
-const filters    = ref({ search: '', action: '', date_from: '' });
+const userList    = ref([]);
+const filters     = ref({ user_id: '', action: '', date_from: '' });
 
 async function fetchLogs(page = 1) {
   loading.value = true;
@@ -165,12 +166,21 @@ async function fetchLogs(page = 1) {
   }
 }
 
+async function fetchUsers() {
+  try {
+    const res = await userAPI.index();
+    userList.value = res.data.data || [];
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 function openLog(log) { selectedLog.value = log; }
 
 function changePage(page) { fetchLogs(page); }
 
 function resetFilters() {
-  filters.value = { search: '', action: '', date_from: '' };
+  filters.value = { user_id: '', action: '', date_from: '' };
   fetchLogs();
 }
 
@@ -194,8 +204,12 @@ function actionStyle(action) {
 
 function roleLabel(role) {
   const labels = {
-    admin: 'Admin', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head',
-    tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
+    admin:          'Admin / GCU Head',
+    gcu_staff:      'GCU Staff',
+    sdu_head:       'SDU Head',
+    tmdu_staff:     'TMDU Staff',
+    faculty:        'Faculty',
+    dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
 }
@@ -216,5 +230,8 @@ function initials(name) {
   return name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
 }
 
-onMounted(() => fetchLogs());
+onMounted(() => {
+  fetchLogs();
+  fetchUsers();
+});
 </script>

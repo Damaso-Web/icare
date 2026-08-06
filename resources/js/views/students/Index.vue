@@ -14,12 +14,7 @@
       </div>
       <select v-model="filters.college" class="fsm" @change="fetchStudents">
         <option value="">All Colleges</option>
-        <option>CIT</option>
-        <option>CAS</option>
-        <option>CEA</option>
-        <option>CB</option>
-        <option>CED</option>
-        <option>CA</option>
+        <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
       <select v-model="filters.year_level" class="fsm" @change="fetchStudents">
         <option value="">All Year Levels</option>
@@ -64,15 +59,15 @@
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(s.first_name, s.last_name) }}</div>
                   <div>
-                    <div style="font-weight:600;color:var(--ink)">{{ s.first_name }} {{ s.last_name }}</div>
+                    <div style="font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
                     <div style="font-size:11px;color:var(--fog)">{{ s.email }}</div>
                   </div>
                 </div>
               </td>
               <td style="font-family:var(--mono);font-size:12px">{{ s.student_id }}</td>
               <td>{{ s.year_level }}</td>
-              <td>{{ s.college }}</td>
-              <td>{{ s.program }}</td>
+              <td style="font-size:12px">{{ s.college }}</td>
+              <td style="font-size:12px">{{ s.program }}</td>
               <td>
                 <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'student-show', params: { id: s.id } })">View</button>
               </td>
@@ -98,7 +93,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
+import { COLLEGES } from '../../constants/colleges';
 
+const colleges   = COLLEGES;
 const students   = ref([]);
 const loading    = ref(true);
 const pagination = ref({});

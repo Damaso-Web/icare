@@ -117,8 +117,9 @@
                   background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : '',
                   color: day.isToday ? '#fff' : day.isOther ? 'var(--silver)' : 'var(--slate)',
                   fontWeight: day.isToday ? '600' : '',
+                  pointerEvents: day.isOther ? 'none' : 'auto',
                 }"
-                @click="selectDay(day)"
+                @click="day.isOther ? null : selectDay(day)"
               >
                 {{ day.date }}
                 <span v-if="day.hasAppt && !day.isToday" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--moss)"></span>
@@ -337,8 +338,18 @@ async function fetchCases() {
 
 async function fetchStaff() {
   try {
-    const res = await userAPI.index();
-    staffList.value = res.data.data || [];
+    const [adminRes, gcuRes, sduRes, tmduRes] = await Promise.all([
+      userAPI.index({ role: 'admin' }),
+      userAPI.index({ role: 'gcu_staff' }),
+      userAPI.index({ role: 'sdu_head' }),
+      userAPI.index({ role: 'tmdu_staff' }),
+    ]);
+    staffList.value = [
+      ...(adminRes.data.data || []),
+      ...(gcuRes.data.data   || []),
+      ...(sduRes.data.data   || []),
+      ...(tmduRes.data.data  || []),
+    ];
   } catch (e) { console.error(e); }
 }
 
@@ -455,13 +466,21 @@ function selectDay(day) {
 }
 
 function prevMonth() {
-  if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
-  else currentMonth.value--;
+  if (currentMonth.value === 0) {
+    currentMonth.value = 11;
+    currentYear.value--;
+  } else {
+    currentMonth.value--;
+  }
 }
 
 function nextMonth() {
-  if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++; }
-  else currentMonth.value++;
+  if (currentMonth.value === 11) {
+    currentMonth.value = 0;
+    currentYear.value++;
+  } else {
+    currentMonth.value++;
+  }
 }
 
 function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short' }); }

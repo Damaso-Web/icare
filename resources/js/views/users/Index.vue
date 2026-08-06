@@ -14,7 +14,7 @@
       </div>
       <select v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
-        <option value="admin">Admin</option>
+        <option value="admin">Admin / GCU Head</option>
         <option value="gcu_staff">GCU Staff</option>
         <option value="sdu_head">SDU Head</option>
         <option value="tmdu_staff">TMDU Staff</option>
@@ -22,7 +22,13 @@
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click="openCreate">
+      <!-- Only admin can add users -->
+      <button
+        v-if="auth.isAdmin"
+        class="ibtn ibtn-p ibtn-sm"
+        style="margin-left:auto"
+        @click="openCreate"
+      >
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add User
       </button>
@@ -47,7 +53,7 @@
               <th>Unit / College</th>
               <th>Last Login</th>
               <th>Status</th>
-              <th></th>
+              <th v-if="auth.isAdmin"></th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +76,8 @@
                   {{ u.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td>
+              <!-- Only admin can edit/deactivate -->
+              <td v-if="auth.isAdmin">
                 <div style="display:flex;gap:6px">
                   <button class="ibtn ibtn-o ibtn-sm" @click="openEdit(u)">Edit</button>
                   <button
@@ -99,10 +106,10 @@
       </div>
     </div>
 
-    <!-- User Modal -->
-    <div v-if="showModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+    <!-- User Modal — admin only -->
+    <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit User' : 'Add New User' }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
@@ -123,7 +130,7 @@
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.role" class="ifse">
               <option value="">Select role...</option>
-              <option value="admin">Admin</option>
+              <option value="admin">Admin / GCU Head</option>
               <option value="gcu_staff">GCU Staff</option>
               <option value="sdu_head">SDU Head</option>
               <option value="tmdu_staff">TMDU Staff</option>
@@ -144,13 +151,12 @@
             <label class="ifl">College</label>
             <select v-model="userForm.college" class="ifse">
               <option value="">Select college...</option>
-              <option>CIT</option>
-              <option>CAS</option>
-              <option>CEA</option>
-              <option>CB</option>
-              <option>CED</option>
-              <option>CA</option>
+              <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
+          </div>
+          <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
+            <label class="ifl">Department</label>
+            <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" />
           </div>
           <div v-if="!isEditing">
             <label class="ifl">Password <span style="color:var(--red)">*</span></label>
@@ -174,18 +180,23 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue';
 import { userAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
+import { COLLEGES } from '../../constants/colleges';
 
 const toast      = inject('toast');
+const auth       = useAuthStore();
 const loading    = ref(true);
 const showModal  = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
 const filters    = ref({ search: '', role: '' });
+const colleges   = COLLEGES;
 
 const userForm = ref({
   name: '', email: '', employee_id: '', role: '',
-  unit: '', college: '', password: '', password_confirmation: '',
+  unit: '', college: '', department: '',
+  password: '', password_confirmation: '',
 });
 
 async function fetchUsers(page = 1) {
@@ -202,18 +213,24 @@ async function fetchUsers(page = 1) {
 }
 
 function openCreate() {
+  if (!auth.isAdmin) return;
   isEditing.value = false;
-  userForm.value  = { name: '', email: '', employee_id: '', role: '', unit: '', college: '', password: '', password_confirmation: '' };
+  userForm.value  = { name: '', email: '', employee_id: '', role: '', unit: '', college: '', department: '', password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
 function openEdit(u) {
+  if (!auth.isAdmin) return;
   isEditing.value = true;
   userForm.value  = { ...u, password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
 async function saveUser() {
+  if (!auth.isAdmin) {
+    toast?.error('Only administrators can manage users.');
+    return;
+  }
   if (!userForm.value.name || !userForm.value.email || !userForm.value.role) {
     toast?.error('Please fill in all required fields.');
     return;
@@ -234,6 +251,10 @@ async function saveUser() {
 }
 
 async function toggleActive(u) {
+  if (!auth.isAdmin) {
+    toast?.error('Only administrators can activate/deactivate users.');
+    return;
+  }
   try {
     await userAPI.toggleActive(u.id);
     u.is_active = !u.is_active;
@@ -252,8 +273,12 @@ function resetFilters() {
 
 function roleLabel(role) {
   const labels = {
-    admin: 'Admin', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head',
-    tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
+    admin:          'Admin / GCU Head',
+    gcu_staff:      'GCU Staff',
+    sdu_head:       'SDU Head',
+    tmdu_staff:     'TMDU Staff',
+    faculty:        'Faculty',
+    dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
 }

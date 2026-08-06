@@ -13,13 +13,7 @@
         </button>
         <div class="ph" style="margin:0">
           <h1>{{ referral.referral_code || 'Referral Details' }}</h1>
-          <p>{{ referral.student?.first_name }} {{ referral.student?.last_name }} · {{ referral.student?.student_id }}</p>
-        </div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="ibtn ibtn-o ibtn-sm" v-if="referral.status === 'submitted'" @click="acknowledge">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            Acknowledge
-          </button>
+          <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
       </div>
 
@@ -36,7 +30,7 @@
                 <div
                   v-for="(step, i) in pipeline"
                   :key="step.key"
-                  style="flex:1;min-width:80px;padding:10px 14px;text-align:center;position:relative;font-size:11px;font-weight:600;border:1px solid var(--cloud)"
+                  style="flex:1;min-width:80px;padding:10px 14px;text-align:center;font-size:11px;font-weight:600;border:1px solid var(--cloud)"
                   :style="{
                     background: isStepDone(step.key) ? 'var(--mist)' : isCurrentStep(step.key) ? 'var(--moss)' : '#fff',
                     color: isStepDone(step.key) ? 'var(--moss)' : isCurrentStep(step.key) ? '#fff' : 'var(--stone)',
@@ -58,11 +52,11 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Nature of Concern</div>
                 <div style="font-size:13.5px;color:var(--ink);line-height:1.6">{{ referral.nature_of_concern }}</div>
               </div>
-              <div v-if="referral.intake_notes" style="margin-bottom:14px">
+              <div v-if="referral.intake_notes">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Intake Notes</div>
                 <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.intake_notes }}</div>
               </div>
-              <div v-if="referral.violation_type">
+              <div v-if="referral.violation_type" style="margin-top:14px">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Violation Type</div>
                 <div style="font-size:13px;color:var(--ink)">{{ referral.violation_type }}</div>
               </div>
@@ -102,6 +96,21 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
+          <!-- Actions — shown at top, only for GCU/Admin -->
+          <div class="icard" v-if="referral.status === 'submitted'">
+            <div class="icard-header"><span class="icard-title">Action Required</span></div>
+            <div class="icard-body">
+              <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
+                ⚠ This referral has not been acknowledged yet.
+              </div>
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledge" :disabled="acknowledging">
+                <svg v-if="!acknowledging" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span v-if="acknowledging" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ acknowledging ? 'Acknowledging...' : 'Acknowledge Referral' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Referral Info -->
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Referral Info</span></div>
@@ -109,10 +118,6 @@
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
                 <span class="ibadge" :class="'ibadge-' + referral.status">{{ referral.status?.replace(/_/g,' ') }}</span>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Urgency</div>
-                <span class="ibadge" :class="'ibadge-' + referral.urgency_level">{{ referral.urgency_level }}</span>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
@@ -146,7 +151,9 @@
                   {{ initials(referral.student?.first_name, referral.student?.last_name) }}
                 </div>
                 <div>
-                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ referral.student?.first_name }} {{ referral.student?.last_name }}</div>
+                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">
+                    {{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }}
+                  </div>
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ referral.student?.student_id }}</div>
                 </div>
               </div>
@@ -161,22 +168,27 @@
             </div>
           </div>
 
-          <!-- Quick Actions -->
-          <div class="icard">
-            <div class="icard-header"><span class="icard-title">Actions</span></div>
+          <!-- Schedule Appointment (only after acknowledged) -->
+          <div class="icard" v-if="referral.status !== 'submitted'">
+            <div class="icard-header"><span class="icard-title">Next Steps</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledge" v-if="referral.status === 'submitted'">
-                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                Acknowledge Referral
-              </button>
-              <router-link :to="{ name: 'appointments' }" class="ibtn ibtn-o" style="width:100%;justify-content:center">
+              <router-link
+                v-if="referral.case"
+                :to="{ name: 'case-show', params: { id: referral.case.id } }"
+                class="ibtn ibtn-o"
+                style="width:100%;justify-content:center"
+              >
+                <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                View Case File
+              </router-link>
+              <router-link
+                :to="{ name: 'appointments' }"
+                class="ibtn ibtn-blue"
+                style="width:100%;justify-content:center"
+              >
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Appointment
               </router-link>
-              <button class="ibtn ibtn-blue" style="width:100%;justify-content:center">
-                <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                Refer to TMDU
-              </button>
             </div>
           </div>
 
@@ -188,15 +200,14 @@
 
 <script setup>
 import { ref, onMounted, inject } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute } from 'vue-router';
 import { referralAPI } from '../../api/index';
 
-const route   = useRoute();
-const router  = useRouter();
-const toast   = inject('toast');
-const loading = ref(true);
-
-const referral = ref({});
+const route        = useRoute();
+const toast        = inject('toast');
+const loading      = ref(true);
+const acknowledging = ref(false);
+const referral     = ref({});
 
 const pipeline = [
   { key: 'submitted',    label: 'Submitted' },
@@ -219,12 +230,15 @@ function isCurrentStep(key) {
 }
 
 async function acknowledge() {
+  acknowledging.value = true;
   try {
     const res = await referralAPI.acknowledge(referral.value.id);
     referral.value = res.data.referral;
     toast?.success('Referral acknowledged and case file created.');
   } catch (e) {
     toast?.error('Failed to acknowledge referral.');
+  } finally {
+    acknowledging.value = false;
   }
 }
 

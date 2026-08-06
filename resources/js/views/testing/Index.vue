@@ -14,7 +14,6 @@
         <option value="scheduled">Scheduled</option>
         <option value="in_progress">In Progress</option>
         <option value="completed">Completed</option>
-        <option value="report_sent">Report Sent</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
@@ -53,8 +52,11 @@
               <div v-if="t.tests_administered?.length" style="font-size:12px;color:var(--slate);margin-top:4px">
                 Tests: {{ t.tests_administered.join(', ') }}
               </div>
+              <div v-if="t.assigned_tester_user_id" style="font-size:12px;color:var(--stone);margin-top:2px">
+                Tester: {{ t.tester?.name || '—' }}
+              </div>
               <div class="qtags">
-                <span class="ibadge" :class="'ibadge-' + t.status">{{ t.status?.replace(/_/g,' ') }}</span>
+                <span class="ibadge" :class="statusBadge(t.status)">{{ t.status?.replace(/_/g,' ') }}</span>
                 <span class="ibadge unit-tmdu">TMDU</span>
               </div>
             </div>
@@ -82,7 +84,7 @@
 
     <!-- Record Detail Drawer -->
     <div v-if="selectedRecord" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="selectedRecord = null">
-      <div style="position:fixed;top:0;right:0;width:min(520px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
+      <div style="position:fixed;top:0;right:0;width:min(560px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div>
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Testing Record #{{ selectedRecord.id }}</div>
@@ -100,13 +102,24 @@
               <option value="scheduled">Scheduled</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="report_sent">Report Sent</option>
             </select>
           </div>
 
-          <!-- Tests Administered -->
+          <!-- Test Administered By -->
           <div>
-            <label class="ifl">Tests Administered</label>
+            <label class="ifl">Test Administered By</label>
+            <input v-model="selectedRecord.tester_name" class="ifi" placeholder="Name of TMDU staff who administered the test" />
+          </div>
+
+          <!-- Testing Date -->
+          <div>
+            <label class="ifl">Testing Date</label>
+            <input v-model="selectedRecord.testing_date" type="date" class="ifi" />
+          </div>
+
+          <!-- Tests Administered — Psychological only -->
+          <div>
+            <label class="ifl">Psychological Tests Administered</label>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
               <span
                 v-for="test in availableTests"
@@ -124,10 +137,13 @@
             </div>
           </div>
 
-          <!-- Testing Date -->
+          <!-- Attach File -->
           <div>
-            <label class="ifl">Testing Date</label>
-            <input v-model="selectedRecord.testing_date" type="date" class="ifi" />
+            <label class="ifl">Attach Result / Report</label>
+            <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" @change="handleFileUpload" />
+            <div v-if="selectedRecord.attached_file" style="font-size:12px;color:var(--moss);margin-top:4px">
+              ✓ File attached: {{ selectedRecord.attached_file }}
+            </div>
           </div>
 
           <!-- Assessment Summary -->
@@ -150,11 +166,17 @@
 
           <!-- Actions -->
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="saveRecord">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              Save
+            <button class="ibtn ibtn-p" @click="saveRecord" :disabled="saving">
+              <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ saving ? 'Saving...' : 'Save' }}
             </button>
-            <button class="ibtn ibtn-blue" @click="sendToGcu" v-if="selectedRecord.status === 'completed'">
+            <button
+              class="ibtn ibtn-blue"
+              @click="sendToGcu"
+              v-if="selectedRecord.status === 'completed'"
+              :disabled="saving"
+            >
               Send Report to GCU
             </button>
             <button class="ibtn ibtn-o" @click="selectedRecord = null">Cancel</button>
@@ -175,9 +197,20 @@ const toast        = inject('toast');
 const filterStatus = ref('');
 const selectedRecord = ref(null);
 const loading      = ref(true);
+const saving       = ref(false);
 const records      = ref([]);
 
-const availableTests = ['MMPI-2', 'SCL-90', 'Beck Depression Inventory', 'Hamilton Anxiety Scale', "Raven's Progressive Matrices", 'WAIS-IV'];
+// Psychological tests only
+const availableTests = [
+  'MMPI-2',
+  'SCL-90',
+  'Beck Depression Inventory (BDI)',
+  'Hamilton Anxiety Scale (HAM-A)',
+  "Raven's Progressive Matrices",
+  'WAIS-IV',
+  'Draw-A-Person Test',
+  'Sentence Completion Test',
+];
 
 const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
 
@@ -185,8 +218,17 @@ const stats = computed(() => [
   { label: 'Pending',     value: records.value.filter(r => r.status === 'pending').length,     iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'In Progress', value: records.value.filter(r => r.status === 'in_progress').length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
   { label: 'Completed',   value: records.value.filter(r => r.status === 'completed').length,   iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>' },
-  { label: 'Report Sent', value: records.value.filter(r => r.status === 'report_sent').length, iconBg: 'var(--purple-lt)',iconColor: 'var(--purple)',icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>' },
 ]);
+
+function statusBadge(status) {
+  return {
+    pending:     'ibadge-pending',
+    scheduled:   'ibadge-scheduled',
+    in_progress: 'ibadge-in_progress',
+    completed:   'ibadge-completed',
+    report_sent: 'ibadge-closed',
+  }[status] || 'ibadge-pending';
+}
 
 async function fetchRecords() {
   loading.value = true;
@@ -201,7 +243,11 @@ async function fetchRecords() {
 }
 
 function openRecord(t) {
-  selectedRecord.value = { ...t, tests_administered: [...(t.tests_administered || [])] };
+  selectedRecord.value = {
+    ...t,
+    tests_administered: [...(t.tests_administered || [])],
+    tester_name: t.tester?.name || '',
+  };
 }
 
 function toggleTest(test) {
@@ -211,39 +257,58 @@ function toggleTest(test) {
   else selectedRecord.value.tests_administered.splice(idx, 1);
 }
 
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (file) {
+    selectedRecord.value.attached_file = file.name;
+  }
+}
+
 async function saveRecord() {
+  saving.value = true;
   try {
+    // Update status first
+    await testingAPI.updateStatus(selectedRecord.value.id, {
+      status: selectedRecord.value.status,
+    });
+
+    // Then update other fields
     await testingAPI.update(selectedRecord.value.id, {
-      status:              selectedRecord.value.status,
       tests_administered:  selectedRecord.value.tests_administered,
       testing_date:        selectedRecord.value.testing_date,
       assessment_summary:  selectedRecord.value.assessment_summary,
       findings:            selectedRecord.value.findings,
       recommendations:     selectedRecord.value.recommendations,
     });
-    const idx = records.value.findIndex(r => r.id === selectedRecord.value.id);
-    if (idx !== -1) records.value[idx] = { ...selectedRecord.value };
+
     selectedRecord.value = null;
-    toast?.success('Testing record saved.');
+    toast?.success('Testing record saved successfully.');
+
+    // Refresh from server to confirm
+    await fetchRecords();
   } catch (e) {
+    console.error(e);
     toast?.error('Failed to save record.');
+  } finally {
+    saving.value = false;
   }
 }
 
 async function sendToGcu() {
+  saving.value = true;
   try {
     await testingAPI.sendToGcu(selectedRecord.value.id, {
       assessment_summary: selectedRecord.value.assessment_summary,
       findings:           selectedRecord.value.findings,
       recommendations:    selectedRecord.value.recommendations,
     });
-    selectedRecord.value.status = 'report_sent';
-    const idx = records.value.findIndex(r => r.id === selectedRecord.value.id);
-    if (idx !== -1) records.value[idx].status = 'report_sent';
     selectedRecord.value = null;
-    toast?.success('Report sent to GCU.');
+    toast?.success('Report sent to GCU successfully.');
+    await fetchRecords();
   } catch (e) {
     toast?.error('Failed to send report.');
+  } finally {
+    saving.value = false;
   }
 }
 
