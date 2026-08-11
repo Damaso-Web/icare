@@ -13,8 +13,14 @@
           <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
         <div class="ph" style="margin:0">
-          <h1>{{ student.first_name }} {{ student.last_name }}</h1>
+          <h1>{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</h1>
           <p>{{ student.student_id }} · {{ student.year_level }}, {{ student.college }}</p>
+        </div>
+        <div style="margin-left:auto">
+          <button class="ibtn ibtn-o ibtn-sm" @click="showEditModal = true">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit Profile
+          </button>
         </div>
       </div>
 
@@ -29,7 +35,7 @@
               <span class="icard-title">Case History</span>
               <span class="ibadge ibadge-in_progress" v-if="student.is_recurring">Recurring</span>
             </div>
-            <div v-if="history.cases?.length === 0" class="empty-state">
+            <div v-if="!history.cases?.length" class="empty-state">
               <h3>No cases yet</h3>
               <p>No case files found for this student.</p>
             </div>
@@ -80,7 +86,6 @@
                     <th>Code</th>
                     <th>Type</th>
                     <th>Referred By</th>
-                    <th>Urgency</th>
                     <th>Status</th>
                     <th>Date</th>
                   </tr>
@@ -95,7 +100,6 @@
                     <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
                     <td>{{ r.referral_type?.replace(/_/g,' ') }}</td>
                     <td>{{ r.referrer_name }}</td>
-                    <td><span class="ibadge" :class="'ibadge-' + r.urgency_level">{{ r.urgency_level }}</span></td>
                     <td><span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g,' ') }}</span></td>
                     <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
                   </tr>
@@ -148,17 +152,17 @@
               <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
                 {{ initials(student.first_name, student.last_name) }}
               </div>
-              <div style="font-size:15px;font-weight:600;color:#fff">{{ student.first_name }} {{ student.last_name }}</div>
+              <div style="font-size:15px;font-weight:600;color:#fff">{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</div>
               <div style="font-size:11px;color:rgba(255,255,255,.5);font-family:var(--mono);margin-top:2px">{{ student.student_id }}</div>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
-                <div style="font-size:13px;color:var(--ink)">{{ student.year_level }}</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.year_level || '—' }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-                <div style="font-size:13px;color:var(--ink)">{{ student.college }}</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.college || '—' }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
@@ -215,19 +219,155 @@
 
         </div>
       </div>
+
+      <!-- Edit Student Modal -->
+      <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Student Profile</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+
+            <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
+              Student Information
+              <div style="flex:1;height:1px;background:var(--cloud)"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label class="ifl">Last Name</label>
+                <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" />
+              </div>
+              <div>
+                <label class="ifl">First Name</label>
+                <input v-model="editForm.first_name" class="ifi" placeholder="First Name" />
+              </div>
+              <div>
+                <label class="ifl">Middle Name</label>
+                <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" />
+              </div>
+              <div>
+                <label class="ifl">Suffix</label>
+                <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" />
+              </div>
+              <div>
+                <label class="ifl">Student ID</label>
+                <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" />
+              </div>
+              <div>
+                <label class="ifl">Year Level</label>
+                <select v-model="editForm.year_level" class="ifse">
+                  <option>1st Year</option>
+                  <option>2nd Year</option>
+                  <option>3rd Year</option>
+                  <option>4th Year</option>
+                  <option>5th Year</option>
+                </select>
+              </div>
+              <div>
+                <label class="ifl">College</label>
+                <select v-model="editForm.college" class="ifse">
+                  <option value="">Select college...</option>
+                  <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="ifl">Program</label>
+                <input v-model="editForm.program" class="ifi" placeholder="e.g. Bachelor of Science in IT" />
+              </div>
+              <div>
+                <label class="ifl">Section</label>
+                <input v-model="editForm.section" class="ifi" placeholder="e.g. A" />
+              </div>
+              <div>
+                <label class="ifl">Email</label>
+                <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
+              </div>
+              <div>
+                <label class="ifl">Contact Number</label>
+                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
+              </div>
+            </div>
+
+            <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
+              Guardian Information
+              <div style="flex:1;height:1px;background:var(--cloud)"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label class="ifl">Guardian Name</label>
+                <input v-model="editForm.guardian_name" class="ifi" placeholder="Guardian full name" />
+              </div>
+              <div>
+                <label class="ifl">Guardian Contact</label>
+                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" />
+              </div>
+              <div>
+                <label class="ifl">Relationship</label>
+                <select v-model="editForm.guardian_relationship" class="ifse">
+                  <option value="">Select...</option>
+                  <option>Mother</option>
+                  <option>Father</option>
+                  <option>Guardian</option>
+                  <option>Sibling</option>
+                  <option>Relative</option>
+                </select>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px;padding-top:4px">
+              <button class="ibtn ibtn-p" @click="saveStudent" :disabled="saving">
+                <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ saving ? 'Saving...' : 'Save Changes' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import { studentAPI } from '../../api/index';
+import { COLLEGES } from '../../constants/colleges';
 
 const route   = useRoute();
+const toast   = inject('toast');
 const loading = ref(true);
+const saving  = ref(false);
+const showEditModal = ref(false);
 const student = ref({});
 const history = ref({});
+const colleges = COLLEGES;
+
+const editForm = ref({});
+
+function openEdit() {
+  editForm.value = { ...student.value };
+  showEditModal.value = true;
+}
+
+async function saveStudent() {
+  saving.value = true;
+  try {
+    const res = await studentAPI.update(student.value.id, editForm.value);
+    student.value = res.data;
+    showEditModal.value = false;
+    toast?.success('Student profile updated successfully.');
+  } catch (e) {
+    toast?.error('Failed to update student profile.');
+  } finally {
+    saving.value = false;
+  }
+}
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
@@ -245,6 +385,7 @@ onMounted(async () => {
     ]);
     student.value = studentRes.data;
     history.value = historyRes.data;
+    editForm.value = { ...studentRes.data };
   } catch (e) {
     console.error(e);
   } finally {

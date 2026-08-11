@@ -14,7 +14,7 @@
         </button>
         <div class="ph" style="margin:0">
           <h1>{{ caseFile.case_number }}</h1>
-          <p>{{ caseFile.student?.first_name }} {{ caseFile.student?.last_name }} · {{ caseFile.student?.student_id }}</p>
+          <p>{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }} · {{ caseFile.student?.student_id }}</p>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
           <button class="ibtn ibtn-o ibtn-sm" @click="showStatusModal = true">
@@ -93,16 +93,16 @@
                   </div>
                   <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
                 </div>
+                <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
+                  {{ note.session_start_time }} – {{ note.session_end_time }}
+                </div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Observations</div>
                 <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ note.observations }}</div>
                 <div v-if="note.next_steps">
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Next Steps</div>
                   <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
                 </div>
-                <div style="font-size:11px;color:var(--fog);margin-top:6px">
-                Recorded by {{ note.recorded_by?.name }}
-                <span v-if="note.session_start_time"> · {{ note.session_start_time }} – {{ note.session_end_time }}</span>
-              </div>
+                <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
               </div>
             </div>
           </div>
@@ -111,11 +111,20 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Appointments</span>
-              <router-link :to="{ name: 'appointments' }" class="ibtn ibtn-o ibtn-sm">Schedule</router-link>
+              <router-link
+                v-if="caseFile.referral?.status !== 'submitted'"
+                :to="{ name: 'appointments' }"
+                class="ibtn ibtn-o ibtn-sm"
+              >
+                Schedule
+              </router-link>
             </div>
             <div v-if="appointments.length === 0" class="empty-state">
               <h3>No appointments yet</h3>
-              <p>Schedule an appointment for this case.</p>
+              <p>
+                <span v-if="caseFile.referral?.status === 'submitted'">Acknowledge the referral first before scheduling.</span>
+                <span v-else>Schedule an appointment for this case.</span>
+              </p>
             </div>
             <div class="ts" v-else>
               <table class="itable">
@@ -166,10 +175,24 @@
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Log Session
               </button>
-              <router-link :to="{ name: 'appointments' }" class="ibtn ibtn-o" style="width:100%;justify-content:center">
+
+              <!-- Schedule Appointment — only when referral is acknowledged -->
+              <router-link
+                v-if="caseFile.referral?.status !== 'submitted'"
+                :to="{ name: 'appointments' }"
+                class="ibtn ibtn-o"
+                style="width:100%;justify-content:center"
+              >
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Appointment
               </router-link>
+              <div
+                v-else
+                style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center"
+              >
+                ⚠ Acknowledge referral first before scheduling
+              </div>
+
               <!-- Refer to TMDU — only show if not yet referred -->
               <button
                 v-if="!caseFile.referred_to_tmdu"
@@ -186,6 +209,7 @@
               >
                 ✓ Already referred to TMDU
               </div>
+
               <button
                 class="ibtn"
                 style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
@@ -195,6 +219,7 @@
                 <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 {{ caseFile.student_unreachable ? 'Student Flagged Unreachable' : 'Flag as Unreachable' }}
               </button>
+
               <button
                 v-if="caseFile.status !== 'closed'"
                 class="ibtn"
@@ -240,7 +265,9 @@
                   {{ initials(caseFile.student?.first_name, caseFile.student?.last_name) }}
                 </div>
                 <div>
-                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ caseFile.student?.first_name }} {{ caseFile.student?.last_name }}</div>
+                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">
+                    {{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }}
+                  </div>
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ caseFile.student?.student_id }}</div>
                 </div>
               </div>
@@ -261,6 +288,10 @@
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
                 <div style="font-size:13px;font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+                <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ caseFile.referral?.status?.replace(/_/g,' ') }}</span>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
@@ -494,8 +525,9 @@ async function closeCase() {
 async function referToTmdu() {
   try {
     await caseAPI.referToTmdu(caseFile.value.id, { reason: 'Referred for psychological assessment.' });
-    caseFile.value.current_unit = 'TMDU';
-    caseFile.value.status       = 'awaiting_testing';
+    caseFile.value.current_unit   = 'TMDU';
+    caseFile.value.status         = 'awaiting_testing';
+    caseFile.value.referred_to_tmdu = true;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
     toast?.error('Failed to refer to TMDU.');

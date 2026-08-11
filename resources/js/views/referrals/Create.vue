@@ -46,8 +46,15 @@
               v-model="form.student_id_input"
               class="ifi"
               placeholder="e.g. 2302021"
+              pattern="[0-9]{7}"
+              maxlength="7"
+              title="Student ID must be exactly 7 numbers"
+              @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
               required
             />
+            <div v-if="form.student_id_input && form.student_id_input.length !== 7" style="font-size:11px;color:var(--red);margin-top:4px">
+              Student ID must be exactly 7 digits
+            </div>
           </div>
 
           <!-- Name Fields -->
@@ -194,13 +201,13 @@
 
           <!-- Actions -->
           <div style="display:flex;gap:9px;margin-top:8px">
-            <button type="submit" class="ibtn ibtn-p" :disabled="loading">
+            <button type="submit" class="ibtn ibtn-p" :disabled="loading || (form.student_id_input && form.student_id_input.length !== 7)">
               <svg v-if="!loading" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ loading ? 'Submitting...' : 'Submit Referral' }}
             </button>
             <button type="button" class="ibtn ibtn-o" @click="clearForm">Clear Form</button>
-            <router-link :to="{ name: 'referrals' }" class="ibtn ibtn-g">Cancel</router-link>
+            <button type="button" class="ibtn ibtn-g" @click="goBack">Cancel</button>
           </div>
 
         </form>
@@ -213,11 +220,12 @@
 import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { referralAPI, studentAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 
-const router = useRouter();
-const toast  = inject('toast');
-
+const router  = useRouter();
+const toast   = inject('toast');
+const auth    = useAuthStore();
 const colleges = COLLEGES;
 
 const error   = ref('');
@@ -247,13 +255,26 @@ const form = ref({
   intervention_date:     '',
 });
 
+function goBack() {
+  if (auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary') {
+    router.push({ name: 'dashboard' });
+  } else {
+    router.push({ name: 'referrals' });
+  }
+}
+
 async function handleSubmit() {
   error.value   = '';
   success.value = '';
 
-  if (!form.value.student_id_input || !form.value.last_name ||
-      !form.value.first_name || !form.value.college ||
-      !form.value.referral_type || !form.value.nature_of_concern) {
+  if (!form.value.student_id_input || form.value.student_id_input.length !== 7) {
+    error.value = 'Student ID must be exactly 7 digits.';
+    return;
+  }
+
+  if (!form.value.last_name || !form.value.first_name ||
+      !form.value.college || !form.value.referral_type ||
+      !form.value.nature_of_concern) {
     error.value = 'Please fill in all required fields.';
     return;
   }
@@ -271,7 +292,6 @@ async function handleSubmit() {
     if (found) {
       studentId = found.id;
     } else {
-      // Create new student with separate name fields
       const newStudent = await studentAPI.store({
         student_id:  form.value.student_id_input,
         first_name:  form.value.first_name,
@@ -287,16 +307,24 @@ async function handleSubmit() {
 
     // Submit referral
     await referralAPI.store({
-      student_id:         studentId,
-      referral_type:      form.value.referral_type,
-      nature_of_concern:  form.value.nature_of_concern,
-      urgency_level:      'medium',
-      is_self_referred:   form.value.referral_source === 'self',
+      student_id:        studentId,
+      referral_type:     form.value.referral_type,
+      nature_of_concern: form.value.nature_of_concern,
+      urgency_level:     'medium',
+      is_self_referred:  form.value.referral_source === 'self',
     });
 
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';
-    setTimeout(() => router.push({ name: 'referrals' }), 1500);
+
+    setTimeout(() => {
+      // Redirect based on role
+      if (auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary') {
+        router.push({ name: 'dashboard' });
+      } else {
+        router.push({ name: 'referrals' });
+      }
+    }, 1500);
 
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to submit referral.';
