@@ -178,7 +178,8 @@
             ></textarea>
           </div>
 
-          <div style="margin-bottom:14px">
+          <!-- Previous Interventions — OSS Personnel only, hidden for faculty/dean -->
+          <div style="margin-bottom:14px" v-if="!isFacultyOrDean">
             <label class="ifl">Previous Interventions (if any)</label>
             <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
             <textarea
@@ -217,20 +218,24 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue';
+import { ref, inject, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 
-const router  = useRouter();
-const toast   = inject('toast');
-const auth    = useAuthStore();
+const router   = useRouter();
+const toast    = inject('toast');
+const auth     = useAuthStore();
 const colleges = COLLEGES;
 
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
+
+const isFacultyOrDean = computed(() =>
+  auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary'
+);
 
 const form = ref({
   student_id_input:      '',
@@ -256,7 +261,7 @@ const form = ref({
 });
 
 function goBack() {
-  if (auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary') {
+  if (isFacultyOrDean.value) {
     router.push({ name: 'dashboard' });
   } else {
     router.push({ name: 'referrals' });
@@ -282,7 +287,6 @@ async function handleSubmit() {
   loading.value = true;
 
   try {
-    // Search for existing student
     let studentId = null;
     const searchRes = await studentAPI.index({ search: form.value.student_id_input });
     const found = searchRes.data.data?.find(
@@ -305,7 +309,6 @@ async function handleSubmit() {
       studentId = newStudent.data.id;
     }
 
-    // Submit referral
     await referralAPI.store({
       student_id:        studentId,
       referral_type:     form.value.referral_type,
@@ -318,8 +321,7 @@ async function handleSubmit() {
     success.value = 'Referral submitted successfully! GCU has been notified.';
 
     setTimeout(() => {
-      // Redirect based on role
-      if (auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary') {
+      if (isFacultyOrDean.value) {
         router.push({ name: 'dashboard' });
       } else {
         router.push({ name: 'referrals' });

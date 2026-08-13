@@ -178,7 +178,7 @@ const menuItems = computed(() => {
       name:    'referral-create',
       label:   'Submit Referral',
       icon:    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_secretary'],
+      roles:   ['faculty', 'dean_secretary'],
       section: 'Referrals',
     },
     {
@@ -186,7 +186,7 @@ const menuItems = computed(() => {
       label:   'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
       roles:   ['admin', 'gcu_staff', 'sdu_head'],
-      section: null,
+      section: 'Referrals',
     },
     {
       name:    'students',
@@ -239,10 +239,8 @@ const menuItems = computed(() => {
     },
   ];
 
-  // Filter by role
   const filtered = items.filter(item => item.roles?.includes(role));
 
-  // Build result with section headers — no duplicates
   const result = [];
   const addedSections = new Set();
 

@@ -62,7 +62,7 @@
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                 </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
-                  {{ a.appointment_type?.replace(/_/g,' ') }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name }}
+                  {{ a.appointment_type?.replace(/_/g,' ') }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ a.status }}</span>
@@ -179,17 +179,6 @@
             </select>
           </div>
 
-          <!-- Staff -->
-          <div>
-            <label class="ifl">Staff <span style="color:var(--red)">*</span></label>
-            <select v-model="scheduleForm.staff_user_id" class="ifse">
-              <option value="">Select staff...</option>
-              <option v-for="u in staffList" :key="u.id" :value="u.id">
-                {{ u.name }} ({{ u.role?.replace(/_/g,' ') }})
-              </option>
-            </select>
-          </div>
-
           <!-- Type -->
           <div>
             <label class="ifl">Appointment Type <span style="color:var(--red)">*</span></label>
@@ -208,9 +197,9 @@
           <div>
             <label class="ifl">Unit <span style="color:var(--red)">*</span></label>
             <select v-model="scheduleForm.unit" class="ifse">
-              <option value="GCU">GCU</option>
-              <option value="SDU">SDU</option>
-              <option value="TMDU">TMDU</option>
+              <option value="GCU">GCU — Guidance &amp; Counseling Unit</option>
+              <option value="SDU">SDU — Student Discipline Unit</option>
+              <option value="TMDU">TMDU — Testing &amp; Measurement</option>
             </select>
           </div>
 
@@ -266,7 +255,7 @@
 
           <!-- Conflict Warning -->
           <div v-if="conflictWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ Scheduling conflict detected. The selected staff member already has an appointment at this time. Please choose a different time.
+            ⚠ Scheduling conflict detected. Please choose a different time.
           </div>
 
           <div style="display:flex;gap:8px">
@@ -285,7 +274,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
-import { appointmentAPI, caseAPI, userAPI } from '../../api/index';
+import { appointmentAPI, caseAPI } from '../../api/index';
 
 const toast = inject('toast');
 
@@ -296,7 +285,6 @@ const conflictWarning   = ref(false);
 const appointments      = ref([]);
 const pagination        = ref({});
 const cases             = ref([]);
-const staffList         = ref([]);
 const filters           = ref({ unit: '', status: '', date: '' });
 
 const today        = new Date();
@@ -305,7 +293,7 @@ const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const scheduleForm = ref({
-  case_id: '', student_id: '', staff_user_id: '',
+  case_id: '', student_id: '',
   appointment_type: '', unit: 'GCU',
   appointment_date: '', start_time: '', end_time: '',
   location: '', notes: '',
@@ -333,23 +321,6 @@ async function fetchCases() {
   try {
     const res = await caseAPI.index({ status: 'open' });
     cases.value = res.data.data || [];
-  } catch (e) { console.error(e); }
-}
-
-async function fetchStaff() {
-  try {
-    const [adminRes, gcuRes, sduRes, tmduRes] = await Promise.all([
-      userAPI.index({ role: 'admin' }),
-      userAPI.index({ role: 'gcu_staff' }),
-      userAPI.index({ role: 'sdu_head' }),
-      userAPI.index({ role: 'tmdu_staff' }),
-    ]);
-    staffList.value = [
-      ...(adminRes.data.data || []),
-      ...(gcuRes.data.data   || []),
-      ...(sduRes.data.data   || []),
-      ...(tmduRes.data.data  || []),
-    ];
   } catch (e) { console.error(e); }
 }
 
@@ -392,9 +363,11 @@ function onCaseChange() {
 
 async function scheduleAppointment() {
   conflictWarning.value = false;
-  if (!scheduleForm.value.case_id || !scheduleForm.value.staff_user_id ||
-      !scheduleForm.value.appointment_type || !scheduleForm.value.appointment_date ||
-      !scheduleForm.value.start_time || !scheduleForm.value.end_time) {
+  if (!scheduleForm.value.case_id ||
+      !scheduleForm.value.appointment_type ||
+      !scheduleForm.value.appointment_date ||
+      !scheduleForm.value.start_time ||
+      !scheduleForm.value.end_time) {
     toast?.error('Please fill in all required fields.');
     return;
   }
@@ -404,7 +377,7 @@ async function scheduleAppointment() {
     showScheduleModal.value = false;
     fetchAppointments();
     scheduleForm.value = {
-      case_id: '', student_id: '', staff_user_id: '',
+      case_id: '', student_id: '',
       appointment_type: '', unit: 'GCU',
       appointment_date: '', start_time: '', end_time: '',
       location: '', notes: '',
@@ -459,28 +432,20 @@ const calendarDays = computed(() => {
 
 function selectDay(day) {
   if (day.isOther || !day.dateStr) return;
-  selectedDate.value         = new Date(day.dateStr);
-  filters.value.date         = day.dateStr;
+  selectedDate.value = new Date(day.dateStr);
+  filters.value.date = day.dateStr;
   scheduleForm.value.appointment_date = day.dateStr;
   fetchAppointments();
 }
 
 function prevMonth() {
-  if (currentMonth.value === 0) {
-    currentMonth.value = 11;
-    currentYear.value--;
-  } else {
-    currentMonth.value--;
-  }
+  if (currentMonth.value === 0) { currentMonth.value = 11; currentYear.value--; }
+  else currentMonth.value--;
 }
 
 function nextMonth() {
-  if (currentMonth.value === 11) {
-    currentMonth.value = 0;
-    currentYear.value++;
-  } else {
-    currentMonth.value++;
-  }
+  if (currentMonth.value === 11) { currentMonth.value = 0; currentYear.value++; }
+  else currentMonth.value++;
 }
 
 function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short' }); }
@@ -489,6 +454,5 @@ function getDay(date)   { return new Date(date).getDate(); }
 onMounted(() => {
   fetchAppointments();
   fetchCases();
-  fetchStaff();
 });
 </script>
