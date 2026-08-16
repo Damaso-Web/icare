@@ -21,10 +21,25 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
-          <!-- Log Session only for GCU staff and Admin -->
-          <button v-if="isGCU" class="ibtn ibtn-amber ibtn-sm" @click="showSessionModal = true">
-            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Log Session
+          <!-- Flag as Unreachable — GCU only -->
+          <button
+            v-if="isGCU && !caseFile.student_unreachable"
+            class="ibtn ibtn-sm"
+            style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
+            @click="showUnreachableModal = true"
+          >
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Flag Unreachable
+          </button>
+          <!-- Close Case — GCU only -->
+          <button
+            v-if="isGCU && caseFile.status !== 'closed'"
+            class="ibtn ibtn-sm"
+            style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
+            @click="showCloseModal = true"
+          >
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            Close Case
           </button>
         </div>
       </div>
@@ -69,6 +84,68 @@
             </div>
           </div>
 
+          <!-- Referral Details — shown from the referral form -->
+          <div class="icard" v-if="caseFile.referral">
+            <div class="icard-header">
+              <span class="icard-title">Referral Details</span>
+              <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ caseFile.referral?.status?.replace(/_/g,' ') }}</span>
+            </div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:12px">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
+                  <div style="font-size:13px;font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_name }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.referral?.created_at) }}</div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Nature of Concern</div>
+                <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.referral?.nature_of_concern }}</div>
+              </div>
+
+              <!-- Previous Interventions — editable by GCU -->
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Previous Interventions (if any)</div>
+                <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
+                <textarea
+                  v-if="isGCU"
+                  v-model="previousInterventions"
+                  class="ifta"
+                  style="min-height:60px"
+                  placeholder="Describe any prior support or actions already taken..."
+                ></textarea>
+                <div v-else style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">
+                  {{ previousInterventions || '—' }}
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px" v-if="isGCU">
+                  <div>
+                    <label class="ifl">By</label>
+                    <input v-model="interventionBy" class="ifi" placeholder="Name of OSS Personnel" />
+                  </div>
+                  <div>
+                    <label class="ifl">Date</label>
+                    <input v-model="interventionDate" type="date" class="ifi" />
+                  </div>
+                </div>
+                <button v-if="isGCU" class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="updateInterventions">
+                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                  Update Interventions
+                </button>
+              </div>
+            </div>
+          </div>
+
           <!-- Presenting Concern -->
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Presenting Concern</span></div>
@@ -81,6 +158,10 @@
           <div class="icard" v-if="isGCU">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
+              <button class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add Notes
+              </button>
             </div>
             <div v-if="sessionNotes.length === 0" class="empty-state">
               <h3>No sessions yet</h3>
@@ -108,80 +189,45 @@
             </div>
           </div>
 
-          <!-- Appointments -->
-          <div class="icard">
-            <div class="icard-header">
-              <span class="icard-title">Appointments</span>
-              <router-link
-                v-if="caseFile.referral?.status !== 'submitted' && isGCU"
-                :to="{ name: 'appointments' }"
-                class="ibtn ibtn-o ibtn-sm"
-              >
-                Schedule
-              </router-link>
-            </div>
-            <div v-if="appointments.length === 0" class="empty-state">
-              <h3>No appointments yet</h3>
-              <p>
-                <span v-if="caseFile.referral?.status === 'submitted'">Acknowledge the referral first before scheduling.</span>
-                <span v-else>Schedule an appointment for this case.</span>
-              </p>
-            </div>
-            <div class="ts" v-else>
-              <table class="itable">
-                <thead>
-                  <tr>
-                    <th>Type</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Staff</th>
-                    <th>Status</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="a in appointments" :key="a.id">
-                    <td>{{ a.appointment_type?.replace(/_/g,' ') }}</td>
-                    <td style="font-size:12px">{{ formatDate(a.appointment_date) }}</td>
-                    <td style="font-size:12px">{{ a.start_time }}</td>
-                    <td style="font-size:12px">{{ a.staff?.name || 'TBA' }}</td>
-                    <td><span class="ibadge" :class="'ibadge-' + a.status">{{ a.status }}</span></td>
-                    <td>
-                      <button
-                        v-if="a.status === 'no_show' && !a.no_show_escalated && isGCU"
-                        class="ibtn ibtn-sm"
-                        style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);font-size:11px"
-                        @click="escalateNoShow(a)"
-                      >
-                        Escalate
-                      </button>
-                      <span v-if="a.no_show_escalated" style="font-size:11px;color:var(--fog)">Escalated</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
         </div>
 
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
-          <!-- Quick Actions -->
+          <!-- Slips / Service Actions -->
           <div class="icard">
-            <div class="icard-header"><span class="icard-title">Actions</span></div>
+            <div class="icard-header"><span class="icard-title">Service Slips</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-
-              <!-- Log Session — GCU only -->
-              <button v-if="isGCU" class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="showSessionModal = true">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Log Session
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('admission')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Admission Slip
               </button>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('call')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Call Slip
+              </button>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('feedback')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Feedback Slip
+              </button>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('followup')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Follow Up Slip
+              </button>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('parent')">
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                Parent Conference Slip
+              </button>
+            </div>
+          </div>
 
-              <!-- Schedule Appointment — only when referral acknowledged -->
+          <!-- GCU Actions -->
+          <div class="icard" v-if="isGCU">
+            <div class="icard-header"><span class="icard-title">Case Actions</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <!-- Schedule Appointment -->
               <router-link
-                v-if="caseFile.referral?.status !== 'submitted' && isGCU"
+                v-if="caseFile.referral?.status !== 'submitted'"
                 :to="{ name: 'appointments' }"
                 class="ibtn ibtn-o"
                 style="width:100%;justify-content:center"
@@ -189,16 +235,13 @@
                 <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Schedule Appointment
               </router-link>
-              <div
-                v-if="caseFile.referral?.status === 'submitted' && isGCU"
-                style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center"
-              >
-                ⚠ Acknowledge referral first before scheduling
+              <div v-else style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                ⚠ Acknowledge referral first
               </div>
 
-              <!-- Refer to TMDU — GCU only, only once -->
+              <!-- Refer to TMDU -->
               <button
-                v-if="isGCU && !caseFile.referred_to_tmdu"
+                v-if="!caseFile.referred_to_tmdu"
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
                 @click="referToTmdu"
@@ -206,41 +249,9 @@
                 <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Refer to TMDU
               </button>
-              <div
-                v-if="isGCU && caseFile.referred_to_tmdu"
-                style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center"
-              >
+              <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                 ✓ Already referred to TMDU
               </div>
-
-              <!-- Flag as Unreachable — GCU only -->
-              <button
-                v-if="isGCU"
-                class="ibtn"
-                style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
-                @click="showUnreachableModal = true"
-                :disabled="caseFile.student_unreachable"
-              >
-                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                {{ caseFile.student_unreachable ? 'Student Flagged Unreachable' : 'Flag as Unreachable' }}
-              </button>
-
-              <!-- Close Case — GCU only -->
-              <button
-                v-if="isGCU && caseFile.status !== 'closed'"
-                class="ibtn"
-                style="width:100%;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
-                @click="showCloseModal = true"
-              >
-                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                Close Case
-              </button>
-
-              <!-- No actions for non-GCU -->
-              <div v-if="!isGCU" style="font-size:12px;color:var(--fog);text-align:center;padding:8px">
-                View only access
-              </div>
-
             </div>
           </div>
 
@@ -287,27 +298,9 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year & College</div>
                 <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.year_level }} · {{ caseFile.student?.college }}</div>
               </div>
-            </div>
-          </div>
-
-          <!-- Referral Info -->
-          <div class="icard" v-if="caseFile.referral">
-            <div class="icard-header">
-              <span class="icard-title">Source Referral</span>
-              <router-link :to="{ name: 'referral-show', params: { id: caseFile.referral?.id } }" class="ibtn ibtn-g ibtn-sm">View</router-link>
-            </div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
-                <div style="font-size:13px;font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-                <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ caseFile.referral?.status?.replace(/_/g,' ') }}</span>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
-                <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_name }}</div>
+              <div v-if="caseFile.student?.program">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+                <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.program }}</div>
               </div>
             </div>
           </div>
@@ -315,12 +308,12 @@
         </div>
       </div>
 
-      <!-- Log Session Drawer — GCU only -->
+      <!-- Add Notes Drawer -->
       <div v-if="showSessionModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="showSessionModal = false">
         <div style="position:fixed;top:0;right:0;width:min(520px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
-              <div style="font-size:15px;font-weight:600;color:var(--ink)">Log Session</div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Session Notes</div>
               <div style="font-size:12px;color:var(--stone)">{{ caseFile.case_number }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showSessionModal = false">✕</button>
@@ -387,7 +380,7 @@
             <div style="display:flex;gap:8px;padding-top:8px">
               <button class="ibtn ibtn-p" @click="logSession">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                Save Session
+                Save Notes
               </button>
               <button class="ibtn ibtn-o" @click="showSessionModal = false">Cancel</button>
             </div>
@@ -444,7 +437,6 @@
             </div>
             <div style="display:flex;gap:8px">
               <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="flagUnreachable">
-                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 Flag as Unreachable
               </button>
               <button class="ibtn ibtn-o" @click="showUnreachableModal = false">Cancel</button>
@@ -476,6 +468,9 @@ const showStatusModal      = ref(false);
 const showUnreachableModal = ref(false);
 const newStatus            = ref('');
 const unreachableNotes     = ref('');
+const previousInterventions = ref('');
+const interventionBy        = ref('');
+const interventionDate      = ref('');
 
 const caseFile     = ref({});
 const sessionNotes = ref([]);
@@ -501,14 +496,14 @@ async function logSession() {
     sessionNotes.value.unshift(res.data);
     caseFile.value.total_sessions++;
     showSessionModal.value = false;
-    toast?.success('Session logged successfully.');
+    toast?.success('Session notes saved successfully.');
     sessionForm.value = {
       session_date: '', session_start_time: '', session_end_time: '',
       session_type: 'follow_up', observations: '', interventions: '',
       student_response: '', next_steps: '', mood_rating: '', student_showed_up: true,
     };
   } catch (e) {
-    toast?.error('Failed to log session.');
+    toast?.error('Failed to save session notes.');
   }
 }
 
@@ -520,6 +515,19 @@ async function updateStatus() {
     toast?.success('Status updated.');
   } catch (e) {
     toast?.error('Failed to update status.');
+  }
+}
+
+async function updateInterventions() {
+  try {
+    await caseAPI.update(caseFile.value.id, {
+      previous_interventions: previousInterventions.value,
+      intervention_by:        interventionBy.value,
+      intervention_date:      interventionDate.value,
+    });
+    toast?.success('Previous interventions updated.');
+  } catch (e) {
+    toast?.error('Failed to update interventions.');
   }
 }
 
@@ -541,8 +549,8 @@ async function closeCase() {
 async function referToTmdu() {
   try {
     await caseAPI.referToTmdu(caseFile.value.id, { reason: 'Referred for psychological assessment.' });
-    caseFile.value.current_unit    = 'TMDU';
-    caseFile.value.status          = 'awaiting_testing';
+    caseFile.value.current_unit     = 'TMDU';
+    caseFile.value.status           = 'awaiting_testing';
     caseFile.value.referred_to_tmdu = true;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
@@ -571,6 +579,10 @@ async function escalateNoShow(appointment) {
   }
 }
 
+function printSlip(type) {
+  toast?.success(`Generating ${type} slip... (coming soon)`);
+}
+
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
@@ -582,10 +594,13 @@ function formatDate(date) {
 onMounted(async () => {
   try {
     const res = await caseAPI.show(route.params.id);
-    caseFile.value     = res.data;
-    sessionNotes.value = res.data.session_notes || [];
-    appointments.value = res.data.appointments  || [];
-    newStatus.value    = res.data.status;
+    caseFile.value          = res.data;
+    sessionNotes.value      = res.data.session_notes || [];
+    appointments.value      = res.data.appointments  || [];
+    newStatus.value         = res.data.status;
+    previousInterventions.value = res.data.referral?.previous_interventions || '';
+    interventionBy.value        = res.data.referral?.intervention_by || '';
+    interventionDate.value      = res.data.referral?.intervention_date || '';
   } catch (e) {
     console.error(e);
   } finally {

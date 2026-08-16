@@ -179,9 +179,7 @@
           </div>
 
           <!-- Previous Interventions — OSS Personnel only, hidden for faculty/dean -->
-          <div style="margin-bottom:14px" v-if="!isFacultyOrDean">
-            <label class="ifl">Previous Interventions (if any)</label>
-            <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
+          
             <textarea
               v-model="form.previous_interventions"
               class="ifta"
