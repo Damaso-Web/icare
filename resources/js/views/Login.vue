@@ -36,18 +36,20 @@
               placeholder="Enter your password"
               required
               autocomplete="current-password"
-              style="padding-right:44px;width:100%;box-sizing:border-box"
+              style="padding-right:40px"
             />
             <button
               type="button"
               @click="showPassword = !showPassword"
-              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;display:flex;align-items:center;justify-content:center;color:var(--fog)"
+              style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);padding:4px;display:flex;align-items:center"
             >
-              <svg v-if="!showPassword" viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+              <!-- Eye open -->
+              <svg v-if="!showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                 <circle cx="12" cy="12" r="3"/>
               </svg>
-              <svg v-if="showPassword" viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+              <!-- Eye closed -->
+              <svg v-if="showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
                 <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
                 <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
                 <line x1="1" y1="1" x2="23" y2="23"/>
@@ -75,11 +77,12 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 
-const router       = useRouter();
-const auth         = useAuthStore();
-const form         = ref({ email: '', password: '' });
-const error        = ref('');
-const loading      = ref(false);
+const router = useRouter();
+const auth   = useAuthStore();
+
+const form = ref({ email: '', password: '' });
+const error       = ref('');
+const loading     = ref(false);
 const showPassword = ref(false);
 
 async function handleLogin() {

@@ -21,7 +21,8 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
-          <button class="ibtn ibtn-amber ibtn-sm" @click="showSessionModal = true">
+          <!-- Log Session only for GCU staff and Admin -->
+          <button v-if="isGCU" class="ibtn ibtn-amber ibtn-sm" @click="showSessionModal = true">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Log Session
           </button>
@@ -77,7 +78,7 @@
           </div>
 
           <!-- Session Notes -->
-          <div class="icard">
+          <div class="icard" v-if="isGCU">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
             </div>
@@ -112,7 +113,7 @@
             <div class="icard-header">
               <span class="icard-title">Appointments</span>
               <router-link
-                v-if="caseFile.referral?.status !== 'submitted'"
+                v-if="caseFile.referral?.status !== 'submitted' && isGCU"
                 :to="{ name: 'appointments' }"
                 class="ibtn ibtn-o ibtn-sm"
               >
@@ -143,11 +144,11 @@
                     <td>{{ a.appointment_type?.replace(/_/g,' ') }}</td>
                     <td style="font-size:12px">{{ formatDate(a.appointment_date) }}</td>
                     <td style="font-size:12px">{{ a.start_time }}</td>
-                    <td style="font-size:12px">{{ a.staff?.name }}</td>
+                    <td style="font-size:12px">{{ a.staff?.name || 'TBA' }}</td>
                     <td><span class="ibadge" :class="'ibadge-' + a.status">{{ a.status }}</span></td>
                     <td>
                       <button
-                        v-if="a.status === 'no_show' && !a.no_show_escalated"
+                        v-if="a.status === 'no_show' && !a.no_show_escalated && isGCU"
                         class="ibtn ibtn-sm"
                         style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);font-size:11px"
                         @click="escalateNoShow(a)"
@@ -171,14 +172,16 @@
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Actions</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="showSessionModal = true">
+
+              <!-- Log Session — GCU only -->
+              <button v-if="isGCU" class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="showSessionModal = true">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Log Session
               </button>
 
-              <!-- Schedule Appointment — only when referral is acknowledged -->
+              <!-- Schedule Appointment — only when referral acknowledged -->
               <router-link
-                v-if="caseFile.referral?.status !== 'submitted'"
+                v-if="caseFile.referral?.status !== 'submitted' && isGCU"
                 :to="{ name: 'appointments' }"
                 class="ibtn ibtn-o"
                 style="width:100%;justify-content:center"
@@ -187,15 +190,15 @@
                 Schedule Appointment
               </router-link>
               <div
-                v-else
+                v-if="caseFile.referral?.status === 'submitted' && isGCU"
                 style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center"
               >
                 ⚠ Acknowledge referral first before scheduling
               </div>
 
-              <!-- Refer to TMDU — only show if not yet referred -->
+              <!-- Refer to TMDU — GCU only, only once -->
               <button
-                v-if="!caseFile.referred_to_tmdu"
+                v-if="isGCU && !caseFile.referred_to_tmdu"
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
                 @click="referToTmdu"
@@ -204,13 +207,15 @@
                 Refer to TMDU
               </button>
               <div
-                v-if="caseFile.referred_to_tmdu"
+                v-if="isGCU && caseFile.referred_to_tmdu"
                 style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center"
               >
                 ✓ Already referred to TMDU
               </div>
 
+              <!-- Flag as Unreachable — GCU only -->
               <button
+                v-if="isGCU"
                 class="ibtn"
                 style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
                 @click="showUnreachableModal = true"
@@ -220,8 +225,9 @@
                 {{ caseFile.student_unreachable ? 'Student Flagged Unreachable' : 'Flag as Unreachable' }}
               </button>
 
+              <!-- Close Case — GCU only -->
               <button
-                v-if="caseFile.status !== 'closed'"
+                v-if="isGCU && caseFile.status !== 'closed'"
                 class="ibtn"
                 style="width:100%;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
                 @click="showCloseModal = true"
@@ -229,6 +235,12 @@
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 Close Case
               </button>
+
+              <!-- No actions for non-GCU -->
+              <div v-if="!isGCU" style="font-size:12px;color:var(--fog);text-align:center;padding:8px">
+                View only access
+              </div>
+
             </div>
           </div>
 
@@ -303,8 +315,8 @@
         </div>
       </div>
 
-      <!-- Log Session Drawer -->
-      <div v-if="showSessionModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="showSessionModal = false">
+      <!-- Log Session Drawer — GCU only -->
+      <div v-if="showSessionModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="showSessionModal = false">
         <div style="position:fixed;top:0;right:0;width:min(520px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
@@ -446,12 +458,16 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import { caseAPI, sessionNoteAPI, appointmentAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 
 const route  = useRoute();
 const toast  = inject('toast');
+const auth   = useAuthStore();
+
+const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
 const loading              = ref(true);
 const showSessionModal     = ref(false);
@@ -525,8 +541,8 @@ async function closeCase() {
 async function referToTmdu() {
   try {
     await caseAPI.referToTmdu(caseFile.value.id, { reason: 'Referred for psychological assessment.' });
-    caseFile.value.current_unit   = 'TMDU';
-    caseFile.value.status         = 'awaiting_testing';
+    caseFile.value.current_unit    = 'TMDU';
+    caseFile.value.status          = 'awaiting_testing';
     caseFile.value.referred_to_tmdu = true;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
