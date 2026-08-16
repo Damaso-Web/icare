@@ -178,26 +178,6 @@
             ></textarea>
           </div>
 
-          <!-- Previous Interventions — OSS Personnel only, hidden for faculty/dean -->
-          
-            <textarea
-              v-model="form.previous_interventions"
-              class="ifta"
-              style="min-height:60px"
-              placeholder="Describe any prior support or actions already taken..."
-            ></textarea>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px">
-              <div>
-                <label class="ifl">By</label>
-                <input v-model="form.intervention_by" class="ifi" placeholder="Name of OSS Personnel" />
-              </div>
-              <div>
-                <label class="ifl">Date</label>
-                <input v-model="form.intervention_date" type="date" class="ifi" />
-              </div>
-            </div>
-          </div>
-
           <!-- Actions -->
           <div style="display:flex;gap:9px;margin-top:8px">
             <button type="submit" class="ibtn ibtn-p" :disabled="loading || (form.student_id_input && form.student_id_input.length !== 7)">
@@ -253,9 +233,6 @@ const form = ref({
   preferred_date:        '',
   referral_source:       'faculty',
   nature_of_concern:     '',
-  previous_interventions:'',
-  intervention_by:       '',
-  intervention_date:     '',
 });
 
 function goBack() {
@@ -344,7 +321,6 @@ function clearForm() {
     referrer_position: '', referrer_department: '',
     referrer_contact: '', referral_type: '', preferred_date: '',
     referral_source: 'faculty', nature_of_concern: '',
-    previous_interventions: '', intervention_by: '', intervention_date: '',
   };
 }
 </script>
