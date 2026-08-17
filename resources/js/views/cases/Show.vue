@@ -21,7 +21,6 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
-          <!-- Flag as Unreachable — GCU only -->
           <button
             v-if="isGCU && !caseFile.student_unreachable"
             class="ibtn ibtn-sm"
@@ -31,7 +30,6 @@
             <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Flag Unreachable
           </button>
-          <!-- Close Case — GCU only -->
           <button
             v-if="isGCU && caseFile.status !== 'closed'"
             class="ibtn ibtn-sm"
@@ -84,39 +82,115 @@
             </div>
           </div>
 
-          <!-- Referral Details — shown from the referral form -->
+          <!-- Full Referral Form View -->
           <div class="icard" v-if="caseFile.referral">
             <div class="icard-header">
-              <span class="icard-title">Referral Details</span>
+              <span class="icard-title">Referral Form</span>
               <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ caseFile.referral?.status?.replace(/_/g,' ') }}</span>
             </div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:12px">
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-                <div>
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
-                  <div style="font-size:13px;font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
+
+            <!-- Document Code Header -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-OSS-01</div>
+                <div><strong>Revision No.:</strong> 01</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> 07/04/23</div>
+                <div><strong>Ctrl No.:</strong> 25-2</div>
+              </div>
+            </div>
+
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:16px">
+
+              <!-- Student Information -->
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  Student Information
+                  <div style="flex:1;height:1px;background:var(--cloud)"></div>
                 </div>
-                <div>
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') }}</div>
-                </div>
-                <div>
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_name }}</div>
-                </div>
-                <div>
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.referral?.created_at) }}</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Student ID</div>
+                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.student?.student_id || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Full Name</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.college || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.program || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.year_level || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.section || '—' }}</div>
+                  </div>
                 </div>
               </div>
+
+              <!-- Referred By -->
               <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Nature of Concern</div>
-                <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.referral?.nature_of_concern }}</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  Referred By
+                  <div style="flex:1;height:1px;background:var(--cloud)"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_name || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_role?.replace(/_/g,' ') || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.referral?.created_at) }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
+                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Referral Details -->
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  Referral Details
+                  <div style="flex:1;height:1px;background:var(--cloud)"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') || '—' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_source?.replace(/_/g,' ') || '—' }}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
+                  <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.referral?.nature_of_concern || '—' }}</div>
+                </div>
               </div>
 
               <!-- Previous Interventions — editable by GCU -->
               <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Previous Interventions (if any)</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:12px">
+                  Previous Interventions (if any)
+                  <div style="flex:1;height:1px;background:var(--cloud)"></div>
+                </div>
                 <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
                 <textarea
                   v-if="isGCU"
@@ -125,7 +199,10 @@
                   style="min-height:60px"
                   placeholder="Describe any prior support or actions already taken..."
                 ></textarea>
-                <div v-else style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">
+                <div
+                  v-else
+                  style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)"
+                >
                   {{ previousInterventions || '—' }}
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px" v-if="isGCU">
@@ -143,18 +220,11 @@
                   Update Interventions
                 </button>
               </div>
+
             </div>
           </div>
 
-          <!-- Presenting Concern -->
-          <div class="icard">
-            <div class="icard-header"><span class="icard-title">Presenting Concern</span></div>
-            <div class="icard-body">
-              <div style="font-size:13.5px;color:var(--ink);line-height:1.6">{{ caseFile.presenting_concern || '—' }}</div>
-            </div>
-          </div>
-
-          <!-- Session Notes -->
+          <!-- Session Notes — GCU only -->
           <div class="icard" v-if="isGCU">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
@@ -194,7 +264,7 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
-          <!-- Slips / Service Actions -->
+          <!-- Service Slips -->
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Service Slips</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
@@ -221,11 +291,10 @@
             </div>
           </div>
 
-          <!-- GCU Actions -->
+          <!-- GCU Case Actions -->
           <div class="icard" v-if="isGCU">
             <div class="icard-header"><span class="icard-title">Case Actions</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <!-- Schedule Appointment -->
               <router-link
                 v-if="caseFile.referral?.status !== 'submitted'"
                 :to="{ name: 'appointments' }"
@@ -238,8 +307,6 @@
               <div v-else style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                 ⚠ Acknowledge referral first
               </div>
-
-              <!-- Refer to TMDU -->
               <button
                 v-if="!caseFile.referred_to_tmdu"
                 class="ibtn ibtn-blue"
