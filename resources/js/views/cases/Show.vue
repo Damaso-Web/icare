@@ -175,9 +175,9 @@
                     <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') || '—' }}</div>
                   </div>
                   <div>
-                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_source?.replace(/_/g,' ') || '—' }}</div>
-                  </div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referrer Role</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_role?.replace(/_/g,' ') || '—' }}</div>
+                </div>
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
@@ -588,11 +588,10 @@ async function updateStatus() {
 async function updateInterventions() {
   try {
     await caseAPI.update(caseFile.value.id, {
-      previous_interventions: previousInterventions.value,
-      intervention_by:        interventionBy.value,
-      intervention_date:      interventionDate.value,
+      intake_notes: previousInterventions.value,
     });
-    toast?.success('Previous interventions updated.');
+    caseFile.value.intake_notes = previousInterventions.value;
+    toast?.success('Previous interventions saved as intake notes.');
   } catch (e) {
     toast?.error('Failed to update interventions.');
   }
@@ -665,7 +664,7 @@ onMounted(async () => {
     sessionNotes.value      = res.data.session_notes || [];
     appointments.value      = res.data.appointments  || [];
     newStatus.value         = res.data.status;
-    previousInterventions.value = res.data.referral?.previous_interventions || '';
+    previousInterventions.value = res.data.intake_notes || '';
     interventionBy.value        = res.data.referral?.intervention_by || '';
     interventionDate.value      = res.data.referral?.intervention_date || '';
   } catch (e) {

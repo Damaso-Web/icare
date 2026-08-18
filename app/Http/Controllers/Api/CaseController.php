@@ -69,6 +69,7 @@ class CaseController extends Controller
             'interventions_applied',
             'outcomes',
             'recommendations',
+            'intake_notes',
         ]));
         AuditLog::record('updated', "Updated case {$case->case_number}.", $case, $old, $case->toArray());
         return response()->json($case);
