@@ -285,12 +285,13 @@ async function handleSubmit() {
     }
 
     await referralAPI.store({
-      student_id:        studentId,
-      referral_type:     form.value.referral_type,
-      nature_of_concern: form.value.nature_of_concern,
-      urgency_level:     'medium',
-      is_self_referred:  form.value.referral_source === 'self',
-    });
+    student_id:        studentId,
+    referral_type:     form.value.referral_type,
+    nature_of_concern: form.value.nature_of_concern,
+    urgency_level:     'medium',
+    is_self_referred:  form.value.referral_source === 'self',
+    referrer_source:   form.value.referral_source,
+  });
 
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';

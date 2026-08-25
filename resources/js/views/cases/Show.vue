@@ -175,8 +175,8 @@
                     <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') || '—' }}</div>
                   </div>
                   <div>
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referrer Role</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_role?.replace(/_/g,' ') || '—' }}</div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatReferralSource(caseFile.referral?.referrer_source) }}</div>
                 </div>
                 </div>
                 <div>
@@ -655,6 +655,17 @@ function initials(first, last) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '—';
+}
+
+function formatReferralSource(source) {
+  const labels = {
+    faculty: 'Faculty Referral',
+    sdu:     'SDU Referral',
+    self:    'Self-Referral',
+    dean:    "Dean's Office",
+    parent:  'Parent / Guardian',
+  };
+  return labels[source] || source || '—';
 }
 
 onMounted(async () => {

@@ -41,6 +41,7 @@ class ReferralController extends Controller
             'nature_of_concern'   => 'required|string|min:10',
             'urgency_level'       => 'required|in:low,medium,high,critical',
             'is_self_referred'    => 'boolean',
+            'referrer_source'     => 'nullable|string',
             'violation_type'      => 'nullable|string',
             'incident_description'=> 'nullable|string',
             'incident_date'       => 'nullable|date',

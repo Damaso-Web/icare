@@ -65,7 +65,7 @@
 
       <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
         iCARE — Integrated Case Management and Referral System<br>
-        Batangas State University
+        Benguet State University
       </div>
 
     </div>

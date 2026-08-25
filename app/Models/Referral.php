@@ -16,6 +16,7 @@ class Referral extends Model
         'referred_by_user_id',
         'referrer_name',
         'referrer_role',
+        'referrer_source',
         'referrer_college',
         'referral_type',
         'nature_of_concern',
