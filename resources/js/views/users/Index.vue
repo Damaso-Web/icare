@@ -22,7 +22,6 @@
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <!-- Only admin can add users -->
       <button
         v-if="auth.isAdmin"
         class="ibtn ibtn-p ibtn-sm"
@@ -30,7 +29,7 @@
         @click="openCreate"
       >
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add User
+        Add Employee
       </button>
     </div>
 
@@ -50,15 +49,15 @@
               <th>User</th>
               <th>Employee ID</th>
               <th>Role</th>
-              <th>Unit / College</th>
+              <th>College / Department</th>
               <th>Last Login</th>
               <th>Status</th>
-              <th v-if="auth.isAdmin"></th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
-              <td>
+              <td style="cursor:pointer" @click="openView(u)">
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(u.name) }}</div>
                   <div>
@@ -69,18 +68,19 @@
               </td>
               <td style="font-family:var(--mono);font-size:12px">{{ u.employee_id || '—' }}</td>
               <td><span class="ibadge" :style="roleStyle(u.role)">{{ roleLabel(u.role) }}</span></td>
-              <td style="font-size:12px">{{ u.unit || u.college || '—' }}</td>
+              <td style="font-size:12px">{{ u.college || u.department || '—' }}</td>
               <td style="font-size:12px;color:var(--stone)">{{ u.last_login_at ? formatDate(u.last_login_at) : 'Never' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <!-- Only admin can edit/deactivate -->
-              <td v-if="auth.isAdmin">
+              <td>
                 <div style="display:flex;gap:6px">
-                  <button class="ibtn ibtn-o ibtn-sm" @click="openEdit(u)">Edit</button>
+                  <button class="ibtn ibtn-g ibtn-sm" @click="openView(u)">View</button>
+                  <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openEdit(u)">Edit</button>
                   <button
+                    v-if="auth.isAdmin"
                     class="ibtn ibtn-sm"
                     :style="u.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'"
                     @click="toggleActive(u)"
@@ -106,11 +106,53 @@
       </div>
     </div>
 
-    <!-- User Modal — admin only -->
+    <!-- View Employee Profile Modal -->
+    <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
+            {{ initials(viewedUser.name) }}
+          </div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.name }}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">{{ viewedUser.email }}</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Employee ID</div>
+            <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ viewedUser.employee_id || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
+            <span class="ibadge" :style="roleStyle(viewedUser.role)">{{ roleLabel(viewedUser.role) }}</span>
+          </div>
+          <div v-if="viewedUser.college">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedUser.college }}</div>
+          </div>
+          <div v-if="viewedUser.department">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Department</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedUser.department }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+            <span class="ibadge" :style="viewedUser.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
+              {{ viewedUser.is_active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Login</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedUser.last_login_at ? formatDate(viewedUser.last_login_at) : 'Never' }}</div>
+          </div>
+          <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:8px" @click="showViewModal = false">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add / Edit Employee Modal — admin only -->
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit User' : 'Add New User' }}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee' : 'Add New Employee' }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -138,15 +180,6 @@
               <option value="dean_secretary">Dean's Secretary</option>
             </select>
           </div>
-          <div v-if="['gcu_staff','sdu_head','tmdu_staff','admin'].includes(userForm.role)">
-            <label class="ifl">Unit</label>
-            <select v-model="userForm.unit" class="ifse">
-              <option value="GCU">GCU</option>
-              <option value="SDU">SDU</option>
-              <option value="TMDU">TMDU</option>
-              <option value="OSS">OSS</option>
-            </select>
-          </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College</label>
             <select v-model="userForm.college" class="ifse">
@@ -166,7 +199,7 @@
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditing ? 'Save Changes' : 'Create User' }}
+              {{ isEditing ? 'Save Changes' : 'Create Employee' }}
             </button>
             <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
@@ -187,15 +220,17 @@ const toast      = inject('toast');
 const auth       = useAuthStore();
 const loading    = ref(true);
 const showModal  = ref(false);
+const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
 const filters    = ref({ search: '', role: '' });
 const colleges   = COLLEGES;
+const viewedUser = ref({});
 
 const userForm = ref({
   name: '', email: '', employee_id: '', role: '',
-  unit: '', college: '', department: '',
+  college: '', department: '',
   password: '', password_confirmation: '',
 });
 
@@ -212,10 +247,15 @@ async function fetchUsers(page = 1) {
   }
 }
 
+function openView(u) {
+  viewedUser.value = u;
+  showViewModal.value = true;
+}
+
 function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
-  userForm.value  = { name: '', email: '', employee_id: '', role: '', unit: '', college: '', department: '', password: '', password_confirmation: '' };
+  userForm.value  = { name: '', email: '', employee_id: '', role: '', college: '', department: '', password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
@@ -238,29 +278,29 @@ async function saveUser() {
   try {
     if (isEditing.value) {
       await userAPI.update(userForm.value.id, userForm.value);
-      toast?.success('User updated successfully.');
+      toast?.success('Employee updated successfully.');
     } else {
       await userAPI.store(userForm.value);
-      toast?.success('User created successfully.');
+      toast?.success('Employee created successfully.');
     }
     showModal.value = false;
     fetchUsers();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to save user.');
+    toast?.error(e.response?.data?.message || 'Failed to save employee.');
   }
 }
 
 async function toggleActive(u) {
   if (!auth.isAdmin) {
-    toast?.error('Only administrators can activate/deactivate users.');
+    toast?.error('Only administrators can activate/deactivate employees.');
     return;
   }
   try {
     await userAPI.toggleActive(u.id);
     u.is_active = !u.is_active;
-    toast?.success(`User ${u.is_active ? 'activated' : 'deactivated'}.`);
+    toast?.success(`Employee ${u.is_active ? 'activated' : 'deactivated'}.`);
   } catch (e) {
-    toast?.error('Failed to update user status.');
+    toast?.error('Failed to update employee status.');
   }
 }
 

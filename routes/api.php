@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('students', StudentController::class);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::get('students/{student}/cases',   [StudentController::class, 'cases']);
+    Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);

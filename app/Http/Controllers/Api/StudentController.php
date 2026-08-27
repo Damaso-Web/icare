@@ -107,4 +107,11 @@ class StudentController extends Controller
     {
         return response()->json($student->cases()->with(['counselor', 'sessionNotes'])->get());
     }
+    
+    public function toggleActive(Student $student)
+{
+    $student->update(['is_active' => !$student->is_active]);
+    \App\Models\AuditLog::record('toggled', "User {$student->first_name} {$student->last_name} " . ($student->is_active ? 'activated' : 'deactivated') . ".", $student);
+    return response()->json($student);
+}
 }

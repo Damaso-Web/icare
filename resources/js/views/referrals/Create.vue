@@ -43,18 +43,18 @@
           <div style="margin-bottom:14px">
             <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
             <input
-              v-model="form.student_id_input"
-              class="ifi"
-              placeholder="e.g. 2302021"
-              pattern="[0-9]{7}"
-              maxlength="7"
-              title="Student ID must be exactly 7 numbers"
-              @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
-              required
-            />
-            <div v-if="form.student_id_input && form.student_id_input.length !== 7" style="font-size:11px;color:var(--red);margin-top:4px">
-              Student ID must be exactly 7 digits
-            </div>
+            v-model="form.student_id_input"
+            class="ifi"
+            placeholder="e.g. 2302021"
+            pattern="[0-9]{7}"
+            maxlength="7"
+            title="Student ID must be exactly 7 numbers"
+            @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
+            @blur="lookupStudent"
+            required
+          />
+          <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
+            ✓ Existing student found — details auto-filled
           </div>
 
           <!-- Name Fields -->
@@ -79,16 +79,19 @@
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-              <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="form.college" class="ifse" required>
-                <option value="">Select college...</option>
-                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-              <input v-model="form.program" class="ifi" placeholder="e.g. Bachelor of Science in Information Technology" required />
-            </div>
+            <label class="ifl">College <span style="color:var(--red)">*</span></label>
+            <select v-model="form.college" class="ifse" @change="onCollegeChange" required>
+              <option value="">Select college...</option>
+              <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+            <select v-model="form.program" class="ifse" required :disabled="!form.college">
+              <option value="">Select program...</option>
+              <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
+            </select>
+          </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
               <select v-model="form.year_level" class="ifse" required>
@@ -114,13 +117,21 @@
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-              <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
-              <input v-model="form.referrer_name_input" class="ifi" placeholder="Full name of person referring" required />
-            </div>
-            <div>
-              <label class="ifl">Position / Role</label>
-              <input v-model="form.referrer_position" class="ifi" placeholder="e.g. Instructor, Adviser" />
-            </div>
+            <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
+            <input v-model="form.referrer_name_input" class="ifi" placeholder=" Name of person referring" required />
+          </div>
+          <div>
+            <label class="ifl">Position / Role</label>
+            <select v-model="form.referrer_position" class="ifse">
+              <option value="">Select...</option>
+              <option value="instructor">Instructor</option>
+              <option value="adviser">Adviser</option>
+              <option value="department_chair">Department Chair</option>
+              <option value="dean">Dean</option>
+              <option value="staff">Staff</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
             <div>
               <label class="ifl">Department / College</label>
               <input v-model="form.referrer_department" class="ifi" placeholder="e.g. College of Information Sciences" />
@@ -201,11 +212,14 @@ import { useRouter } from 'vue-router';
 import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
+import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
 
 const router   = useRouter();
 const toast    = inject('toast');
 const auth     = useAuthStore();
 const colleges = COLLEGES;
+const studentFound = ref(false);
+const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[form.value.college] || []);
 
 const error   = ref('');
 const success = ref('');
@@ -240,6 +254,32 @@ function goBack() {
     router.push({ name: 'dashboard' });
   } else {
     router.push({ name: 'referrals' });
+  }
+}
+
+function onCollegeChange() {
+  form.value.program = '';
+}
+
+async function lookupStudent() {
+  if (form.value.student_id_input.length !== 7) return;
+  try {
+    const res = await studentAPI.index({ search: form.value.student_id_input });
+    const found = res.data.data?.find(s => s.student_id === form.value.student_id_input);
+    if (found) {
+      form.value.last_name   = found.last_name;
+      form.value.first_name  = found.first_name;
+      form.value.middle_name = found.middle_name || '';
+      form.value.college     = found.college || '';
+      form.value.program     = found.program || '';
+      form.value.year_level  = found.year_level || '';
+      form.value.section     = found.section || '';
+      studentFound.value = true;
+    } else {
+      studentFound.value = false;
+    }
+  } catch (e) {
+    studentFound.value = false;
   }
 }
 
