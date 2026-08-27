@@ -56,7 +56,7 @@
           <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
             ✓ Existing student found — details auto-filled
           </div>
-
+          </div>
           <!-- Name Fields -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:14px;margin-bottom:14px">
             <div>
