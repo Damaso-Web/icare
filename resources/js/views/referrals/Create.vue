@@ -88,9 +88,10 @@
           <div>
             <label class="ifl">Program <span style="color:var(--red)">*</span></label>
             <select v-model="form.program" class="ifse" required :disabled="!form.college">
-              <option value="">Select program...</option>
-              <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
-            </select>
+            <option value="">Select program...</option>
+            <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
+            <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
+          </select>
           </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
@@ -213,6 +214,7 @@ import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
+import { ref, inject, computed, nextTick } from 'vue';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -271,9 +273,21 @@ async function lookupStudent() {
       form.value.first_name  = found.first_name;
       form.value.middle_name = found.middle_name || '';
       form.value.college     = found.college || '';
-      form.value.program     = found.program || '';
       form.value.year_level  = found.year_level || '';
       form.value.section     = found.section || '';
+
+      // Set program after college updates the available list
+      await nextTick();
+      const programList = PROGRAMS_BY_COLLEGE[found.college] || [];
+      if (found.program && programList.includes(found.program)) {
+        form.value.program = found.program;
+      } else if (found.program) {
+        // Program not in predefined list — add it temporarily so it still shows
+        form.value.program = found.program;
+      } else {
+        form.value.program = '';
+      }
+
       studentFound.value = true;
     } else {
       studentFound.value = false;
