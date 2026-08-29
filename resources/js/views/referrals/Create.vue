@@ -39,24 +39,57 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
-          <!-- Student ID -->
+          <!-- Student ID / Name Search with Autocomplete -->
+          <div style="margin-bottom:14px;position:relative">
+            <label class="ifl">Search Student (ID or Name) <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="studentSearchQuery"
+              class="ifi"
+              placeholder="Type student ID or name..."
+              @input="onStudentSearch"
+              @focus="showStudentDropdown = studentSuggestions.length > 0"
+              autocomplete="off"
+            />
+            <!-- Suggestions Dropdown -->
+            <div
+              v-if="showStudentDropdown && studentSuggestions.length > 0"
+              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
+            >
+              <div
+                v-for="s in studentSuggestions"
+                :key="s.id"
+                style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud);transition:background .1s"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='#fff'"
+                @click="selectStudent(s)"
+              >
+                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
+                <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '—' }}</div>
+              </div>
+            </div>
+            <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
+              ✓ Existing student found — details auto-filled
+            </div>
+          </div>
+
+          <!-- Student ID (read-only display, set via search) -->
           <div style="margin-bottom:14px">
             <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
             <input
-            v-model="form.student_id_input"
-            class="ifi"
-            placeholder="e.g. 2302021"
-            pattern="[0-9]{7}"
-            maxlength="7"
-            title="Student ID must be exactly 7 numbers"
-            @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
-            @blur="lookupStudent"
-            required
-          />
-          <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
-            ✓ Existing student found — details auto-filled
+              v-model="form.student_id_input"
+              class="ifi"
+              placeholder="e.g. 2302021"
+              pattern="[0-9]{7}"
+              maxlength="7"
+              title="Student ID must be exactly 7 numbers"
+              @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
+              required
+            />
+            <div v-if="form.student_id_input && form.student_id_input.length !== 7" style="font-size:11px;color:var(--red);margin-top:4px">
+              Student ID must be exactly 7 digits
+            </div>
           </div>
-          </div>
+
           <!-- Name Fields -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:14px;margin-bottom:14px">
             <div>
@@ -79,20 +112,20 @@
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-            <label class="ifl">College <span style="color:var(--red)">*</span></label>
-            <select v-model="form.college" class="ifse" @change="onCollegeChange" required>
-              <option value="">Select college...</option>
-              <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-            </select>
-          </div>
-          <div>
-            <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-            <select v-model="form.program" class="ifse" required :disabled="!form.college">
-            <option value="">Select program...</option>
-            <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
-            <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
-          </select>
-          </div>
+              <label class="ifl">College <span style="color:var(--red)">*</span></label>
+              <select v-model="form.college" class="ifse" @change="form.program = ''" required>
+                <option value="">Select college...</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+              <select v-model="form.program" class="ifse" required :disabled="!form.college">
+                <option value="">Select program...</option>
+                <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
+                <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
               <select v-model="form.year_level" class="ifse" required>
@@ -106,7 +139,13 @@
             </div>
             <div>
               <label class="ifl">Section</label>
-              <input v-model="form.section" class="ifi" placeholder="e.g. A" />
+              <input
+                v-model="form.section"
+                class="ifi"
+                placeholder="e.g. A"
+                maxlength="1"
+                @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+              />
             </div>
           </div>
 
@@ -116,30 +155,66 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
+          <!-- Referrer Search with Autocomplete -->
+          <div style="margin-bottom:14px;position:relative">
+            <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="form.referrer_name_input"
+              class="ifi"
+              placeholder="Full name of person referring"
+              @input="onReferrerSearch"
+              @focus="showReferrerDropdown = referrerSuggestions.length > 0"
+              autocomplete="off"
+              required
+            />
+            <!-- Suggestions Dropdown -->
+            <div
+              v-if="showReferrerDropdown && referrerSuggestions.length > 0"
+              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
+            >
+              <div
+                v-for="r in referrerSuggestions"
+                :key="r.id"
+                style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud);transition:background .1s"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='#fff'"
+                @click="selectReferrer(r)"
+              >
+                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.name }}</div>
+                <div style="font-size:11px;color:var(--fog)">{{ r.email }} · {{ roleLabel(r.role) }}</div>
+              </div>
+            </div>
+          </div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-            <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
-            <input v-model="form.referrer_name_input" class="ifi" placeholder=" Name of person referring" required />
-          </div>
-          <div>
-            <label class="ifl">Position / Role</label>
-            <select v-model="form.referrer_position" class="ifse">
-              <option value="">Select...</option>
-              <option value="instructor">Instructor</option>
-              <option value="adviser">Adviser</option>
-              <option value="department_chair">Department Chair</option>
-              <option value="dean">Dean</option>
-              <option value="staff">Staff</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
+              <label class="ifl">Position / Role</label>
+              <select v-model="form.referrer_position" class="ifse">
+                <option value="">Select...</option>
+                <option value="instructor">Instructor</option>
+                <option value="adviser">Adviser</option>
+                <option value="department_chair">Department Chair</option>
+                <option value="dean">Dean</option>
+                <option value="staff">Staff</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
             <div>
               <label class="ifl">Department / College</label>
-              <input v-model="form.referrer_department" class="ifi" placeholder="e.g. College of Information Sciences" />
+              <select v-model="form.referrer_department" class="ifse">
+                <option value="">Select college...</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" />
+              <input
+                v-model="form.referrer_contact"
+                class="ifi"
+                placeholder="e.g. 09171234567"
+                maxlength="11"
+                @input="form.referrer_contact = form.referrer_contact.replace(/[^0-9]/g, '').slice(0, 11)"
+              />
             </div>
           </div>
 
@@ -208,28 +283,37 @@
 </template>
 
 <script setup>
-import { ref, inject, computed } from 'vue';
+import { ref, inject, computed, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
-import { referralAPI, studentAPI } from '../../api/index';
+import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { ref, inject, computed, nextTick } from 'vue';
 
 const router   = useRouter();
 const toast    = inject('toast');
 const auth     = useAuthStore();
 const colleges = COLLEGES;
-const studentFound = ref(false);
-const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[form.value.college] || []);
 
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
+const studentFound = ref(false);
+
+const studentSearchQuery   = ref('');
+const studentSuggestions   = ref([]);
+const showStudentDropdown  = ref(false);
+let studentSearchTimeout = null;
+
+const referrerSuggestions   = ref([]);
+const showReferrerDropdown  = ref(false);
+let referrerSearchTimeout = null;
 
 const isFacultyOrDean = computed(() =>
   auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary'
 );
+
+const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[form.value.college] || []);
 
 const form = ref({
   student_id_input:      '',
@@ -251,49 +335,79 @@ const form = ref({
   nature_of_concern:     '',
 });
 
+function roleLabel(role) {
+  const labels = {
+    admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head',
+    tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
+  };
+  return labels[role] || role;
+}
+
+function onStudentSearch() {
+  clearTimeout(studentSearchTimeout);
+  studentFound.value = false;
+  if (!studentSearchQuery.value || studentSearchQuery.value.length < 2) {
+    studentSuggestions.value = [];
+    showStudentDropdown.value = false;
+    return;
+  }
+  studentSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await studentAPI.index({ search: studentSearchQuery.value });
+      studentSuggestions.value = res.data.data || [];
+      showStudentDropdown.value = studentSuggestions.value.length > 0;
+    } catch (e) {
+      studentSuggestions.value = [];
+    }
+  }, 350);
+}
+
+async function selectStudent(s) {
+  form.value.student_id_input = s.student_id;
+  form.value.last_name        = s.last_name;
+  form.value.first_name       = s.first_name;
+  form.value.middle_name      = s.middle_name || '';
+  form.value.college          = s.college || '';
+  form.value.year_level       = s.year_level || '';
+  form.value.section          = s.section || '';
+
+  await nextTick();
+  form.value.program = s.program || '';
+
+  studentSearchQuery.value  = `${s.last_name}, ${s.first_name}`;
+  showStudentDropdown.value = false;
+  studentFound.value        = true;
+}
+
+function onReferrerSearch() {
+  clearTimeout(referrerSearchTimeout);
+  if (!form.value.referrer_name_input || form.value.referrer_name_input.length < 2) {
+    referrerSuggestions.value = [];
+    showReferrerDropdown.value = false;
+    return;
+  }
+  referrerSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await userAPI.index({ search: form.value.referrer_name_input });
+      referrerSuggestions.value = res.data.data || [];
+      showReferrerDropdown.value = referrerSuggestions.value.length > 0;
+    } catch (e) {
+      referrerSuggestions.value = [];
+    }
+  }, 350);
+}
+
+function selectReferrer(r) {
+  form.value.referrer_name_input = r.name;
+  form.value.referrer_department = r.college || '';
+  showReferrerDropdown.value = false;
+}
+
 function goBack() {
   if (isFacultyOrDean.value) {
     router.push({ name: 'dashboard' });
   } else {
     router.push({ name: 'referrals' });
-  }
-}
-
-function onCollegeChange() {
-  form.value.program = '';
-}
-
-async function lookupStudent() {
-  if (form.value.student_id_input.length !== 7) return;
-  try {
-    const res = await studentAPI.index({ search: form.value.student_id_input });
-    const found = res.data.data?.find(s => s.student_id === form.value.student_id_input);
-    if (found) {
-      form.value.last_name   = found.last_name;
-      form.value.first_name  = found.first_name;
-      form.value.middle_name = found.middle_name || '';
-      form.value.college     = found.college || '';
-      form.value.year_level  = found.year_level || '';
-      form.value.section     = found.section || '';
-
-      // Set program after college updates the available list
-      await nextTick();
-      const programList = PROGRAMS_BY_COLLEGE[found.college] || [];
-      if (found.program && programList.includes(found.program)) {
-        form.value.program = found.program;
-      } else if (found.program) {
-        // Program not in predefined list — add it temporarily so it still shows
-        form.value.program = found.program;
-      } else {
-        form.value.program = '';
-      }
-
-      studentFound.value = true;
-    } else {
-      studentFound.value = false;
-    }
-  } catch (e) {
-    studentFound.value = false;
   }
 }
 
@@ -339,13 +453,13 @@ async function handleSubmit() {
     }
 
     await referralAPI.store({
-    student_id:        studentId,
-    referral_type:     form.value.referral_type,
-    nature_of_concern: form.value.nature_of_concern,
-    urgency_level:     'medium',
-    is_self_referred:  form.value.referral_source === 'self',
-    referrer_source:   form.value.referral_source,
-  });
+      student_id:        studentId,
+      referral_type:     form.value.referral_type,
+      nature_of_concern: form.value.nature_of_concern,
+      urgency_level:     'medium',
+      is_self_referred:  form.value.referral_source === 'self',
+      referrer_source:   form.value.referral_source,
+    });
 
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';
@@ -369,6 +483,8 @@ async function handleSubmit() {
 function clearForm() {
   error.value   = '';
   success.value = '';
+  studentSearchQuery.value = '';
+  studentFound.value = false;
   form.value = {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', program: '', year_level: '',

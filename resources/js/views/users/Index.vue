@@ -192,10 +192,16 @@
             <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" />
           </div>
           <div v-if="!isEditing">
-            <label class="ifl">Password <span style="color:var(--red)">*</span></label>
-            <input v-model="userForm.password" type="password" class="ifi" placeholder="Min. 8 characters" />
-            <input v-model="userForm.password_confirmation" type="password" class="ifi" placeholder="Confirm password" style="margin-top:8px" />
+          <label class="ifl">Password <span style="color:var(--red)">*</span></label>
+          <input v-model="userForm.password" type="password" class="ifi" placeholder="Min. 8 chars, 1 uppercase, 1 number, 1 symbol" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">
+            Must contain: 8+ characters, 1 uppercase letter, 1 number, 1 special character (!@#$%^&*)
           </div>
+          <input v-model="userForm.password_confirmation" type="password" class="ifi" placeholder="Confirm password" style="margin-top:8px" />
+          <div v-if="userForm.password && !isPasswordValid" style="font-size:11px;color:var(--red);margin-top:4px">
+            Password does not meet requirements
+          </div>
+        </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -215,6 +221,7 @@ import { ref, onMounted, inject } from 'vue';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
+import { ref, onMounted, inject, computed } from 'vue';
 
 const toast      = inject('toast');
 const auth       = useAuthStore();
@@ -232,6 +239,11 @@ const userForm = ref({
   name: '', email: '', employee_id: '', role: '',
   college: '', department: '',
   password: '', password_confirmation: '',
+});
+
+const isPasswordValid = computed(() => {
+  const p = userForm.value.password;
+  return p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p) && /[!@#$%^&*(),.?":{}|<>]/.test(p);
 });
 
 async function fetchUsers(page = 1) {
@@ -273,6 +285,14 @@ async function saveUser() {
   }
   if (!userForm.value.name || !userForm.value.email || !userForm.value.role) {
     toast?.error('Please fill in all required fields.');
+    return;
+  }
+  if (!isEditing.value && !isPasswordValid.value) {
+    toast?.error('Password must be 8+ characters with an uppercase letter, number, and special character.');
+    return;
+  }
+  if (!isEditing.value && userForm.value.password !== userForm.value.password_confirmation) {
+    toast?.error('Passwords do not match.');
     return;
   }
   try {

@@ -30,7 +30,7 @@ class UserController extends Controller
             'name'           => 'required|string',
             'email'          => 'required|email|unique:users,email',
             'employee_id'    => 'nullable|string|unique:users,employee_id',
-            'password'       => 'required|min:8|confirmed',
+            'password' => ['required', 'confirmed', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
             'role'           => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
             'college'        => 'nullable|string',
             'department'     => 'nullable|string',
