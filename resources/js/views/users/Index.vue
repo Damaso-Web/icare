@@ -217,7 +217,6 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
