@@ -190,21 +190,29 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Position / Role</label>
-              <select v-model="form.referrer_position" class="ifse">
+              <select v-model="form.referrer_position" class="ifse" @change="onPositionChange">
                 <option value="">Select...</option>
-                <option value="instructor">Instructor</option>
-                <option value="adviser">Adviser</option>
+                <option value="instructor">Instructor / Adviser</option>
                 <option value="department_chair">Department Chair</option>
                 <option value="dean">Dean</option>
-                <option value="staff">Staff</option>
+                <option value="oss_staff">OSS Staff</option>
                 <option value="other">Other</option>
               </select>
             </div>
-            <div>
+            <div v-if="['instructor','department_chair','dean'].includes(form.referrer_position)">
               <label class="ifl">Department / College</label>
               <select v-model="form.referrer_department" class="ifse">
                 <option value="">Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div v-if="form.referrer_position === 'oss_staff'">
+              <label class="ifl">OSS Unit</label>
+              <select v-model="form.referrer_oss_unit" class="ifse">
+                <option value="">Select unit...</option>
+                <option value="GCU">GCU — Guidance &amp; Counseling Unit</option>
+                <option value="SDU">SDU — Student Discipline Unit</option>
+                <option value="TMDU">TMDU — Testing &amp; Measurement</option>
               </select>
             </div>
             <div>
@@ -225,31 +233,31 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-          <div>
-            <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
-            <select v-model="form.referral_type" class="ifse" required>
-              <option value="">Select service...</option>
-              <option value="counseling">Class Attendance / Absent / Tardy</option>
-              <option value="academic_coaching">Academic Deficiency</option>
-              <option value="psychological_testing">Psychological Testing</option>
-              <option value="consultation">Scholarship / Grant Assistance</option>
-              <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
-              <option value="disciplinary">Student Housing (Dormitories)</option>
-              <option value="others">For Student Employment (SA/SPES)</option>
-              <option value="other">Others</option>
-            </select>
+            <div>
+              <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
+              <select v-model="form.referral_type" class="ifse" required>
+                <option value="">Select service...</option>
+                <option value="counseling">Class Attendance / Absent / Tardy</option>
+                <option value="academic_coaching">Academic Deficiency</option>
+                <option value="psychological_testing">Psychological Testing</option>
+                <option value="consultation">Scholarship / Grant Assistance</option>
+                <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
+                <option value="disciplinary">Student Housing (Dormitories)</option>
+                <option value="others">For Student Employment (SA/SPES)</option>
+                <option value="other">Others</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Referral Source</label>
+              <select v-model="form.referral_source" class="ifse">
+                <option value="faculty">Faculty Referral</option>
+                <option value="sdu">SDU Referral</option>
+                <option value="self">Self-Referral</option>
+                <option value="dean">Dean's Office</option>
+                <option value="parent">Parent / Guardian</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label class="ifl">Referral Source</label>
-            <select v-model="form.referral_source" class="ifse">
-              <option value="faculty">Faculty Referral</option>
-              <option value="sdu">SDU Referral</option>
-              <option value="self">Self-Referral</option>
-              <option value="dean">Dean's Office</option>
-              <option value="parent">Parent / Guardian</option>
-            </select>
-          </div>
-        </div>
 
           <div style="margin-bottom:14px">
             <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span></label>
@@ -324,6 +332,7 @@ const form = ref({
   referrer_name_input:   '',
   referrer_position:     '',
   referrer_department:   '',
+  referrer_oss_unit:     '',
   referrer_contact:      '',
   referral_type:         '',
   referral_source:       'faculty',
@@ -336,6 +345,11 @@ function roleLabel(role) {
     tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
+}
+
+function onPositionChange() {
+  form.value.referrer_department = '';
+  form.value.referrer_oss_unit   = '';
 }
 
 function onStudentSearch() {
@@ -395,19 +409,22 @@ function onReferrerSearch() {
 
 function selectReferrer(r) {
   form.value.referrer_name_input = r.name;
-  form.value.referrer_department = r.college || '';
   form.value.referrer_contact    = r.contact_number || '';
 
-  // Map role to position dropdown value
-  const roleToPosition = {
-    faculty:        'instructor',
-    dean_secretary: 'staff',
-    admin:          'staff',
-    gcu_staff:      'staff',
-    sdu_head:       'staff',
-    tmdu_staff:     'staff',
-  };
-  form.value.referrer_position = roleToPosition[r.role] || '';
+  const ossRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
+  if (ossRoles.includes(r.role)) {
+    form.value.referrer_position = 'oss_staff';
+    form.value.referrer_oss_unit = r.unit || '';
+    form.value.referrer_department = '';
+  } else if (r.role === 'faculty') {
+    form.value.referrer_position   = 'instructor';
+    form.value.referrer_department = r.college || '';
+    form.value.referrer_oss_unit   = '';
+  } else if (r.role === 'dean_secretary') {
+    form.value.referrer_position   = 'other';
+    form.value.referrer_department = r.college || '';
+    form.value.referrer_oss_unit   = '';
+  }
 
   showReferrerDropdown.value = false;
 }
@@ -499,7 +516,7 @@ function clearForm() {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_name_input: '',
-    referrer_position: '', referrer_department: '',
+    referrer_position: '', referrer_department: '', referrer_oss_unit: '',
     referrer_contact: '', referral_type: '',
     referral_source: 'faculty', nature_of_concern: '',
   };
