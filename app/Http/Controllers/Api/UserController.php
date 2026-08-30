@@ -34,7 +34,7 @@ class UserController extends Controller
             'role'           => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
             'college'        => 'nullable|string',
             'department'     => 'nullable|string',
-            'contact_number' => 'nullable|string',
+            'contact_number' => 'nullable|string|max:11'
         ]);
 
         $validated['password'] = Hash::make($validated['password']);

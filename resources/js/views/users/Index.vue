@@ -191,6 +191,16 @@
             <label class="ifl">Department</label>
             <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" />
           </div>
+          <div>
+          <label class="ifl">Contact Number</label>
+          <input
+            v-model="userForm.contact_number"
+            class="ifi"
+            placeholder="e.g. 09171234567"
+            maxlength="11"
+            @input="userForm.contact_number = userForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)"
+          />
+        </div>
           <div v-if="!isEditing">
           <label class="ifl">Password <span style="color:var(--red)">*</span></label>
           <input v-model="userForm.password" type="password" class="ifi" placeholder="Min. 8 chars, 1 uppercase, 1 number, 1 symbol" />
@@ -236,7 +246,7 @@ const viewedUser = ref({});
 
 const userForm = ref({
   name: '', email: '', employee_id: '', role: '',
-  college: '', department: '',
+  college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
 });
 
@@ -266,7 +276,7 @@ function openView(u) {
 function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
-  userForm.value  = { name: '', email: '', employee_id: '', role: '', college: '', department: '', password: '', password_confirmation: '' };
+  userForm.value  = { name: '', email: '', employee_id: '', role: '', college: '', department: '', contact_number: '', password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
