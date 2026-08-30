@@ -225,35 +225,31 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-            <div>
-              <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
-              <select v-model="form.referral_type" class="ifse" required>
-                <option value="">Select service...</option>
-                <option value="counseling">Class Attendance / Absent / Tardy</option>
-                <option value="academic_coaching">Academic Deficiency</option>
-                <option value="psychological_testing">Psychological Testing</option>
-                <option value="consultation">Scholarship / Grant Assistance</option>
-                <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
-                <option value="disciplinary">Student Housing (Dormitories)</option>
-                <option value="others">For Student Employment (SA/SPES)</option>
-                <option value="other">Others</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Preferred Date</label>
-              <input v-model="form.preferred_date" type="date" class="ifi" />
-            </div>
-            <div>
-              <label class="ifl">Referral Source</label>
-              <select v-model="form.referral_source" class="ifse">
-                <option value="faculty">Faculty Referral</option>
-                <option value="sdu">SDU Referral</option>
-                <option value="self">Self-Referral</option>
-                <option value="dean">Dean's Office</option>
-                <option value="parent">Parent / Guardian</option>
-              </select>
-            </div>
+          <div>
+            <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
+            <select v-model="form.referral_type" class="ifse" required>
+              <option value="">Select service...</option>
+              <option value="counseling">Class Attendance / Absent / Tardy</option>
+              <option value="academic_coaching">Academic Deficiency</option>
+              <option value="psychological_testing">Psychological Testing</option>
+              <option value="consultation">Scholarship / Grant Assistance</option>
+              <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
+              <option value="disciplinary">Student Housing (Dormitories)</option>
+              <option value="others">For Student Employment (SA/SPES)</option>
+              <option value="other">Others</option>
+            </select>
           </div>
+          <div>
+            <label class="ifl">Referral Source</label>
+            <select v-model="form.referral_source" class="ifse">
+              <option value="faculty">Faculty Referral</option>
+              <option value="sdu">SDU Referral</option>
+              <option value="self">Self-Referral</option>
+              <option value="dean">Dean's Office</option>
+              <option value="parent">Parent / Guardian</option>
+            </select>
+          </div>
+        </div>
 
           <div style="margin-bottom:14px">
             <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span></label>
@@ -330,7 +326,6 @@ const form = ref({
   referrer_department:   '',
   referrer_contact:      '',
   referral_type:         '',
-  preferred_date:        '',
   referral_source:       'faculty',
   nature_of_concern:     '',
 });
@@ -505,7 +500,7 @@ function clearForm() {
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_name_input: '',
     referrer_position: '', referrer_department: '',
-    referrer_contact: '', referral_type: '', preferred_date: '',
+    referrer_contact: '', referral_type: '',
     referral_source: 'faculty', nature_of_concern: '',
   };
 }
