@@ -15,6 +15,16 @@
           <h1>{{ referral.referral_code || 'Referral Details' }}</h1>
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
+        <div style="margin-left:auto;display:flex;gap:8px">
+          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openEditForm">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Edit
+          </button>
+          <button v-if="isGCU" class="ibtn ibtn-sm" style="background:var(--cloud);color:var(--stone)" @click="archiveReferral">
+            <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+            Archive
+          </button>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 340px;gap:16px">
@@ -52,11 +62,11 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Nature of Concern</div>
                 <div style="font-size:13.5px;color:var(--ink);line-height:1.6">{{ referral.nature_of_concern }}</div>
               </div>
-              <div v-if="referral.intake_notes">
+              <div v-if="referral.intake_notes" style="margin-bottom:14px">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Intake Notes</div>
                 <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.intake_notes }}</div>
               </div>
-              <div v-if="referral.violation_type" style="margin-top:14px">
+              <div v-if="referral.violation_type">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Violation Type</div>
                 <div style="font-size:13px;color:var(--ink)">{{ referral.violation_type }}</div>
               </div>
@@ -96,7 +106,7 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
-          <!-- Actions — shown at top, only for GCU/Admin -->
+          <!-- Actions — shown at top -->
           <div class="icard" v-if="referral.status === 'submitted'">
             <div class="icard-header"><span class="icard-title">Action Required</span></div>
             <div class="icard-body">
@@ -118,6 +128,15 @@
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
                 <span class="ibadge" :class="'ibadge-' + referral.status">{{ referral.status?.replace(/_/g,' ') }}</span>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Client Status</div>
+                <span class="ibadge" :style="referral.client_status === 'existing' ? 'background:var(--blue-lt);color:var(--blue)' : 'background:var(--mist);color:var(--moss)'">
+                  {{ referral.client_status === 'existing' ? 'Existing Client' : 'New Client' }}
+                </span>
+                <div v-if="referral.prior_referral_count > 0" style="font-size:11px;color:var(--stone);margin-top:4px">
+                  {{ referral.prior_referral_count }} prior referral{{ referral.prior_referral_count > 1 ? 's' : '' }}
+                </div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
@@ -169,7 +188,7 @@
           </div>
 
           <!-- Schedule Appointment (only after acknowledged) -->
-          <div class="icard" v-if="referral.status !== 'submitted'">
+          <div class="icard" v-if="referral.status !== 'submitted' && isGCU">
             <div class="icard-header"><span class="icard-title">Next Steps</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <router-link
@@ -194,20 +213,67 @@
 
         </div>
       </div>
+
+      <!-- Edit Referral Modal -->
+      <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Referral</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div>
+              <label class="ifl">Service Requested</label>
+              <select v-model="editForm.referral_type" class="ifse">
+                <option value="counseling">Class Attendance / Absent / Tardy</option>
+                <option value="academic_coaching">Academic Deficiency</option>
+                <option value="psychological_testing">Psychological Testing</option>
+                <option value="consultation">Scholarship / Grant Assistance</option>
+                <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
+                <option value="disciplinary">Student Housing (Dormitories)</option>
+                <option value="others">For Student Employment (SA/SPES)</option>
+                <option value="other">Others</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Concern / Reason for Referral</label>
+              <textarea v-model="editForm.nature_of_concern" class="ifta"></textarea>
+            </div>
+            <div>
+              <label class="ifl">Intake Notes</label>
+              <textarea v-model="editForm.intake_notes" class="ifta" style="min-height:60px" placeholder="Additional notes..."></textarea>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="saveEdit">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Save Changes
+              </button>
+              <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </template>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, onMounted, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { referralAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 
-const route        = useRoute();
-const toast        = inject('toast');
-const loading      = ref(true);
+const route   = useRoute();
+const toast   = inject('toast');
+const auth    = useAuthStore();
+const loading = ref(true);
 const acknowledging = ref(false);
-const referral     = ref({});
+const showEditModal = ref(false);
+const referral = ref({});
+const editForm  = ref({});
+
+const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
 const pipeline = [
   { key: 'submitted',    label: 'Submitted' },
@@ -233,12 +299,42 @@ async function acknowledge() {
   acknowledging.value = true;
   try {
     const res = await referralAPI.acknowledge(referral.value.id);
-    referral.value = res.data.referral;
+    referral.value = { ...referral.value, ...res.data.referral };
     toast?.success('Referral acknowledged and case file created.');
   } catch (e) {
     toast?.error('Failed to acknowledge referral.');
   } finally {
     acknowledging.value = false;
+  }
+}
+
+function openEditForm() {
+  editForm.value = {
+    referral_type:     referral.value.referral_type,
+    nature_of_concern: referral.value.nature_of_concern,
+    intake_notes:      referral.value.intake_notes,
+  };
+  showEditModal.value = true;
+}
+
+async function saveEdit() {
+  try {
+    await referralAPI.update(referral.value.id, editForm.value);
+    referral.value = { ...referral.value, ...editForm.value };
+    showEditModal.value = false;
+    toast?.success('Referral updated successfully.');
+  } catch (e) {
+    toast?.error('Failed to update referral.');
+  }
+}
+
+async function archiveReferral() {
+  try {
+    await referralAPI.archive(referral.value.id);
+    toast?.success('Referral archived.');
+    setTimeout(() => window.history.back(), 800);
+  } catch (e) {
+    toast?.error('Failed to archive referral.');
   }
 }
 
@@ -254,6 +350,11 @@ onMounted(async () => {
   try {
     const res = await referralAPI.show(route.params.id);
     referral.value = res.data;
+    editForm.value = {
+      referral_type:     res.data.referral_type,
+      nature_of_concern: res.data.nature_of_concern,
+      intake_notes:      res.data.intake_notes,
+    };
   } catch (e) {
     console.error(e);
   } finally {

@@ -40,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     // Referrals
     Route::apiResource('referrals', ReferralController::class);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
+    Route::get('referrals-archived',              [ReferralController::class, 'archived']);
+    Route::post('referrals/{referral}/archive',   [ReferralController::class, 'archive']);
+    Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);
     Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign']);
     Route::patch('referrals/{referral}/status',     [ReferralController::class, 'updateStatus']);
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);

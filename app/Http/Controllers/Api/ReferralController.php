@@ -16,6 +16,7 @@ class ReferralController extends Controller
         $user = $request->user();
 
         $query = Referral::with(['student', 'referredBy', 'assignedTo'])
+            ->where('is_archived', false)
             ->when($request->status,   fn($q) => $q->where('status', $request->status))
             ->when($request->urgency,  fn($q) => $q->where('urgency_level', $request->urgency))
             ->when($request->type,     fn($q) => $q->where('referral_type', $request->type))
@@ -29,6 +30,19 @@ class ReferralController extends Controller
         if ($user->isFaculty() || $user->isDeanSecretary()) {
             $query->where('referred_by_user_id', $user->id);
         }
+
+        return response()->json($query->latest()->paginate(20));
+    }
+
+    public function archived(Request $request)
+    {
+        $query = Referral::with(['student', 'referredBy'])
+            ->where('is_archived', true)
+            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+                $s->where('first_name', 'like', "%{$request->search}%")
+                  ->orWhere('last_name', 'like', "%{$request->search}%")
+                  ->orWhere('student_id', 'like', "%{$request->search}%")
+            ));
 
         return response()->json($query->latest()->paginate(20));
     }
@@ -50,6 +64,9 @@ class ReferralController extends Controller
         $user = $request->user();
         $student = Student::findOrFail($validated['student_id']);
 
+        // Check if student is new or existing (has prior referrals)
+        $isExisting = Referral::where('student_id', $student->id)->exists();
+
         $referral = Referral::create([
             ...$validated,
             'referred_by_user_id' => $user->id,
@@ -61,14 +78,26 @@ class ReferralController extends Controller
 
         AuditLog::record('created', "Submitted referral {$referral->referral_code} for student {$student->student_id}.", $referral);
 
-        return response()->json($referral->load(['student', 'referredBy']), 201);
+        return response()->json([
+            ...$referral->load(['student', 'referredBy'])->toArray(),
+            'client_status' => $isExisting ? 'existing' : 'new',
+        ], 201);
     }
 
     public function show(Referral $referral)
     {
         $this->authorizeView($referral, request()->user());
         AuditLog::record('viewed', "Viewed referral {$referral->referral_code}.", $referral);
-        return response()->json($referral->load(['student', 'referredBy', 'assignedTo', 'case']));
+
+        $priorCount = Referral::where('student_id', $referral->student_id)
+            ->where('id', '!=', $referral->id)
+            ->count();
+
+        return response()->json([
+            ...$referral->load(['student', 'referredBy', 'assignedTo', 'case'])->toArray(),
+            'client_status' => $priorCount > 0 ? 'existing' : 'new',
+            'prior_referral_count' => $priorCount,
+        ]);
     }
 
     public function update(Request $request, Referral $referral)
@@ -78,8 +107,26 @@ class ReferralController extends Controller
             'nature_of_concern',
             'urgency_level',
             'intake_notes',
+            'referral_type',
+            'violation_type',
+            'incident_description',
+            'incident_date',
         ]));
         AuditLog::record('updated', "Updated referral {$referral->referral_code}.", $referral, $old, $referral->toArray());
+        return response()->json($referral);
+    }
+
+    public function archive(Request $request, Referral $referral)
+    {
+        $referral->update(['is_archived' => true]);
+        AuditLog::record('archived', "Archived referral {$referral->referral_code}.", $referral);
+        return response()->json($referral);
+    }
+
+    public function unarchive(Request $request, Referral $referral)
+    {
+        $referral->update(['is_archived' => false]);
+        AuditLog::record('unarchived', "Restored referral {$referral->referral_code} from archive.", $referral);
         return response()->json($referral);
     }
 
@@ -91,7 +138,6 @@ class ReferralController extends Controller
             'acknowledged_by_user_id' => $request->user()->id,
         ]);
 
-        // Auto-create case file
         $case = CaseFile::create([
             'student_id'          => $referral->student_id,
             'referral_id'         => $referral->id,

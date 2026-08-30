@@ -22,6 +22,7 @@ class Referral extends Model
         'nature_of_concern',
         'urgency_level',
         'is_self_referred',
+        'is_archived',
         'assigned_to_user_id',
         'assigned_at',
         'status',
@@ -36,6 +37,7 @@ class Referral extends Model
 
     protected $casts = [
         'is_self_referred' => 'boolean',
+        'is_archived'      => 'boolean',
         'has_attachments'  => 'boolean',
         'assigned_at'      => 'datetime',
         'acknowledged_at'  => 'datetime',
