@@ -2,8 +2,8 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Referral Queue</h1>
-      <p>Review, assign, and track incoming referrals from faculty and SDU.</p>
+      <h1>{{ showArchived ? 'Archived Referrals' : 'Referral Queue' }}</h1>
+      <p>{{ showArchived ? 'View and restore archived referrals.' : 'Review, assign, and track incoming referrals from faculty and SDU.' }}</p>
     </div>
 
     <!-- Filter Bar -->
@@ -12,7 +12,7 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @input="fetchReferrals" style="width:220px"/>
       </div>
-      <select v-model="filters.status" class="fsm" @change="fetchReferrals">
+      <select v-if="!showArchived" v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
         <option value="acknowledged">Acknowledged</option>
@@ -21,7 +21,7 @@
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>
       </select>
-      <select v-model="filters.type" class="fsm" @change="fetchReferrals">
+      <select v-if="!showArchived" v-model="filters.type" class="fsm" @change="fetchReferrals">
         <option value="">All Services</option>
         <option value="counseling">Class Attendance / Absent / Tardy</option>
         <option value="academic_coaching">Academic Deficiency</option>
@@ -33,7 +33,13 @@
         <option value="other">Others</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <router-link :to="{ name: 'referral-create' }" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto">
+
+      <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--slate);cursor:pointer;margin-left:8px">
+        <input type="checkbox" v-model="showArchived" @change="onToggleArchived" style="width:15px;height:15px;accent-color:var(--moss)" />
+        Show Archived
+      </label>
+
+      <router-link v-if="!showArchived" :to="{ name: 'referral-create' }" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Submit Referral
       </router-link>
@@ -46,8 +52,8 @@
       </div>
 
       <div v-else-if="referrals.length === 0" class="empty-state">
-        <h3>No referrals found</h3>
-        <p>Try adjusting your filters or submit a new referral.</p>
+        <h3>{{ showArchived ? 'No archived referrals' : 'No referrals found' }}</h3>
+        <p>{{ showArchived ? 'Archived referrals will appear here.' : 'Try adjusting your filters or submit a new referral.' }}</p>
       </div>
 
       <div v-else>
@@ -56,12 +62,13 @@
           :key="r.id"
           class="qr"
           :class="urgencyRow(r.urgency_level)"
-          @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
+          @click="!showArchived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+          :style="showArchived ? 'cursor:default' : ''"
         >
           <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
           <div class="qi">
             <div class="qn">
-              {{ r.student?.first_name }} {{ r.student?.last_name }}
+              {{ r.student?.last_name }}, {{ r.student?.first_name }}
               <span class="qid">{{ r.student?.student_id }}</span>
             </div>
             <div class="qmeta">
@@ -69,14 +76,17 @@
             </div>
             <div class="qcon">{{ r.nature_of_concern }}</div>
             <div class="qtags">
-              <span class="ibadge" :class="'ibadge-' + r.urgency_level">{{ r.urgency_level }}</span>
               <span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span>
               <span class="ibadge" style="background:var(--cloud);color:var(--stone)">{{ r.referral_code }}</span>
             </div>
           </div>
           <div class="qacts">
-            <button class="ibtn ibtn-p ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id } })">
+            <button v-if="!showArchived" class="ibtn ibtn-p ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id } })">
               View
+            </button>
+            <button v-else class="ibtn ibtn-o ibtn-sm" @click.stop="restoreReferral(r)">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              Restore
             </button>
           </div>
         </div>
@@ -97,18 +107,23 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
 import { referralAPI } from '../../api/index';
 
-const referrals  = ref([]);
-const loading    = ref(true);
-const pagination = ref({});
-const filters = ref({ search: '', status: '', type: '' });
+const toast = inject('toast');
+
+const referrals    = ref([]);
+const loading      = ref(true);
+const pagination   = ref({});
+const showArchived = ref(false);
+const filters      = ref({ search: '', status: '', type: '' });
 
 async function fetchReferrals(page = 1) {
   loading.value = true;
   try {
-    const res = await referralAPI.index({ ...filters.value, page });
+    const res = showArchived.value
+      ? await referralAPI.archived({ search: filters.value.search, page })
+      : await referralAPI.index({ ...filters.value, page });
     referrals.value  = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -118,8 +133,24 @@ async function fetchReferrals(page = 1) {
   }
 }
 
+function onToggleArchived() {
+  filters.value.status = '';
+  filters.value.type   = '';
+  fetchReferrals();
+}
+
+async function restoreReferral(r) {
+  try {
+    await referralAPI.unarchive(r.id);
+    toast?.success('Referral restored to active queue.');
+    fetchReferrals();
+  } catch (e) {
+    toast?.error('Failed to restore referral.');
+  }
+}
+
 function resetFilters() {
-  filters.value = { search: '', status: '', urgency: '', type: '' };
+  filters.value = { search: '', status: '', type: '' };
   fetchReferrals();
 }
 
