@@ -401,6 +401,19 @@ function onReferrerSearch() {
 function selectReferrer(r) {
   form.value.referrer_name_input = r.name;
   form.value.referrer_department = r.college || '';
+  form.value.referrer_contact    = r.contact_number || '';
+
+  // Map role to position dropdown value
+  const roleToPosition = {
+    faculty:        'instructor',
+    dean_secretary: 'staff',
+    admin:          'staff',
+    gcu_staff:      'staff',
+    sdu_head:       'staff',
+    tmdu_staff:     'staff',
+  };
+  form.value.referrer_position = roleToPosition[r.role] || '';
+
   showReferrerDropdown.value = false;
 }
 

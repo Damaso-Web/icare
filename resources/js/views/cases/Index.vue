@@ -53,13 +53,8 @@
           <thead>
             <tr>
               <th>Case No.</th>
-              <th>Student</th>
-              <th>Type</th>
-              <th>Unit</th>
-              <th>Counselor</th>
-              <th>Sessions</th>
-              <th>Status</th>
-              <th>Opened</th>
+              <th>Student Name</th>
+              <th>Date Opened</th>
               <th></th>
             </tr>
           </thead>
@@ -74,17 +69,9 @@
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
                   <div class="iav">{{ initials(c.student?.first_name, c.student?.last_name) }}</div>
-                  <div>
-                    <div style="font-weight:600;color:var(--ink)">{{ c.student?.first_name }} {{ c.student?.last_name }}</div>
-                    <div style="font-size:11px;color:var(--fog)">{{ c.student?.student_id }}</div>
-                  </div>
+                  <div style="font-weight:600;color:var(--ink)">{{ c.student?.last_name }}, {{ c.student?.first_name }} {{ c.student?.middle_name }}</div>
                 </div>
               </td>
-              <td>{{ c.case_type?.replace(/_/g,' ') }}</td>
-              <td><span class="ibadge" :class="'unit-' + c.current_unit?.toLowerCase()">{{ c.current_unit }}</span></td>
-              <td style="font-size:12px">{{ c.counselor?.name || '—' }}</td>
-              <td style="text-align:center">{{ c.total_sessions }}</td>
-              <td><span class="ibadge" :class="'ibadge-' + c.status">{{ c.status?.replace(/_/g,' ') }}</span></td>
               <td style="font-size:12px">{{ formatDate(c.opened_date) }}</td>
               <td>
                 <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'case-show', params: { id: c.id } })">View</button>
