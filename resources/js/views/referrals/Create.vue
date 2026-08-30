@@ -6,7 +6,7 @@
       <p>Complete this form to refer a student to the Office of Student Services.</p>
     </div>
 
-    <div class="icard" style="max-width:780px">
+    <div class="icard" style="max-width:820px">
 
       <!-- Document Code Header -->
       <div style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
@@ -22,7 +22,6 @@
 
       <div class="icard-body">
 
-        <!-- Success / Error -->
         <div v-if="success" style="background:var(--mist);border:1px solid var(--mint);color:var(--forest);padding:11px 14px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px;display:flex;align-items:center;gap:8px">
           <svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><polyline points="20 6 9 17 4 12"/></svg>
           {{ success }}
@@ -33,7 +32,6 @@
 
         <form @submit.prevent="handleSubmit">
 
-          <!-- Student Information -->
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
             Student Information
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
@@ -50,7 +48,6 @@
               @focus="showStudentDropdown = studentSuggestions.length > 0"
               autocomplete="off"
             />
-            <!-- Suggestions Dropdown -->
             <div
               v-if="showStudentDropdown && studentSuggestions.length > 0"
               style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
@@ -72,7 +69,6 @@
             </div>
           </div>
 
-          <!-- Student ID (read-only display, set via search) -->
           <div style="margin-bottom:14px">
             <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
             <input
@@ -90,8 +86,8 @@
             </div>
           </div>
 
-          <!-- Name Fields -->
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px;gap:14px;margin-bottom:14px">
+          <!-- Name Fields + Sex -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px 110px;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
               <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" required />
@@ -107,6 +103,14 @@
             <div>
               <label class="ifl">Suffix</label>
               <input v-model="form.suffix" class="ifi" placeholder="Jr." />
+            </div>
+            <div>
+              <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
+              <select v-model="form.sex" class="ifse" required>
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
             </div>
           </div>
 
@@ -149,13 +153,11 @@
             </div>
           </div>
 
-          <!-- Referred By Section -->
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
             Referred By
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
-          <!-- Referrer Search with Autocomplete -->
           <div style="margin-bottom:14px;position:relative">
             <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
             <input
@@ -167,7 +169,6 @@
               autocomplete="off"
               required
             />
-            <!-- Suggestions Dropdown -->
             <div
               v-if="showReferrerDropdown && referrerSuggestions.length > 0"
               style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
@@ -218,7 +219,6 @@
             </div>
           </div>
 
-          <!-- Referral Details -->
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
             Referral Details
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
@@ -265,7 +265,6 @@
             ></textarea>
           </div>
 
-          <!-- Actions -->
           <div style="display:flex;gap:9px;margin-top:8px">
             <button type="submit" class="ibtn ibtn-p" :disabled="loading || (form.student_id_input && form.student_id_input.length !== 7)">
               <svg v-if="!loading" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -321,6 +320,7 @@ const form = ref({
   first_name:            '',
   middle_name:           '',
   suffix:                '',
+  sex:                   '',
   program:               '',
   year_level:            '',
   college:               '',
@@ -367,6 +367,7 @@ async function selectStudent(s) {
   form.value.last_name        = s.last_name;
   form.value.first_name       = s.first_name;
   form.value.middle_name      = s.middle_name || '';
+  form.value.sex              = s.sex || '';
   form.value.college          = s.college || '';
   form.value.year_level       = s.year_level || '';
   form.value.section          = s.section || '';
@@ -420,7 +421,7 @@ async function handleSubmit() {
     return;
   }
 
-  if (!form.value.last_name || !form.value.first_name ||
+  if (!form.value.last_name || !form.value.first_name || !form.value.sex ||
       !form.value.college || !form.value.referral_type ||
       !form.value.nature_of_concern) {
     error.value = 'Please fill in all required fields.';
@@ -444,6 +445,7 @@ async function handleSubmit() {
         first_name:  form.value.first_name,
         last_name:   form.value.last_name,
         middle_name: form.value.middle_name,
+        sex:         form.value.sex,
         year_level:  form.value.year_level,
         college:     form.value.college,
         program:     form.value.program,
@@ -487,7 +489,7 @@ function clearForm() {
   studentFound.value = false;
   form.value = {
     student_id_input: '', last_name: '', first_name: '',
-    middle_name: '', suffix: '', program: '', year_level: '',
+    middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_name_input: '',
     referrer_position: '', referrer_department: '',
     referrer_contact: '', referral_type: '', preferred_date: '',

@@ -134,6 +134,10 @@
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
                     <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.section || '—' }}</div>
                   </div>
+                  <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.sex || '—' }}</div>
+                </div>
                 </div>
               </div>
 

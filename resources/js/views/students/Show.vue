@@ -161,6 +161,10 @@
                 <div style="font-size:13px;color:var(--ink)">{{ student.year_level || '—' }}</div>
               </div>
               <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+              <div style="font-size:13px;color:var(--ink)">{{ student.sex || '—' }}</div>
+            </div>
+              <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
                 <div style="font-size:13px;color:var(--ink)">{{ student.college || '—' }}</div>
               </div>
@@ -284,6 +288,14 @@
                 <label class="ifl">Email</label>
                 <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
               </div>
+              <div>
+              <label class="ifl">Sex</label>
+              <select v-model="editForm.sex" class="ifse">
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
               <div>
                 <label class="ifl">Contact Number</label>
                 <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
