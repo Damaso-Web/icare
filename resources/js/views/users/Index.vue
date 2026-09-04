@@ -33,6 +33,11 @@
     </button>
     </div>
 
+    <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload Masterlist
+  </button>
+
     <!-- Users Table -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
@@ -224,6 +229,38 @@
     </div>
 
   </div>
+
+  <!-- Import Modal -->
+<div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
+        Upload a <strong>.csv</strong> file with columns: <code>name, email, role, employee_id, college, department, contact_number, password</code>. Only <code>name</code>, <code>email</code>, and <code>role</code> are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary. If password is left blank, default is <code>ChangeMe@123</code>.
+      </div>
+      <div>
+        <label class="ifl">CSV File</label>
+        <input type="file" accept=".csv" class="ifi" @change="handleImportFileSelect" />
+      </div>
+      <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+        ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
+        <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
+          <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="uploadImportFile" :disabled="!importFile || importing">
+          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+          {{ importing ? 'Uploading...' : 'Upload' }}
+        </button>
+        <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 </template>
 
 <script setup>
@@ -232,6 +269,10 @@ import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { ref, onMounted, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
+const showImportModal = ref(false);
+const importFile       = ref(null);
+const importing        = ref(false);
+const importResult     = ref(null);
 
 const toast      = inject('toast');
 const auth       = useAuthStore();
@@ -278,6 +319,11 @@ async function fetchUsers(page = 1) {
 function openView(u) {
   viewedUser.value = u;
   showViewModal.value = true;
+}
+
+function handleImportFileSelect(e) {
+  importFile.value = e.target.files[0];
+  importResult.value = null;
 }
 
 function openCreate() {
@@ -342,6 +388,23 @@ async function toggleActive(u) {
     toast?.success(`Employee ${u.is_active ? 'activated' : 'deactivated'}.`);
   } catch (e) {
     toast?.error('Failed to update employee status.');
+  }
+}
+
+async function uploadImportFile() {
+  if (!importFile.value) return;
+  importing.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', importFile.value);
+    const res = await userAPI.import(formData);
+    importResult.value = res.data;
+    toast?.success(`${res.data.created} employees imported successfully.`);
+    fetchUsers();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to import file.');
+  } finally {
+    importing.value = false;
   }
 }
 
