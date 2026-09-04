@@ -58,23 +58,32 @@
               </div>
             </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:16px">
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-                <span class="ibadge" :class="'ibadge-' + caseFile.status">{{ caseFile.status?.replace(/_/g,' ') }}</span>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Current Unit</div>
-                <span class="ibadge" :class="'unit-' + caseFile.current_unit?.toLowerCase()">{{ caseFile.current_unit }}</span>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Counselor</div>
-                <div style="font-size:13px;color:var(--ink)">{{ caseFile.counselor?.name || '—' }}</div>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Session</div>
-                <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.last_session_at) }}</div>
-              </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+              <span class="ibadge" :class="'ibadge-' + caseFile.status">{{ caseFile.status?.replace(/_/g,' ') }}</span>
             </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Current Unit</div>
+              <span class="ibadge" :class="'unit-' + caseFile.current_unit?.toLowerCase()">{{ caseFile.current_unit }}</span>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Client Status</div>
+              <span class="ibadge" :style="caseFile.client_status === 'existing' ? 'background:var(--blue-lt);color:var(--blue)' : 'background:var(--mist);color:var(--moss)'">
+                {{ caseFile.client_status === 'existing' ? 'Existing Client' : 'New Client' }}
+              </span>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Counselor</div>
+              <div style="font-size:13px;color:var(--ink)">{{ caseFile.counselor?.name || '—' }}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Session</div>
+              <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.last_session_at) }}</div>
+            </div>
+          </div>
+            <div v-if="caseFile.prior_case_count > 0" style="margin:0 16px 16px;background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--blue)">
+            ℹ️ This student has {{ caseFile.prior_case_count }} prior case{{ caseFile.prior_case_count > 1 ? 's' : '' }} on record.
+          </div>
             <!-- Unreachable Banner -->
             <div v-if="caseFile.student_unreachable" style="margin:0 16px 16px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
               <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>

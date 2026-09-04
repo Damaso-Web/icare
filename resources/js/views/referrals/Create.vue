@@ -206,15 +206,6 @@
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
-            <div v-if="form.referrer_position === 'oss_staff'">
-              <label class="ifl">OSS Unit</label>
-              <select v-model="form.referrer_oss_unit" class="ifse">
-                <option value="">Select unit...</option>
-                <option value="GCU">GCU — Guidance &amp; Counseling Unit</option>
-                <option value="SDU">SDU — Student Discipline Unit</option>
-                <option value="TMDU">TMDU — Testing &amp; Measurement</option>
-              </select>
-            </div>
             <div>
               <label class="ifl">Contact Number</label>
               <input
@@ -332,7 +323,6 @@ const form = ref({
   referrer_name_input:   '',
   referrer_position:     '',
   referrer_department:   '',
-  referrer_oss_unit:     '',
   referrer_contact:      '',
   referral_type:         '',
   referral_source:       'faculty',
@@ -349,7 +339,6 @@ function roleLabel(role) {
 
 function onPositionChange() {
   form.value.referrer_department = '';
-  form.value.referrer_oss_unit   = '';
 }
 
 function onStudentSearch() {
@@ -516,7 +505,7 @@ function clearForm() {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_name_input: '',
-    referrer_position: '', referrer_department: '', referrer_oss_unit: '',
+    referrer_position: '', referrer_department: '',
     referrer_contact: '', referral_type: '',
     referral_source: 'faculty', nature_of_concern: '',
   };

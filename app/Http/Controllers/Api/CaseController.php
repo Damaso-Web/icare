@@ -43,9 +43,15 @@ class CaseController extends Controller
     }
 
     public function show(CaseFile $case)
-    {
-        AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
-        return response()->json($case->load([
+{
+    AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
+
+    $priorCaseCount = CaseFile::where('student_id', $case->student_id)
+        ->where('id', '!=', $case->id)
+        ->count();
+
+    return response()->json([
+        ...$case->load([
             'student',
             'counselor',
             'referral.referredBy',
@@ -55,8 +61,11 @@ class CaseController extends Controller
             'handoffs.fromUser',
             'handoffs.toUser',
             'documents',
-        ]));
-    }
+        ])->toArray(),
+        'client_status'         => $priorCaseCount > 0 ? 'existing' : 'new',
+        'prior_case_count'      => $priorCaseCount,
+    ]);
+}
 
     public function update(Request $request, CaseFile $case)
     {
