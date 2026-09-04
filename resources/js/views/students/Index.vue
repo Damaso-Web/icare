@@ -25,6 +25,10 @@
         Add Student
       </button>
     </div>
+    <button class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload Masterlist
+  </button>
 
     <!-- Student List -->
     <div class="icard">
@@ -180,6 +184,38 @@
     </div>
 
   </div>
+
+  <!-- Import Modal -->
+<div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Student Masterlist</div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
+        Upload a <strong>.csv</strong> file with columns: <code>student_id, first_name, last_name, middle_name, sex, email, contact_number, college, program, year_level, section</code>. Only <code>student_id</code>, <code>first_name</code>, and <code>last_name</code> are required. You can upload per college or the whole school in one file.
+      </div>
+      <div>
+        <label class="ifl">CSV File</label>
+        <input type="file" accept=".csv" class="ifi" @change="handleFileSelect" />
+      </div>
+      <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+        ✓ {{ importResult.created }} students added, {{ importResult.skipped }} skipped.
+        <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
+          <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="uploadFile" :disabled="!selectedFile || importing">
+          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+          {{ importing ? 'Uploading...' : 'Upload' }}
+        </button>
+        <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 </template>
 
 <script setup>
@@ -197,6 +233,10 @@ const saving     = ref(false);
 const pagination = ref({});
 const filters    = ref({ search: '' });
 const showAddModal = ref(false);
+const showImportModal = ref(false);
+const selectedFile    = ref(null);
+const importing       = ref(false);
+const importResult    = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '',
@@ -214,6 +254,11 @@ function onSearchInput() {
     return;
   }
   searchTimeout = setTimeout(() => fetchStudents(), 400);
+}
+
+function handleFileSelect(e) {
+  selectedFile.value = e.target.files[0];
+  importResult.value = null;
 }
 
 async function fetchStudents(page = 1) {
@@ -280,5 +325,20 @@ async function toggleActive(s) {
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
+}
+async function uploadFile() {
+  if (!selectedFile.value) return;
+  importing.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('file', selectedFile.value);
+    const res = await studentAPI.import(formData);
+    importResult.value = res.data;
+    toast?.success(`${res.data.created} students imported successfully.`);
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to import file.');
+  } finally {
+    importing.value = false;
+  }
 }
 </script>

@@ -111,6 +111,12 @@ const routes = [
                 meta: { roles: ADMIN_ONLY },
             },
             {
+                path: 'faculty',
+                name: 'faculty-directory',
+                component: Users,
+                meta: { roles: ADMIN_ONLY },
+            },
+            {
                 path: 'audit',
                 name: 'audit',
                 component: AuditLogs,

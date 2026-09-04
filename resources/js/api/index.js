@@ -47,6 +47,8 @@ export const studentAPI = {
     destroy: (id)       => api.delete(`/students/${id}`),
     history: (id)       => api.get(`/students/${id}/history`),
     cases:   (id)       => api.get(`/students/${id}/cases`),
+    toggleActive: (id)  => api.post(`/students/${id}/toggle-active`),
+    import:  (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const referralAPI = {
@@ -121,6 +123,7 @@ export const userAPI = {
     destroy:       (id)       => api.delete(`/users/${id}`),
     toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
+    import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };
 
 export const notificationAPI = {

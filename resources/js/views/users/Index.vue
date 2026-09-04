@@ -2,9 +2,9 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>User Management</h1>
-      <p>Manage system accounts and role-based access for all iCARE users.</p>
-    </div>
+    <h1>{{ isFacultyView ? 'Faculty Directory' : 'User Management' }}</h1>
+    <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
+  </div>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
@@ -23,14 +23,14 @@
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button
-        v-if="auth.isAdmin"
-        class="ibtn ibtn-p ibtn-sm"
-        style="margin-left:auto"
-        @click="openCreate"
-      >
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Add Employee
-      </button>
+      v-if="auth.isAdmin"
+      class="ibtn ibtn-p ibtn-sm"
+      style="margin-left:auto"
+      @click="openCreate"
+    >
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      {{ isFacultyView ? 'Add Faculty' : 'Add Employee' }}
+    </button>
     </div>
 
     <!-- Users Table -->
@@ -170,15 +170,15 @@
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
-            <select v-model="userForm.role" class="ifse">
-              <option value="">Select role...</option>
-              <option value="admin">Admin / GCU Head</option>
-              <option value="gcu_staff">GCU Staff</option>
-              <option value="sdu_head">SDU Head</option>
-              <option value="tmdu_staff">TMDU Staff</option>
-              <option value="faculty">Faculty</option>
-              <option value="dean_secretary">Dean's Secretary</option>
-            </select>
+            <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
+            <option value="">All Roles</option>
+            <option value="admin">Admin / GCU Head</option>
+            <option value="gcu_staff">GCU Staff</option>
+            <option value="sdu_head">SDU Head</option>
+            <option value="tmdu_staff">TMDU Staff</option>
+            <option value="faculty">Faculty</option>
+            <option value="dean_secretary">Dean's Secretary</option>
+          </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College</label>
@@ -231,6 +231,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { ref, onMounted, inject, computed } from 'vue';
+import { useRoute } from 'vue-router';
 
 const toast      = inject('toast');
 const auth       = useAuthStore();
@@ -243,6 +244,8 @@ const pagination = ref({});
 const filters    = ref({ search: '', role: '' });
 const colleges   = COLLEGES;
 const viewedUser = ref({});
+const route = useRoute();
+const isFacultyView = computed(() => route.name === 'faculty-directory');
 
 const userForm = ref({
   name: '', email: '', employee_id: '', role: '',
@@ -258,7 +261,11 @@ const isPasswordValid = computed(() => {
 async function fetchUsers(page = 1) {
   loading.value = true;
   try {
-    const res = await userAPI.index({ ...filters.value, page });
+    const params = { ...filters.value, page };
+    if (isFacultyView.value) {
+      params.role = 'faculty';
+    }
+    const res = await userAPI.index(params);
     users.value      = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -276,7 +283,12 @@ function openView(u) {
 function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
-  userForm.value  = { name: '', email: '', employee_id: '', role: '', college: '', department: '', contact_number: '', password: '', password_confirmation: '' };
+  userForm.value  = {
+    name: '', email: '', employee_id: '',
+    role: isFacultyView.value ? 'faculty' : '',
+    college: '', department: '', contact_number: '',
+    password: '', password_confirmation: '',
+  };
   showModal.value = true;
 }
 

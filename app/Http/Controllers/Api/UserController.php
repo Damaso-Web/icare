@@ -89,4 +89,75 @@ class UserController extends Controller
         AuditLog::record('password_reset', "Password reset for user {$user->name}.", $user);
         return response()->json(['message' => 'Password reset successfully.']);
     }
+    public function import(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:csv,txt',
+    ]);
+
+    $path = $request->file('file')->getRealPath();
+    $handle = fopen($path, 'r');
+    $header = fgetcsv($handle);
+    $header = array_map(fn($h) => strtolower(trim($h)), $header);
+
+    $required = ['name', 'email', 'role'];
+    foreach ($required as $col) {
+        if (!in_array($col, $header)) {
+            fclose($handle);
+            return response()->json(['message' => "Missing required column: {$col}"], 422);
+        }
+    }
+
+    $validRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
+    $created = 0;
+    $skipped = 0;
+    $errors  = [];
+    $row = 1;
+
+    while (($data = fgetcsv($handle)) !== false) {
+        $row++;
+        $rowData = array_combine($header, $data);
+
+        if (empty($rowData['name']) || empty($rowData['email']) || empty($rowData['role'])) {
+            $errors[] = "Row {$row}: missing required fields.";
+            $skipped++;
+            continue;
+        }
+
+        if (!in_array($rowData['role'], $validRoles)) {
+            $errors[] = "Row {$row}: invalid role '{$rowData['role']}'.";
+            $skipped++;
+            continue;
+        }
+
+        $exists = User::where('email', $rowData['email'])->exists();
+        if ($exists) {
+            $skipped++;
+            continue;
+        }
+
+        User::create([
+            'name'           => $rowData['name'],
+            'email'          => $rowData['email'],
+            'employee_id'    => $rowData['employee_id'] ?? null,
+            'role'           => $rowData['role'],
+            'college'        => $rowData['college'] ?? null,
+            'department'     => $rowData['department'] ?? null,
+            'contact_number' => $rowData['contact_number'] ?? null,
+            'password'       => Hash::make($rowData['password'] ?? 'ChangeMe@123'),
+            'is_active'      => true,
+        ]);
+        $created++;
+    }
+
+    fclose($handle);
+
+    AuditLog::record('imported', "Bulk imported {$created} employees, skipped {$skipped}.");
+
+    return response()->json([
+        'created' => $created,
+        'skipped' => $skipped,
+        'errors'  => $errors,
+    ]);
+}
 }

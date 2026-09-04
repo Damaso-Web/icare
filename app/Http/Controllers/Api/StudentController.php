@@ -114,4 +114,71 @@ class StudentController extends Controller
     \App\Models\AuditLog::record('toggled', "User {$student->first_name} {$student->last_name} " . ($student->is_active ? 'activated' : 'deactivated') . ".", $student);
     return response()->json($student);
 }
+public function import(Request $request)
+{
+    $request->validate([
+        'file' => 'required|file|mimes:csv,txt',
+    ]);
+
+    $path = $request->file('file')->getRealPath();
+    $handle = fopen($path, 'r');
+    $header = fgetcsv($handle);
+    $header = array_map(fn($h) => strtolower(trim($h)), $header);
+
+    $required = ['student_id', 'first_name', 'last_name'];
+    foreach ($required as $col) {
+        if (!in_array($col, $header)) {
+            fclose($handle);
+            return response()->json(['message' => "Missing required column: {$col}"], 422);
+        }
+    }
+
+    $created = 0;
+    $skipped = 0;
+    $errors  = [];
+    $row = 1;
+
+    while (($data = fgetcsv($handle)) !== false) {
+        $row++;
+        $rowData = array_combine($header, $data);
+
+        if (empty($rowData['student_id']) || empty($rowData['first_name']) || empty($rowData['last_name'])) {
+            $errors[] = "Row {$row}: missing required fields.";
+            $skipped++;
+            continue;
+        }
+
+        $exists = Student::where('student_id', $rowData['student_id'])->exists();
+        if ($exists) {
+            $skipped++;
+            continue;
+        }
+
+        Student::create([
+            'student_id'     => $rowData['student_id'],
+            'first_name'     => $rowData['first_name'],
+            'last_name'      => $rowData['last_name'],
+            'middle_name'    => $rowData['middle_name'] ?? null,
+            'sex'            => $rowData['sex'] ?? null,
+            'email'          => $rowData['email'] ?? null,
+            'contact_number' => $rowData['contact_number'] ?? null,
+            'college'        => $rowData['college'] ?? null,
+            'program'        => $rowData['program'] ?? null,
+            'year_level'     => $rowData['year_level'] ?? null,
+            'section'        => $rowData['section'] ?? null,
+            'is_active'      => true,
+        ]);
+        $created++;
+    }
+
+    fclose($handle);
+
+    \App\Models\AuditLog::record('imported', "Bulk imported {$created} students, skipped {$skipped}.");
+
+    return response()->json([
+        'created' => $created,
+        'skipped' => $skipped,
+        'errors'  => $errors,
+    ]);
+}
 }
