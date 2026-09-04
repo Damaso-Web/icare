@@ -267,7 +267,7 @@
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
-import { ref, onMounted, inject, computed } from 'vue';
+import { ref, onMounted, watch, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
 const showImportModal = ref(false);
 const importFile       = ref(null);
@@ -448,4 +448,9 @@ function formatDate(date) {
 }
 
 onMounted(() => fetchUsers());
+
+watch(() => route.name, () => {
+  filters.value = { search: '', role: '' };
+  fetchUsers();
+});
 </script>
