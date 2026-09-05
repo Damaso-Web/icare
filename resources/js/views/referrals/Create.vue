@@ -72,37 +72,31 @@
           <div style="margin-bottom:14px">
             <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
             <input
-              v-model="form.student_id_input"
-              class="ifi"
-              placeholder="e.g. 2302021"
-              pattern="[0-9]{7}"
-              maxlength="7"
-              title="Student ID must be exactly 7 numbers"
-              @input="form.student_id_input = form.student_id_input.replace(/[^0-9]/g, '').slice(0, 7)"
-              required
-            />
-            <div v-if="form.student_id_input && form.student_id_input.length !== 7" style="font-size:11px;color:var(--red);margin-top:4px">
-              Student ID must be exactly 7 digits
-            </div>
+            v-model="form.student_id_input"
+            class="ifi"
+            placeholder="e.g. 2302021"
+            @input="form.student_id_input = onlyDigits(form.student_id_input)"
+            required
+          />
           </div>
 
           <!-- Name Fields + Sex -->
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px 110px;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" required />
+              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" @input="form.last_name = onlyLetters(form.last_name)" required />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.first_name" class="ifi" placeholder="Juan" required />
+              <input v-model="form.first_name" class="ifi" placeholder="Juan" @input="form.first_name = onlyLetters(form.first_name)" required />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="form.middle_name" class="ifi" placeholder="Santos" />
+              <input v-model="form.middle_name" class="ifi" placeholder="Santos" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="form.suffix" class="ifi" placeholder="Jr." />
+              <input v-model="form.suffix" class="ifi" placeholder="Jr." @input="form.suffix = onlyLettersStrict(form.suffix)" />
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
@@ -208,13 +202,7 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input
-                v-model="form.referrer_contact"
-                class="ifi"
-                placeholder="e.g. 09171234567"
-                maxlength="11"
-                @input="form.referrer_contact = form.referrer_contact.replace(/[^0-9]/g, '').slice(0, 11)"
-              />
+              <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" @input="form.referrer_contact = contactNumberInput(form.referrer_contact)" />
             </div>
           </div>
 
@@ -261,7 +249,7 @@
           </div>
 
           <div style="display:flex;gap:9px;margin-top:8px">
-            <button type="submit" class="ibtn ibtn-p" :disabled="loading || (form.student_id_input && form.student_id_input.length !== 7)">
+            <button type="submit" class="ibtn ibtn-p" :disabled="loading">
               <svg v-if="!loading" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ loading ? 'Submitting...' : 'Submit Referral' }}
@@ -283,6 +271,7 @@ import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
+import { onlyDigits, onlyLetters, onlyLettersStrict, contactNumberInput, isValidEmail } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');

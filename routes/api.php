@@ -38,6 +38,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
     Route::post('students/import', [StudentController::class, 'import']);
     Route::post('users/import',    [UserController::class, 'import']);
+    Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);

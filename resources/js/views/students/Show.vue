@@ -241,19 +241,19 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" />
+               <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" @input="form.last_name = onlyLetters(form.last_name)" required />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="editForm.first_name" class="ifi" placeholder="First Name" />
+                <input v-model="form.first_name" class="ifi" placeholder="Juan" @input="form.first_name = onlyLetters(form.first_name)" required />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" />
+                <input v-model="form.middle_name" class="ifi" placeholder="Santos" @input="form.middle_name = onlyLetters(form.middle_name)" />
               </div>
               <div>
                 <label class="ifl">Suffix</label>
-                <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" />
+                <input v-model="form.suffix" class="ifi" placeholder="Jr." @input="form.suffix = onlyLettersStrict(form.suffix)" />
               </div>
               <div>
                 <label class="ifl">Student ID</label>
@@ -270,20 +270,30 @@
                 </select>
               </div>
               <div>
-                <label class="ifl">College</label>
-                <select v-model="editForm.college" class="ifse">
-                  <option value="">Select college...</option>
-                  <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-                </select>
+              <label class="ifl">College</label>
+              <select v-model="editForm.college" class="ifse" @change="editForm.program = ''">
+                <option value="">Select college...</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Program</label>
+              <select v-model="editForm.program" class="ifse" :disabled="!editForm.college">
+                <option value="">Select program...</option>
+                <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
+                <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Section</label>
+              <input
+                v-model="editForm.section"
+                class="ifi"
+                placeholder="e.g. A"
+                maxlength="1"
+                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
               </div>
-              <div>
-                <label class="ifl">Program</label>
-                <input v-model="editForm.program" class="ifi" placeholder="e.g. Bachelor of Science in IT" />
-              </div>
-              <div>
-                <label class="ifl">Section</label>
-                <input v-model="editForm.section" class="ifi" placeholder="e.g. A" />
-              </div>
+            </div>
               <div>
                 <label class="ifl">Email</label>
                 <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
@@ -298,7 +308,7 @@
             </div>
               <div>
                 <label class="ifl">Contact Number</label>
-                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
+                <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" @input="form.referrer_contact = contactNumberInput(form.referrer_contact)" />
               </div>
             </div>
 
@@ -350,6 +360,8 @@ import { ref, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
+import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
+import { onlyDigits, onlyLetters, onlyLettersStrict, contactNumberInput, isValidEmail } from '../../utils/validators';
 
 const route   = useRoute();
 const toast   = inject('toast');
@@ -359,6 +371,7 @@ const showEditModal = ref(false);
 const student = ref({});
 const history = ref({});
 const colleges = COLLEGES;
+const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 const editForm = ref({});
 

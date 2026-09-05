@@ -72,12 +72,12 @@
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'student-show', params: { id: s.id } })">View</button>
                   <button
-                    class="ibtn ibtn-sm"
-                    :style="s.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'"
-                    @click.stop="toggleActive(s)"
-                  >
-                    {{ s.is_active ? 'Deactivate' : 'Activate' }}
-                  </button>
+                  class="ibtn ibtn-sm"
+                  :style="s.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'"
+                  @click.stop="s.is_active ? markGraduated(s) : toggleActive(s)"
+                >
+                  {{ s.is_active ? 'Mark Graduated' : 'Activate' }}
+                </button>
                 </div>
               </td>
             </tr>
@@ -109,30 +109,29 @@
             <div>
               <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
               <input
-                v-model="addForm.student_id"
-                class="ifi"
-                placeholder="e.g. 2302021"
-                maxlength="7"
-                @input="addForm.student_id = addForm.student_id.replace(/[^0-9]/g, '').slice(0, 7)"
-              />
+              v-model="form.student_id_input"
+              class="ifi"
+              placeholder="e.g. 2302021"
+              @input="form.student_id_input = onlyDigits(form.student_id_input)"
+              required
+            />
             </div>
             <div></div>
             <div>
-              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" @input="form.last_name = onlyLetters(form.last_name)" required />
               <input v-model="addForm.last_name" class="ifi" placeholder="Dela Cruz" />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.first_name" class="ifi" placeholder="Juan" />
+              <input v-model="form.first_name" class="ifi" placeholder="Juan" @input="form.first_name = onlyLetters(form.first_name)" required />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="addForm.middle_name" class="ifi" placeholder="Santos" />
+              <input v-model="form.middle_name" class="ifi" placeholder="Santos" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="addForm.suffix" class="ifi" placeholder="Jr." />
-            </div>
+              <input v-model="form.suffix" class="ifi" placeholder="Jr." @input="form.suffix = onlyLettersStrict(form.suffix)" />            </div>
             <div>
               <label class="ifl">College</label>
               <select v-model="addForm.college" class="ifse" @change="addForm.program = ''">
@@ -168,14 +167,14 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
+              <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" @input="form.referrer_contact = contactNumberInput(form.referrer_contact)" />
             </div>
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveStudent" :disabled="saving">
               <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ saving ? 'Saving...' : 'Create Student' }}
+              {{ saving ? 'Saving...' : 'Add Student' }}
             </button>
             <button class="ibtn ibtn-o" @click="showAddModal = false">Cancel</button>
           </div>
@@ -223,6 +222,7 @@ import { ref, computed, inject } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
+import { onlyDigits, onlyLetters, onlyLettersStrict, contactNumberInput, isValidEmail } from '../../utils/validators';
 
 const toast   = inject('toast');
 const colleges = COLLEGES;
@@ -320,6 +320,17 @@ async function toggleActive(s) {
     toast?.success(`Student ${s.is_active ? 'activated' : 'deactivated'}.`);
   } catch (e) {
     toast?.error('Failed to update student status.');
+  }
+}
+
+
+async function markGraduated(s) {
+  try {
+    await studentAPI.graduate(s.id);
+    s.is_active = false;
+    toast?.success('Student marked as graduated. Records preserved.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to mark as graduated.');
   }
 }
 

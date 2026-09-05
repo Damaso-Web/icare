@@ -181,4 +181,15 @@ public function import(Request $request)
         'errors'  => $errors,
     ]);
 }
+
+public function graduate(Request $request, Student $student)
+{
+    $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
+    if ($openCases > 0) {
+        return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
+    }
+    $student->update(['is_active' => false]);
+    \App\Models\AuditLog::record('graduated', "Marked student {$student->student_id} as graduated/inactive.", $student);
+    return response()->json($student);
+}
 }

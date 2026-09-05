@@ -15,6 +15,7 @@ class UserController extends Controller
         $query = User::query()
             ->when($request->role,   fn($q) => $q->where('role', $request->role))
             ->when($request->unit,   fn($q) => $q->where('unit', $request->unit))
+            ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active))
             ->when($request->search, fn($q) =>
                 $q->where('name', 'like', "%{$request->search}%")
                   ->orWhere('email', 'like', "%{$request->search}%")

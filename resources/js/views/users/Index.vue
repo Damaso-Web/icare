@@ -2,9 +2,9 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-    <h1>{{ isFacultyView ? 'Faculty Directory' : 'User Management' }}</h1>
-    <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
-  </div>
+      <h1>{{ isFacultyView ? 'Faculty Directory' : 'User Management' }}</h1>
+      <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
+    </div>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
@@ -12,7 +12,7 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search name or email..." style="width:220px" @input="fetchUsers" />
       </div>
-      <select v-model="filters.role" class="fsm" @change="fetchUsers">
+      <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
         <option value="admin">Admin / GCU Head</option>
         <option value="gcu_staff">GCU Staff</option>
@@ -21,22 +21,26 @@
         <option value="faculty">Faculty</option>
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
+      <select v-model="filters.status" class="fsm" @change="fetchUsers">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Deactivated</option>
+      </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+      <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Masterlist
+      </button>
       <button
-      v-if="auth.isAdmin"
-      class="ibtn ibtn-p ibtn-sm"
-      style="margin-left:auto"
-      @click="openCreate"
-    >
-      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      {{ isFacultyView ? 'Add Faculty' : 'Add Employee' }}
-    </button>
+        v-if="auth.isAdmin"
+        class="ibtn ibtn-p ibtn-sm"
+        style="margin-left:auto"
+        @click="openCreate"
+      >
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        {{ isFacultyView ? 'Add Faculty' : 'Add Employee' }}
+      </button>
     </div>
-
-    <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
-    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-    Upload Masterlist
-  </button>
 
     <!-- Users Table -->
     <div class="icard">
@@ -138,6 +142,10 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Department</div>
             <div style="font-size:13px;color:var(--ink)">{{ viewedUser.department }}</div>
           </div>
+          <div v-if="viewedUser.contact_number">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact Number</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedUser.contact_number }}</div>
+          </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
             <span class="ibadge" :style="viewedUser.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
@@ -157,13 +165,13 @@
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee' : 'Add New Employee' }}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee' : (isFacultyView ? 'Add New Faculty' : 'Add New Employee') }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
             <label class="ifl">Full Name <span style="color:var(--red)">*</span></label>
-            <input v-model="userForm.name" class="ifi" placeholder="e.g. Dr. Maria Reyes" />
+            <input v-model="userForm.name" class="ifi" placeholder="e.g. Dr. Maria Reyes" @input="userForm.name = onlyLetters(userForm.name)" />
           </div>
           <div>
             <label class="ifl">Email <span style="color:var(--red)">*</span></label>
@@ -175,15 +183,15 @@
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
-            <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
-            <option value="">All Roles</option>
-            <option value="admin">Admin / GCU Head</option>
-            <option value="gcu_staff">GCU Staff</option>
-            <option value="sdu_head">SDU Head</option>
-            <option value="tmdu_staff">TMDU Staff</option>
-            <option value="faculty">Faculty</option>
-            <option value="dean_secretary">Dean's Secretary</option>
-          </select>
+            <select v-model="userForm.role" class="ifse" :disabled="isFacultyView">
+              <option value="">Select role...</option>
+              <option value="admin">Admin / GCU Head</option>
+              <option value="gcu_staff">GCU Staff</option>
+              <option value="sdu_head">SDU Head</option>
+              <option value="tmdu_staff">TMDU Staff</option>
+              <option value="faculty">Faculty</option>
+              <option value="dean_secretary">Dean's Secretary</option>
+            </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College</label>
@@ -194,33 +202,31 @@
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">Department</label>
-            <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" />
+            <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" @input="userForm.department = onlyLetters(userForm.department)" />
           </div>
           <div>
-          <label class="ifl">Contact Number</label>
-          <input
-            v-model="userForm.contact_number"
-            class="ifi"
-            placeholder="e.g. 09171234567"
-            maxlength="11"
-            @input="userForm.contact_number = userForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)"
-          />
-        </div>
+            <label class="ifl">Contact Number</label>
+            <input
+              v-model="userForm.contact_number"
+              class="ifi"
+              placeholder="e.g. 09171234567"
+              @input="userForm.contact_number = contactNumberInput(userForm.contact_number)"
+            />
+          </div>
           <div v-if="!isEditing">
-          <label class="ifl">Password <span style="color:var(--red)">*</span></label>
-          <input v-model="userForm.password" type="password" class="ifi" placeholder="Min. 8 chars, 1 uppercase, 1 number, 1 symbol" />
-          <div style="font-size:11px;color:var(--stone);margin-top:4px">
-            Must contain: 8+ characters, 1 uppercase letter, 1 number, 1 special character (!@#$%^&*)
+            <label class="ifl">Temporary Password</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input v-model="userForm.password" type="text" class="ifi" readonly style="font-family:var(--mono)" />
+              <button type="button" class="ibtn ibtn-o ibtn-sm" @click="generatePassword">Regenerate</button>
+            </div>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">
+              A temporary password has been generated. The employee should change it after logging in.
+            </div>
           </div>
-          <input v-model="userForm.password_confirmation" type="password" class="ifi" placeholder="Confirm password" style="margin-top:8px" />
-          <div v-if="userForm.password && !isPasswordValid" style="font-size:11px;color:var(--red);margin-top:4px">
-            Password does not meet requirements
-          </div>
-        </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditing ? 'Save Changes' : 'Create Employee' }}
+              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Create Faculty' : 'Create Employee') }}
             </button>
             <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
@@ -228,52 +234,50 @@
       </div>
     </div>
 
-  </div>
-
-  <!-- Import Modal -->
-<div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
-    </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-        Upload a <strong>.csv</strong> file with columns: <code>name, email, role, employee_id, college, department, contact_number, password</code>. Only <code>name</code>, <code>email</code>, and <code>role</code> are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary. If password is left blank, default is <code>ChangeMe@123</code>.
-      </div>
-      <div>
-        <label class="ifl">CSV File</label>
-        <input type="file" accept=".csv" class="ifi" @change="handleImportFileSelect" />
-      </div>
-      <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
-        ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
-        <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
-          <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+    <!-- Import Modal -->
+    <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
+            Upload a <strong>.csv</strong> file with columns: <code>name, email, role, employee_id, college, department, contact_number</code>. Only <code>name</code>, <code>email</code>, and <code>role</code> are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary.
+          </div>
+          <div>
+            <label class="ifl">CSV File</label>
+            <input type="file" accept=".csv" class="ifi" @change="handleImportFileSelect" />
+          </div>
+          <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+            ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
+            <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
+              <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="uploadImportFile" :disabled="!importFile || importing">
+              <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ importing ? 'Uploading...' : 'Upload' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
+          </div>
         </div>
       </div>
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="uploadImportFile" :disabled="!importFile || importing">
-          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-          {{ importing ? 'Uploading...' : 'Upload' }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
-      </div>
     </div>
+
   </div>
-</div>
 </template>
 
 <script setup>
+import { ref, onMounted, watch, inject, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
-import { ref, onMounted, watch, inject, computed } from 'vue';
-import { useRoute } from 'vue-router';
-const showImportModal = ref(false);
-const importFile       = ref(null);
-const importing        = ref(false);
-const importResult     = ref(null);
+import { onlyLetters, contactNumberInput, isValidEmail } from '../../utils/validators';
 
+const route      = useRoute();
 const toast      = inject('toast');
 const auth       = useAuthStore();
 const loading    = ref(true);
@@ -282,10 +286,10 @@ const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', role: '' });
+const filters    = ref({ search: '', role: '', status: '' });
 const colleges   = COLLEGES;
 const viewedUser = ref({});
-const route = useRoute();
+
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 
 const userForm = ref({
@@ -294,18 +298,19 @@ const userForm = ref({
   password: '', password_confirmation: '',
 });
 
-const isPasswordValid = computed(() => {
-  const p = userForm.value.password;
-  return p.length >= 8 && /[A-Z]/.test(p) && /[0-9]/.test(p) && /[!@#$%^&*(),.?":{}|<>]/.test(p);
-});
+const showImportModal = ref(false);
+const importFile      = ref(null);
+const importing       = ref(false);
+const importResult    = ref(null);
 
 async function fetchUsers(page = 1) {
   loading.value = true;
   try {
     const params = { ...filters.value, page };
-    if (isFacultyView.value) {
-      params.role = 'faculty';
-    }
+    if (isFacultyView.value) params.role = 'faculty';
+    if (params.status === 'active')   params.is_active = 1;
+    if (params.status === 'inactive') params.is_active = 0;
+    delete params.status;
     const res = await userAPI.index(params);
     users.value      = res.data.data;
     pagination.value = res.data;
@@ -316,14 +321,24 @@ async function fetchUsers(page = 1) {
   }
 }
 
+function generatePassword() {
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const nums  = '23456789';
+  const symbols = '!@#$%^&*';
+  let pwd = upper[Math.floor(Math.random()*upper.length)]
+          + lower[Math.floor(Math.random()*lower.length)]
+          + nums[Math.floor(Math.random()*nums.length)]
+          + symbols[Math.floor(Math.random()*symbols.length)];
+  const all = upper + lower + nums + symbols;
+  for (let i = 0; i < 8; i++) pwd += all[Math.floor(Math.random()*all.length)];
+  userForm.value.password = pwd.split('').sort(() => Math.random() - 0.5).join('');
+  userForm.value.password_confirmation = userForm.value.password;
+}
+
 function openView(u) {
   viewedUser.value = u;
   showViewModal.value = true;
-}
-
-function handleImportFileSelect(e) {
-  importFile.value = e.target.files[0];
-  importResult.value = null;
 }
 
 function openCreate() {
@@ -336,6 +351,7 @@ function openCreate() {
     password: '', password_confirmation: '',
   };
   showModal.value = true;
+  generatePassword();
 }
 
 function openEdit(u) {
@@ -354,12 +370,8 @@ async function saveUser() {
     toast?.error('Please fill in all required fields.');
     return;
   }
-  if (!isEditing.value && !isPasswordValid.value) {
-    toast?.error('Password must be 8+ characters with an uppercase letter, number, and special character.');
-    return;
-  }
-  if (!isEditing.value && userForm.value.password !== userForm.value.password_confirmation) {
-    toast?.error('Passwords do not match.');
+  if (!isValidEmail(userForm.value.email)) {
+    toast?.error('Please enter a valid email address.');
     return;
   }
   try {
@@ -391,6 +403,11 @@ async function toggleActive(u) {
   }
 }
 
+function handleImportFileSelect(e) {
+  importFile.value = e.target.files[0];
+  importResult.value = null;
+}
+
 async function uploadImportFile() {
   if (!importFile.value) return;
   importing.value = true;
@@ -411,7 +428,7 @@ async function uploadImportFile() {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', role: '' };
+  filters.value = { search: '', role: '', status: '' };
   fetchUsers();
 }
 
@@ -450,7 +467,7 @@ function formatDate(date) {
 onMounted(() => fetchUsers());
 
 watch(() => route.name, () => {
-  filters.value = { search: '', role: '' };
+  filters.value = { search: '', role: '', status: '' };
   fetchUsers();
 });
 </script>

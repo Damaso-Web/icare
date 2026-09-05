@@ -40,15 +40,18 @@ export const authAPI = {
 };
 
 export const studentAPI = {
-    index:   (params)   => api.get('/students', { params }),
-    store:   (data)     => api.post('/students', data),
-    show:    (id)       => api.get(`/students/${id}`),
-    update:  (id, data) => api.put(`/students/${id}`, data),
-    destroy: (id)       => api.delete(`/students/${id}`),
-    history: (id)       => api.get(`/students/${id}/history`),
-    cases:   (id)       => api.get(`/students/${id}/cases`),
-    toggleActive: (id)  => api.post(`/students/${id}/toggle-active`),
-    import:  (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+  index: (params) => api.get('/students', { params }),
+  store: (data) => api.post('/students', data),
+  show: (id) => api.get(`/students/${id}`),              
+  update: (id, data) => api.put(`/students/${id}`, data),
+  destroy: (id) => api.delete(`/students/${id}`),        
+  history: (id) => api.get(`/students/${id}/history`),   
+  cases: (id) => api.get(`/students/${id}/cases`),        
+  toggleActive: (id) => api.post(`/students/${id}/toggle-active`), 
+  import: (formData) => api.post('/students/import', formData, { 
+    headers: { 'Content-Type': 'multipart/form-data' } 
+  }),
+  graduate: (id) => api.post(`/students/${id}/graduate`),
 };
 
 export const referralAPI = {
