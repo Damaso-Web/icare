@@ -214,16 +214,52 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
-              <select v-model="form.referral_type" class="ifse" required>
-                <option value="">Select service...</option>
-                <option value="counseling">Class Attendance / Absent / Tardy</option>
-                <option value="academic_coaching">Academic Deficiency</option>
-                <option value="psychological_testing">Psychological Testing</option>
-                <option value="consultation">Scholarship / Grant Assistance</option>
-                <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
-                <option value="disciplinary">Student Housing (Dormitories)</option>
-                <option value="others">For Student Employment (SA/SPES)</option>
-                <option value="other">Others</option>
+              <select v-model="form.referral_type" class="ifse" required @change="onServiceChange">
+              <option value="">Select service...</option>
+              <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
+              <option value="counseling">Counseling</option>
+              <option value="academic_deficiency">Academic Deficiency</option>
+              <option value="leave_of_absence">Leave of Absence</option>
+              <option value="withdrawal">Withdrawal</option>
+              <option value="readmission">Readmission</option>
+              <option value="shifting">Shifting</option>
+              <option value="psychological_testing">Psychological Testing</option>
+              <option value="disciplinary">Acts of Misconduct</option>
+            </select>
+            </div>
+            <div v-if="form.referral_type === 'disciplinary'" style="grid-column:1/-1">
+              <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
+              <select v-model="form.violation_type" class="ifse" :required="form.referral_type === 'disciplinary'">
+                <option value="">Select act of misconduct...</option>
+                <option>Intellectual Dishonesty</option>
+                <option>Fraud</option>
+                <option>Harm to Persons</option>
+                <option>Damage to Property</option>
+                <option>Unauthorized Possession/Use of Dangerous Objects</option>
+                <option>Unauthorized Possession/Use of Prohibited Drugs</option>
+                <option>Undermining or Obstructing Investigations</option>
+                <option>Violation of IT Resources Policies</option>
+                <option>Stealing within University Premises</option>
+                <option>Preparing or Disseminating Libelous/Subversive Materials</option>
+                <option>Committing Sexual Acts within University Premises</option>
+                <option>Instigating or Leading Boycotts/Disruption of Classes</option>
+                <option>Drinking Alcoholic Beverages or Drunken Behavior</option>
+                <option>Smoking</option>
+                <option>Gambling within University Premises</option>
+                <option>Violation of Municipal/Provincial Ordinance</option>
+                <option>Non-wearing of Valid School I.D.</option>
+                <option>Unauthorized Use of Borrowed or Stolen I.D.</option>
+                <option>Loitering During Curfew Hours</option>
+                <option>Failure to Obtain Permit for Facility Use</option>
+                <option>Unauthorized Use of University Name</option>
+                <option>Unauthorized Posting/Distributing of Notices</option>
+                <option>Possessing/Distributing Immoral, Indecent, or Subversive Literature</option>
+                <option>Littering</option>
+                <option>Spitting</option>
+                <option>Violating Legally Posted Instructions or Signage</option>
+                <option>Disobeying Lawful Written Orders</option>
+                <option>Appropriating Property of Another (Student Organization)</option>
+                <option>Other Form of Misconduct</option>
               </select>
             </div>
             <div>
@@ -316,6 +352,7 @@ const form = ref({
   referral_type:         '',
   referral_source:       'faculty',
   nature_of_concern:     '',
+  violation_type:        '',
 });
 
 function roleLabel(role) {
@@ -324,6 +361,12 @@ function roleLabel(role) {
     tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
+}
+
+function onServiceChange() {
+  if (form.value.referral_type !== 'disciplinary') {
+    form.value.violation_type = '';
+  }
 }
 
 function onPositionChange() {
@@ -458,12 +501,13 @@ async function handleSubmit() {
     }
 
     await referralAPI.store({
-      student_id:        studentId,
-      referral_type:     form.value.referral_type,
-      nature_of_concern: form.value.nature_of_concern,
-      urgency_level:     'medium',
-      is_self_referred:  form.value.referral_source === 'self',
-      referrer_source:   form.value.referral_source,
+  student_id:        studentId,
+  referral_type:     form.value.referral_type,
+  nature_of_concern: form.value.nature_of_concern,
+  urgency_level:     'medium',
+  is_self_referred:  form.value.referral_source === 'self',
+  referrer_source:   form.value.referral_source,
+  violation_type:    form.value.violation_type || null,
     });
 
     toast?.success('Referral submitted successfully!');
@@ -497,6 +541,7 @@ function clearForm() {
     referrer_position: '', referrer_department: '',
     referrer_contact: '', referral_type: '',
     referral_source: 'faculty', nature_of_concern: '',
+    violation_type: '',
   };
 }
 </script>

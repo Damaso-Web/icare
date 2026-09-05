@@ -51,7 +51,7 @@ class ReferralController extends Controller
     {
         $validated = $request->validate([
             'student_id'          => 'required|exists:students,id',
-            'referral_type'       => 'required|in:counseling,academic_coaching,admission_slip,psychological_testing,disciplinary,consultation',
+            'referral_type' => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
             'nature_of_concern'   => 'required|string|min:10',
             'urgency_level'       => 'required|in:low,medium,high,critical',
             'is_self_referred'    => 'boolean',
