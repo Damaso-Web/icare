@@ -117,39 +117,75 @@ class StudentController extends Controller
 public function import(Request $request)
 {
     $request->validate([
-        'file' => 'required|file|mimes:csv,txt',
+        'file' => 'required|file|mimes:csv,txt,xlsx,xls',
     ]);
 
-    $path = $request->file('file')->getRealPath();
-    $handle = fopen($path, 'r');
-    $header = fgetcsv($handle);
-    $header = array_map(fn($h) => strtolower(trim($h)), $header);
+    $file = $request->file('file');
+    $ext  = strtolower($file->getClientOriginalExtension());
 
-    $required = ['student_id', 'first_name', 'last_name'];
-    foreach ($required as $col) {
-        if (!in_array($col, $header)) {
-            fclose($handle);
-            return response()->json(['message' => "Missing required column: {$col}"], 422);
+    // Map friendly headers to database columns
+    $headerMap = [
+        'student id'      => 'student_id',
+        'last name'       => 'last_name',
+        'first name'      => 'first_name',
+        'middle name'     => 'middle_name',
+        'sex'             => 'sex',
+        'email address'   => 'email',
+        'email'           => 'email',
+        'contact number'  => 'contact_number',
+        'college'         => 'college',
+        'program'         => 'program',
+        'year level'      => 'year_level',
+        'section'         => 'section',
+    ];
+
+    $rows = [];
+
+    if (in_array($ext, ['xlsx', 'xls'])) {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+        $sheet = $spreadsheet->getActiveSheet();
+        $data  = $sheet->toArray(null, true, true, false);
+
+        $rawHeader = array_map(fn($h) => strtolower(trim($h ?? '')), $data[0]);
+        for ($i = 1; $i < count($data); $i++) {
+            $rowAssoc = [];
+            foreach ($rawHeader as $idx => $key) {
+                $mappedKey = $headerMap[$key] ?? $key;
+                $rowAssoc[$mappedKey] = $data[$i][$idx] ?? null;
+            }
+            $rows[] = $rowAssoc;
         }
+    } else {
+        $handle = fopen($file->getRealPath(), 'r');
+        $rawHeader = array_map(fn($h) => strtolower(trim($h)), fgetcsv($handle));
+        while (($data = fgetcsv($handle)) !== false) {
+            $rowAssoc = [];
+            foreach ($rawHeader as $idx => $key) {
+                $mappedKey = $headerMap[$key] ?? $key;
+                $rowAssoc[$mappedKey] = $data[$idx] ?? null;
+            }
+            $rows[] = $rowAssoc;
+        }
+        fclose($handle);
     }
 
     $created = 0;
     $skipped = 0;
     $errors  = [];
-    $row = 1;
+    $rowNum  = 1;
 
-    while (($data = fgetcsv($handle)) !== false) {
-        $row++;
-        $rowData = array_combine($header, $data);
+    foreach ($rows as $rowData) {
+        $rowNum++;
 
         if (empty($rowData['student_id']) || empty($rowData['first_name']) || empty($rowData['last_name'])) {
-            $errors[] = "Row {$row}: missing required fields.";
+            $errors[] = "Row {$rowNum}: missing required fields (Student ID, First Name, Last Name).";
             $skipped++;
             continue;
         }
 
         $exists = Student::where('student_id', $rowData['student_id'])->exists();
         if ($exists) {
+            $errors[] = "Row {$rowNum}: Student ID {$rowData['student_id']} already exists — skipped.";
             $skipped++;
             continue;
         }
@@ -171,8 +207,6 @@ public function import(Request $request)
         $created++;
     }
 
-    fclose($handle);
-
     \App\Models\AuditLog::record('imported', "Bulk imported {$created} students, skipped {$skipped}.");
 
     return response()->json([
@@ -181,7 +215,6 @@ public function import(Request $request)
         'errors'  => $errors,
     ]);
 }
-
 public function graduate(Request $request, Student $student)
 {
     $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();

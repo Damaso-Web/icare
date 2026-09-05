@@ -213,15 +213,15 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Download the template below, fill it in, then upload it here. Only <code>student_id</code>, <code>first_name</code>, and <code>last_name</code> are required.
-          </div>
-          <a href="/templates/student_masterlist_template.csv" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+          Download the template, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>.
+        </div>
+          <a href="/templates/student_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download Template
           </a>
           <div>
             <label class="ifl">CSV File</label>
-            <input type="file" accept=".csv" class="ifi" @change="handleFileSelect" />
+            <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
           </div>
           <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ {{ importResult.created }} students added, {{ importResult.skipped }} skipped.

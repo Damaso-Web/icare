@@ -243,12 +243,16 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Upload a <strong>.csv</strong> file with columns: <code>name, email, role, employee_id, college, department, contact_number</code>. Only <code>name</code>, <code>email</code>, and <code>role</code> are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary.
-          </div>
-          <div>
-            <label class="ifl">CSV File</label>
-            <input type="file" accept=".csv" class="ifi" @change="handleImportFileSelect" />
-          </div>
+          Download the template, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>.
+        </div>
+        <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Template
+        </a>
+        <div>
+          <label class="ifl">File</label>
+          <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleImportFileSelect" />
+        </div>
           <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
             <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
