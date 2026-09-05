@@ -179,7 +179,7 @@
           </div>
           <div>
             <label class="ifl">Employee ID</label>
-            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. BSU-GCU-001" />
+            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. 1234567" />
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
@@ -226,7 +226,7 @@
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Create Faculty' : 'Create Employee') }}
+              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
             </button>
             <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
