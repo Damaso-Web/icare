@@ -157,13 +157,13 @@
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.sex || '—' }}</div>
+              </div>
+              <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
                 <div style="font-size:13px;color:var(--ink)">{{ student.year_level || '—' }}</div>
               </div>
-              <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.sex || '—' }}</div>
-            </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
                 <div style="font-size:13px;color:var(--ink)">{{ student.college || '—' }}</div>
@@ -241,27 +241,36 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Last Name</label>
-               <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" @input="form.last_name = onlyLetters(form.last_name)" required />
+                <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="form.first_name" class="ifi" placeholder="Juan" @input="form.first_name = onlyLetters(form.first_name)" required />
+                <input v-model="editForm.first_name" class="ifi" placeholder="First Name" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="form.middle_name" class="ifi" placeholder="Santos" @input="form.middle_name = onlyLetters(form.middle_name)" />
+                <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
               </div>
               <div>
                 <label class="ifl">Suffix</label>
-                <input v-model="form.suffix" class="ifi" placeholder="Jr." @input="form.suffix = onlyLettersStrict(form.suffix)" />
+                <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+              </div>
+              <div>
+                <label class="ifl">Sex</label>
+                <select v-model="editForm.sex" class="ifse">
+                  <option value="">Select...</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
               </div>
               <div>
                 <label class="ifl">Student ID</label>
-                <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" />
+                <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
               </div>
               <div>
                 <label class="ifl">Year Level</label>
                 <select v-model="editForm.year_level" class="ifse">
+                  <option value="">Select...</option>
                   <option>1st Year</option>
                   <option>2nd Year</option>
                   <option>3rd Year</option>
@@ -270,45 +279,37 @@
                 </select>
               </div>
               <div>
-              <label class="ifl">College</label>
-              <select v-model="editForm.college" class="ifse" @change="editForm.program = ''">
-                <option value="">Select college...</option>
-                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Program</label>
-              <select v-model="editForm.program" class="ifse" :disabled="!editForm.college">
-                <option value="">Select program...</option>
-                <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
-                <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Section</label>
-              <input
-                v-model="editForm.section"
-                class="ifi"
-                placeholder="e.g. A"
-                maxlength="1"
-                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                <label class="ifl">College</label>
+                <select v-model="editForm.college" class="ifse" @change="editForm.program = ''">
+                  <option value="">Select college...</option>
+                  <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+                </select>
               </div>
-            </div>
+              <div>
+                <label class="ifl">Program</label>
+                <select v-model="editForm.program" class="ifse" :disabled="!editForm.college">
+                  <option value="">Select program...</option>
+                  <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
+                  <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+              <div>
+                <label class="ifl">Section</label>
+                <input
+                  v-model="editForm.section"
+                  class="ifi"
+                  placeholder="e.g. A"
+                  maxlength="1"
+                  @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                />
+              </div>
               <div>
                 <label class="ifl">Email</label>
                 <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
               </div>
               <div>
-              <label class="ifl">Sex</label>
-              <select v-model="editForm.sex" class="ifse">
-                <option value="">Select...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-              <div>
                 <label class="ifl">Contact Number</label>
-                <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" @input="form.referrer_contact = contactNumberInput(form.referrer_contact)" />
+                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number)" />
               </div>
             </div>
 
@@ -320,11 +321,11 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Guardian Name</label>
-                <input v-model="editForm.guardian_name" class="ifi" placeholder="Guardian full name" />
+                <input v-model="editForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="editForm.guardian_name = onlyLetters(editForm.guardian_name)" />
               </div>
               <div>
                 <label class="ifl">Guardian Contact</label>
-                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" />
+                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact)" />
               </div>
               <div>
                 <label class="ifl">Relationship</label>
@@ -356,12 +357,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyDigits, onlyLetters, onlyLettersStrict, contactNumberInput, isValidEmail } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput } from '../../utils/validators';
 
 const route   = useRoute();
 const toast   = inject('toast');
@@ -371,14 +372,10 @@ const showEditModal = ref(false);
 const student = ref({});
 const history = ref({});
 const colleges = COLLEGES;
-const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 const editForm = ref({});
 
-function openEdit() {
-  editForm.value = { ...student.value };
-  showEditModal.value = true;
-}
+const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 async function saveStudent() {
   saving.value = true;
