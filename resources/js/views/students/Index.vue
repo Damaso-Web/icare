@@ -2,8 +2,8 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>{{ showArchived ? 'Archived / Graduated Students' : 'Student Profiles' }}</h1>
-      <p>{{ showArchived ? 'View and reactivate graduated or archived student records.' : 'Search for a student by name or student ID to view their records.' }}</p>
+      <h1>{{ showArchived ? 'Inactive Students' : 'Student Profiles' }}</h1>
+      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Search for a student by name or student ID to view their records.' }}</p>
     </div>
 
     <!-- Tabs -->
@@ -20,7 +20,7 @@
         :style="showArchived ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
         @click="switchTab(true)"
       >
-        Archived / Graduated
+        Inactive Students
       </button>
     </div>
 
