@@ -17,8 +17,10 @@ class StudentController extends Controller
                   ->orWhere('last_name', 'like', "%{$request->search}%")
                   ->orWhere('student_id', 'like', "%{$request->search}%")
             )
+            ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active))
             ->when($request->college,    fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level));
+            
 
         return response()->json($query->latest()->paginate(20));
     }

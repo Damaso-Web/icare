@@ -2,8 +2,26 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Student Profiles</h1>
-      <p>Search for a student by name or student ID to view their records.</p>
+      <h1>{{ showArchived ? 'Archived / Graduated Students' : 'Student Profiles' }}</h1>
+      <p>{{ showArchived ? 'View and reactivate graduated or archived student records.' : 'Search for a student by name or student ID to view their records.' }}</p>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button
+        class="ibtn ibtn-sm"
+        :style="!showArchived ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+        @click="switchTab(false)"
+      >
+        Active Students
+      </button>
+      <button
+        class="ibtn ibtn-sm"
+        :style="showArchived ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+        @click="switchTab(true)"
+      >
+        Archived / Graduated
+      </button>
     </div>
 
     <!-- Search Bar -->
@@ -14,17 +32,17 @@
           v-model="filters.search"
           type="text"
           class="sin"
-          placeholder="Search name or student ID..."
+          :placeholder="showArchived ? 'Search archived student name or ID...' : 'Search name or student ID...'"
           style="width:100%"
           @input="onSearchInput"
         />
       </div>
       <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
-      <button class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+      <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
-      <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" type="button" @click="openAddModal">
+      <button v-if="!showArchived" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" type="button" @click="openAddModal">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Student
       </button>
@@ -36,8 +54,8 @@
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
       <div v-else-if="!filters.search" class="empty-state">
-        <h3>Search for a student</h3>
-        <p>Type a name or student ID above to find their profile.</p>
+        <h3>{{ showArchived ? 'Search archived students' : 'Search for a student' }}</h3>
+        <p>Type a name or student ID above to find records.</p>
       </div>
       <div v-else-if="students.length === 0" class="empty-state">
         <h3>No students found</h3>
@@ -65,7 +83,7 @@
               </td>
               <td>
                 <span class="ibadge" :style="s.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
-                  {{ s.is_active ? 'Active' : 'Graduated / Inactive' }}
+                  {{ s.is_active ? 'Active' : 'Graduated / Archived' }}
                 </span>
               </td>
               <td style="text-align:right">
@@ -213,14 +231,14 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-          Download the template, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>.
-        </div>
+            Download the template below, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>. Only Student ID, Last Name, and First Name are required.
+          </div>
           <a href="/templates/student_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Download Template
           </a>
           <div>
-            <label class="ifl">CSV File</label>
+            <label class="ifl">File</label>
             <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
           </div>
           <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
@@ -280,6 +298,7 @@ const loading    = ref(false);
 const saving     = ref(false);
 const pagination = ref({});
 const filters    = ref({ search: '' });
+const showArchived = ref(false);
 const showAddModal    = ref(false);
 const showImportModal = ref(false);
 const showGraduateModal = ref(false);
@@ -299,6 +318,13 @@ const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.colle
 
 let searchTimeout = null;
 
+function switchTab(archived) {
+  showArchived.value = archived;
+  filters.value.search = '';
+  students.value = [];
+  pagination.value = {};
+}
+
 function onSearchInput() {
   clearTimeout(searchTimeout);
   if (!filters.value.search) {
@@ -315,7 +341,9 @@ async function fetchStudents(page = 1) {
   }
   loading.value = true;
   try {
-    const res = await studentAPI.index({ ...filters.value, page });
+    const params = { ...filters.value, page };
+    params.is_active = showArchived.value ? 0 : 1;
+    const res = await studentAPI.index(params);
     students.value   = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -370,9 +398,9 @@ async function doGraduate() {
   if (!studentToGraduate.value) return;
   try {
     await studentAPI.graduate(studentToGraduate.value.id);
-    studentToGraduate.value.is_active = false;
-    toast?.success('Student marked as graduated. Records preserved.');
     showGraduateModal.value = false;
+    toast?.success('Student marked as graduated. Records preserved.');
+    fetchStudents();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as graduated.');
   }
@@ -381,8 +409,8 @@ async function doGraduate() {
 async function toggleActive(s) {
   try {
     await studentAPI.toggleActive(s.id);
-    s.is_active = !s.is_active;
-    toast?.success(`Student ${s.is_active ? 'activated' : 'deactivated'}.`);
+    toast?.success('Student unarchived and set to active.');
+    fetchStudents();
   } catch (e) {
     toast?.error('Failed to update student status.');
   }
