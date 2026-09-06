@@ -164,6 +164,8 @@ class UserController extends Controller
                 continue;
             }
 
+            $rowData['role'] = strtolower(trim($rowData['role'] ?? ''));
+
             if (!in_array($rowData['role'], $validRoles)) {
                 $errors[] = "Row {$rowNum}: invalid role '{$rowData['role']}'.";
                 $skipped++;

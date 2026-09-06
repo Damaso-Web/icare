@@ -20,10 +20,6 @@
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit
           </button>
-          <button v-if="isGCU" class="ibtn ibtn-sm" style="background:var(--cloud);color:var(--stone)" @click="archiveReferral">
-            <svg viewBox="0 0 24 24"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            Archive
-          </button>
         </div>
       </div>
 
@@ -328,15 +324,6 @@ async function saveEdit() {
   }
 }
 
-async function archiveReferral() {
-  try {
-    await referralAPI.archive(referral.value.id);
-    toast?.success('Referral archived.');
-    setTimeout(() => window.history.back(), 800);
-  } catch (e) {
-    toast?.error('Failed to archive referral.');
-  }
-}
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';

@@ -85,7 +85,7 @@
                     style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
                     @click.stop="toggleActive(s)"
                   >
-                    Activate
+                    Unarchive
                   </button>
                 </div>
               </td>
