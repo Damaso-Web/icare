@@ -20,6 +20,9 @@ export const DEPARTMENTS_BY_COLLEGE = {
   'College of Information Sciences (CIS)': [
     'Information Technology', 'Computer Science',
   ],
+  'College of Medicine (CM)': [
+    'Doctor of Medicine',
+  ]
   'College of Natural Sciences (CNS)': [
     'Biology', 'Chemistry', 'Physics',
   ],

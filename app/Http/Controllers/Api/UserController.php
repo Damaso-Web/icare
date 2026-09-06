@@ -24,10 +24,11 @@ class UserController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
-    public function store(Request $request)
+        public function store(Request $request)
     {
         $validated = $request->validate([
-            'name'                  => 'required|string|max:255',
+            'first_name'            => 'required|string|max:255',
+            'last_name'             => 'required|string|max:255',
             'email'                 => 'required|email|unique:users,email',
             'employee_id'           => 'nullable|string|max:50',
             'role'                  => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
@@ -39,6 +40,7 @@ class UserController extends Controller
 
         $user = User::create([
             ...$validated,
+            'name'      => trim($validated['first_name'] . ' ' . $validated['last_name']),
             'password'  => Hash::make($validated['password']),
             'is_active' => true,
         ]);
@@ -53,10 +55,11 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    public function update(Request $request, User $user)
+        public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'name'           => 'sometimes|string|max:255',
+            'first_name'     => 'sometimes|string|max:255',
+            'last_name'      => 'sometimes|string|max:255',
             'email'          => 'sometimes|email|unique:users,email,' . $user->id,
             'employee_id'    => 'nullable|string|max:50',
             'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
@@ -111,7 +114,6 @@ class UserController extends Controller
         $headerMap = [
             'last name'        => 'last_name',
             'first name'       => 'first_name',
-            'name'             => 'name',
             'email address'    => 'email',
             'email'            => 'email',
             'role'             => 'role',
@@ -161,18 +163,11 @@ class UserController extends Controller
             $rowNum++;
             $rowData['role'] = strtolower(trim($rowData['role'] ?? ''));
 
-            // Combine last_name + first_name into name if provided separately
-            if (empty($rowData['name']) && (!empty($rowData['last_name']) || !empty($rowData['first_name']))) {
-                $rowData['name'] = trim(($rowData['first_name'] ?? '') . ' ' . ($rowData['last_name'] ?? ''));
-            }
-
-            if (empty($rowData['name']) || empty($rowData['email']) || empty($rowData['role'])) {
-                $errors[] = "Row {$rowNum}: missing required fields (Name, Email, Role).";
+            if (empty($rowData['first_name']) || empty($rowData['last_name']) || empty($rowData['email']) || empty($rowData['role'])) {
+                $errors[] = "Row {$rowNum}: missing required fields (Last Name, First Name, Email, Role).";
                 $skipped++;
                 continue;
             }
-
-            $rowData['role'] = strtolower(trim($rowData['role'] ?? ''));
 
             if (!in_array($rowData['role'], $validRoles)) {
                 $errors[] = "Row {$rowNum}: invalid role '{$rowData['role']}'.";
@@ -188,7 +183,9 @@ class UserController extends Controller
             }
 
             User::create([
-                'name'           => $rowData['name'],
+                'first_name'     => $rowData['first_name'],
+                'last_name'      => $rowData['last_name'],
+                'name'           => trim($rowData['first_name'] . ' ' . $rowData['last_name']),
                 'email'          => $rowData['email'],
                 'employee_id'    => $rowData['employee_id'] ?? null,
                 'role'           => $rowData['role'],

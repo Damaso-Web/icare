@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Submit a Referral</h1>
+      <h1>Refer a Student</h1>
       <p>Complete this form to refer a student to the Office of Student Services.</p>
     </div>
 
@@ -72,12 +72,12 @@
           <div style="margin-bottom:14px">
             <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
             <input
-            v-model="form.student_id_input"
-            class="ifi"
-            placeholder="e.g. 2302021"
-            @input="form.student_id_input = onlyDigits(form.student_id_input)"
-            required
-          />
+              v-model="form.student_id_input"
+              class="ifi"
+              placeholder="e.g. 2302021"
+              @input="form.student_id_input = onlyDigits(form.student_id_input)"
+              required
+            />
           </div>
 
           <!-- Name Fields + Sex -->
@@ -152,20 +152,32 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
-          <div style="margin-bottom:14px;position:relative">
-            <label class="ifl">Name of Referrer <span style="color:var(--red)">*</span></label>
-            <input
-              v-model="form.referrer_name_input"
-              class="ifi"
-              placeholder="Full name of person referring"
-              @input="onReferrerSearch"
-              @focus="showReferrerDropdown = referrerSuggestions.length > 0"
-              autocomplete="off"
-              required
-            />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;position:relative">
+            <div>
+              <label class="ifl">Referrer Last Name <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="form.referrer_last_name"
+                class="ifi"
+                placeholder="Reyes"
+                @input="onReferrerSearch"
+                @focus="showReferrerDropdown = referrerSuggestions.length > 0"
+                autocomplete="off"
+                required
+              />
+            </div>
+            <div>
+              <label class="ifl">Referrer First Name <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="form.referrer_first_name"
+                class="ifi"
+                placeholder="Maria"
+                autocomplete="off"
+                required
+              />
+            </div>
             <div
               v-if="showReferrerDropdown && referrerSuggestions.length > 0"
-              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
+              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px;grid-column:1/-1"
             >
               <div
                 v-for="r in referrerSuggestions"
@@ -175,7 +187,7 @@
                 @mouseleave="$event.currentTarget.style.background='#fff'"
                 @click="selectReferrer(r)"
               >
-                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.name }}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.last_name }}, {{ r.first_name }}</div>
                 <div style="font-size:11px;color:var(--fog)">{{ r.email }} · {{ roleLabel(r.role) }}</div>
               </div>
             </div>
@@ -202,7 +214,12 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="form.referrer_contact" class="ifi" placeholder="e.g. 09171234567" @input="form.referrer_contact = contactNumberInput(form.referrer_contact)" />
+              <input
+                v-model="form.referrer_contact"
+                class="ifi"
+                placeholder="e.g. 09171234567"
+                @input="form.referrer_contact = contactNumberInput(form.referrer_contact)"
+              />
             </div>
           </div>
 
@@ -215,51 +232,16 @@
             <div>
               <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
               <select v-model="form.referral_type" class="ifse" required @change="onServiceChange">
-              <option value="">Select service...</option>
-              <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
-              <option value="counseling">Counseling</option>
-              <option value="academic_deficiency">Academic Deficiency</option>
-              <option value="leave_of_absence">Leave of Absence</option>
-              <option value="withdrawal">Withdrawal</option>
-              <option value="readmission">Readmission</option>
-              <option value="shifting">Shifting</option>
-              <option value="psychological_testing">Psychological Testing</option>
-              <option value="disciplinary">Acts of Misconduct</option>
-            </select>
-            </div>
-            <div v-if="form.referral_type === 'disciplinary'" style="grid-column:1/-1">
-              <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
-              <select v-model="form.violation_type" class="ifse" :required="form.referral_type === 'disciplinary'">
-                <option value="">Select act of misconduct...</option>
-                <option>Intellectual Dishonesty</option>
-                <option>Fraud</option>
-                <option>Harm to Persons</option>
-                <option>Damage to Property</option>
-                <option>Unauthorized Possession/Use of Dangerous Objects</option>
-                <option>Unauthorized Possession/Use of Prohibited Drugs</option>
-                <option>Undermining or Obstructing Investigations</option>
-                <option>Violation of IT Resources Policies</option>
-                <option>Stealing within University Premises</option>
-                <option>Preparing or Disseminating Libelous/Subversive Materials</option>
-                <option>Committing Sexual Acts within University Premises</option>
-                <option>Instigating or Leading Boycotts/Disruption of Classes</option>
-                <option>Drinking Alcoholic Beverages or Drunken Behavior</option>
-                <option>Smoking</option>
-                <option>Gambling within University Premises</option>
-                <option>Violation of Municipal/Provincial Ordinance</option>
-                <option>Non-wearing of Valid School I.D.</option>
-                <option>Unauthorized Use of Borrowed or Stolen I.D.</option>
-                <option>Loitering During Curfew Hours</option>
-                <option>Failure to Obtain Permit for Facility Use</option>
-                <option>Unauthorized Use of University Name</option>
-                <option>Unauthorized Posting/Distributing of Notices</option>
-                <option>Possessing/Distributing Immoral, Indecent, or Subversive Literature</option>
-                <option>Littering</option>
-                <option>Spitting</option>
-                <option>Violating Legally Posted Instructions or Signage</option>
-                <option>Disobeying Lawful Written Orders</option>
-                <option>Appropriating Property of Another (Student Organization)</option>
-                <option>Other Form of Misconduct</option>
+                <option value="">Select service...</option>
+                <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
+                <option value="counseling">Counseling</option>
+                <option value="academic_deficiency">Academic Deficiency</option>
+                <option value="leave_of_absence">Leave of Absence</option>
+                <option value="withdrawal">Withdrawal</option>
+                <option value="readmission">Readmission</option>
+                <option value="shifting">Shifting</option>
+                <option value="psychological_testing">Psychological Testing</option>
+                <option value="disciplinary">Acts of Misconduct</option>
               </select>
             </div>
             <div>
@@ -272,6 +254,42 @@
                 <option value="parent">Parent / Guardian</option>
               </select>
             </div>
+          </div>
+
+          <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
+            <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
+            <select v-model="form.violation_type" class="ifse" :required="form.referral_type === 'disciplinary'">
+              <option value="">Select act of misconduct...</option>
+              <option>Intellectual Dishonesty</option>
+              <option>Fraud</option>
+              <option>Harm to Persons</option>
+              <option>Damage to Property</option>
+              <option>Unauthorized Possession/Use of Dangerous Objects</option>
+              <option>Unauthorized Possession/Use of Prohibited Drugs</option>
+              <option>Undermining or Obstructing Investigations</option>
+              <option>Violation of IT Resources Policies</option>
+              <option>Stealing within University Premises</option>
+              <option>Preparing or Disseminating Libelous/Subversive Materials</option>
+              <option>Committing Sexual Acts within University Premises</option>
+              <option>Instigating or Leading Boycotts/Disruption of Classes</option>
+              <option>Drinking Alcoholic Beverages or Drunken Behavior</option>
+              <option>Smoking</option>
+              <option>Gambling within University Premises</option>
+              <option>Violation of Municipal/Provincial Ordinance</option>
+              <option>Non-wearing of Valid School I.D.</option>
+              <option>Unauthorized Use of Borrowed or Stolen I.D.</option>
+              <option>Loitering During Curfew Hours</option>
+              <option>Failure to Obtain Permit for Facility Use</option>
+              <option>Unauthorized Use of University Name</option>
+              <option>Unauthorized Posting/Distributing of Notices</option>
+              <option>Possessing/Distributing Immoral, Indecent, or Subversive Literature</option>
+              <option>Littering</option>
+              <option>Spitting</option>
+              <option>Violating Legally Posted Instructions or Signage</option>
+              <option>Disobeying Lawful Written Orders</option>
+              <option>Appropriating Property of Another (Student Organization)</option>
+              <option>Other Form of Misconduct</option>
+            </select>
           </div>
 
           <div style="margin-bottom:14px">
@@ -307,7 +325,7 @@ import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyDigits, onlyLetters, onlyLettersStrict, contactNumberInput, isValidEmail } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -345,7 +363,8 @@ const form = ref({
   year_level:            '',
   college:               '',
   section:               '',
-  referrer_name_input:   '',
+  referrer_last_name:    '',
+  referrer_first_name:   '',
   referrer_position:     '',
   referrer_department:   '',
   referrer_contact:      '',
@@ -363,14 +382,14 @@ function roleLabel(role) {
   return labels[role] || role;
 }
 
+function onPositionChange() {
+  form.value.referrer_department = '';
+}
+
 function onServiceChange() {
   if (form.value.referral_type !== 'disciplinary') {
     form.value.violation_type = '';
   }
-}
-
-function onPositionChange() {
-  form.value.referrer_department = '';
 }
 
 function onStudentSearch() {
@@ -412,14 +431,14 @@ async function selectStudent(s) {
 
 function onReferrerSearch() {
   clearTimeout(referrerSearchTimeout);
-  if (!form.value.referrer_name_input || form.value.referrer_name_input.length < 2) {
+  if (!form.value.referrer_last_name || form.value.referrer_last_name.length < 2) {
     referrerSuggestions.value = [];
     showReferrerDropdown.value = false;
     return;
   }
   referrerSearchTimeout = setTimeout(async () => {
     try {
-      const res = await userAPI.index({ search: form.value.referrer_name_input });
+      const res = await userAPI.index({ search: form.value.referrer_last_name });
       referrerSuggestions.value = res.data.data || [];
       showReferrerDropdown.value = referrerSuggestions.value.length > 0;
     } catch (e) {
@@ -429,22 +448,20 @@ function onReferrerSearch() {
 }
 
 function selectReferrer(r) {
-  form.value.referrer_name_input = r.name;
+  form.value.referrer_last_name  = r.last_name;
+  form.value.referrer_first_name = r.first_name;
   form.value.referrer_contact    = r.contact_number || '';
 
   const ossRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
   if (ossRoles.includes(r.role)) {
     form.value.referrer_position = 'oss_staff';
-    form.value.referrer_oss_unit = r.unit || '';
     form.value.referrer_department = '';
   } else if (r.role === 'faculty') {
     form.value.referrer_position   = 'instructor';
     form.value.referrer_department = r.college || '';
-    form.value.referrer_oss_unit   = '';
   } else if (r.role === 'dean_secretary') {
     form.value.referrer_position   = 'other';
     form.value.referrer_department = r.college || '';
-    form.value.referrer_oss_unit   = '';
   }
 
   showReferrerDropdown.value = false;
@@ -462,8 +479,8 @@ async function handleSubmit() {
   error.value   = '';
   success.value = '';
 
-  if (!form.value.student_id_input || form.value.student_id_input.length !== 7) {
-    error.value = 'Student ID must be exactly 7 digits.';
+  if (!form.value.student_id_input) {
+    error.value = 'Please enter a valid Student ID.';
     return;
   }
 
@@ -501,13 +518,13 @@ async function handleSubmit() {
     }
 
     await referralAPI.store({
-  student_id:        studentId,
-  referral_type:     form.value.referral_type,
-  nature_of_concern: form.value.nature_of_concern,
-  urgency_level:     'medium',
-  is_self_referred:  form.value.referral_source === 'self',
-  referrer_source:   form.value.referral_source,
-  violation_type:    form.value.violation_type || null,
+      student_id:        studentId,
+      referral_type:     form.value.referral_type,
+      nature_of_concern: form.value.nature_of_concern,
+      urgency_level:     'medium',
+      is_self_referred:  form.value.referral_source === 'self',
+      referrer_source:   form.value.referral_source,
+      violation_type:    form.value.violation_type || null,
     });
 
     toast?.success('Referral submitted successfully!');
@@ -537,7 +554,7 @@ function clearForm() {
   form.value = {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
-    college: '', section: '', referrer_name_input: '',
+    college: '', section: '', referrer_last_name: '', referrer_first_name: '',
     referrer_position: '', referrer_department: '',
     referrer_contact: '', referral_type: '',
     referral_source: 'faculty', nature_of_concern: '',

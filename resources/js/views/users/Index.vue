@@ -68,9 +68,9 @@
             <tr v-for="u in users" :key="u.id">
               <td style="cursor:pointer" @click="openView(u)">
                 <div style="display:flex;align-items:center;gap:10px">
-                  <div class="iav">{{ initials(u.name) }}</div>
+                  <div class="iav">{{ initials(u.first_name, u.last_name) }}</div>
                   <div>
-                    <div style="font-weight:600;color:var(--ink)">{{ u.name }}</div>
+                    <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }}</div>
                     <div style="font-size:11px;color:var(--fog)">{{ u.email }}</div>
                   </div>
                 </div>
@@ -120,9 +120,9 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
           <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
-            {{ initials(viewedUser.name) }}
+            {{ initials(viewedUser.first_name, viewedUser.last_name) }}
           </div>
-          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.name }}</div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.last_name }}, {{ viewedUser.first_name }}</div>
           <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">{{ viewedUser.email }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
@@ -169,9 +169,15 @@
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div>
-            <label class="ifl">Full Name <span style="color:var(--red)">*</span></label>
-            <input v-model="userForm.name" class="ifi" placeholder="e.g. Dr. Maria Reyes" @input="userForm.name = onlyLetters(userForm.name)" />
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+              <input v-model="userForm.last_name" class="ifi" placeholder="Reyes" @input="userForm.last_name = onlyLetters(userForm.last_name)" />
+            </div>
+            <div>
+              <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
+              <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = onlyLetters(userForm.first_name)" />
+            </div>
           </div>
           <div>
             <label class="ifl">Email <span style="color:var(--red)">*</span></label>
@@ -179,7 +185,7 @@
           </div>
           <div>
             <label class="ifl">Employee ID</label>
-            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. 1234567" />
+            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. BSU-GCU-001" />
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
@@ -246,16 +252,16 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-          Download the template, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>.
-        </div>
-        <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
-          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Template
-        </a>
-        <div>
-          <label class="ifl">File</label>
-          <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleImportFileSelect" />
-        </div>
+            Download the template below, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>. Only Last Name, First Name, Email, and Role are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary.
+          </div>
+          <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download Template
+          </a>
+          <div>
+            <label class="ifl">File</label>
+            <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleImportFileSelect" />
+          </div>
           <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
             <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
@@ -282,8 +288,8 @@ import { useRoute } from 'vue-router';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
-import { onlyLetters, contactNumberInput, isValidEmail } from '../../utils/validators';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
+import { onlyLetters, contactNumberInput, isValidEmail } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -297,12 +303,12 @@ const pagination = ref({});
 const filters    = ref({ search: '', role: '', status: '' });
 const colleges   = COLLEGES;
 const viewedUser = ref({});
-const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
+const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
 
 const userForm = ref({
-  name: '', email: '', employee_id: '', role: '',
+  first_name: '', last_name: '', email: '', employee_id: '', role: '',
   college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
 });
@@ -354,7 +360,7 @@ function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
   userForm.value  = {
-    name: '', email: '', employee_id: '',
+    first_name: '', last_name: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
     college: '', department: '', contact_number: '',
     password: '', password_confirmation: '',
@@ -375,7 +381,7 @@ async function saveUser() {
     toast?.error('Only administrators can manage users.');
     return;
   }
-  if (!userForm.value.name || !userForm.value.email || !userForm.value.role) {
+  if (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role) {
     toast?.error('Please fill in all required fields.');
     return;
   }
@@ -465,8 +471,8 @@ function roleStyle(role) {
   return styles[role] || '';
 }
 
-function initials(name) {
-  return name?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?';
+function initials(first, last) {
+  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
 
 function formatDate(date) {

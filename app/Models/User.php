@@ -13,6 +13,8 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
         'email',
         'employee_id',
         'password',
@@ -34,6 +36,16 @@ class User extends Authenticatable
         'last_login_at'     => 'datetime',
         'is_active'         => 'boolean',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            // Keep `name` in sync with first_name + last_name for backward compatibility
+            if ($user->isDirty('first_name') || $user->isDirty('last_name')) {
+                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+            }
+        });
+    }
 
     // Role helpers
     public function isAdmin(): bool        { return $this->role === 'admin'; }
