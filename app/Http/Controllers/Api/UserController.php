@@ -109,6 +109,8 @@ class UserController extends Controller
         $ext  = strtolower($file->getClientOriginalExtension());
 
         $headerMap = [
+            'last name'        => 'last_name',
+            'first name'       => 'first_name',
             'name'             => 'name',
             'email address'    => 'email',
             'email'            => 'email',
@@ -157,6 +159,12 @@ class UserController extends Controller
 
         foreach ($rows as $rowData) {
             $rowNum++;
+            $rowData['role'] = strtolower(trim($rowData['role'] ?? ''));
+
+            // Combine last_name + first_name into name if provided separately
+            if (empty($rowData['name']) && (!empty($rowData['last_name']) || !empty($rowData['first_name']))) {
+                $rowData['name'] = trim(($rowData['first_name'] ?? '') . ' ' . ($rowData['last_name'] ?? ''));
+            }
 
             if (empty($rowData['name']) || empty($rowData['email']) || empty($rowData['role'])) {
                 $errors[] = "Row {$rowNum}: missing required fields (Name, Email, Role).";

@@ -58,21 +58,23 @@
               </div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.first_name }} {{ a.student?.last_name }}</div>
+                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                 </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ a.appointment_type?.replace(/_/g,' ') }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ a.status }}</span>
+                  <span class="ibadge" :class="'ibadge-' + a.status">{{ a.status?.replace(/_/g,' ') }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
-              <div style="display:flex;gap:6px;flex-shrink:0">
+              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:200px;justify-content:flex-end">
                 <button v-if="a.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click="confirmAppt(a)">Confirm</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(a)">Check In</button>
+                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="markNoShow(a)">No-Show</button>
+                <button v-if="['pending','confirmed'].includes(a.status)" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(a)">Reschedule</button>
                 <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelAppt(a)">Cancel</button>
               </div>
             </div>
@@ -168,18 +170,16 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
 
-          <!-- Case -->
           <div>
             <label class="ifl">Case <span style="color:var(--red)">*</span></label>
             <select v-model="scheduleForm.case_id" class="ifse" @change="onCaseChange">
               <option value="">Select case...</option>
               <option v-for="c in cases" :key="c.id" :value="c.id">
-                {{ c.case_number }} — {{ c.student?.first_name }} {{ c.student?.last_name }}
+                {{ c.case_number }} — {{ c.student?.last_name }}, {{ c.student?.first_name }}
               </option>
             </select>
           </div>
 
-          <!-- Type -->
           <div>
             <label class="ifl">Appointment Type <span style="color:var(--red)">*</span></label>
             <select v-model="scheduleForm.appointment_type" class="ifse">
@@ -193,7 +193,6 @@
             </select>
           </div>
 
-          <!-- Unit -->
           <div>
             <label class="ifl">Unit <span style="color:var(--red)">*</span></label>
             <select v-model="scheduleForm.unit" class="ifse">
@@ -203,7 +202,14 @@
             </select>
           </div>
 
-          <!-- Date & Time -->
+          <div>
+            <label class="ifl">Assign Personnel</label>
+            <select v-model="scheduleForm.staff_user_id" class="ifse">
+              <option value="">Auto-assign / TBA</option>
+              <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }} ({{ roleLabel(u.role) }})</option>
+            </select>
+          </div>
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Date <span style="color:var(--red)">*</span></label>
@@ -225,7 +231,6 @@
             </div>
           </div>
 
-          <!-- End Time -->
           <div>
             <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
             <select v-model="scheduleForm.end_time" class="ifse">
@@ -241,19 +246,16 @@
             </select>
           </div>
 
-          <!-- Location -->
           <div>
             <label class="ifl">Location</label>
             <input v-model="scheduleForm.location" class="ifi" placeholder="e.g. GCU Office, Room 201" />
           </div>
 
-          <!-- Notes -->
           <div>
             <label class="ifl">Notes</label>
             <textarea v-model="scheduleForm.notes" class="ifta" style="min-height:60px" placeholder="Any special instructions..."></textarea>
           </div>
 
-          <!-- Conflict Warning -->
           <div v-if="conflictWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
             ⚠ Scheduling conflict detected. Please choose a different time.
           </div>
@@ -269,23 +271,83 @@
       </div>
     </div>
 
+    <!-- Reschedule Modal -->
+    <div v-if="showRescheduleModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showRescheduleModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reschedule Appointment</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showRescheduleModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">New Date <span style="color:var(--red)">*</span></label>
+              <input v-model="rescheduleForm.appointment_date" type="date" class="ifi" />
+            </div>
+            <div>
+              <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
+              <select v-model="rescheduleForm.start_time" class="ifse">
+                <option value="">Select...</option>
+                <option value="08:00">08:00 AM</option>
+                <option value="09:00">09:00 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="13:00">01:00 PM</option>
+                <option value="14:00">02:00 PM</option>
+                <option value="15:00">03:00 PM</option>
+                <option value="16:00">04:00 PM</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
+            <select v-model="rescheduleForm.end_time" class="ifse">
+              <option value="">Select...</option>
+              <option value="09:00">09:00 AM</option>
+              <option value="10:00">10:00 AM</option>
+              <option value="11:00">11:00 AM</option>
+              <option value="12:00">12:00 PM</option>
+              <option value="14:00">02:00 PM</option>
+              <option value="15:00">03:00 PM</option>
+              <option value="16:00">04:00 PM</option>
+              <option value="17:00">05:00 PM</option>
+            </select>
+          </div>
+          <div>
+            <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
+            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:60px" placeholder="Why is this being rescheduled?"></textarea>
+          </div>
+          <div v-if="conflictWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
+            ⚠ Scheduling conflict detected for the selected time.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="submitReschedule">Confirm Reschedule</button>
+            <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
-import { appointmentAPI, caseAPI } from '../../api/index';
+import { appointmentAPI, caseAPI, userAPI } from '../../api/index';
 
 const toast = inject('toast');
 
 const loading           = ref(true);
 const showScheduleModal = ref(false);
+const showRescheduleModal = ref(false);
 const selectedSlot      = ref('');
 const conflictWarning   = ref(false);
 const appointments      = ref([]);
 const pagination        = ref({});
 const cases             = ref([]);
+const staffList         = ref([]);
 const filters           = ref({ unit: '', status: '', date: '' });
+const rescheduleTarget  = ref(null);
 
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
@@ -293,11 +355,13 @@ const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const scheduleForm = ref({
-  case_id: '', student_id: '',
+  case_id: '', student_id: '', staff_user_id: '',
   appointment_type: '', unit: 'GCU',
   appointment_date: '', start_time: '', end_time: '',
   location: '', notes: '',
 });
+
+const rescheduleForm = ref({ appointment_date: '', start_time: '', end_time: '', reschedule_reason: '' });
 
 const timeSlots = [
   { time: '08:00' }, { time: '09:00' }, { time: '10:00' }, { time: '11:00' },
@@ -324,6 +388,22 @@ async function fetchCases() {
   } catch (e) { console.error(e); }
 }
 
+async function fetchStaff() {
+  try {
+    const res = await userAPI.index({ is_active: 1 });
+    staffList.value = (res.data.data || []).filter(u =>
+      ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'].includes(u.role)
+    );
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function roleLabel(role) {
+  const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
+  return labels[role] || role;
+}
+
 async function confirmAppt(a) {
   try {
     await appointmentAPI.confirm(a.id);
@@ -344,6 +424,17 @@ async function checkIn(a) {
   }
 }
 
+async function markNoShow(a) {
+  try {
+    await appointmentAPI.escalateNoShow(a.id);
+    a.status = 'no_show';
+    a.no_show_escalated = true;
+    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+  } catch (e) {
+    toast?.error('Failed to mark as no-show.');
+  }
+}
+
 async function cancelAppt(a) {
   try {
     await appointmentAPI.cancel(a.id, { cancellation_reason: 'Cancelled by staff.' });
@@ -351,6 +442,32 @@ async function cancelAppt(a) {
     toast?.success('Appointment cancelled.');
   } catch (e) {
     toast?.error('Failed to cancel appointment.');
+  }
+}
+
+function openReschedule(a) {
+  rescheduleTarget.value = a;
+  rescheduleForm.value = { appointment_date: a.appointment_date, start_time: '', end_time: '', reschedule_reason: '' };
+  conflictWarning.value = false;
+  showRescheduleModal.value = true;
+}
+
+async function submitReschedule() {
+  if (!rescheduleForm.value.appointment_date || !rescheduleForm.value.start_time || !rescheduleForm.value.end_time || !rescheduleForm.value.reschedule_reason) {
+    toast?.error('Please fill in all fields.');
+    return;
+  }
+  try {
+    await appointmentAPI.reschedule(rescheduleTarget.value.id, rescheduleForm.value);
+    toast?.success('Appointment rescheduled successfully.');
+    showRescheduleModal.value = false;
+    fetchAppointments();
+  } catch (e) {
+    if (e.response?.status === 422) {
+      conflictWarning.value = true;
+    } else {
+      toast?.error('Failed to reschedule appointment.');
+    }
   }
 }
 
@@ -377,7 +494,7 @@ async function scheduleAppointment() {
     showScheduleModal.value = false;
     fetchAppointments();
     scheduleForm.value = {
-      case_id: '', student_id: '',
+      case_id: '', student_id: '', staff_user_id: '',
       appointment_type: '', unit: 'GCU',
       appointment_date: '', start_time: '', end_time: '',
       location: '', notes: '',
@@ -454,5 +571,6 @@ function getDay(date)   { return new Date(date).getDate(); }
 onMounted(() => {
   fetchAppointments();
   fetchCases();
+  fetchStaff();
 });
 </script>

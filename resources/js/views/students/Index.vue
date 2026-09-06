@@ -209,6 +209,25 @@
               <label class="ifl">Contact Number</label>
               <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.contact_number = contactNumberInput(addForm.contact_number)" />
             </div>
+            <div>
+            <label class="ifl">Guardian Name</label>
+            <input v-model="addForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="addForm.guardian_name = onlyLetters(addForm.guardian_name)" />
+          </div>
+          <div>
+            <label class="ifl">Guardian Contact</label>
+            <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
+          </div>
+          <div>
+            <label class="ifl">Guardian Relationship</label>
+            <select v-model="addForm.guardian_relationship" class="ifse">
+              <option value="">Select...</option>
+              <option>Mother</option>
+              <option>Father</option>
+              <option>Guardian</option>
+              <option>Sibling</option>
+              <option>Relative</option>
+            </select>
+          </div>
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="saveStudent" :disabled="saving">
@@ -311,7 +330,8 @@ const importResult  = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
-  college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
+  college: '', program: '', year_level: '', section: '', email: '', contact_number: '', 
+  guardian_name: '', guardian_contact: '', guardian_relationship: '',
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);

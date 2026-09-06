@@ -275,11 +275,11 @@
           </div>
 
           <div style="margin-bottom:14px">
-            <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span></label>
+            <label class="ifl">{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern / Reason for Referral' }} <span style="color:var(--red)">*</span></label>
             <textarea
               v-model="form.nature_of_concern"
               class="ifta"
-              placeholder="Describe the student's concern in detail..."
+              :placeholder="form.referral_type === 'disciplinary' ? 'Describe the incident in detail, including date, time, location, and persons involved...' : 'Describe the student\'s concern in detail...'"
               required
             ></textarea>
           </div>

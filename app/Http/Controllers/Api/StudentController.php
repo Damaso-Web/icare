@@ -126,19 +126,22 @@ public function import(Request $request)
 
     // Map friendly headers to database columns
     $headerMap = [
-        'student id'      => 'student_id',
-        'last name'       => 'last_name',
-        'first name'      => 'first_name',
-        'middle name'     => 'middle_name',
-        'sex'             => 'sex',
-        'email address'   => 'email',
-        'email'           => 'email',
-        'contact number'  => 'contact_number',
-        'college'         => 'college',
-        'program'         => 'program',
-        'year level'      => 'year_level',
-        'section'         => 'section',
-    ];
+    'student id'              => 'student_id',
+    'last name'               => 'last_name',
+    'first name'              => 'first_name',
+    'middle name'             => 'middle_name',
+    'sex'                     => 'sex',
+    'email address'           => 'email',
+    'email'                   => 'email',
+    'contact number'          => 'contact_number',
+    'college'                 => 'college',
+    'program'                 => 'program',
+    'year level'              => 'year_level',
+    'section'                 => 'section',
+    'guardian name'           => 'guardian_name',
+    'guardian contact'        => 'guardian_contact',
+    'guardian relationship'   => 'guardian_relationship',
+];
 
     $rows = [];
 
@@ -192,18 +195,21 @@ public function import(Request $request)
         }
 
         Student::create([
-            'student_id'     => $rowData['student_id'],
-            'first_name'     => $rowData['first_name'],
-            'last_name'      => $rowData['last_name'],
-            'middle_name'    => $rowData['middle_name'] ?? null,
-            'sex'            => $rowData['sex'] ?? null,
-            'email'          => $rowData['email'] ?? null,
-            'contact_number' => $rowData['contact_number'] ?? null,
-            'college'        => $rowData['college'] ?? null,
-            'program'        => $rowData['program'] ?? null,
-            'year_level'     => $rowData['year_level'] ?? null,
-            'section'        => $rowData['section'] ?? null,
-            'is_active'      => true,
+            'student_id'             => $rowData['student_id'],
+            'first_name'             => $rowData['first_name'],
+            'last_name'              => $rowData['last_name'],
+            'middle_name'            => $rowData['middle_name'] ?? null,
+            'sex'                    => $rowData['sex'] ?? null,
+            'email'                  => $rowData['email'] ?? null,
+            'contact_number'         => $rowData['contact_number'] ?? null,
+            'college'                => $rowData['college'] ?? null,
+            'program'                => $rowData['program'] ?? null,
+            'year_level'             => $rowData['year_level'] ?? null,
+            'section'                => $rowData['section'] ?? null,
+            'guardian_name'          => $rowData['guardian_name'] ?? null,
+            'guardian_contact'       => $rowData['guardian_contact'] ?? null,
+            'guardian_relationship'  => $rowData['guardian_relationship'] ?? null,
+            'is_active'              => true,
         ]);
         $created++;
     }
