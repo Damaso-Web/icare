@@ -14,33 +14,34 @@ use Illuminate\Http\Request;
 class CaseController extends Controller
 {
     public function index(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
-            abort(403, 'Access denied.');
-        }
-
-        $query = CaseFile::with(['student', 'counselor', 'referral'])
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
-            ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
-            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-                $s->where('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('student_id', 'like', "%{$request->search}%")
-            ));
-
-        if ($user->isTMDUStaff()) {
-            $query->where('current_unit', 'TMDU');
-        }
-
-        if ($user->isSDUHead()) {
-            $query->where('current_unit', 'SDU');
-        }
-
-        return response()->json($query->latest()->paginate(20));
+    if ($user->isFaculty() || $user->isDeanSecretary()) {
+        abort(403, 'Access denied.');
     }
+
+    $query = CaseFile::with(['student', 'counselor', 'referral'])
+        ->whereHas('student', fn($s) => $s->where('is_active', true))
+        ->when($request->status, fn($q) => $q->where('status', $request->status))
+        ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
+        ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
+        ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+            $s->where('first_name', 'like', "%{$request->search}%")
+              ->orWhere('last_name', 'like', "%{$request->search}%")
+              ->orWhere('student_id', 'like', "%{$request->search}%")
+        ));
+
+    if ($user->isTMDUStaff()) {
+        $query->where('current_unit', 'TMDU');
+    }
+
+    if ($user->isSDUHead()) {
+        $query->where('current_unit', 'SDU');
+    }
+
+    return response()->json($query->latest()->paginate(20));
+}
 
     public function show(CaseFile $case)
 {

@@ -195,14 +195,17 @@
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College</label>
-            <select v-model="userForm.college" class="ifse">
+            <select v-model="userForm.college" class="ifse" @change="userForm.department = ''">
               <option value="">Select college...</option>
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">Department</label>
-            <input v-model="userForm.department" class="ifi" placeholder="e.g. Information Technology" @input="userForm.department = onlyLetters(userForm.department)" />
+            <select v-model="userForm.department" class="ifse" :disabled="!userForm.college">
+              <option value="">Select department...</option>
+              <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
+            </select>
           </div>
           <div>
             <label class="ifl">Contact Number</label>
@@ -280,6 +283,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { onlyLetters, contactNumberInput, isValidEmail } from '../../utils/validators';
+import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -293,6 +297,7 @@ const pagination = ref({});
 const filters    = ref({ search: '', role: '', status: '' });
 const colleges   = COLLEGES;
 const viewedUser = ref({});
+const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 

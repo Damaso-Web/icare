@@ -10,20 +10,19 @@ use Illuminate\Http\Request;
 class StudentController extends Controller
 {
     public function index(Request $request)
-    {
-        $query = Student::query()
-            ->when($request->search, fn($q) =>
-                $q->where('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('student_id', 'like', "%{$request->search}%")
-            )
-            ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active))
-            ->when($request->college,    fn($q) => $q->where('college', $request->college))
-            ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level));
-            
+{
+    $query = Student::query()
+        ->when($request->search, fn($q) => $q->where(fn($sq) =>
+            $sq->where('first_name', 'like', "%{$request->search}%")
+               ->orWhere('last_name', 'like', "%{$request->search}%")
+               ->orWhere('student_id', 'like', "%{$request->search}%")
+        ))
+        ->when($request->college, fn($q) => $q->where('college', $request->college))
+        ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
+        ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
-        return response()->json($query->latest()->paginate(20));
-    }
+    return response()->json($query->latest()->paginate(20));
+}
 
     public function store(Request $request)
     {
