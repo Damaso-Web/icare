@@ -34,6 +34,7 @@ export default defineConfig({
         </html>`;
 
                 fs.writeFileSync('./public/build/index.html', html);
+                fs.writeFileSync('./public/build/_redirects', '/*    /index.html   200');
                 console.log('✓ index.html generated successfully');
             }
         }
