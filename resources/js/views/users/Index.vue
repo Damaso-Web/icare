@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>{{ isFacultyView ? 'Faculty Directory' : 'User Management' }}</h1>
+      <h1>{{ isFacultyView ? 'Faculty Profile' : 'User Management' }}</h1>
       <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
     </div>
 
@@ -10,7 +10,14 @@
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="filters.search" type="text" class="sin" placeholder="Search name or email..." style="width:220px" @input="fetchUsers" />
+        <input
+          v-model="filters.search"
+          type="text"
+          class="sin"
+          placeholder="Search name or email..."
+          style="width:220px"
+          @input="onSearchLetters"
+        />
       </div>
       <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
@@ -26,7 +33,7 @@
         <option value="active">Active</option>
         <option value="inactive">Deactivated</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
@@ -42,7 +49,7 @@
       </button>
     </div>
 
-    <!-- Users Table -->
+    <!-- Users Table — minimal columns: Employee ID + Status only -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -55,30 +62,21 @@
         <table class="itable">
           <thead>
             <tr>
-              <th>User</th>
               <th>Employee ID</th>
-              <th>Role</th>
-              <th>College / Department</th>
-              <th>Last Login</th>
+              <th>Name</th>
               <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id">
+              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '—' }}</td>
               <td style="cursor:pointer" @click="openView(u)">
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(u.first_name, u.last_name) }}</div>
-                  <div>
-                    <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }}</div>
-                    <div style="font-size:11px;color:var(--fog)">{{ u.email }}</div>
-                  </div>
+                  <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }}</div>
                 </div>
               </td>
-              <td style="font-family:var(--mono);font-size:12px">{{ u.employee_id || '—' }}</td>
-              <td><span class="ibadge" :style="roleStyle(u.role)">{{ roleLabel(u.role) }}</span></td>
-              <td style="font-size:12px">{{ u.college || u.department || '—' }}</td>
-              <td style="font-size:12px;color:var(--stone)">{{ u.last_login_at ? formatDate(u.last_login_at) : 'Never' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
@@ -115,7 +113,7 @@
       </div>
     </div>
 
-    <!-- View Employee Profile Modal -->
+    <!-- View Employee Profile Modal — full details shown here -->
     <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
@@ -165,10 +163,14 @@
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee' : (isFacultyView ? 'Add New Faculty' : 'Add New Employee') }}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee Profile' : (isFacultyView ? 'Add New Faculty' : 'Add New Employee') }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div>
+            <label class="ifl">Employee ID</label>
+            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. 12345" @input="userForm.employee_id = onlyDigits(userForm.employee_id)" />
+          </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
@@ -182,10 +184,6 @@
           <div>
             <label class="ifl">Email <span style="color:var(--red)">*</span></label>
             <input v-model="userForm.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" />
-          </div>
-          <div>
-            <label class="ifl">Employee ID</label>
-            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. BSU-GCU-001" />
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
@@ -232,6 +230,9 @@
               A temporary password has been generated. The employee should change it after logging in.
             </div>
           </div>
+          <div v-if="formError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            {{ formError }}
+          </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -252,7 +253,7 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Download the template below, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>. Only Last Name, First Name, Email, and Role are required. Valid roles: admin, gcu_staff, sdu_head, tmdu_staff, faculty, dean_secretary.
+            Download the template below, fill it in, then upload it here.
           </div>
           <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -289,7 +290,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, contactNumberInput, isValidEmail } from '../../utils/validators';
+import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -303,6 +304,7 @@ const pagination = ref({});
 const filters    = ref({ search: '', role: '', status: '' });
 const colleges   = COLLEGES;
 const viewedUser = ref({});
+const formError  = ref('');
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
@@ -317,6 +319,11 @@ const showImportModal = ref(false);
 const importFile      = ref(null);
 const importing       = ref(false);
 const importResult    = ref(null);
+
+function onSearchLetters() {
+  filters.value.search = filters.value.search.replace(/[^a-zA-Z0-9@._\s-]/g, '');
+  fetchUsers();
+}
 
 async function fetchUsers(page = 1) {
   loading.value = true;
@@ -359,6 +366,7 @@ function openView(u) {
 function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
+  formError.value = '';
   userForm.value  = {
     first_name: '', last_name: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
@@ -372,21 +380,23 @@ function openCreate() {
 function openEdit(u) {
   if (!auth.isAdmin) return;
   isEditing.value = true;
+  formError.value = '';
   userForm.value  = { ...u, password: '', password_confirmation: '' };
   showModal.value = true;
 }
 
 async function saveUser() {
+  formError.value = '';
   if (!auth.isAdmin) {
-    toast?.error('Only administrators can manage users.');
+    formError.value = 'Please fill in all required fields.';
     return;
   }
   if (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role) {
-    toast?.error('Please fill in all required fields.');
+    formError.value = 'Please fill in all required fields.';
     return;
   }
   if (!isValidEmail(userForm.value.email)) {
-    toast?.error('Please enter a valid email address.');
+    formError.value = 'Please fill in all required fields.';
     return;
   }
   try {
@@ -400,13 +410,13 @@ async function saveUser() {
     showModal.value = false;
     fetchUsers();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to save employee.');
+    formError.value = 'Please fill in all required fields.';
   }
 }
 
 async function toggleActive(u) {
   if (!auth.isAdmin) {
-    toast?.error('Only administrators can activate/deactivate employees.');
+    toast?.error('Please fill in all required fields.');
     return;
   }
   try {
@@ -414,7 +424,7 @@ async function toggleActive(u) {
     u.is_active = !u.is_active;
     toast?.success(`Employee ${u.is_active ? 'activated' : 'deactivated'}.`);
   } catch (e) {
-    toast?.error('Failed to update employee status.');
+    toast?.error('Please fill in all required fields.');
   }
 }
 
@@ -434,7 +444,7 @@ async function uploadImportFile() {
     toast?.success(`${res.data.created} employees imported successfully.`);
     fetchUsers();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to import file.');
+    toast?.error('Please fill in all required fields.');
   } finally {
     importing.value = false;
   }

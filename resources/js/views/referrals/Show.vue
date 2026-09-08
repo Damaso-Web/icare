@@ -16,10 +16,6 @@
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openEditForm">
-            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit
-          </button>
         </div>
       </div>
 
@@ -50,9 +46,9 @@
             </div>
           </div>
 
-          <!-- Concern Details -->
+          <!-- Referral Details -->
           <div class="icard">
-            <div class="icard-header"><span class="icard-title">Concern Details</span></div>
+            <div class="icard-header"><span class="icard-title">Referral Details</span></div>
             <div class="icard-body">
               <div style="margin-bottom:14px">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Nature of Concern</div>
@@ -104,7 +100,7 @@
 
           <!-- Actions — shown at top -->
           <div class="icard" v-if="referral.status === 'submitted'">
-            <div class="icard-header"><span class="icard-title">Action Required</span></div>
+            <div class="icard-header"><span class="icard-title">Intervention/s</span></div>
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.
@@ -210,45 +206,7 @@
         </div>
       </div>
 
-      <!-- Edit Referral Modal -->
-      <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Referral</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div>
-              <label class="ifl">Service Requested</label>
-              <select v-model="editForm.referral_type" class="ifse">
-                <option value="counseling">Class Attendance / Absent / Tardy</option>
-                <option value="academic_coaching">Academic Deficiency</option>
-                <option value="psychological_testing">Psychological Testing</option>
-                <option value="consultation">Scholarship / Grant Assistance</option>
-                <option value="admission_slip">Student Organizations &amp; Activities Concerns</option>
-                <option value="disciplinary">Student Housing (Dormitories)</option>
-                <option value="others">For Student Employment (SA/SPES)</option>
-                <option value="other">Others</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Concern / Reason for Referral</label>
-              <textarea v-model="editForm.nature_of_concern" class="ifta"></textarea>
-            </div>
-            <div>
-              <label class="ifl">Intake Notes</label>
-              <textarea v-model="editForm.intake_notes" class="ifta" style="min-height:60px" placeholder="Additional notes..."></textarea>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="saveEdit">
-                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                Save Changes
-              </button>
-              <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
-            </div>
-          </div>
-        </div>
-      </div>
+
 
     </template>
   </div>
@@ -301,26 +259,6 @@ async function acknowledge() {
     toast?.error('Failed to acknowledge referral.');
   } finally {
     acknowledging.value = false;
-  }
-}
-
-function openEditForm() {
-  editForm.value = {
-    referral_type:     referral.value.referral_type,
-    nature_of_concern: referral.value.nature_of_concern,
-    intake_notes:      referral.value.intake_notes,
-  };
-  showEditModal.value = true;
-}
-
-async function saveEdit() {
-  try {
-    await referralAPI.update(referral.value.id, editForm.value);
-    referral.value = { ...referral.value, ...editForm.value };
-    showEditModal.value = false;
-    toast?.success('Referral updated successfully.');
-  } catch (e) {
-    toast?.error('Failed to update referral.');
   }
 }
 

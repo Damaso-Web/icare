@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>{{ showArchived ? 'Inactive Students' : 'Student Profiles' }}</h1>
-      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Search for a student by name or student ID to view their records.' }}</p>
+      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Browse or search for a student to view their records.' }}</p>
     </div>
 
     <!-- Tabs -->
@@ -32,12 +32,12 @@
           v-model="filters.search"
           type="text"
           class="sin"
-          :placeholder="showArchived ? 'Search archived student name or ID...' : 'Search name or student ID...'"
+          :placeholder="showArchived ? 'Search inactive student name or ID...' : 'Search name or student ID...'"
           style="width:100%"
           @input="onSearchInput"
         />
       </div>
-      <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
@@ -52,10 +52,6 @@
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
-      </div>
-      <div v-else-if="!filters.search" class="empty-state">
-        <h3>{{ showArchived ? 'Search archived students' : 'Search for a student' }}</h3>
-        <p>Type a name or student ID above to find records.</p>
       </div>
       <div v-else-if="students.length === 0" class="empty-state">
         <h3>No students found</h3>
@@ -83,7 +79,7 @@
               </td>
               <td>
                 <span class="ibadge" :style="s.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
-                  {{ s.is_active ? 'Active' : 'Graduated / Archived' }}
+                  {{ s.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
               <td style="text-align:right">
@@ -95,7 +91,7 @@
                     style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
                     @click.stop="confirmGraduate(s)"
                   >
-                    Mark Graduated
+                    Deactivate
                   </button>
                   <button
                     v-else
@@ -210,24 +206,27 @@
               <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.contact_number = contactNumberInput(addForm.contact_number)" />
             </div>
             <div>
-            <label class="ifl">Guardian Name</label>
-            <input v-model="addForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="addForm.guardian_name = onlyLetters(addForm.guardian_name)" />
+              <label class="ifl">Guardian Name</label>
+              <input v-model="addForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="addForm.guardian_name = onlyLetters(addForm.guardian_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Contact</label>
+              <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Relationship</label>
+              <select v-model="addForm.guardian_relationship" class="ifse">
+                <option value="">Select...</option>
+                <option>Mother</option>
+                <option>Father</option>
+                <option>Guardian</option>
+                <option>Sibling</option>
+                <option>Relative</option>
+              </select>
+            </div>
           </div>
-          <div>
-            <label class="ifl">Guardian Contact</label>
-            <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
-          </div>
-          <div>
-            <label class="ifl">Guardian Relationship</label>
-            <select v-model="addForm.guardian_relationship" class="ifse">
-              <option value="">Select...</option>
-              <option>Mother</option>
-              <option>Father</option>
-              <option>Guardian</option>
-              <option>Sibling</option>
-              <option>Relative</option>
-            </select>
-          </div>
+          <div v-if="addError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            {{ addError }}
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="saveStudent" :disabled="saving">
@@ -235,6 +234,7 @@
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ saving ? 'Saving...' : 'Add Student' }}
             </button>
+            <button class="ibtn ibtn-o" type="button" @click="clearAddForm">Clear Form</button>
             <button class="ibtn ibtn-o" type="button" @click="showAddModal = false">Cancel</button>
           </div>
         </div>
@@ -250,7 +250,7 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Download the template below, fill it in, then upload it here. Accepts <strong>.xlsx</strong> or <strong>.csv</strong>. Only Student ID, Last Name, and First Name are required.
+            Download the template below, fill it in, then upload it here.
           </div>
           <a href="/templates/student_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
             <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -277,15 +277,15 @@
       </div>
     </div>
 
-    <!-- Graduate Confirmation Modal -->
+    <!-- Deactivate Confirmation Modal -->
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as Graduated</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate / Mark Graduated</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            This should only be done when the student has officially <strong>graduated</strong>. Their records will be preserved and can be reactivated later if needed (e.g. for work/certificate requests).
+            This should only be done when the student has officially <strong>graduated</strong>. Their records will be preserved and can be reactivated later if needed.
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" v-model="graduateConfirmed" id="gradConfirm" style="width:15px;height:15px;accent-color:var(--moss)" />
@@ -303,7 +303,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
@@ -323,6 +323,7 @@ const showImportModal = ref(false);
 const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
+const addError = ref('');
 
 const selectedFile  = ref(null);
 const importing     = ref(false);
@@ -330,7 +331,7 @@ const importResult  = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
-  college: '', program: '', year_level: '', section: '', email: '', contact_number: '', 
+  college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
   guardian_name: '', guardian_contact: '', guardian_relationship: '',
 });
 
@@ -341,27 +342,18 @@ let searchTimeout = null;
 function switchTab(archived) {
   showArchived.value = archived;
   filters.value.search = '';
-  students.value = [];
-  pagination.value = {};
+  fetchStudents();
 }
 
 function onSearchInput() {
   clearTimeout(searchTimeout);
-  if (!filters.value.search) {
-    students.value = [];
-    return;
-  }
   searchTimeout = setTimeout(() => fetchStudents(), 400);
 }
 
 async function fetchStudents(page = 1) {
-  if (!filters.value.search) {
-    students.value = [];
-    return;
-  }
   loading.value = true;
   try {
-    const params = { ...filters.value, page };
+    const params = { ...filters.value, page, per_page: 10 };
     params.is_active = showArchived.value ? 0 : 1;
     const res = await studentAPI.index(params);
     students.value   = res.data.data;
@@ -375,23 +367,29 @@ async function fetchStudents(page = 1) {
 
 function resetFilters() {
   filters.value = { search: '' };
-  students.value = [];
-  pagination.value = {};
+  fetchStudents();
 }
 
 function changePage(page) { fetchStudents(page); }
 
 function openAddModal() {
-  addForm.value = {
-    student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
-    college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
-  };
+  clearAddForm();
   showAddModal.value = true;
 }
 
+function clearAddForm() {
+  addForm.value = {
+    student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
+    college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
+    guardian_name: '', guardian_contact: '', guardian_relationship: '',
+  };
+  addError.value = '';
+}
+
 async function saveStudent() {
+  addError.value = '';
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name) {
-    toast?.error('Please fill in Student ID, Last Name, and First Name.');
+    addError.value = 'Please fill in all required fields.';
     return;
   }
   saving.value = true;
@@ -399,10 +397,9 @@ async function saveStudent() {
     await studentAPI.store(addForm.value);
     toast?.success('Student added successfully.');
     showAddModal.value = false;
-    filters.value.search = addForm.value.student_id;
     fetchStudents();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to add student.');
+    addError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
     saving.value = false;
   }
@@ -419,20 +416,20 @@ async function doGraduate() {
   try {
     await studentAPI.graduate(studentToGraduate.value.id);
     showGraduateModal.value = false;
-    toast?.success('Student marked as graduated. Records preserved.');
+    toast?.success('Student marked as inactive/graduated. Records preserved.');
     fetchStudents();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to mark as graduated.');
+    toast?.error(e.response?.data?.message || 'Please fill in all required fields.');
   }
 }
 
 async function toggleActive(s) {
   try {
     await studentAPI.toggleActive(s.id);
-    toast?.success('Student unarchived and set to active.');
+    toast?.success('Student reactivated.');
     fetchStudents();
   } catch (e) {
-    toast?.error('Failed to update student status.');
+    toast?.error('Please fill in all required fields.');
   }
 }
 
@@ -450,8 +447,9 @@ async function uploadFile() {
     const res = await studentAPI.import(formData);
     importResult.value = res.data;
     toast?.success(`${res.data.created} students imported successfully.`);
+    fetchStudents();
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to import file.');
+    toast?.error('Please fill in all required fields.');
   } finally {
     importing.value = false;
   }
@@ -460,4 +458,6 @@ async function uploadFile() {
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
+
+onMounted(() => fetchStudents());
 </script>

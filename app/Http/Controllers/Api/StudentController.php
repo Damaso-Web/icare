@@ -21,7 +21,7 @@ class StudentController extends Controller
         ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
         ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
-    return response()->json($query->latest()->paginate(20));
+    return response()->json($query->latest()->paginate($request->per_page ?? 10));
 }
 
     public function store(Request $request)

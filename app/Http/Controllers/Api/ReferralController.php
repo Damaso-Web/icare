@@ -20,6 +20,7 @@ class ReferralController extends Controller
             ->when($request->status,   fn($q) => $q->where('status', $request->status))
             ->when($request->urgency,  fn($q) => $q->where('urgency_level', $request->urgency))
             ->when($request->type,     fn($q) => $q->where('referral_type', $request->type))
+            ->when($request->unit, fn($q) => $q->whereHas('case', fn($c) => $c->where('current_unit', $request->unit)))
             ->when($request->search,   fn($q) => $q->whereHas('student', fn($s) =>
                 $s->where('first_name', 'like', "%{$request->search}%")
                   ->orWhere('last_name', 'like', "%{$request->search}%")

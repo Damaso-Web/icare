@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Referral Queue</h1>
-      <p>Review, assign, and track incoming referrals from faculty and SDU.</p>
+      <p>Review, assign, and track incoming referrals.</p>
     </div>
 
     <!-- Filter Bar -->
@@ -21,6 +21,12 @@
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>
       </select>
+      <select v-model="filters.unit" class="fsm" @change="fetchReferrals">
+        <option value="">All Units</option>
+        <option value="GCU">GCU</option>
+        <option value="SDU">SDU</option>
+        <option value="TMDU">TMDU</option>
+      </select>
       <select v-model="filters.type" class="fsm" @change="fetchReferrals">
         <option value="">All Services</option>
         <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
@@ -33,12 +39,7 @@
         <option value="psychological_testing">Psychological Testing</option>
         <option value="disciplinary">Acts of Misconduct</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-
-      <router-link :to="{ name: 'referral-create' }" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto">
-        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Refer a Student
-      </router-link>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
     </div>
 
     <!-- Referral List -->
@@ -49,7 +50,7 @@
 
       <div v-else-if="referrals.length === 0" class="empty-state">
         <h3>No referrals found</h3>
-        <p>Try adjusting your filters or submit a new referral.</p>
+        <p>Try adjusting your filters.</p>
       </div>
 
       <div v-else>
@@ -60,19 +61,16 @@
           :class="urgencyRow(r.urgency_level)"
           @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
         >
-          <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
+          <div class="qav" style="font-size:16px;font-weight:700">{{ r.referral_code?.split('-').pop() }}</div>
           <div class="qi">
-            <div class="qn">
-              {{ r.student?.last_name }}, {{ r.student?.first_name }}
-              <span class="qid">{{ r.student?.student_id }}</span>
+            <div class="qn" style="font-size:16px;font-weight:700;font-family:var(--mono)">
+              {{ r.referral_code }}
             </div>
             <div class="qmeta">
-              {{ r.referral_type?.replace(/_/g, ' ') }} · Referred by {{ r.referrer_name }} · {{ formatDate(r.created_at) }}
+              {{ r.referral_type?.replace(/_/g, ' ') }} · {{ formatDate(r.created_at) }}
             </div>
-            <div class="qcon">{{ r.nature_of_concern }}</div>
             <div class="qtags">
               <span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span>
-              <span class="ibadge" style="background:var(--cloud);color:var(--stone)">{{ r.referral_code }}</span>
             </div>
           </div>
           <div class="qacts">
@@ -104,7 +102,7 @@ import { referralAPI } from '../../api/index';
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', type: '' });
+const filters    = ref({ search: '', status: '', unit: '', type: '' });
 
 async function fetchReferrals(page = 1) {
   loading.value = true;
@@ -120,15 +118,11 @@ async function fetchReferrals(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', type: '' };
+  filters.value = { search: '', status: '', unit: '', type: '' };
   fetchReferrals();
 }
 
 function changePage(page) { fetchReferrals(page); }
-
-function initials(first, last) {
-  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
-}
 
 function urgencyRow(level) {
   return { uh: level === 'high' || level === 'critical', um: level === 'medium', ul: level === 'low' };

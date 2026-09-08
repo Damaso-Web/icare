@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Refer a Student</h1>
+      <h1>Refer Student</h1>
       <p>Complete this form to refer a student to the Office of Student Services.</p>
     </div>
 
@@ -75,6 +75,8 @@
               v-model="form.student_id_input"
               class="ifi"
               placeholder="e.g. 2302021"
+              :readonly="studentFound"
+              :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''"
               @input="form.student_id_input = onlyDigits(form.student_id_input)"
               required
             />
@@ -84,23 +86,23 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px 110px;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" @input="form.last_name = onlyLetters(form.last_name)" required />
+              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.last_name = onlyLetters(form.last_name)" required />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.first_name" class="ifi" placeholder="Juan" @input="form.first_name = onlyLetters(form.first_name)" required />
+              <input v-model="form.first_name" class="ifi" placeholder="Juan" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.first_name = onlyLetters(form.first_name)" required />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="form.middle_name" class="ifi" placeholder="Santos" @input="form.middle_name = onlyLetters(form.middle_name)" />
+              <input v-model="form.middle_name" class="ifi" placeholder="Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="form.suffix" class="ifi" placeholder="Jr." @input="form.suffix = onlyLettersStrict(form.suffix)" />
+              <input v-model="form.suffix" class="ifi" placeholder="Jr." :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.suffix = onlyLettersStrict(form.suffix)" />
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
-              <select v-model="form.sex" class="ifse" required>
+              <select v-model="form.sex" class="ifse" :disabled="studentFound" required>
                 <option value="">Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -111,14 +113,14 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="form.college" class="ifse" @change="form.program = ''" required>
+              <select v-model="form.college" class="ifse" :disabled="studentFound" @change="form.program = ''" required>
                 <option value="">Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-              <select v-model="form.program" class="ifse" required :disabled="!form.college">
+              <select v-model="form.program" class="ifse" :disabled="studentFound || !form.college" required>
                 <option value="">Select program...</option>
                 <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
                 <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
@@ -126,7 +128,7 @@
             </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
-              <select v-model="form.year_level" class="ifse" required>
+              <select v-model="form.year_level" class="ifse" :disabled="studentFound" required>
                 <option value="">Select year level...</option>
                 <option>1st Year</option>
                 <option>2nd Year</option>
@@ -142,6 +144,8 @@
                 class="ifi"
                 placeholder="e.g. A"
                 maxlength="1"
+                :readonly="studentFound"
+                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''"
                 @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
               />
             </div>
@@ -159,6 +163,8 @@
                 v-model="form.referrer_last_name"
                 class="ifi"
                 placeholder="Reyes"
+                :readonly="referrerFound"
+                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
                 @input="onReferrerSearch"
                 @focus="showReferrerDropdown = referrerSuggestions.length > 0"
                 autocomplete="off"
@@ -171,6 +177,8 @@
                 v-model="form.referrer_first_name"
                 class="ifi"
                 placeholder="Maria"
+                :readonly="referrerFound"
+                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
                 autocomplete="off"
                 required
               />
@@ -191,35 +199,18 @@
                 <div style="font-size:11px;color:var(--fog)">{{ r.email }} · {{ roleLabel(r.role) }}</div>
               </div>
             </div>
+            <div v-if="referrerFound" style="font-size:11px;color:var(--moss);grid-column:1/-1">
+              ✓ Existing employee found — details auto-filled
+            </div>
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-            <div>
-              <label class="ifl">Position / Role</label>
-              <select v-model="form.referrer_position" class="ifse" @change="onPositionChange">
-                <option value="">Select...</option>
-                <option value="instructor">Instructor / Adviser</option>
-                <option value="department_chair">Department Chair</option>
-                <option value="dean">Dean</option>
-                <option value="oss_staff">OSS Staff</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
             <div v-if="['instructor','department_chair','dean'].includes(form.referrer_position)">
               <label class="ifl">Department / College</label>
-              <select v-model="form.referrer_department" class="ifse">
+              <select v-model="form.referrer_department" class="ifse" :disabled="referrerFound">
                 <option value="">Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
-            </div>
-            <div>
-              <label class="ifl">Contact Number</label>
-              <input
-                v-model="form.referrer_contact"
-                class="ifi"
-                placeholder="e.g. 09171234567"
-                @input="form.referrer_contact = contactNumberInput(form.referrer_contact)"
-              />
             </div>
           </div>
 
@@ -306,7 +297,7 @@
             <button type="submit" class="ibtn ibtn-p" :disabled="loading">
               <svg v-if="!loading" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ loading ? 'Submitting...' : 'Submit Referral' }}
+              {{ loading ? 'Submitting...' : 'Refer Student' }}
             </button>
             <button type="button" class="ibtn ibtn-o" @click="clearForm">Clear Form</button>
             <button type="button" class="ibtn ibtn-g" @click="goBack">Cancel</button>
@@ -316,6 +307,34 @@
       </div>
     </div>
   </div>
+
+      <!-- Confirmation Preview Modal -->
+    <div v-if="showPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreview = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Referral Details</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showPreview = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
+            <div><strong>College:</strong> {{ form.college }} — {{ form.program }}</div>
+            <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }}</div>
+            <div><strong>Service:</strong> {{ form.referral_type?.replace(/_/g,' ') }}</div>
+            <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
+            <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="confirmSubmit" :disabled="loading">
+              {{ loading ? 'Submitting...' : 'Confirm & Submit' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showPreview = false">Go Back &amp; Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 </template>
 
 <script setup>
@@ -325,17 +344,19 @@ import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
 const auth     = useAuthStore();
 const colleges = COLLEGES;
+const showPreview = ref(false);
 
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
-const studentFound = ref(false);
+const studentFound  = ref(false);
+const referrerFound = ref(false);
 
 const studentSearchQuery   = ref('');
 const studentSuggestions   = ref([]);
@@ -367,7 +388,6 @@ const form = ref({
   referrer_first_name:   '',
   referrer_position:     '',
   referrer_department:   '',
-  referrer_contact:      '',
   referral_type:         '',
   referral_source:       'faculty',
   nature_of_concern:     '',
@@ -380,10 +400,6 @@ function roleLabel(role) {
     tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
-}
-
-function onPositionChange() {
-  form.value.referrer_department = '';
 }
 
 function onServiceChange() {
@@ -431,6 +447,7 @@ async function selectStudent(s) {
 
 function onReferrerSearch() {
   clearTimeout(referrerSearchTimeout);
+  referrerFound.value = false;
   if (!form.value.referrer_last_name || form.value.referrer_last_name.length < 2) {
     referrerSuggestions.value = [];
     showReferrerDropdown.value = false;
@@ -450,7 +467,6 @@ function onReferrerSearch() {
 function selectReferrer(r) {
   form.value.referrer_last_name  = r.last_name;
   form.value.referrer_first_name = r.first_name;
-  form.value.referrer_contact    = r.contact_number || '';
 
   const ossRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
   if (ossRoles.includes(r.role)) {
@@ -465,6 +481,7 @@ function selectReferrer(r) {
   }
 
   showReferrerDropdown.value = false;
+  referrerFound.value        = true;
 }
 
 function goBack() {
@@ -475,12 +492,13 @@ function goBack() {
   }
 }
 
-async function handleSubmit() {
-  error.value   = '';
-  success.value = '';
+const showPreview = ref(false);
+
+function handleSubmit() {
+  error.value = '';
 
   if (!form.value.student_id_input) {
-    error.value = 'Please enter a valid Student ID.';
+    error.value = 'Please fill in all required fields.';
     return;
   }
 
@@ -491,8 +509,11 @@ async function handleSubmit() {
     return;
   }
 
-  loading.value = true;
+  showPreview.value = true;
+}
 
+async function confirmSubmit() {
+  loading.value = true;
   try {
     let studentId = null;
     const searchRes = await studentAPI.index({ search: form.value.student_id_input });
@@ -527,6 +548,7 @@ async function handleSubmit() {
       violation_type:    form.value.violation_type || null,
     });
 
+    showPreview.value = false;
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';
 
@@ -539,7 +561,8 @@ async function handleSubmit() {
     }, 1500);
 
   } catch (e) {
-    error.value = e.response?.data?.message || 'Failed to submit referral.';
+    showPreview.value = false;
+    error.value = e.response?.data?.message || 'Please fill in all required fields.';
     toast?.error(error.value);
   } finally {
     loading.value = false;
@@ -551,13 +574,13 @@ function clearForm() {
   success.value = '';
   studentSearchQuery.value = '';
   studentFound.value = false;
+  referrerFound.value = false;
   form.value = {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_last_name: '', referrer_first_name: '',
     referrer_position: '', referrer_department: '',
-    referrer_contact: '', referral_type: '',
-    referral_source: 'faculty', nature_of_concern: '',
+    referral_type: '', referral_source: 'faculty', nature_of_concern: '',
     violation_type: '',
   };
 }
