@@ -245,101 +245,106 @@
       </div>
     </div>
 
-    <!-- Import Modal — Step 1: Select File -->
+    <!-- Import Modal — File select + auto preview in one -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Student Masterlist</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="closeImportModal">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Download the template below, fill it in, then upload it here.
-          </div>
-          <a href="/templates/student_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
-            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Template
-          </a>
-          <div>
-            <label class="ifl">File</label>
-            <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
-          </div>
-          <div v-if="previewError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
-            {{ previewError }}
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="loadPreview" :disabled="!selectedFile || loadingPreview">
-              <span v-if="loadingPreview" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ loadingPreview ? 'Reading File...' : 'Preview' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="closeImportModal">Close</button>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Import Modal — Step 2: Preview + Decisions -->
-    <div v-if="showPreviewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreviewModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div>
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Review Before Uploading</div>
-            <div style="font-size:12px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
-          </div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showPreviewModal = false">✕</button>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:10px">
-
-          <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
-            ⚠ Some Student IDs already exist in the system. Choose whether to <strong>Update</strong> the existing record or <strong>Skip</strong> it for each one below.
-          </div>
-
-          <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
-            <table class="itable">
-              <thead>
-                <tr>
-                  <th>Row</th>
-                  <th>Student ID</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="item in previewData.preview" :key="item.row">
-                  <td style="font-size:12px">{{ item.row }}</td>
-                  <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '—' }}</td>
-                  <td>
-                    <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
-                    <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
-                    <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
-                  </td>
-                  <td>
-                    <select v-if="item.is_duplicate && item.valid" v-model="decisions[item.row - 2]" class="fsm" style="font-size:11px;padding:4px 8px">
-                      <option value="update">Update existing</option>
-                      <option value="skip">Skip this one</option>
-                    </select>
-                    <span v-else-if="!item.valid" style="font-size:11px;color:var(--stone)">Will be skipped</span>
-                    <span v-else style="font-size:11px;color:var(--moss)">Will be added</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-
-          <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
-            ✓ {{ importResult.created }} added, {{ importResult.updated }} updated, {{ importResult.skipped }} skipped.
-            <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
-              <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+          <template v-if="!previewData.total">
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
+              Download the template below, fill it in, then upload it here.
             </div>
-          </div>
+            <a href="/templates/student_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Template
+            </a>
+            <div>
+              <label class="ifl">File</label>
+              <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
+            </div>
+            <div v-if="loadingPreview" style="text-align:center;padding:20px">
+              <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+              <div style="font-size:12px;color:var(--stone);margin-top:8px">Reading file...</div>
+            </div>
+            <div v-if="previewError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+              {{ previewError }}
+            </div>
+          </template>
 
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="confirmImport" :disabled="importing">
-              <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ importing ? 'Uploading...' : 'Confirm Upload' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="showPreviewModal = false">Cancel</button>
-          </div>
+          <!-- Preview shown automatically after file is read -->
+          <template v-else>
+            <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
+
+            <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
+              ⚠ Some Student IDs already exist. Choose whether to update or keep the existing information for each one below.
+            </div>
+
+            <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+              <table class="itable">
+                <thead>
+                  <tr>
+                    <th>Row</th>
+                    <th>Student ID</th>
+                    <th>Status</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, idx) in previewData.preview" :key="item.row">
+                    <td style="font-size:12px">{{ item.row }}</td>
+                    <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '—' }}</td>
+                    <td>
+                      <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
+                      <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                      <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
+                    </td>
+                    <td>
+                      <div v-if="item.is_duplicate && item.valid" style="display:flex;gap:4px">
+                        <button
+                          class="ibtn ibtn-sm"
+                          :style="decisions[idx] === 'update' ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+                          style="font-size:10px;padding:4px 8px"
+                          @click="decisions[idx] = 'update'"
+                        >
+                          Update Existing
+                        </button>
+                        <button
+                          class="ibtn ibtn-sm"
+                          :style="decisions[idx] === 'skip' ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+                          style="font-size:10px;padding:4px 8px"
+                          @click="decisions[idx] = 'skip'"
+                        >
+                          Keep Existing Information
+                        </button>
+                      </div>
+                      <span v-else-if="!item.valid" style="font-size:11px;color:var(--stone)">Will be skipped</span>
+                      <span v-else style="font-size:11px;color:var(--moss)">Will be added</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+              ✓ {{ importResult.created }} added, {{ importResult.updated }} updated, {{ importResult.skipped }} skipped.
+              <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
+                <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+              </div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="confirmImport" :disabled="importing">
+                <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ importing ? 'Uploading...' : 'Confirm Upload' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="resetImportFlow">Choose Different File</button>
+            </div>
+          </template>
+
         </div>
       </div>
     </div>
@@ -401,8 +406,6 @@ const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.colle
 
 // Import flow state
 const showImportModal  = ref(false);
-const showPreviewModal = ref(false);
-const selectedFile     = ref(null);
 const loadingPreview   = ref(false);
 const previewError     = ref('');
 const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' });
@@ -517,42 +520,40 @@ async function toggleActive(s) {
 
 // --- Import flow ---
 function openImportModal() {
-  selectedFile.value = null;
-  previewError.value = '';
+  resetImportFlow();
   showImportModal.value = true;
 }
 
 function closeImportModal() {
   showImportModal.value = false;
+  resetImportFlow();
 }
 
-function handleFileSelect(e) {
-  selectedFile.value = e.target.files[0];
+function resetImportFlow() {
+  previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
   previewError.value = '';
+  importResult.value = null;
+  decisions.value = {};
 }
 
-async function loadPreview() {
-  if (!selectedFile.value) return;
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
   loadingPreview.value = true;
   previewError.value = '';
   try {
     const formData = new FormData();
-    formData.append('file', selectedFile.value);
+    formData.append('file', file);
     const res = await studentAPI.importPreview(formData);
     previewData.value = res.data;
 
-    // Default decisions: update for duplicates
     decisions.value = {};
     res.data.preview.forEach((item, idx) => {
-      if (item.is_duplicate) decisions.value[idx] = 'update';
-      else decisions.value[idx] = 'create';
+      decisions.value[idx] = item.is_duplicate ? 'update' : 'create';
     });
-
-    importResult.value = null;
-    showImportModal.value = false;
-    showPreviewModal.value = true;
-  } catch (e) {
-    previewError.value = e.response?.data?.message || 'Failed to read file. Please check the format.';
+  } catch (err) {
+    previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
   } finally {
     loadingPreview.value = false;
   }
