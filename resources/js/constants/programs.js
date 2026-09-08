@@ -30,12 +30,12 @@ export const PROGRAMS_BY_COLLEGE = {
   ],
   'College of Information Sciences (CIS)': [
     'Bachelor of Science in Information Technology',
-    'Bachelor of Library and Information Science ',
+    'Bachelor of Library and Information Science',
     'Bachelor of Science in Development Communication',
   ],
   'College of Medicine (CM)': [
     'Doctor of Medicine',
-  ],
+  ], 
   'College of Natural Sciences (CNS)': [
     'Bachelor of Science in Biology',
     'Bachelor of Science in Chemistry',
