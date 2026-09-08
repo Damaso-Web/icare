@@ -2,6 +2,11 @@
   publish = "public/build"
 
 [[redirects]]
+  from = "/templates/*"
+  to = "/templates/:splat"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

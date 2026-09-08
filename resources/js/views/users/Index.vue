@@ -6,6 +6,24 @@
       <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
     </div>
 
+    <!-- Tabs -->
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <button
+        class="ibtn ibtn-sm"
+        :style="!showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+        @click="switchStatusTab(false)"
+      >
+        Active
+      </button>
+      <button
+        class="ibtn ibtn-sm"
+        :style="showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+        @click="switchStatusTab(true)"
+      >
+        Inactive
+      </button>
+    </div>
+
     <!-- Filter Bar -->
     <div class="filter-bar">
       <div class="sw">
@@ -27,11 +45,6 @@
         <option value="tmdu_staff">TMDU Staff</option>
         <option value="faculty">Faculty</option>
         <option value="dean_secretary">Dean's Secretary</option>
-      </select>
-      <select v-model="filters.status" class="fsm" @change="fetchUsers">
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Deactivated</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
@@ -113,7 +126,7 @@
       </div>
     </div>
 
-    <!-- View Employee Profile Modal — full details shown here -->
+    <!-- View Employee Profile Modal -->
     <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
@@ -301,7 +314,8 @@ const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', role: '', status: '' });
+const filters    = ref({ search: '', role: '' });
+const showInactive = ref(false);
 const colleges   = COLLEGES;
 const viewedUser = ref({});
 const formError  = ref('');
@@ -320,6 +334,11 @@ const importFile      = ref(null);
 const importing       = ref(false);
 const importResult    = ref(null);
 
+function switchStatusTab(inactive) {
+  showInactive.value = inactive;
+  fetchUsers();
+}
+
 function onSearchLetters() {
   filters.value.search = filters.value.search.replace(/[^a-zA-Z0-9@._\s-]/g, '');
   fetchUsers();
@@ -330,9 +349,7 @@ async function fetchUsers(page = 1) {
   try {
     const params = { ...filters.value, page };
     if (isFacultyView.value) params.role = 'faculty';
-    if (params.status === 'active')   params.is_active = 1;
-    if (params.status === 'inactive') params.is_active = 0;
-    delete params.status;
+    params.is_active = showInactive.value ? 0 : 1;
     const res = await userAPI.index(params);
     users.value      = res.data.data;
     pagination.value = res.data;
@@ -421,8 +438,8 @@ async function toggleActive(u) {
   }
   try {
     await userAPI.toggleActive(u.id);
-    u.is_active = !u.is_active;
-    toast?.success(`Employee ${u.is_active ? 'activated' : 'deactivated'}.`);
+    toast?.success(`Employee ${u.is_active ? 'deactivated' : 'activated'}.`);
+    fetchUsers();
   } catch (e) {
     toast?.error('Please fill in all required fields.');
   }
@@ -453,7 +470,7 @@ async function uploadImportFile() {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', role: '', status: '' };
+  filters.value = { search: '', role: '' };
   fetchUsers();
 }
 
@@ -492,7 +509,8 @@ function formatDate(date) {
 onMounted(() => fetchUsers());
 
 watch(() => route.name, () => {
-  filters.value = { search: '', role: '', status: '' };
+  filters.value = { search: '', role: '' };
+  showInactive.value = false;
   fetchUsers();
 });
 </script>
