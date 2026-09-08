@@ -24,7 +24,7 @@ export const COLLEGE_ABBREVS = {
   'College of Home Economics and Technology (CHET)':      'CHET',
   'College of Human Kinetics (CHK)':                      'CHK',
   'College of Information Sciences (CIS)':                'CIS',
-  'College of Medicine(CM)',
+  'College of Medicine(CM)':                               'CM',
   'College of Natural Sciences (CNS)':                    'CNS',
   'College of Numeracy and Applied Sciences (CNAS)':      'CNAS',
   'College of Nursing (CN)':                             'CN',
