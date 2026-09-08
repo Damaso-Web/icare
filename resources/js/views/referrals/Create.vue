@@ -492,8 +492,6 @@ function goBack() {
   }
 }
 
-const showPreview = ref(false);
-
 function handleSubmit() {
   error.value = '';
 
