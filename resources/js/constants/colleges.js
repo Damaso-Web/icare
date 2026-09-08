@@ -6,7 +6,7 @@ export const COLLEGES = [
   'College of Home Economics and Technology (CHET)',
   'College of Human Kinetics (CHK)',
   'College of Information Sciences (CIS)',
-  'COLLEGE OF MEDICINE (CM)',
+  'College of Medicine (CM)',
   'College of Natural Sciences (CNS)',
   'College of Numeracy and Applied Sciences (CNAS)',
   'College of Nursing (CN)',

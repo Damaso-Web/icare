@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>{{ showArchived ? 'Inactive Students' : 'Student Profiles' }}</h1>
-      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Browse or search for a student to view their records.' }}</p>
+      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Search for a student to view their records.' }}</p>
     </div>
 
     <!-- Tabs -->
@@ -38,7 +38,7 @@
         />
       </div>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
-      <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+      <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
@@ -52,6 +52,10 @@
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+      </div>
+      <div v-else-if="!filters.search" class="empty-state">
+        <h3>Search for a student</h3>
+        <p>Type a name or student ID above to find their profile.</p>
       </div>
       <div v-else-if="students.length === 0" class="empty-state">
         <h3>No students found</h3>
@@ -241,12 +245,12 @@
       </div>
     </div>
 
-    <!-- Import Modal -->
-    <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
+    <!-- Import Modal — Step 1: Select File -->
+    <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Student Masterlist</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
+          <button class="ibtn ibtn-g ibtn-sm" @click="closeImportModal">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
@@ -260,18 +264,81 @@
             <label class="ifl">File</label>
             <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
           </div>
+          <div v-if="previewError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            {{ previewError }}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="loadPreview" :disabled="!selectedFile || loadingPreview">
+              <span v-if="loadingPreview" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ loadingPreview ? 'Reading File...' : 'Preview' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="closeImportModal">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Modal — Step 2: Preview + Decisions -->
+    <div v-if="showPreviewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreviewModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Review Before Uploading</div>
+            <div style="font-size:12px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
+          </div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showPreviewModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:10px">
+
+          <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
+            ⚠ Some Student IDs already exist in the system. Choose whether to <strong>Update</strong> the existing record or <strong>Skip</strong> it for each one below.
+          </div>
+
+          <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <table class="itable">
+              <thead>
+                <tr>
+                  <th>Row</th>
+                  <th>Student ID</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in previewData.preview" :key="item.row">
+                  <td style="font-size:12px">{{ item.row }}</td>
+                  <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '—' }}</td>
+                  <td>
+                    <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
+                    <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                    <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
+                  </td>
+                  <td>
+                    <select v-if="item.is_duplicate && item.valid" v-model="decisions[item.row - 2]" class="fsm" style="font-size:11px;padding:4px 8px">
+                      <option value="update">Update existing</option>
+                      <option value="skip">Skip this one</option>
+                    </select>
+                    <span v-else-if="!item.valid" style="font-size:11px;color:var(--stone)">Will be skipped</span>
+                    <span v-else style="font-size:11px;color:var(--moss)">Will be added</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
           <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
-            ✓ {{ importResult.created }} students added, {{ importResult.skipped }} skipped.
+            ✓ {{ importResult.created }} added, {{ importResult.updated }} updated, {{ importResult.skipped }} skipped.
             <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
               <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
             </div>
           </div>
+
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="uploadFile" :disabled="!selectedFile || importing">
+            <button class="ibtn ibtn-p" @click="confirmImport" :disabled="importing">
               <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ importing ? 'Uploading...' : 'Upload' }}
+              {{ importing ? 'Uploading...' : 'Confirm Upload' }}
             </button>
-            <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
+            <button class="ibtn ibtn-o" @click="showPreviewModal = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -303,7 +370,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue';
+import { ref, computed, inject } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
@@ -319,15 +386,10 @@ const pagination = ref({});
 const filters    = ref({ search: '' });
 const showArchived = ref(false);
 const showAddModal    = ref(false);
-const showImportModal = ref(false);
 const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
 const addError = ref('');
-
-const selectedFile  = ref(null);
-const importing     = ref(false);
-const importResult  = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
@@ -337,23 +399,43 @@ const addForm = ref({
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
 
+// Import flow state
+const showImportModal  = ref(false);
+const showPreviewModal = ref(false);
+const selectedFile     = ref(null);
+const loadingPreview   = ref(false);
+const previewError     = ref('');
+const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' });
+const decisions        = ref({});
+const importing        = ref(false);
+const importResult     = ref(null);
+
 let searchTimeout = null;
 
 function switchTab(archived) {
   showArchived.value = archived;
   filters.value.search = '';
-  fetchStudents();
+  students.value = [];
+  pagination.value = {};
 }
 
 function onSearchInput() {
   clearTimeout(searchTimeout);
+  if (!filters.value.search) {
+    students.value = [];
+    return;
+  }
   searchTimeout = setTimeout(() => fetchStudents(), 400);
 }
 
 async function fetchStudents(page = 1) {
+  if (!filters.value.search) {
+    students.value = [];
+    return;
+  }
   loading.value = true;
   try {
-    const params = { ...filters.value, page, per_page: 10 };
+    const params = { ...filters.value, page };
     params.is_active = showArchived.value ? 0 : 1;
     const res = await studentAPI.index(params);
     students.value   = res.data.data;
@@ -367,7 +449,8 @@ async function fetchStudents(page = 1) {
 
 function resetFilters() {
   filters.value = { search: '' };
-  fetchStudents();
+  students.value = [];
+  pagination.value = {};
 }
 
 function changePage(page) { fetchStudents(page); }
@@ -397,7 +480,6 @@ async function saveStudent() {
     await studentAPI.store(addForm.value);
     toast?.success('Student added successfully.');
     showAddModal.value = false;
-    fetchStudents();
   } catch (e) {
     addError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
@@ -433,23 +515,61 @@ async function toggleActive(s) {
   }
 }
 
-function handleFileSelect(e) {
-  selectedFile.value = e.target.files[0];
-  importResult.value = null;
+// --- Import flow ---
+function openImportModal() {
+  selectedFile.value = null;
+  previewError.value = '';
+  showImportModal.value = true;
 }
 
-async function uploadFile() {
+function closeImportModal() {
+  showImportModal.value = false;
+}
+
+function handleFileSelect(e) {
+  selectedFile.value = e.target.files[0];
+  previewError.value = '';
+}
+
+async function loadPreview() {
   if (!selectedFile.value) return;
-  importing.value = true;
+  loadingPreview.value = true;
+  previewError.value = '';
   try {
     const formData = new FormData();
     formData.append('file', selectedFile.value);
-    const res = await studentAPI.import(formData);
+    const res = await studentAPI.importPreview(formData);
+    previewData.value = res.data;
+
+    // Default decisions: update for duplicates
+    decisions.value = {};
+    res.data.preview.forEach((item, idx) => {
+      if (item.is_duplicate) decisions.value[idx] = 'update';
+      else decisions.value[idx] = 'create';
+    });
+
+    importResult.value = null;
+    showImportModal.value = false;
+    showPreviewModal.value = true;
+  } catch (e) {
+    previewError.value = e.response?.data?.message || 'Failed to read file. Please check the format.';
+  } finally {
+    loadingPreview.value = false;
+  }
+}
+
+async function confirmImport() {
+  importing.value = true;
+  try {
+    const res = await studentAPI.importConfirm({
+      token: previewData.value.token,
+      decisions: decisions.value,
+    });
     importResult.value = res.data;
-    toast?.success(`${res.data.created} students imported successfully.`);
+    toast?.success(`${res.data.created} added, ${res.data.updated} updated.`);
     fetchStudents();
   } catch (e) {
-    toast?.error('Please fill in all required fields.');
+    toast?.error(e.response?.data?.message || 'Failed to complete import.');
   } finally {
     importing.value = false;
   }
@@ -458,6 +578,4 @@ async function uploadFile() {
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
-
-onMounted(() => fetchStudents());
 </script>

@@ -40,31 +40,28 @@ export const authAPI = {
 };
 
 export const studentAPI = {
-  index: (params) => api.get('/students', { params }),
-  store: (data) => api.post('/students', data),
-  show: (id) => api.get(`/students/${id}`),              
-  update: (id, data) => api.put(`/students/${id}`, data),
-  destroy: (id) => api.delete(`/students/${id}`),        
-  history: (id) => api.get(`/students/${id}/history`),   
-  cases: (id) => api.get(`/students/${id}/cases`),        
-  toggleActive: (id) => api.post(`/students/${id}/toggle-active`), 
-  import: (formData) => api.post('/students/import', formData, { 
-    headers: { 'Content-Type': 'multipart/form-data' } 
-  }),
-  graduate: (id) => api.post(`/students/${id}/graduate`),
+    index:   (params)   => api.get('/students', { params }),
+    store:   (data)     => api.post('/students', data),
+    show:    (id)       => api.get(`/students/${id}`),
+    update:  (id, data) => api.put(`/students/${id}`, data),
+    destroy: (id)       => api.delete(`/students/${id}`),
+    history: (id)       => api.get(`/students/${id}/history`),
+    cases:   (id)       => api.get(`/students/${id}/cases`),
+    toggleActive:  (id) => api.post(`/students/${id}/toggle-active`),
+    graduate:      (id) => api.post(`/students/${id}/graduate`),
+    import:        (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importPreview: (formData) => api.post('/students/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importConfirm: (data)     => api.post('/students/import-confirm', data),
 };
 
 export const referralAPI = {
     index:        (params)   => api.get('/referrals', { params }),
-    archived:     (params)   => api.get('/referrals-archived', { params }),
     store:        (data)     => api.post('/referrals', data),
     show:         (id)       => api.get(`/referrals/${id}`),
     update:       (id, data) => api.put(`/referrals/${id}`, data),
     acknowledge:  (id)       => api.post(`/referrals/${id}/acknowledge`),
     assign:       (id, data) => api.post(`/referrals/${id}/assign`, data),
     updateStatus: (id, data) => api.patch(`/referrals/${id}/status`, data),
-    archive:      (id)       => api.post(`/referrals/${id}/archive`),
-    unarchive:    (id)       => api.post(`/referrals/${id}/unarchive`),
     tracking:     (id)       => api.get(`/referrals/${id}/tracking`),
 };
 

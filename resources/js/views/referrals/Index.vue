@@ -61,7 +61,7 @@
           :class="urgencyRow(r.urgency_level)"
           @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
         >
-          <div class="qav" style="font-size:16px;font-weight:700">{{ r.referral_code?.split('-').pop() }}</div>
+          <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
           <div class="qi">
             <div class="qn" style="font-size:16px;font-weight:700;font-family:var(--mono)">
               {{ r.referral_code }}
