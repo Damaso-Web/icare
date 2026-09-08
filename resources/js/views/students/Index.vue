@@ -270,9 +270,12 @@
               <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
               <div style="font-size:12px;color:var(--stone);margin-top:8px">Reading file...</div>
             </div>
-            <div v-if="previewError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            <div v-if="previewError" style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
               {{ previewError }}
             </div>
+            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
+          </div>
           </template>
 
           <!-- Preview shown automatically after file is read -->
@@ -532,6 +535,13 @@ async function handleFileSelect(e) {
     const formData = new FormData();
     formData.append('file', file);
     const res = await studentAPI.importPreview(formData);
+
+    if (res.data.total === 0) {
+      previewError.value = 'The file appears to be empty. Please choose a different file.';
+      loadingPreview.value = false;
+      return;
+    }
+
     previewData.value = res.data;
   } catch (err) {
     previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
@@ -553,6 +563,20 @@ async function confirmImport(globalChoice) {
         finalDecisions[idx] = 'skip';
       }
     });
+
+    const res = await studentAPI.importConfirm({
+      token: previewData.value.token,
+      decisions: finalDecisions,
+    });
+    toast?.success(`${res.data.created} added, ${res.data.updated} updated, ${res.data.skipped} skipped.`);
+    closeImportModal();
+    fetchStudents();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to complete import.');
+  } finally {
+    importing.value = false;
+  }
+}
 
     const res = await studentAPI.importConfirm({
       token: previewData.value.token,
