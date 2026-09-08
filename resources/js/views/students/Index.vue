@@ -271,11 +271,11 @@
               <div style="font-size:12px;color:var(--stone);margin-top:8px">Reading file...</div>
             </div>
             <div v-if="previewError" style="display:flex;flex-direction:column;gap:8px">
-            <div style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
-              {{ previewError }}
+              <div style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+                {{ previewError }}
+              </div>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
             </div>
-            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
-          </div>
           </template>
 
           <!-- Preview shown automatically after file is read -->
@@ -309,14 +309,7 @@
               </table>
             </div>
 
-            <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
-              ✓ {{ importResult.created }} added, {{ importResult.updated }} updated, {{ importResult.skipped }} skipped.
-              <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
-                <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
-              </div>
-            </div>
-
-            <!-- Global action buttons — replace Confirm Upload -->
+            <!-- Global action buttons -->
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmImport('update')" :disabled="importing">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -401,7 +394,6 @@ const loadingPreview   = ref(false);
 const previewError     = ref('');
 const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' });
 const importing        = ref(false);
-const importResult     = ref(null);
 
 let searchTimeout = null;
 
@@ -522,7 +514,6 @@ function closeImportModal() {
 function resetImportFlow() {
   previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
   previewError.value = '';
-  importResult.value = null;
 }
 
 async function handleFileSelect(e) {
@@ -570,20 +561,6 @@ async function confirmImport(globalChoice) {
     });
     toast?.success(`${res.data.created} added, ${res.data.updated} updated, ${res.data.skipped} skipped.`);
     closeImportModal();
-    fetchStudents();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to complete import.');
-  } finally {
-    importing.value = false;
-  }
-}
-
-    const res = await studentAPI.importConfirm({
-      token: previewData.value.token,
-      decisions: finalDecisions,
-    });
-    importResult.value = res.data;
-    toast?.success(`${res.data.created} added, ${res.data.updated} updated.`);
     fetchStudents();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to complete import.');
