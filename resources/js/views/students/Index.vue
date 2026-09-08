@@ -280,49 +280,26 @@
             <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
 
             <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
-              ⚠ Some Student IDs already exist. Choose whether to update or keep the existing information for each one below.
+              ⚠ Some Student IDs already exist. Choose how to handle all duplicates below.
             </div>
 
-            <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <div style="max-height:280px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
               <table class="itable">
                 <thead>
                   <tr>
                     <th>Row</th>
                     <th>Student ID</th>
                     <th>Status</th>
-                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="(item, idx) in previewData.preview" :key="item.row">
+                  <tr v-for="item in previewData.preview" :key="item.row">
                     <td style="font-size:12px">{{ item.row }}</td>
                     <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '—' }}</td>
                     <td>
                       <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
                       <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
                       <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
-                    </td>
-                    <td>
-                      <div v-if="item.is_duplicate && item.valid" style="display:flex;gap:4px">
-                        <button
-                          class="ibtn ibtn-sm"
-                          :style="decisions[idx] === 'update' ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-                          style="font-size:10px;padding:4px 8px"
-                          @click="decisions[idx] = 'update'"
-                        >
-                          Update Existing
-                        </button>
-                        <button
-                          class="ibtn ibtn-sm"
-                          :style="decisions[idx] === 'skip' ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-                          style="font-size:10px;padding:4px 8px"
-                          @click="decisions[idx] = 'skip'"
-                        >
-                          Keep Existing Information
-                        </button>
-                      </div>
-                      <span v-else-if="!item.valid" style="font-size:11px;color:var(--stone)">Will be skipped</span>
-                      <span v-else style="font-size:11px;color:var(--moss)">Will be added</span>
                     </td>
                   </tr>
                 </tbody>
@@ -336,13 +313,24 @@
               </div>
             </div>
 
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="confirmImport" :disabled="importing">
+            <!-- Global action buttons — replace Confirm Upload -->
+            <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmImport('update')" :disabled="importing">
+                <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ importing ? 'Uploading...' : 'Update Existing' }}
+              </button>
+              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="confirmImport('skip')" :disabled="importing">
+                Keep Existing Information
+              </button>
+            </div>
+            <div v-else style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="confirmImport('create')" :disabled="importing">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ importing ? 'Uploading...' : 'Confirm Upload' }}
               </button>
-              <button class="ibtn ibtn-o" @click="resetImportFlow">Choose Different File</button>
             </div>
+
+            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="resetImportFlow">Choose Different File</button>
           </template>
 
         </div>
@@ -409,7 +397,6 @@ const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
 const previewError     = ref('');
 const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' });
-const decisions        = ref({});
 const importing        = ref(false);
 const importResult     = ref(null);
 
@@ -533,7 +520,6 @@ function resetImportFlow() {
   previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
   previewError.value = '';
   importResult.value = null;
-  decisions.value = {};
 }
 
 async function handleFileSelect(e) {
@@ -547,11 +533,6 @@ async function handleFileSelect(e) {
     formData.append('file', file);
     const res = await studentAPI.importPreview(formData);
     previewData.value = res.data;
-
-    decisions.value = {};
-    res.data.preview.forEach((item, idx) => {
-      decisions.value[idx] = item.is_duplicate ? 'update' : 'create';
-    });
   } catch (err) {
     previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
   } finally {
@@ -559,12 +540,23 @@ async function handleFileSelect(e) {
   }
 }
 
-async function confirmImport() {
+async function confirmImport(globalChoice) {
   importing.value = true;
   try {
+    const finalDecisions = {};
+    previewData.value.preview.forEach((item, idx) => {
+      if (item.is_duplicate && item.valid) {
+        finalDecisions[idx] = globalChoice === 'update' ? 'update' : 'skip';
+      } else if (item.valid) {
+        finalDecisions[idx] = 'create';
+      } else {
+        finalDecisions[idx] = 'skip';
+      }
+    });
+
     const res = await studentAPI.importConfirm({
       token: previewData.value.token,
-      decisions: decisions.value,
+      decisions: finalDecisions,
     });
     importResult.value = res.data;
     toast?.success(`${res.data.created} added, ${res.data.updated} updated.`);
