@@ -22,7 +22,7 @@ export const DEPARTMENTS_BY_COLLEGE = {
   ],
   'College of Medicine (CM)': [
     'Doctor of Medicine',
-  ]
+  ],
   'College of Natural Sciences (CNS)': [
     'Biology', 'Chemistry', 'Physics',
   ],
