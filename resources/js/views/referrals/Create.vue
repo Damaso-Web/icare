@@ -65,7 +65,7 @@
               </div>
             </div>
             <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
-              ✓ Existing student found — details auto-filled
+              ✓ Existing student found
             </div>
           </div>
 
@@ -156,7 +156,7 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;position:relative">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;position:relative">
             <div>
               <label class="ifl">Referrer Last Name <span style="color:var(--red)">*</span></label>
               <input
@@ -183,6 +183,17 @@
                 required
               />
             </div>
+            <div>
+              <label class="ifl">Referrer Middle Name</label>
+              <input
+                v-model="form.referrer_middle_name"
+                class="ifi"
+                placeholder="Santos"
+                :readonly="referrerFound"
+                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
+                autocomplete="off"
+              />
+            </div>
             <div
               v-if="showReferrerDropdown && referrerSuggestions.length > 0"
               style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px;grid-column:1/-1"
@@ -195,12 +206,12 @@
                 @mouseleave="$event.currentTarget.style.background='#fff'"
                 @click="selectReferrer(r)"
               >
-                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.last_name }}, {{ r.first_name }}</div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.last_name }}, {{ r.first_name }} {{ r.middle_name }}</div>
                 <div style="font-size:11px;color:var(--fog)">{{ r.email }} · {{ roleLabel(r.role) }}</div>
               </div>
             </div>
             <div v-if="referrerFound" style="font-size:11px;color:var(--moss);grid-column:1/-1">
-              ✓ Existing employee found — details auto-filled
+              ✓ Existing employee found
             </div>
           </div>
 
@@ -307,34 +318,6 @@
       </div>
     </div>
   </div>
-
-      <!-- Confirmation Preview Modal -->
-    <div v-if="showPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreview = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Referral Details</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showPreview = false">✕</button>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-            <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
-            <div><strong>College:</strong> {{ form.college }} — {{ form.program }}</div>
-            <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }}</div>
-            <div><strong>Service:</strong> {{ form.referral_type?.replace(/_/g,' ') }}</div>
-            <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
-            <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="confirmSubmit" :disabled="loading">
-              {{ loading ? 'Submitting...' : 'Confirm & Submit' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="showPreview = false">Go Back &amp; Edit</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
 </template>
 
 <script setup>
@@ -344,13 +327,12 @@ import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
 const auth     = useAuthStore();
 const colleges = COLLEGES;
-const showPreview = ref(false);
 
 const error   = ref('');
 const success = ref('');
@@ -386,6 +368,7 @@ const form = ref({
   section:               '',
   referrer_last_name:    '',
   referrer_first_name:   '',
+  referrer_middle_name:  '',
   referrer_position:     '',
   referrer_department:   '',
   referral_type:         '',
@@ -409,6 +392,7 @@ function onServiceChange() {
 }
 
 function onStudentSearch() {
+  studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
   if (!studentSearchQuery.value || studentSearchQuery.value.length < 2) {
@@ -446,6 +430,7 @@ async function selectStudent(s) {
 }
 
 function onReferrerSearch() {
+  form.value.referrer_last_name = safeSearchInput(form.value.referrer_last_name);
   clearTimeout(referrerSearchTimeout);
   referrerFound.value = false;
   if (!form.value.referrer_last_name || form.value.referrer_last_name.length < 2) {
@@ -465,8 +450,9 @@ function onReferrerSearch() {
 }
 
 function selectReferrer(r) {
-  form.value.referrer_last_name  = r.last_name;
-  form.value.referrer_first_name = r.first_name;
+  form.value.referrer_last_name   = r.last_name;
+  form.value.referrer_first_name  = r.first_name;
+  form.value.referrer_middle_name = r.middle_name || '';
 
   const ossRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
   if (ossRoles.includes(r.role)) {
@@ -492,8 +478,9 @@ function goBack() {
   }
 }
 
-function handleSubmit() {
-  error.value = '';
+async function handleSubmit() {
+  error.value   = '';
+  success.value = '';
 
   if (!form.value.student_id_input) {
     error.value = 'Please fill in all required fields.';
@@ -507,11 +494,8 @@ function handleSubmit() {
     return;
   }
 
-  showPreview.value = true;
-}
-
-async function confirmSubmit() {
   loading.value = true;
+
   try {
     let studentId = null;
     const searchRes = await studentAPI.index({ search: form.value.student_id_input });
@@ -546,7 +530,6 @@ async function confirmSubmit() {
       violation_type:    form.value.violation_type || null,
     });
 
-    showPreview.value = false;
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';
 
@@ -559,7 +542,6 @@ async function confirmSubmit() {
     }, 1500);
 
   } catch (e) {
-    showPreview.value = false;
     error.value = e.response?.data?.message || 'Please fill in all required fields.';
     toast?.error(error.value);
   } finally {
@@ -577,7 +559,7 @@ function clearForm() {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
     college: '', section: '', referrer_last_name: '', referrer_first_name: '',
-    referrer_position: '', referrer_department: '',
+    referrer_middle_name: '', referrer_position: '', referrer_department: '',
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
     violation_type: '',
   };

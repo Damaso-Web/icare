@@ -24,6 +24,7 @@ class User extends Authenticatable
         'department',
         'contact_number',
         'is_active',
+        'middle_name',
     ];
 
     protected $hidden = [
@@ -40,9 +41,8 @@ class User extends Authenticatable
     protected static function booted(): void
     {
         static::saving(function (User $user) {
-            // Keep `name` in sync with first_name + last_name for backward compatibility
-            if ($user->isDirty('first_name') || $user->isDirty('last_name')) {
-                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
+            if ($user->isDirty('first_name') || $user->isDirty('last_name') || $user->isDirty('middle_name')) {
+                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->middle_name ?? '') . ' ' . ($user->last_name ?? ''));
             }
         });
     }

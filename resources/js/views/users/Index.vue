@@ -37,6 +37,7 @@
           @input="onSearchLetters"
         />
       </div>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
         <option value="admin">Admin / GCU Head</option>
@@ -46,7 +47,6 @@
         <option value="faculty">Faculty</option>
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
@@ -62,7 +62,7 @@
       </button>
     </div>
 
-    <!-- Users Table — minimal columns: Employee ID + Status only -->
+    <!-- Users Table -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -87,7 +87,7 @@
               <td style="cursor:pointer" @click="openView(u)">
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(u.first_name, u.last_name) }}</div>
-                  <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }}</div>
+                  <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }} {{ u.middle_name }}</div>
                 </div>
               </td>
               <td>
@@ -133,7 +133,7 @@
           <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
             {{ initials(viewedUser.first_name, viewedUser.last_name) }}
           </div>
-          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.last_name }}, {{ viewedUser.first_name }}</div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.last_name }}, {{ viewedUser.first_name }} {{ viewedUser.middle_name }}</div>
           <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">{{ viewedUser.email }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
@@ -193,6 +193,10 @@
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
               <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = onlyLetters(userForm.first_name)" />
             </div>
+          </div>
+          <div>
+            <label class="ifl">Middle Name</label>
+            <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = onlyLetters(userForm.middle_name)" />
           </div>
           <div>
             <label class="ifl">Email <span style="color:var(--red)">*</span></label>
@@ -303,7 +307,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail } from '../../utils/validators';
+import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -324,7 +328,7 @@ const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
 
 const userForm = ref({
-  first_name: '', last_name: '', email: '', employee_id: '', role: '',
+  first_name: '', middle_name: '', last_name: '', email: '', employee_id: '', role: '',
   college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
 });
@@ -340,7 +344,7 @@ function switchStatusTab(inactive) {
 }
 
 function onSearchLetters() {
-  filters.value.search = filters.value.search.replace(/[^a-zA-Z0-9@._\s-]/g, '');
+  filters.value.search = safeSearchInput(filters.value.search);
   fetchUsers();
 }
 
@@ -385,7 +389,7 @@ function openCreate() {
   isEditing.value = false;
   formError.value = '';
   userForm.value  = {
-    first_name: '', last_name: '', email: '', employee_id: '',
+    first_name: '', middle_name: '', last_name: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
     college: '', department: '', contact_number: '',
     password: '', password_confirmation: '',

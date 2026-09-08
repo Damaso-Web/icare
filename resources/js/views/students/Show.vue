@@ -19,7 +19,7 @@
         <div style="margin-left:auto">
           <button class="ibtn ibtn-o ibtn-sm" @click="showEditModal = true">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            Edit Profile
+            Edit Student Profile
           </button>
         </div>
       </div>
@@ -206,21 +206,6 @@
             </div>
           </div>
 
-          <!-- Quick Actions -->
-          <div class="icard">
-            <div class="icard-header"><span class="icard-title">Actions</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <router-link :to="{ name: 'referral-create' }" class="ibtn ibtn-p" style="width:100%;justify-content:center">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Submit Referral
-              </router-link>
-              <router-link :to="{ name: 'appointments' }" class="ibtn ibtn-o" style="width:100%;justify-content:center">
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Schedule Appointment
-              </router-link>
-            </div>
-          </div>
-
         </div>
       </div>
 
@@ -340,6 +325,10 @@
               </div>
             </div>
 
+            <div v-if="editError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+              {{ editError }}
+            </div>
+
             <div style="display:flex;gap:8px;padding-top:4px">
               <button class="ibtn ibtn-p" @click="saveStudent" :disabled="saving">
                 <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -372,12 +361,14 @@ const showEditModal = ref(false);
 const student = ref({});
 const history = ref({});
 const colleges = COLLEGES;
+const editError = ref('');
 
 const editForm = ref({});
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 async function saveStudent() {
+  editError.value = '';
   saving.value = true;
   try {
     const res = await studentAPI.update(student.value.id, editForm.value);
@@ -385,7 +376,7 @@ async function saveStudent() {
     showEditModal.value = false;
     toast?.success('Student profile updated successfully.');
   } catch (e) {
-    toast?.error('Failed to update student profile.');
+    editError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
     saving.value = false;
   }

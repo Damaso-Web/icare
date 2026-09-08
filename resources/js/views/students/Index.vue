@@ -363,7 +363,7 @@ import { ref, computed, inject } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, safeSearchInput } from '../../utils/validators';
 
 const toast   = inject('toast');
 const colleges = COLLEGES;
@@ -405,6 +405,7 @@ function switchTab(archived) {
 }
 
 function onSearchInput() {
+  filters.value.search = safeSearchInput(filters.value.search);
   clearTimeout(searchTimeout);
   if (!filters.value.search) {
     students.value = [];

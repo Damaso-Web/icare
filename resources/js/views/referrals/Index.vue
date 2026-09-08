@@ -10,8 +10,9 @@
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @input="fetchReferrals" style="width:220px"/>
+        <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @input="onSearchInput" style="width:220px"/>
       </div>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
@@ -39,7 +40,6 @@
         <option value="psychological_testing">Psychological Testing</option>
         <option value="disciplinary">Acts of Misconduct</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
     </div>
 
     <!-- Referral List -->
@@ -98,11 +98,17 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { referralAPI } from '../../api/index';
+import { safeSearchInput } from '../../utils/validators';
 
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
 const filters    = ref({ search: '', status: '', unit: '', type: '' });
+
+function onSearchInput() {
+  filters.value.search = safeSearchInput(filters.value.search);
+  fetchReferrals();
+}
 
 async function fetchReferrals(page = 1) {
   loading.value = true;

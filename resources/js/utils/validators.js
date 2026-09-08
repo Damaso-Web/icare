@@ -9,7 +9,6 @@ export function onlyLetters(value) {
 }
 
 export function onlyLettersStrict(value) {
-  // for suffix - letters only, no spaces/hyphens
   return value.replace(/[^a-zA-Z]/g, '');
 }
 
@@ -19,4 +18,8 @@ export function isValidEmail(email) {
 
 export function contactNumberInput(value) {
   return onlyDigits(value, 11);
+}
+
+export function safeSearchInput(value) {
+  return value.replace(/[^a-zA-Z0-9\s\-]/g, '');
 }
