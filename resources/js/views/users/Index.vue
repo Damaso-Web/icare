@@ -409,10 +409,7 @@ function openEdit(u) {
 
 async function saveUser() {
   formError.value = '';
-  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
-  formError.value = 'Contact number must start with 09 and be 11 digits long.';
-  return;
-}
+  console.log('Contact number value:', userForm.value.contact_number);
   if (!auth.isAdmin) {
     formError.value = 'Please fill in all required fields.';
     return;
@@ -427,6 +424,11 @@ async function saveUser() {
   }
   if (userForm.value.email && !isValidEmail(userForm.value.email)) {
     formError.value = 'Please fill in all required fields.';
+    return;
+  }
+  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
+    console.log('Failed PH contact check:', userForm.value.contact_number);
+    formError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
   try {
