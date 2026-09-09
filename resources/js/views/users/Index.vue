@@ -414,14 +414,10 @@ async function saveUser() {
     return;
   }
   if (!isEditing.value && (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role)) {
-  formError.value = 'Please fill in all required fields.';
-  return;
-  }
-  if (isEditing.value && (!userForm.value.email)) {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-  if (!isValidEmail(userForm.value.email)) {
+  if (isEditing.value && !userForm.value.email) {
     formError.value = 'Please fill in all required fields.';
     return;
   }
@@ -436,7 +432,8 @@ async function saveUser() {
     showModal.value = false;
     fetchUsers();
   } catch (e) {
-    formError.value = 'Please fill in all required fields.';
+    console.error('Save user error:', e.response?.data);
+    formError.value = e.response?.data?.message || 'Please fill in all required fields.';
   }
 }
 

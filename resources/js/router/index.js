@@ -60,7 +60,7 @@ const routes = [
                 path: 'referrals',
                 name: 'referrals',
                 component: Referrals,
-                meta: { roles: ['admin', 'gcu_staff', 'sdu_head'] },
+                meta: { roles: ['admin', 'gcu_staff', 'sdu_head, faculty'] },
             },
             {
                 path: 'referrals/create',

@@ -41,8 +41,8 @@ class StudentController extends Controller
     'guardian_first_name'    => 'required|string|max:255',
     'guardian_middle_name'   => 'nullable|string|max:255',
     'guardian_last_name'     => 'required|string|max:255',
-    'guardian_contact'       => 'nullable|string|max:11',
-    'guardian_relationship'  => 'nullable|string',
+    'guardian_contact'       => 'required|string|max:11',
+    'guardian_relationship'  => 'required|string',
 ]);
 
         $student = Student::create([

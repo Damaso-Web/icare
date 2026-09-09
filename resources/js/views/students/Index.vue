@@ -223,20 +223,20 @@
               <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="addForm.guardian_middle_name = onlyLetters(addForm.guardian_middle_name)" />
             </div>
             <div>
-              <label class="ifl">Guardian Contact</label>
-              <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
-            </div>
-            <div>
-              <label class="ifl">Guardian Relationship</label>
-              <select v-model="addForm.guardian_relationship" class="ifse">
-                <option value="">Select...</option>
-                <option>Mother</option>
-                <option>Father</option>
-                <option>Guardian</option>
-                <option>Sibling</option>
-                <option>Relative</option>
-              </select>
-            </div>
+            <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
+            <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
+          </div>
+          <div>
+            <label class="ifl">Guardian Relationship <span style="color:var(--red)">*</span></label>
+            <select v-model="addForm.guardian_relationship" class="ifse">
+              <option value="">Select...</option>
+              <option>Mother</option>
+              <option>Father</option>
+              <option>Guardian</option>
+              <option>Sibling</option>
+              <option>Relative</option>
+            </select>
+          </div>
           </div>
           <div v-if="addError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
             {{ addError }}
@@ -465,12 +465,11 @@ async function fetchStudents(page = 1) {
 async function saveStudent() {
   addError.value = '';
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
-      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name) {
+      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
+      !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
     addError.value = 'Please fill in all required fields.';
     return;
   }
-
-  // Check for duplicate name before creating
   try {
     const dupRes = await studentAPI.checkDuplicateName({
       first_name: addForm.value.first_name,
