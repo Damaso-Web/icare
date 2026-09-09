@@ -255,6 +255,7 @@ async function acknowledge() {
     referral.value = { ...referral.value, ...res.data.referral };
     toast?.success('Referral acknowledged and case file created.');
   } catch (e) {
+    console.error('Acknowledge error:', e.response?.data || e.message);
     toast?.error('Failed to acknowledge referral.');
   } finally {
     acknowledging.value = false;
