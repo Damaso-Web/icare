@@ -31,11 +31,13 @@ class AuthController extends Controller
         AuditLog::record('login', "User {$user->name} logged in.");
 
         return response()->json([
-            'token' => $token,
-            'user'  => $user->only([
-                'id', 'name', 'email', 'role', 'unit', 'college'
-            ]),
-        ]);
+        'token' => $token,
+        'user'  => $user->only([
+            'id', 'name', 'first_name', 'middle_name', 'last_name',
+            'email', 'role', 'unit', 'college', 'department',
+            'contact_number', 'employee_id'
+        ]),
+    ]);
     }
 
     public function logout(Request $request)
