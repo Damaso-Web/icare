@@ -152,6 +152,7 @@ class ReferralController extends Controller
         ]);
 
         $referral->update(['status' => 'in_review']);
+        $referral->refresh();
 
         AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
 
