@@ -545,23 +545,6 @@ function clearAddForm() {
   addError.value = '';
 }
 
-async function saveStudent() {
-  addError.value = '';
-  if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name) {
-    addError.value = 'Please fill in all required fields.';
-    return;
-  }
-  saving.value = true;
-  try {
-    await studentAPI.store(addForm.value);
-    toast?.success('Student added successfully.');
-    showAddModal.value = false;
-  } catch (e) {
-    addError.value = e.response?.data?.message || 'Please fill in all required fields.';
-  } finally {
-    saving.value = false;
-  }
-}
 
 function confirmGraduate(s) {
   studentToGraduate.value = s;
