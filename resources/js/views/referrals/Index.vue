@@ -12,11 +12,6 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @keypress="blockSpecialKeypress" @input="onSearchInput" style="width:220px"/>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
-        <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
-        <span style="color:var(--stone);font-size:13px">–</span>
-        <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
-      </div>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
@@ -33,18 +28,23 @@
         <option value="SDU">SDU</option>
         <option value="TMDU">TMDU</option>
       </select>
-      <select v-model="filters.type" class="fsm" @change="onServiceFilterChange" v-if="filters.unit !== 'SDU'">
-      <option value="">All Services</option>
-      <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
-    </select>
-    <select v-model="filters.violation_type" class="fsm" @change="fetchReferrals" v-else>
-      <option value="">All Acts of Misconduct</option>
-      <option v-for="v in SERVICES_BY_UNIT.SDU" :key="v.violation" :value="v.violation">{{ v.violation }}</option>
-    </select>
+      <select v-if="filters.unit === 'GCU' || filters.unit === 'TMDU'" v-model="filters.type" class="fsm" @change="fetchReferrals">
+        <option value="">All Services</option>
+        <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
+      </select>
+      <select v-else-if="filters.unit === 'SDU'" v-model="filters.violation_type" class="fsm" @change="fetchReferrals">
+        <option value="">All Acts of Misconduct</option>
+        <option v-for="v in SERVICES_BY_UNIT.SDU" :key="v.violation" :value="v.violation">{{ v.violation }}</option>
+      </select>
       <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
         <option value="desc">Date: Newest First</option>
         <option value="asc">Date: Oldest First</option>
       </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+        <span style="color:var(--stone);font-size:13px">–</span>
+        <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+      </div>
     </div>
 
     <!-- Referral List -->
@@ -108,7 +108,7 @@ import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '' });
+const filters    = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '' });
 
 const SERVICES_BY_UNIT = {
   GCU: [
@@ -156,16 +156,10 @@ const SERVICES_BY_UNIT = {
   ],
 };
 
-const ALL_SERVICES = [
-  ...SERVICES_BY_UNIT.GCU,
-  ...SERVICES_BY_UNIT.SDU,
-  ...SERVICES_BY_UNIT.TMDU,
-];
-
 const availableServices = computed(() => {
   if (filters.value.unit === 'GCU') return SERVICES_BY_UNIT.GCU;
   if (filters.value.unit === 'TMDU') return SERVICES_BY_UNIT.TMDU;
-  return [...SERVICES_BY_UNIT.GCU, ...SERVICES_BY_UNIT.TMDU];
+  return [];
 });
 
 function onUnitChange() {
