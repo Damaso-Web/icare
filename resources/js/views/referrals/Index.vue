@@ -12,6 +12,8 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @keypress="blockSpecialKeypress" @input="onSearchInput" style="width:220px"/>
       </div>
+      <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+      <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
@@ -99,7 +101,7 @@ import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', type: '', sort: 'desc' });
+const filters = ref({ search: '', status: '', unit: '', type: '', sort: 'desc', date_from: '', date_to: '' });
 
 const SERVICES_BY_UNIT = {
   GCU: [

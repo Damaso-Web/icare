@@ -21,6 +21,8 @@ class ReferralController extends Controller
     $tmduTypes = ['psychological_testing'];
 
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])
+        ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+        ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
         ->when($request->status,  fn($q) => $q->where('status', $request->status))
         ->when($request->urgency, fn($q) => $q->where('urgency_level', $request->urgency))
         ->when($request->type,    fn($q) => $q->where('referral_type', $request->type))

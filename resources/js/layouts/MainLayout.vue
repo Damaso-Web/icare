@@ -150,7 +150,7 @@ const pageTitle = computed(() => {
     students:          'Students',
     'student-show':    'Student Profile',
     referrals:         'Referral Queue',
-    'referral-create': 'Submit Referral',
+    'referral-create': 'Refer Student',
     'referral-show':   'Referral Details',
     cases:             'Case Management',
     'case-show':       'Case Details',
@@ -190,7 +190,7 @@ const menuItems = computed(() => {
     },
     {
       name:    'referral-create',
-      label:   'Refer A Student',
+      label:   'Refer Student',
       icon:    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
       section: null,
