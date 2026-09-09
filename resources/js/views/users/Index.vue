@@ -423,7 +423,8 @@ async function saveUser() {
   }
   try {
     if (isEditing.value) {
-      await userAPI.update(userForm.value.id, userForm.value);
+      const { password, password_confirmation, ...updateData } = userForm.value;
+      await userAPI.update(userForm.value.id, updateData);
       toast?.success('Employee updated successfully.');
     } else {
       await userAPI.store(userForm.value);

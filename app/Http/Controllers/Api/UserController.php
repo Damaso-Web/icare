@@ -57,27 +57,26 @@ class UserController extends Controller
     }
 
         public function update(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'first_name'            => 'required|string|max:255',
-            'middle_name'           => 'nullable|string|max:255',
-            'last_name'             => 'required|string|max:255',
-            'email'                 => 'required|email|unique:users,email',
-            'employee_id'           => 'nullable|string|max:50',
-            'role'                  => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
-            'college'               => 'nullable|string',
-            'department'            => 'nullable|string',
-            'contact_number'        => 'nullable|string|max:11',
-            'password'              => ['required', 'confirmed', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
-        ]);
+{
+    $validated = $request->validate([
+        'first_name'     => 'sometimes|string|max:255',
+        'middle_name'    => 'nullable|string|max:255',
+        'last_name'      => 'sometimes|string|max:255',
+        'email'          => 'sometimes|email|unique:users,email,' . $user->id,
+        'employee_id'    => 'nullable|string|max:50',
+        'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
+        'college'        => 'nullable|string',
+        'department'     => 'nullable|string',
+        'contact_number' => 'nullable|string|max:11',
+    ]);
 
-        $old = $user->toArray();
-        $user->update($validated);
+    $old = $user->toArray();
+    $user->update($validated);
 
-        AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
+    AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
 
-        return response()->json($user);
-    }
+    return response()->json($user);
+}
 
     public function destroy(User $user)
     {
