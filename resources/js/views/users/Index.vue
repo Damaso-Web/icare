@@ -63,7 +63,7 @@
       </button>
     </div>
 
-    <!-- Users Table -->
+    <!-- Users Table — ID, Status, View/Deactivate only -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -77,29 +77,21 @@
           <thead>
             <tr>
               <th>Employee ID</th>
-              <th>Name</th>
               <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="u in users" :key="u.id">
+            <tr v-for="u in users" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '—' }}</td>
-              <td style="cursor:pointer" @click="openView(u)">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <div class="iav">{{ initials(u.first_name, u.last_name) }}</div>
-                  <div style="font-weight:600;color:var(--ink)">{{ u.last_name }}, {{ u.first_name }} {{ u.middle_name }}</div>
-                </div>
-              </td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
               <td>
-                <div style="display:flex;gap:6px">
-                  <button class="ibtn ibtn-g ibtn-sm" @click="openView(u)">View</button>
-                  <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openEdit(u)">Edit</button>
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                  <button class="ibtn ibtn-o ibtn-sm" @click="openView(u)">View</button>
                   <button
                     v-if="auth.isAdmin"
                     class="ibtn ibtn-sm"
@@ -127,7 +119,7 @@
       </div>
     </div>
 
-    <!-- View Employee Profile Modal -->
+    <!-- View Employee Profile Modal (includes Edit access) -->
     <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
@@ -168,7 +160,10 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Login</div>
             <div style="font-size:13px;color:var(--ink)">{{ viewedUser.last_login_at ? formatDate(viewedUser.last_login_at) : 'Never' }}</div>
           </div>
-          <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:8px" @click="showViewModal = false">Close</button>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button v-if="auth.isAdmin" class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
+            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
+          </div>
         </div>
       </div>
     </div>
@@ -385,6 +380,11 @@ function openView(u) {
   showViewModal.value = true;
 }
 
+function openEditFromView() {
+  showViewModal.value = false;
+  openEdit(viewedUser.value);
+}
+
 function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
@@ -418,6 +418,10 @@ async function saveUser() {
     return;
   }
   if (isEditing.value && !userForm.value.email) {
+    formError.value = 'Please fill in all required fields.';
+    return;
+  }
+  if (userForm.value.email && !isValidEmail(userForm.value.email)) {
     formError.value = 'Please fill in all required fields.';
     return;
   }

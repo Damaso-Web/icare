@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Student Profiles</h1>
-      <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Search for a student to view their records.' }}</p>
+      <p>Browse or search student records.</p>
     </div>
 
     <!-- Tabs -->
@@ -28,11 +28,11 @@
     <div class="filter-bar">
       <div class="sw" style="flex:1;max-width:400px">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input
+        <input
           v-model="filters.search"
           type="text"
           class="sin"
-          :placeholder="showArchived ? 'Search inactive student name or ID...' : 'Search name or student ID...'"
+          placeholder="Search name or student ID..."
           style="width:100%"
           @keypress="blockSpecialKeypress"
           @input="onSearchInput"
@@ -54,33 +54,23 @@
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
-      <div v-else-if="!filters.search" class="empty-state">
-        <h3>Search for a student</h3>
-        <p>Type a name or student ID above to find their profile.</p>
-      </div>
       <div v-else-if="students.length === 0" class="empty-state">
         <h3>No students found</h3>
-        <p>Try a different name or student ID.</p>
+        <p>Try adjusting your search.</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
           <thead>
             <tr>
-              <th>Student Name</th>
+              <th>Student ID</th>
               <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="s in students" :key="s.id" :style="!s.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
-              <td style="cursor:pointer" @click="$router.push({ name: 'student-show', params: { id: s.id } })">
-                <div style="display:flex;align-items:center;gap:10px">
-                  <div class="iav">{{ initials(s.first_name, s.last_name) }}</div>
-                  <div>
-                    <div style="font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
-                    <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }}</div>
-                  </div>
-                </div>
+              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="$router.push({ name: 'student-show', params: { id: s.id } })">
+                {{ s.student_id }}
               </td>
               <td>
                 <span class="ibadge" :style="s.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
@@ -211,11 +201,11 @@
               <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.contact_number = contactNumberInput(addForm.contact_number)" />
             </div>
             <div>
-              <label class="ifl">Guardian Last Name</label>
+              <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
               <input v-model="addForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="addForm.guardian_last_name = onlyLetters(addForm.guardian_last_name)" />
             </div>
             <div>
-              <label class="ifl">Guardian First Name</label>
+              <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
               <input v-model="addForm.guardian_first_name" class="ifi" placeholder="Juan" @input="addForm.guardian_first_name = onlyLetters(addForm.guardian_first_name)" />
             </div>
             <div>
@@ -223,20 +213,20 @@
               <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="addForm.guardian_middle_name = onlyLetters(addForm.guardian_middle_name)" />
             </div>
             <div>
-            <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
-            <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
-          </div>
-          <div>
-            <label class="ifl">Guardian Relationship <span style="color:var(--red)">*</span></label>
-            <select v-model="addForm.guardian_relationship" class="ifse">
-              <option value="">Select...</option>
-              <option>Mother</option>
-              <option>Father</option>
-              <option>Guardian</option>
-              <option>Sibling</option>
-              <option>Relative</option>
-            </select>
-          </div>
+              <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
+              <input v-model="addForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.guardian_contact = contactNumberInput(addForm.guardian_contact)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Relationship <span style="color:var(--red)">*</span></label>
+              <select v-model="addForm.guardian_relationship" class="ifse">
+                <option value="">Select...</option>
+                <option>Mother</option>
+                <option>Father</option>
+                <option>Guardian</option>
+                <option>Sibling</option>
+                <option>Relative</option>
+              </select>
+            </div>
           </div>
           <div v-if="addError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
             {{ addError }}
@@ -254,7 +244,7 @@
       </div>
     </div>
 
-    <!-- Import Modal — File select + auto preview in one -->
+    <!-- Import Modal -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
@@ -287,7 +277,6 @@
             </div>
           </template>
 
-          <!-- Preview shown automatically after file is read -->
           <template v-else>
             <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
 
@@ -318,7 +307,6 @@
               </table>
             </div>
 
-            <!-- Global action buttons -->
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmImport('update')" :disabled="importing">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -342,6 +330,24 @@
       </div>
     </div>
 
+    <!-- Duplicate Name Warning Modal -->
+    <div v-if="showDuplicateNameModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Similar Student Record Found</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            A student named <strong>{{ duplicateStudent?.last_name }}, {{ duplicateStudent?.first_name }} {{ duplicateStudent?.middle_name }}</strong> (ID: {{ duplicateStudent?.student_id }}) already exists. Would you like to update their existing record, or keep it as is?
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="updateExistingAndProceed" :disabled="saving">Update Existing</button>
+            <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="keepExistingAndCancel">Keep Existing Information</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Deactivate Confirmation Modal -->
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -350,11 +356,11 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            This should only be done when the student has officially <strong>graduated</strong>. Their records will be preserved and can be reactivated later if needed.
+            This should only be done when the student is no longer enrolled at Benguet State University. Their records will be preserved and can be reactivated later if needed.
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" v-model="graduateConfirmed" id="gradConfirm" style="width:15px;height:15px;accent-color:var(--moss)" />
-            <label for="gradConfirm" style="font-size:13px;color:var(--slate);cursor:pointer">I confirm this student has graduated.</label>
+            <label for="gradConfirm" style="font-size:13px;color:var(--slate);cursor:pointer">I confirm this student is no longer enrolled.</label>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="!graduateConfirmed" @click="doGraduate">Confirm</button>
@@ -365,29 +371,10 @@
     </div>
 
   </div>
-
-  <!-- Duplicate Name Warning Modal -->
-<div v-if="showDuplicateNameModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Similar Student Record Found</div>
-    </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--slate);line-height:1.6">
-        A student named <strong>{{ duplicateStudent?.last_name }}, {{ duplicateStudent?.first_name }} {{ duplicateStudent?.middle_name }}</strong> (ID: {{ duplicateStudent?.student_id }}) already exists. Would you like to update their existing record, or keep it as is?
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="updateExistingAndProceed" :disabled="saving">Update Existing</button>
-        <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="keepExistingAndCancel">Keep Existing Information</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
@@ -407,18 +394,19 @@ const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
 const addError = ref('');
+
 const showDuplicateNameModal = ref(false);
 const duplicateStudent = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
   college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
-  guardian_name: '', guardian_contact: '', guardian_relationship: '',
+  guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '',
+  guardian_contact: '', guardian_relationship: '',
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
 
-// Import flow state
 const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
 const previewError     = ref('');
@@ -430,25 +418,16 @@ let searchTimeout = null;
 function switchTab(archived) {
   showArchived.value = archived;
   filters.value.search = '';
-  students.value = [];
-  pagination.value = {};
+  fetchStudents();
 }
 
 function onSearchInput() {
   filters.value.search = safeSearchInput(filters.value.search);
   clearTimeout(searchTimeout);
-  if (!filters.value.search) {
-    students.value = [];
-    return;
-  }
   searchTimeout = setTimeout(() => fetchStudents(), 400);
 }
 
 async function fetchStudents(page = 1) {
-  if (!filters.value.search) {
-    students.value = [];
-    return;
-  }
   loading.value = true;
   try {
     const params = { ...filters.value, page };
@@ -462,6 +441,29 @@ async function fetchStudents(page = 1) {
     loading.value = false;
   }
 }
+
+function resetFilters() {
+  filters.value = { search: '' };
+  fetchStudents();
+}
+
+function changePage(page) { fetchStudents(page); }
+
+function openAddModal() {
+  clearAddForm();
+  showAddModal.value = true;
+}
+
+function clearAddForm() {
+  addForm.value = {
+    student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
+    college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
+    guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '',
+    guardian_contact: '', guardian_relationship: '',
+  };
+  addError.value = '';
+}
+
 async function saveStudent() {
   addError.value = '';
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
@@ -470,6 +472,7 @@ async function saveStudent() {
     addError.value = 'Please fill in all required fields.';
     return;
   }
+
   try {
     const dupRes = await studentAPI.checkDuplicateName({
       first_name: addForm.value.first_name,
@@ -495,6 +498,7 @@ async function doSaveStudent() {
     toast?.success('Student added successfully.');
     showAddModal.value = false;
     showDuplicateNameModal.value = false;
+    fetchStudents();
   } catch (e) {
     addError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
@@ -515,35 +519,13 @@ async function updateExistingAndProceed() {
     toast?.success('Existing student record updated.');
     showDuplicateNameModal.value = false;
     showAddModal.value = false;
+    fetchStudents();
   } catch (e) {
     toast?.error('Failed to update existing record.');
   } finally {
     saving.value = false;
   }
 }
-
-function resetFilters() {
-  filters.value = { search: '' };
-  students.value = [];
-  pagination.value = {};
-}
-
-function changePage(page) { fetchStudents(page); }
-
-function openAddModal() {
-  clearAddForm();
-  showAddModal.value = true;
-}
-
-function clearAddForm() {
-  addForm.value = {
-    student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
-    college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
-    guardian_name: '', guardian_contact: '', guardian_relationship: '',
-  };
-  addError.value = '';
-}
-
 
 function confirmGraduate(s) {
   studentToGraduate.value = s;
@@ -566,14 +548,13 @@ async function doGraduate() {
 async function toggleActive(s) {
   try {
     await studentAPI.toggleActive(s.id);
-    toast?.success('Student reactivated.');
+    toast?.success('Student account activated.');
     fetchStudents();
   } catch (e) {
     toast?.error('Please fill in all required fields.');
   }
 }
 
-// --- Import flow ---
 function openImportModal() {
   resetImportFlow();
   showImportModal.value = true;
@@ -642,7 +623,5 @@ async function confirmImport(globalChoice) {
   }
 }
 
-function initials(first, last) {
-  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
-}
+onMounted(() => fetchStudents());
 </script>
