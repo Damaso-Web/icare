@@ -17,7 +17,7 @@ class ReferralController extends Controller
 
     $sortDirection = $request->sort === 'asc' ? 'asc' : 'desc';
 
-    $sduTypes  = ['disciplinary', 'class_attendance'];
+    $sduTypes  = ['disciplinary'];
     $tmduTypes = ['psychological_testing'];
 
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])

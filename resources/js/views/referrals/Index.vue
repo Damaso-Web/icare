@@ -12,8 +12,11 @@
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @keypress="blockSpecialKeypress" @input="onSearchInput" style="width:220px"/>
       </div>
-      <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
-      <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+      <div style="display:flex;align-items:center;gap:6px">
+        <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+        <span style="color:var(--stone);font-size:13px">–</span>
+        <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+      </div>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
@@ -111,10 +114,10 @@ const SERVICES_BY_UNIT = {
     { value: 'withdrawal',          label: 'Withdrawal' },
     { value: 'readmission',         label: 'Readmission' },
     { value: 'shifting',            label: 'Shifting' },
+    { value: 'class_attendance',    label: 'Class Attendance (Absences/Tardiness)' },
   ],
   SDU: [
-    { value: 'disciplinary',     label: 'Acts of Misconduct' },
-    { value: 'class_attendance', label: 'Class Attendance (Absences/Tardiness)' },
+    { value: 'disciplinary', label: 'Acts of Misconduct' },
   ],
   TMDU: [
     { value: 'psychological_testing', label: 'Psychological Testing' },
