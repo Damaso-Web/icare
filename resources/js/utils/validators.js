@@ -17,7 +17,27 @@ export function isValidEmail(email) {
 }
 
 export function contactNumberInput(value) {
-  return onlyDigits(value, 11);
+  let v = value.replace(/[^0-9+]/g, '');
+  
+  // Convert +63 prefix to 0
+  if (v.startsWith('+63')) {
+    v = '0' + v.slice(3);
+  } else if (v.startsWith('63') && v.length > 10) {
+    // Handle pasted "639..." without the plus sign
+    v = '0' + v.slice(2);
+  }
+  
+  // Strip any remaining non-digit characters (like leftover +)
+  v = v.replace(/[^0-9]/g, '');
+  
+  // Cap at 11 digits
+  v = v.slice(0, 11);
+  
+  return v;
+}
+
+export function isValidPHContact(value) {
+  return /^09\d{9}$/.test(value);
 }
 
 export function safeSearchInput(value) {
@@ -29,4 +49,9 @@ export function blockSpecialKeypress(e) {
   if (!allowed.test(e.key)) {
     e.preventDefault();
   }
+}
+
+export function toTitleCase(str) {
+  if (!str) return '';
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }

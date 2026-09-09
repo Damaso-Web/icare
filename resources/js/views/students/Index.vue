@@ -378,7 +378,7 @@ import { ref, computed, inject, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const toast   = inject('toast');
 const colleges = COLLEGES;
@@ -466,6 +466,23 @@ function clearAddForm() {
 
 async function saveStudent() {
   addError.value = '';
+  if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
+      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
+      !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
+    addError.value = 'Please fill in all required fields.';
+    return;
+  }
+
+  if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) {
+    addError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (!isValidPHContact(addForm.value.guardian_contact)) {
+    addError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+  
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
       !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
       !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {

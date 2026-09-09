@@ -303,7 +303,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -409,6 +409,10 @@ function openEdit(u) {
 
 async function saveUser() {
   formError.value = '';
+  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
+  formError.value = 'Contact number must start with 09 and be 11 digits long.';
+  return;
+}
   if (!auth.isAdmin) {
     formError.value = 'Please fill in all required fields.';
     return;

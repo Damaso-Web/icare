@@ -12,28 +12,39 @@ use Illuminate\Http\Request;
 class ReferralController extends Controller
 {
     public function index(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        $query = Referral::with(['student', 'referredBy', 'assignedTo'])
-            ->where('is_archived', false)
-            ->when($request->status,   fn($q) => $q->where('status', $request->status))
-            ->when($request->urgency,  fn($q) => $q->where('urgency_level', $request->urgency))
-            ->when($request->type,     fn($q) => $q->where('referral_type', $request->type))
-            ->when($request->unit, fn($q) => $q->whereHas('case', fn($c) => $c->where('current_unit', $request->unit)))
-            ->when($request->search,   fn($q) => $q->whereHas('student', fn($s) =>
-                $s->where('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('student_id', 'like', "%{$request->search}%")
-            ));
+    $sortDirection = $request->sort === 'asc' ? 'asc' : 'desc';
 
-        // Faculty only see their own referrals
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
-            $query->where('referred_by_user_id', $user->id);
-        }
+    $sduTypes  = ['disciplinary', 'class_attendance'];
+    $tmduTypes = ['psychological_testing'];
 
-        return response()->json($query->latest()->paginate(20));
+    $query = Referral::with(['student', 'referredBy', 'assignedTo'])
+        ->when($request->status,  fn($q) => $q->where('status', $request->status))
+        ->when($request->urgency, fn($q) => $q->where('urgency_level', $request->urgency))
+        ->when($request->type,    fn($q) => $q->where('referral_type', $request->type))
+        ->when($request->unit, function ($q) use ($request, $sduTypes, $tmduTypes) {
+            if ($request->unit === 'SDU') {
+                $q->whereIn('referral_type', $sduTypes);
+            } elseif ($request->unit === 'TMDU') {
+                $q->whereIn('referral_type', $tmduTypes);
+            } elseif ($request->unit === 'GCU') {
+                $q->whereNotIn('referral_type', array_merge($sduTypes, $tmduTypes));
+            }
+        })
+        ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+            $s->where('first_name', 'like', "%{$request->search}%")
+              ->orWhere('last_name', 'like', "%{$request->search}%")
+              ->orWhere('student_id', 'like', "%{$request->search}%")
+        ));
+
+    if ($user->isFaculty() || $user->isDeanSecretary()) {
+        $query->where('referred_by_user_id', $user->id);
     }
+
+    return response()->json($query->orderBy('created_at', $sortDirection)->paginate(20));
+}
 
     public function archived(Request $request)
     {

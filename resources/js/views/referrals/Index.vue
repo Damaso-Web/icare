@@ -22,7 +22,7 @@
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>
       </select>
-      <select v-model="filters.unit" class="fsm" @change="fetchReferrals">
+      <select v-model="filters.unit" class="fsm" @change="onUnitChange">
         <option value="">All Units</option>
         <option value="GCU">GCU</option>
         <option value="SDU">SDU</option>
@@ -30,15 +30,11 @@
       </select>
       <select v-model="filters.type" class="fsm" @change="fetchReferrals">
         <option value="">All Services</option>
-        <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
-        <option value="counseling">Counseling</option>
-        <option value="academic_deficiency">Academic Deficiency</option>
-        <option value="leave_of_absence">Leave of Absence</option>
-        <option value="withdrawal">Withdrawal</option>
-        <option value="readmission">Readmission</option>
-        <option value="shifting">Shifting</option>
-        <option value="psychological_testing">Psychological Testing</option>
-        <option value="disciplinary">Acts of Misconduct</option>
+        <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
+      </select>
+      <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
+        <option value="desc">Date: Newest First</option>
+        <option value="asc">Date: Oldest First</option>
       </select>
     </div>
 
@@ -67,10 +63,10 @@
               {{ r.referral_code }}
             </div>
             <div class="qmeta">
-              {{ r.referral_type?.replace(/_/g, ' ') }} · {{ formatDate(r.created_at) }}
+              {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}
             </div>
             <div class="qtags">
-              <span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span>
+              <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
             </div>
           </div>
           <div class="qacts">
@@ -96,14 +92,50 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { referralAPI } from '../../api/index';
-import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', type: '' });
+const filters    = ref({ search: '', status: '', unit: '', type: '', sort: 'desc' });
+
+const SERVICES_BY_UNIT = {
+  GCU: [
+    { value: 'counseling',          label: 'Counseling' },
+    { value: 'academic_deficiency', label: 'Academic Deficiency' },
+    { value: 'leave_of_absence',    label: 'Leave of Absence' },
+    { value: 'withdrawal',          label: 'Withdrawal' },
+    { value: 'readmission',         label: 'Readmission' },
+    { value: 'shifting',            label: 'Shifting' },
+  ],
+  SDU: [
+    { value: 'disciplinary',     label: 'Acts of Misconduct' },
+    { value: 'class_attendance', label: 'Class Attendance (Absences/Tardiness)' },
+  ],
+  TMDU: [
+    { value: 'psychological_testing', label: 'Psychological Testing' },
+  ],
+};
+
+const ALL_SERVICES = [
+  ...SERVICES_BY_UNIT.GCU,
+  ...SERVICES_BY_UNIT.SDU,
+  ...SERVICES_BY_UNIT.TMDU,
+];
+
+const availableServices = computed(() => {
+  return filters.value.unit ? (SERVICES_BY_UNIT[filters.value.unit] || []) : ALL_SERVICES;
+});
+
+function onUnitChange() {
+  const valid = availableServices.value.map(s => s.value);
+  if (filters.value.type && !valid.includes(filters.value.type)) {
+    filters.value.type = '';
+  }
+  fetchReferrals();
+}
 
 function onSearchInput() {
   filters.value.search = safeSearchInput(filters.value.search);
@@ -124,7 +156,7 @@ async function fetchReferrals(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '' };
+  filters.value = { search: '', status: '', unit: '', type: '', sort: 'desc' };
   fetchReferrals();
 }
 

@@ -77,7 +77,7 @@
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-                  <span class="ibadge" :class="'ibadge-' + referral.case.status">{{ referral.case.status }}</span>
+                  <span class="ibadge" :class="'ibadge-' + referral.case.status">{{ toTitleCase(referral.case.status) }}</span>
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sessions</div>
@@ -123,7 +123,7 @@
             <div class="icard-body" style="display:flex;flex-direction:column;gap:12px">
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-                <span class="ibadge" :class="'ibadge-' + referral.status">{{ referral.status?.replace(/_/g,' ') }}</span>
+                <span class="ibadge" :class="'ibadge-' + referral.status">{{ toTitleCase(referral.status) }}</span>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Client Status</div>
@@ -136,12 +136,12 @@
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
-                <div style="font-size:13px;color:var(--ink)">{{ referral.referral_type?.replace(/_/g,' ') }}</div>
+                <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(referral.referral_type) }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
                 <div style="font-size:13px;color:var(--ink)">{{ referral.referrer_name }}</div>
-                <div style="font-size:11px;color:var(--stone)">{{ referral.referrer_role?.replace(/_/g,' ') }}</div>
+                <div style="font-size:11px;color:var(--stone)">{{ toTitleCase(referral.referrer_role) }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
@@ -218,6 +218,7 @@ import { ref, onMounted, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { referralAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
+import { toTitleCase } from '../../utils/validators';
 
 const route   = useRoute();
 const toast   = inject('toast');
@@ -253,9 +254,8 @@ async function acknowledge() {
   try {
     const res = await referralAPI.acknowledge(referral.value.id);
     referral.value = { ...referral.value, ...res.data.referral };
-    toast?.success('Referral acknowledged and case file created.');
+    toast?.success('Acknowledged referral.');
   } catch (e) {
-    console.error('Acknowledge error:', e.response?.data || e.message);
     toast?.error('Failed to acknowledge referral.');
   } finally {
     acknowledging.value = false;

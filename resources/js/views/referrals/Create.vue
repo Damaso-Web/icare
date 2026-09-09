@@ -43,7 +43,7 @@
             <input
               v-model="studentSearchQuery"
               class="ifi"
-              placeholder="Type student ID or name..."
+              placeholder="e.g. 2302021 or Dela Cruz"
               @keypress="blockSpecialKeypress"
               @input="onStudentSearch"
               @focus="showStudentDropdown = studentSuggestions.length > 0"
@@ -87,19 +87,19 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px 110px;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.last_name" class="ifi" placeholder="Dela Cruz" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.last_name = onlyLetters(form.last_name)" required />
+              <input v-model="form.last_name" class="ifi" placeholder="e.g. Dela Cruz" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.last_name = onlyLetters(form.last_name)" required />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.first_name" class="ifi" placeholder="Juan" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.first_name = onlyLetters(form.first_name)" required />
+              <input v-model="form.first_name" class="ifi" placeholder="e.g. Juan" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.first_name = onlyLetters(form.first_name)" required />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="form.middle_name" class="ifi" placeholder="Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
+              <input v-model="form.middle_name" class="ifi" placeholder="e.g. Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="form.suffix" class="ifi" placeholder="Jr." :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.suffix = onlyLettersStrict(form.suffix)" />
+              <input v-model="form.suffix" class="ifi" placeholder="e.g. Jr." :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.suffix = onlyLettersStrict(form.suffix)" />
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
@@ -157,73 +157,18 @@
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;position:relative">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
-              <label class="ifl">Referrer Last Name <span style="color:var(--red)">*</span></label>
-              <input
-                v-model="form.referrer_last_name"
-                class="ifi"
-                placeholder="Reyes"
-                :readonly="referrerFound"
-                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
-                @keypress="blockSpecialKeypress"
-                @input="onReferrerSearch"
-                @focus="showReferrerDropdown = referrerSuggestions.length > 0"
-                autocomplete="off"
-                required
-              />
+              <label class="ifl">Referrer Last Name</label>
+              <input :value="form.referrer_last_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
             </div>
             <div>
-              <label class="ifl">Referrer First Name <span style="color:var(--red)">*</span></label>
-              <input
-                v-model="form.referrer_first_name"
-                class="ifi"
-                placeholder="Maria"
-                :readonly="referrerFound"
-                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
-                autocomplete="off"
-                required
-              />
+              <label class="ifl">Referrer First Name</label>
+              <input :value="form.referrer_first_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
             </div>
             <div>
               <label class="ifl">Referrer Middle Name</label>
-              <input
-                v-model="form.referrer_middle_name"
-                class="ifi"
-                placeholder="Santos"
-                :readonly="referrerFound"
-                :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
-                autocomplete="off"
-              />
-            </div>
-            <div
-              v-if="showReferrerDropdown && referrerSuggestions.length > 0"
-              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px;grid-column:1/-1"
-            >
-              <div
-                v-for="r in referrerSuggestions"
-                :key="r.id"
-                style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud);transition:background .1s"
-                @mouseover="$event.currentTarget.style.background='var(--foam)'"
-                @mouseleave="$event.currentTarget.style.background='#fff'"
-                @click="selectReferrer(r)"
-              >
-                <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ r.last_name }}, {{ r.first_name }} {{ r.middle_name }}</div>
-                <div style="font-size:11px;color:var(--fog)">{{ r.email }} · {{ roleLabel(r.role) }}</div>
-              </div>
-            </div>
-            <div v-if="referrerFound" style="font-size:11px;color:var(--moss);grid-column:1/-1">
-              ✓ Existing employee found
-            </div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-            <div v-if="['instructor','department_chair','dean'].includes(form.referrer_position)">
-              <label class="ifl">Department / College</label>
-              <select v-model="form.referrer_department" class="ifse" :disabled="referrerFound">
-                <option value="">Select college...</option>
-                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-              </select>
+              <input :value="form.referrer_middle_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
             </div>
           </div>
 
@@ -333,7 +278,7 @@
             <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
             <div><strong>College:</strong> {{ form.college }} — {{ form.program }}</div>
             <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
-            <div><strong>Service:</strong> {{ form.referral_type?.replace(/_/g,' ') }}</div>
+            <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
             <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
             <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
           </div>
@@ -351,13 +296,13 @@
 </template>
 
 <script setup>
-import { ref, inject, computed, nextTick } from 'vue';
+import { ref, inject, computed, nextTick, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { referralAPI, studentAPI, userAPI } from '../../api/index';
+import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -369,16 +314,11 @@ const success = ref('');
 const loading = ref(false);
 const showPreview = ref(false);
 const studentFound  = ref(false);
-const referrerFound = ref(false);
 
 const studentSearchQuery   = ref('');
 const studentSuggestions   = ref([]);
 const showStudentDropdown  = ref(false);
 let studentSearchTimeout = null;
-
-const referrerSuggestions   = ref([]);
-const showReferrerDropdown  = ref(false);
-let referrerSearchTimeout = null;
 
 const isFacultyOrDean = computed(() =>
   auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary'
@@ -400,21 +340,11 @@ const form = ref({
   referrer_last_name:    '',
   referrer_first_name:   '',
   referrer_middle_name:  '',
-  referrer_position:     '',
-  referrer_department:   '',
   referral_type:         '',
   referral_source:       'faculty',
   nature_of_concern:     '',
   violation_type:        '',
 });
-
-function roleLabel(role) {
-  const labels = {
-    admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head',
-    tmdu_staff: 'TMDU Staff', faculty: 'Faculty', dean_secretary: "Dean's Secretary",
-  };
-  return labels[role] || role;
-}
 
 function onServiceChange() {
   if (form.value.referral_type !== 'disciplinary') {
@@ -458,47 +388,6 @@ async function selectStudent(s) {
   studentSearchQuery.value  = `${s.last_name}, ${s.first_name}`;
   showStudentDropdown.value = false;
   studentFound.value        = true;
-}
-
-function onReferrerSearch() {
-  form.value.referrer_last_name = safeSearchInput(form.value.referrer_last_name);
-  clearTimeout(referrerSearchTimeout);
-  referrerFound.value = false;
-  if (!form.value.referrer_last_name || form.value.referrer_last_name.length < 2) {
-    referrerSuggestions.value = [];
-    showReferrerDropdown.value = false;
-    return;
-  }
-  referrerSearchTimeout = setTimeout(async () => {
-    try {
-      const res = await userAPI.index({ search: form.value.referrer_last_name });
-      referrerSuggestions.value = res.data.data || [];
-      showReferrerDropdown.value = referrerSuggestions.value.length > 0;
-    } catch (e) {
-      referrerSuggestions.value = [];
-    }
-  }, 350);
-}
-
-function selectReferrer(r) {
-  form.value.referrer_last_name   = r.last_name;
-  form.value.referrer_first_name  = r.first_name;
-  form.value.referrer_middle_name = r.middle_name || '';
-
-  const ossRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
-  if (ossRoles.includes(r.role)) {
-    form.value.referrer_position = 'oss_staff';
-    form.value.referrer_department = '';
-  } else if (r.role === 'faculty') {
-    form.value.referrer_position   = 'instructor';
-    form.value.referrer_department = r.college || '';
-  } else if (r.role === 'dean_secretary') {
-    form.value.referrer_position   = 'other';
-    form.value.referrer_department = r.college || '';
-  }
-
-  showReferrerDropdown.value = false;
-  referrerFound.value        = true;
 }
 
 function goBack() {
@@ -564,8 +453,8 @@ async function confirmSubmit() {
     });
 
     showPreview.value = false;
-    toast?.success('Referral submitted successfully!');
-    success.value = 'Referral submitted successfully! GCU has been notified.';
+    toast?.success('Student referred.');
+    success.value = 'Student referred. GCU has been notified.';
 
     setTimeout(() => {
       if (isFacultyOrDean.value) {
@@ -589,14 +478,21 @@ function clearForm() {
   success.value = '';
   studentSearchQuery.value = '';
   studentFound.value = false;
-  referrerFound.value = false;
   form.value = {
     student_id_input: '', last_name: '', first_name: '',
     middle_name: '', suffix: '', sex: '', program: '', year_level: '',
-    college: '', section: '', referrer_last_name: '', referrer_first_name: '',
-    referrer_middle_name: '', referrer_position: '', referrer_department: '',
+    college: '', section: '',
+    referrer_last_name:   auth.user?.last_name || '',
+    referrer_first_name:  auth.user?.first_name || '',
+    referrer_middle_name: auth.user?.middle_name || '',
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
     violation_type: '',
   };
 }
+
+onMounted(() => {
+  form.value.referrer_last_name   = auth.user?.last_name || '';
+  form.value.referrer_first_name  = auth.user?.first_name || '';
+  form.value.referrer_middle_name = auth.user?.middle_name || '';
+});
 </script>
