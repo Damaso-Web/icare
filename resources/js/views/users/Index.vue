@@ -413,7 +413,11 @@ async function saveUser() {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-  if (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role) {
+  if (!isEditing.value && (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role)) {
+  formError.value = 'Please fill in all required fields.';
+  return;
+  }
+  if (isEditing.value && (!userForm.value.email)) {
     formError.value = 'Please fill in all required fields.';
     return;
   }

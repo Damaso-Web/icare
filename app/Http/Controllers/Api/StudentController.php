@@ -27,21 +27,23 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_id'             => 'required|string|unique:students,student_id',
-            'first_name'             => 'required|string|max:255',
-            'last_name'              => 'required|string|max:255',
-            'middle_name'            => 'nullable|string|max:255',
-            'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
-            'email'                  => 'nullable|email',
-            'contact_number'         => 'nullable|string|max:11',
-            'college'                => 'nullable|string',
-            'program'                => 'nullable|string',
-            'year_level'             => 'nullable|string',
-            'section'                => 'nullable|string|max:1',
-            'guardian_name'          => 'nullable|string|max:255',
-            'guardian_contact'       => 'nullable|string|max:11',
-            'guardian_relationship'  => 'nullable|string',
-        ]);
+    'student_id'             => 'required|string|unique:students,student_id',
+    'first_name'             => 'required|string|max:255',
+    'last_name'              => 'required|string|max:255',
+    'middle_name'            => 'nullable|string|max:255',
+    'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
+    'email'                  => 'nullable|email',
+    'contact_number'         => 'nullable|string|max:11',
+    'college'                => 'nullable|string',
+    'program'                => 'nullable|string',
+    'year_level'             => 'nullable|string',
+    'section'                => 'nullable|string|max:1',
+    'guardian_first_name'    => 'required|string|max:255',
+    'guardian_middle_name'   => 'nullable|string|max:255',
+    'guardian_last_name'     => 'required|string|max:255',
+    'guardian_contact'       => 'nullable|string|max:11',
+    'guardian_relationship'  => 'nullable|string',
+]);
 
         $student = Student::create([
             ...$validated,
@@ -184,9 +186,7 @@ class StudentController extends Controller
         ]);
     }
 
-    // ==========================
     // Bulk Import with Preview + Duplicate handling
-    // ==========================
     public function importPreview(Request $request)
     {
         $request->validate([
@@ -364,4 +364,21 @@ class StudentController extends Controller
 
         return $rows;
     }
+    public function checkDuplicateName(Request $request)
+{
+    $request->validate([
+        'first_name' => 'required|string',
+        'last_name'  => 'required|string',
+    ]);
+
+    $existing = Student::where('first_name', $request->first_name)
+        ->where('last_name', $request->last_name)
+        ->when($request->middle_name, fn($q) => $q->where('middle_name', $request->middle_name))
+        ->first();
+
+    return response()->json([
+        'duplicate_found' => (bool) $existing,
+        'existing_student' => $existing,
+    ]);
+}
 }

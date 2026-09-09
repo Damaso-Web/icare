@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>{{ showArchived ? 'Inactive Students' : 'Student Profiles' }}</h1>
+      <h1>Student Profiles</h1>
       <p>{{ showArchived ? 'View and reactivate inactive or graduated student records.' : 'Search for a student to view their records.' }}</p>
     </div>
 
@@ -72,7 +72,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr v-for="s in students" :key="s.id">
+            <tr v-for="s in students" :key="s.id" :style="!s.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="cursor:pointer" @click="$router.push({ name: 'student-show', params: { id: s.id } })">
                 <div style="display:flex;align-items:center;gap:10px">
                   <div class="iav">{{ initials(s.first_name, s.last_name) }}</div>
@@ -104,7 +104,7 @@
                     style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
                     @click.stop="toggleActive(s)"
                   >
-                    Unarchive
+                    Activate
                   </button>
                 </div>
               </td>
@@ -211,8 +211,16 @@
               <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.contact_number = contactNumberInput(addForm.contact_number)" />
             </div>
             <div>
-              <label class="ifl">Guardian Name</label>
-              <input v-model="addForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="addForm.guardian_name = onlyLetters(addForm.guardian_name)" />
+              <label class="ifl">Guardian Last Name</label>
+              <input v-model="addForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="addForm.guardian_last_name = onlyLetters(addForm.guardian_last_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian First Name</label>
+              <input v-model="addForm.guardian_first_name" class="ifi" placeholder="Juan" @input="addForm.guardian_first_name = onlyLetters(addForm.guardian_first_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Middle Name</label>
+              <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="addForm.guardian_middle_name = onlyLetters(addForm.guardian_middle_name)" />
             </div>
             <div>
               <label class="ifl">Guardian Contact</label>
@@ -338,7 +346,7 @@
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate / Mark Graduated</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate Student Account?</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
@@ -357,6 +365,25 @@
     </div>
 
   </div>
+
+  <!-- Duplicate Name Warning Modal -->
+<div v-if="showDuplicateNameModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Similar Student Record Found</div>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--slate);line-height:1.6">
+        A student named <strong>{{ duplicateStudent?.last_name }}, {{ duplicateStudent?.first_name }} {{ duplicateStudent?.middle_name }}</strong> (ID: {{ duplicateStudent?.student_id }}) already exists. Would you like to update their existing record, or keep it as is?
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="updateExistingAndProceed" :disabled="saving">Update Existing</button>
+        <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="keepExistingAndCancel">Keep Existing Information</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 </template>
 
 <script setup>
@@ -380,6 +407,8 @@ const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
 const addError = ref('');
+const showDuplicateNameModal = ref(false);
+const duplicateStudent = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
@@ -431,6 +460,66 @@ async function fetchStudents(page = 1) {
     console.error(e);
   } finally {
     loading.value = false;
+  }
+}
+async function saveStudent() {
+  addError.value = '';
+  if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
+      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name) {
+    addError.value = 'Please fill in all required fields.';
+    return;
+  }
+
+  // Check for duplicate name before creating
+  try {
+    const dupRes = await studentAPI.checkDuplicateName({
+      first_name: addForm.value.first_name,
+      last_name: addForm.value.last_name,
+      middle_name: addForm.value.middle_name,
+    });
+    if (dupRes.data.duplicate_found) {
+      duplicateStudent.value = dupRes.data.existing_student;
+      showDuplicateNameModal.value = true;
+      return;
+    }
+  } catch (e) {
+    // continue if check fails
+  }
+
+  await doSaveStudent();
+}
+
+async function doSaveStudent() {
+  saving.value = true;
+  try {
+    await studentAPI.store(addForm.value);
+    toast?.success('Student added successfully.');
+    showAddModal.value = false;
+    showDuplicateNameModal.value = false;
+  } catch (e) {
+    addError.value = e.response?.data?.message || 'Please fill in all required fields.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+function keepExistingAndCancel() {
+  showDuplicateNameModal.value = false;
+  showAddModal.value = false;
+  toast?.success('Kept existing student record. No new entry created.');
+}
+
+async function updateExistingAndProceed() {
+  saving.value = true;
+  try {
+    await studentAPI.update(duplicateStudent.value.id, addForm.value);
+    toast?.success('Existing student record updated.');
+    showDuplicateNameModal.value = false;
+    showAddModal.value = false;
+  } catch (e) {
+    toast?.error('Failed to update existing record.');
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -485,7 +574,7 @@ async function doGraduate() {
   try {
     await studentAPI.graduate(studentToGraduate.value.id);
     showGraduateModal.value = false;
-    toast?.success('Student marked as inactive/graduated. Records preserved.');
+    toast?.success('Deactivated Student Account.');
     fetchStudents();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Please fill in all required fields.');

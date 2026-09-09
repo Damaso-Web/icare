@@ -17,7 +17,7 @@ export const PROGRAMS_BY_COLLEGE = {
   'College of Forestry (CF)': [
     'Bachelor of Science in Forestry',
   ],
-  'College of Home Economics and Technology (CHET)': [
+  'College of Human Ecology (CHE)': [
     'Bachelor of Science in Hospitality Management',
     'Bachelor of Science in Food Technology',
     'Bachelor of Science in Nutrition and Dietetics',

@@ -15,8 +15,6 @@
           <h1>{{ referral.referral_code || 'Referral Details' }}</h1>
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
-        <div style="margin-left:auto;display:flex;gap:8px">
-        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 340px;gap:16px">
@@ -69,7 +67,7 @@
           <div class="icard" v-if="referral.case">
             <div class="icard-header">
               <span class="icard-title">Linked Case File</span>
-              <router-link :to="{ name: 'case-show', params: { id: referral.case.id } }" class="ibtn ibtn-o ibtn-sm">Open Case</router-link>
+              <router-link v-if="isGCU" :to="{ name: 'case-show', params: { id: referral.case.id } }" class="ibtn ibtn-o ibtn-sm">Open Case</router-link>
             </div>
             <div class="icard-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -98,8 +96,8 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
-          <!-- Actions — shown at top -->
-          <div class="icard" v-if="referral.status === 'submitted'">
+          <!-- Acknowledge — visible to Admin and GCU Staff -->
+          <div class="icard" v-if="referral.status === 'submitted' && isGCU">
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.
@@ -109,6 +107,13 @@
                 <span v-if="acknowledging" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ acknowledging ? 'Acknowledging...' : 'Acknowledge Referral' }}
               </button>
+            </div>
+          </div>
+
+          <!-- Read-only status for non-GCU roles -->
+          <div class="icard" v-else-if="referral.status === 'submitted'">
+            <div class="icard-body">
+              <div style="font-size:13px;color:var(--stone)">Awaiting acknowledgement from GCU.</div>
             </div>
           </div>
 
@@ -153,7 +158,7 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Student</span>
-              <router-link :to="{ name: 'student-show', params: { id: referral.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
+              <router-link v-if="isGCU" :to="{ name: 'student-show', params: { id: referral.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
@@ -204,9 +209,6 @@
 
         </div>
       </div>
-
-
-
     </template>
   </div>
 </template>
@@ -222,9 +224,7 @@ const toast   = inject('toast');
 const auth    = useAuthStore();
 const loading = ref(true);
 const acknowledging = ref(false);
-const showEditModal = ref(false);
 const referral = ref({});
-const editForm  = ref({});
 
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
@@ -261,7 +261,6 @@ async function acknowledge() {
   }
 }
 
-
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
@@ -274,11 +273,6 @@ onMounted(async () => {
   try {
     const res = await referralAPI.show(route.params.id);
     referral.value = res.data;
-    editForm.value = {
-      referral_type:     res.data.referral_type,
-      nature_of_concern: res.data.nature_of_concern,
-      intake_notes:      res.data.intake_notes,
-    };
   } catch (e) {
     console.error(e);
   } finally {

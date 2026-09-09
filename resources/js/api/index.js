@@ -52,6 +52,7 @@ export const studentAPI = {
     import:        (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importPreview: (formData) => api.post('/students/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importConfirm: (data)     => api.post('/students/import-confirm', data),
+    checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
 };
 
 export const referralAPI = {

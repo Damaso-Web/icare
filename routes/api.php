@@ -41,6 +41,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
     Route::post('students/import-preview', [StudentController::class, 'importPreview']);
     Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
+    Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);

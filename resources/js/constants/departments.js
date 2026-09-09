@@ -11,7 +11,7 @@ export const DEPARTMENTS_BY_COLLEGE = {
   'College of Forestry (CF)': [
     'Forest Science', 'Environmental Science',
   ],
-  'College of Home Ecology (CHE)': [
+  'College of Human Ecology (CHE)': [
     'Hospitality Management', 'Food Technology',
   ],
   'College of Human Kinetics (CHK)': [
