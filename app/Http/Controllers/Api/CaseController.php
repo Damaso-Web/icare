@@ -13,63 +13,73 @@ use Illuminate\Http\Request;
 
 class CaseController extends Controller
 {
+    private function authorizeStaffAccess(): void
+    {
+        $user = request()->user();
+        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
+            abort(403, 'Unauthorized. Only OSS staff may access case files.');
+        }
+    }
+
     public function index(Request $request)
-{
-    $user = $request->user();
+    {
+        $this->authorizeStaffAccess();
 
-    if ($user->isFaculty() || $user->isDeanSecretary()) {
-        abort(403, 'Access denied.');
+        $user = $request->user();
+
+        $query = CaseFile::with(['student', 'counselor', 'referral'])
+            ->whereHas('student', fn($s) => $s->where('is_active', true))
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
+            ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
+            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+                $s->where('first_name', 'like', "%{$request->search}%")
+                  ->orWhere('last_name', 'like', "%{$request->search}%")
+                  ->orWhere('student_id', 'like', "%{$request->search}%")
+            ));
+
+        if ($user->isTMDUStaff()) {
+            $query->where('current_unit', 'TMDU');
+        }
+
+        if ($user->isSDUHead()) {
+            $query->where('current_unit', 'SDU');
+        }
+
+        return response()->json($query->latest()->paginate(20));
     }
-
-    $query = CaseFile::with(['student', 'counselor', 'referral'])
-        ->whereHas('student', fn($s) => $s->where('is_active', true))
-        ->when($request->status, fn($q) => $q->where('status', $request->status))
-        ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
-        ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
-        ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-            $s->where('first_name', 'like', "%{$request->search}%")
-              ->orWhere('last_name', 'like', "%{$request->search}%")
-              ->orWhere('student_id', 'like', "%{$request->search}%")
-        ));
-
-    if ($user->isTMDUStaff()) {
-        $query->where('current_unit', 'TMDU');
-    }
-
-    if ($user->isSDUHead()) {
-        $query->where('current_unit', 'SDU');
-    }
-
-    return response()->json($query->latest()->paginate(20));
-}
 
     public function show(CaseFile $case)
-{
-    AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
+    {
+        $this->authorizeStaffAccess();
 
-    $priorCaseCount = CaseFile::where('student_id', $case->student_id)
-        ->where('id', '!=', $case->id)
-        ->count();
+        AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
 
-    return response()->json([
-        ...$case->load([
-            'student',
-            'counselor',
-            'referral.referredBy',
-            'sessionNotes.recordedBy',
-            'appointments.staff',
-            'testingRecord',
-            'handoffs.fromUser',
-            'handoffs.toUser',
-            'documents',
-        ])->toArray(),
-        'client_status'         => $priorCaseCount > 0 ? 'existing' : 'new',
-        'prior_case_count'      => $priorCaseCount,
-    ]);
-}
+        $priorCaseCount = CaseFile::where('student_id', $case->student_id)
+            ->where('id', '!=', $case->id)
+            ->count();
+
+        return response()->json([
+            ...$case->load([
+                'student',
+                'counselor',
+                'referral.referredBy',
+                'sessionNotes.recordedBy',
+                'appointments.staff',
+                'testingRecord',
+                'handoffs.fromUser',
+                'handoffs.toUser',
+                'documents',
+            ])->toArray(),
+            'client_status'    => $priorCaseCount > 0 ? 'existing' : 'new',
+            'prior_case_count' => $priorCaseCount,
+        ]);
+    }
 
     public function update(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $old = $case->toArray();
         $case->update($request->only([
             'primary_counselor_id',
@@ -87,6 +97,8 @@ class CaseController extends Controller
 
     public function updateStatus(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate([
             'status' => 'required|in:open,in_progress,awaiting_testing,awaiting_external,on_hold,resolved,closed'
         ]);
@@ -98,6 +110,8 @@ class CaseController extends Controller
 
     public function close(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate([
             'interventions_applied' => 'required|string',
             'outcomes'              => 'required|string',
@@ -117,6 +131,8 @@ class CaseController extends Controller
 
     public function summary(CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         AuditLog::record('exported', "Exported summary for case {$case->case_number}.", $case);
         return response()->json($case->load([
             'student',
@@ -130,6 +146,8 @@ class CaseController extends Controller
 
     public function referToTmdu(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate(['reason' => 'required|string']);
 
         $testing = TestingRecord::create([
@@ -160,6 +178,8 @@ class CaseController extends Controller
 
     public function referExternal(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate([
             'destination' => 'required|string',
             'reason'      => 'required|string',
@@ -177,6 +197,8 @@ class CaseController extends Controller
 
     public function handoff(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate([
             'to_user_id' => 'required|exists:users,id',
             'to_unit'    => 'required|in:GCU,SDU,TMDU',
@@ -203,6 +225,8 @@ class CaseController extends Controller
     // FR 2.7: Alert Dean's Secretary for Unreachable Students
     public function flagUnreachable(Request $request, CaseFile $case)
     {
+        $this->authorizeStaffAccess();
+
         $request->validate([
             'notes' => 'nullable|string',
         ]);
@@ -214,13 +238,11 @@ class CaseController extends Controller
             'unreachable_notes'       => $request->notes,
         ]);
 
-        // Find Dean's Secretary of the student's college
         $deanSecretaries = User::where('role', 'dean_secretary')
             ->where('college', $case->student->college)
             ->where('is_active', true)
             ->get();
 
-        // Send notification to each Dean's Secretary
         foreach ($deanSecretaries as $secretary) {
             $secretary->notify(new UnreachableStudentNotification($case, $request->notes ?? ''));
         }
