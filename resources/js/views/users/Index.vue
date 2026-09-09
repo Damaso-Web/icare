@@ -34,6 +34,7 @@
           class="sin"
           placeholder="Search name or email..."
           style="width:220px"
+          @keypress="blockSpecialKeypress"
           @input="onSearchLetters"
         />
       </div>
@@ -307,7 +308,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput } from '../../utils/validators';
+import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');

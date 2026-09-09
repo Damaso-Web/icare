@@ -28,12 +28,13 @@
     <div class="filter-bar">
       <div class="sw" style="flex:1;max-width:400px">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
+                <input
           v-model="filters.search"
           type="text"
           class="sin"
           :placeholder="showArchived ? 'Search inactive student name or ID...' : 'Search name or student ID...'"
           style="width:100%"
+          @keypress="blockSpecialKeypress"
           @input="onSearchInput"
         />
       </div>
@@ -363,7 +364,7 @@ import { ref, computed, inject } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, safeSearchInput } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const toast   = inject('toast');
 const colleges = COLLEGES;

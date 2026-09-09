@@ -100,7 +100,6 @@
 
           <!-- Actions — shown at top -->
           <div class="icard" v-if="referral.status === 'submitted'">
-            <div class="icard-header"><span class="icard-title">Intervention/s</span></div>
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.

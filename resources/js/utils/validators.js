@@ -21,5 +21,12 @@ export function contactNumberInput(value) {
 }
 
 export function safeSearchInput(value) {
-  return value.replace(/[^a-zA-Z0-9\s\-]/g, '');
+  return value.replace(/[^a-zA-Z0-9\s]/g, '');
+}
+
+export function blockSpecialKeypress(e) {
+  const allowed = /^[a-zA-Z0-9\s]$/;
+  if (!allowed.test(e.key)) {
+    e.preventDefault();
+  }
 }

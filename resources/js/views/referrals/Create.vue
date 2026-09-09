@@ -44,6 +44,7 @@
               v-model="studentSearchQuery"
               class="ifi"
               placeholder="Type student ID or name..."
+              @keypress="blockSpecialKeypress"
               @input="onStudentSearch"
               @focus="showStudentDropdown = studentSuggestions.length > 0"
               autocomplete="off"
@@ -165,6 +166,7 @@
                 placeholder="Reyes"
                 :readonly="referrerFound"
                 :style="referrerFound ? 'background:var(--snow);color:var(--stone)' : ''"
+                @keypress="blockSpecialKeypress"
                 @input="onReferrerSearch"
                 @focus="showReferrerDropdown = referrerSuggestions.length > 0"
                 autocomplete="off"
@@ -317,6 +319,34 @@
         </form>
       </div>
     </div>
+
+    <!-- Confirmation Preview Modal -->
+    <div v-if="showPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreview = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Referral Details</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showPreview = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
+            <div><strong>College:</strong> {{ form.college }} — {{ form.program }}</div>
+            <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
+            <div><strong>Service:</strong> {{ form.referral_type?.replace(/_/g,' ') }}</div>
+            <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
+            <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="confirmSubmit" :disabled="loading">
+              {{ loading ? 'Submitting...' : 'Confirm & Submit' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showPreview = false">Go Back &amp; Edit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -327,7 +357,7 @@ import { referralAPI, studentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -337,6 +367,7 @@ const colleges = COLLEGES;
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
+const showPreview = ref(false);
 const studentFound  = ref(false);
 const referrerFound = ref(false);
 
@@ -478,9 +509,8 @@ function goBack() {
   }
 }
 
-async function handleSubmit() {
-  error.value   = '';
-  success.value = '';
+function handleSubmit() {
+  error.value = '';
 
   if (!form.value.student_id_input) {
     error.value = 'Please fill in all required fields.';
@@ -494,8 +524,11 @@ async function handleSubmit() {
     return;
   }
 
-  loading.value = true;
+  showPreview.value = true;
+}
 
+async function confirmSubmit() {
+  loading.value = true;
   try {
     let studentId = null;
     const searchRes = await studentAPI.index({ search: form.value.student_id_input });
@@ -530,6 +563,7 @@ async function handleSubmit() {
       violation_type:    form.value.violation_type || null,
     });
 
+    showPreview.value = false;
     toast?.success('Referral submitted successfully!');
     success.value = 'Referral submitted successfully! GCU has been notified.';
 
@@ -542,6 +576,7 @@ async function handleSubmit() {
     }, 1500);
 
   } catch (e) {
+    showPreview.value = false;
     error.value = e.response?.data?.message || 'Please fill in all required fields.';
     toast?.error(error.value);
   } finally {
