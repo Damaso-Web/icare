@@ -73,7 +73,7 @@
                 <span class="ibadge" style="font-size:10px" :style="roleStyle(log.user_role)">{{ roleLabel(log.user_role) }}</span>
               </td>
               <td>
-                <span class="ibadge" :style="actionStyle(log.action)">{{ log.action?.replace(/_/g,' ') }}</span>
+                <span class="ibadge" :style="actionStyle(log.action)">{{ toTitleCase(log.action) }}</span>
               </td>
               <td style="font-size:12px;color:var(--slate);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ log.description }}</td>
               <td style="font-family:var(--mono);font-size:11px;color:var(--fog)">{{ log.ip_address }}</td>
@@ -113,7 +113,7 @@
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Action</div>
-            <span class="ibadge" :style="actionStyle(selectedLog.action)">{{ selectedLog.action?.replace(/_/g,' ') }}</span>
+            <span class="ibadge" :style="actionStyle(selectedLog.action)">{{ toTitleCase(selectedLog.action) }}</span>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Description</div>
@@ -145,6 +145,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { auditAPI, userAPI } from '../../api/index';
+import { toTitleCase } from '../../utils/validators';
 
 const loading     = ref(true);
 const logs        = ref([]);

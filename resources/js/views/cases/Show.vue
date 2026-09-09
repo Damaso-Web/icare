@@ -52,7 +52,7 @@
             <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:20px 22px;border-radius:var(--r-lg) var(--r-lg) 0 0">
               <div style="font-family:var(--serif);font-style:italic;font-size:20px;color:#fff;margin-bottom:4px">{{ caseFile.case_number }}</div>
               <div style="font-size:12px;color:rgba(255,255,255,.55);display:flex;gap:12px;flex-wrap:wrap">
-                <span>{{ caseFile.case_type?.replace(/_/g,' ') }}</span>
+                <span>{{ toTitleCase(caseFile.case_type) }}</span>
                 <span>Opened {{ formatDate(caseFile.opened_date) }}</span>
                 <span>{{ caseFile.total_sessions }} session{{ caseFile.total_sessions !== 1 ? 's' : '' }}</span>
               </div>
@@ -60,7 +60,7 @@
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:16px">
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-              <span class="ibadge" :class="'ibadge-' + caseFile.status">{{ caseFile.status?.replace(/_/g,' ') }}</span>
+              <span class="ibadge" :class="'ibadge-' + caseFile.status">{{ toTitleCase(caseFile.status) }}</span>
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Current Unit</div>
@@ -95,7 +95,7 @@
           <div class="icard" v-if="caseFile.referral">
             <div class="icard-header">
               <span class="icard-title">Referral Form</span>
-              <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ caseFile.referral?.status?.replace(/_/g,' ') }}</span>
+              <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ toTitleCase(caseFile.referral?.status) }}</span>
             </div>
 
             <!-- Document Code Header -->
@@ -163,7 +163,7 @@
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_role?.replace(/_/g,' ') || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.referral?.referrer_role) || '—' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
@@ -185,7 +185,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referral_type?.replace(/_/g,' ') || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.referral?.referral_type) || '—' }}</div>
                   </div>
                   <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
@@ -254,7 +254,7 @@
               <div v-for="note in sessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">
-                    Session #{{ note.session_number }} — {{ note.session_type?.replace(/_/g,' ') }}
+                    Session #{{ note.session_number }} — {{ toTitleCase(note.session_type) }}
                   </div>
                   <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
                 </div>
@@ -531,6 +531,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
+import { toTitleCase } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import { caseAPI, sessionNoteAPI, appointmentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';

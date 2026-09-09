@@ -55,7 +55,7 @@
             <div v-if="!referralData.by_type?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
             <div v-for="item in referralData.by_type" :key="item.referral_type" style="margin-bottom:11px">
               <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
-                <span>{{ item.referral_type?.replace(/_/g,' ') }}</span>
+                <span>{{ toTitleCase(item.referral_type) }}</span>
                 <span style="color:var(--stone)">{{ item.count }}</span>
               </div>
               <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
@@ -92,7 +92,7 @@
           <div class="icard-body">
             <div v-if="!caseData.by_status?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
             <div v-for="item in caseData.by_status" :key="item.status" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cloud)">
-              <span class="ibadge" :class="'ibadge-' + item.status">{{ item.status?.replace(/_/g,' ') }}</span>
+              <span class="ibadge" :class="'ibadge-' + item.status">{{ toTitleCase(item.status) }}</span>
               <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ item.count }}</span>
             </div>
           </div>
@@ -184,6 +184,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { reportAPI } from '../../api/index';
+import { toTitleCase } from '../../utils/validators';
 
 const loading  = ref(true);
 const dateFrom = ref('');

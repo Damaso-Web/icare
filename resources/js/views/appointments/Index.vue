@@ -62,10 +62,10 @@
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                 </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
-                  {{ a.appointment_type?.replace(/_/g,' ') }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
+                  {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ a.status?.replace(/_/g,' ') }}</span>
+                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
@@ -334,6 +334,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { appointmentAPI, caseAPI, userAPI } from '../../api/index';
+import { toTitleCase } from '../../utils/validators';
 
 const toast = inject('toast');
 

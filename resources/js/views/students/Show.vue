@@ -60,7 +60,7 @@
                     @click="$router.push({ name: 'case-show', params: { id: c.id } })"
                   >
                     <td style="font-family:var(--mono);font-size:11px">{{ c.case_number }}</td>
-                    <td>{{ c.case_type?.replace(/_/g,' ') }}</td>
+                    <td>{{ toTitleCase(c.case_type) }}</td>
                     <td><span class="ibadge" :class="'unit-' + c.current_unit?.toLowerCase()">{{ c.current_unit }}</span></td>
                     <td>{{ c.total_sessions }}</td>
                     <td><span class="ibadge" :class="'ibadge-' + c.status">{{ c.status }}</span></td>
@@ -98,9 +98,9 @@
                     @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
                   >
                     <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
-                    <td>{{ r.referral_type?.replace(/_/g,' ') }}</td>
+                    <td>{{ toTitleCase(r.referral_type) }}</td>
                     <td>{{ r.referrer_name }}</td>
-                    <td><span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g,' ') }}</span></td>
+                    <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                     <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
                   </tr>
                 </tbody>
@@ -130,7 +130,7 @@
                 <tbody>
                   <tr v-for="a in history.appointments" :key="a.id">
                     <td style="font-family:var(--mono);font-size:11px">{{ a.appointment_code }}</td>
-                    <td>{{ a.appointment_type?.replace(/_/g,' ') }}</td>
+                    <td>{{ toTitleCase(a.appointment_type) }}</td>
                     <td>{{ a.staff?.name }}</td>
                     <td style="font-size:12px">{{ formatDate(a.appointment_date) }}</td>
                     <td style="font-size:12px">{{ a.start_time }}</td>
@@ -347,6 +347,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
+import { toTitleCase } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';

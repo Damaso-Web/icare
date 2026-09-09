@@ -56,7 +56,7 @@
                 Tester: {{ t.tester?.name || '—' }}
               </div>
               <div class="qtags">
-                <span class="ibadge" :class="statusBadge(t.status)">{{ t.status?.replace(/_/g,' ') }}</span>
+                <span class="ibadge" :class="statusBadge(t.status)">{{ toTitleCase(t.status) }}</span>
                 <span class="ibadge unit-tmdu">TMDU</span>
               </div>
             </div>
@@ -192,6 +192,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { testingAPI } from '../../api/index';
+import { toTitleCase } from '../../utils/validators';
 
 const toast        = inject('toast');
 const filterStatus = ref('');
