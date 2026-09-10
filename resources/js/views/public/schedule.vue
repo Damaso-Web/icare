@@ -64,7 +64,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
-              <select v-model="form.start_time" class="ifse" @change="onTimeChange">
+              <select v-model="form.start_time" class="ifse" @change="checkAvailability">
                 <option value="">Select...</option>
                 <option value="08:00">08:00 AM</option>
                 <option value="09:00">09:00 AM</option>
@@ -88,6 +88,10 @@
                 <option value="16:00">04:00 PM</option>
               </select>
             </div>
+          </div>
+
+          <div v-if="timeOrderError" style="font-size:11px;color:var(--red);margin-top:-8px">
+            End time must be later than start time.
           </div>
 
           <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
@@ -130,6 +134,7 @@ const submitError = ref('');
 const appointment = ref({});
 const referral     = ref(null);
 const dayWarning   = ref(false);
+const timeOrderError = ref(false);
 const checkingAvailability = ref(false);
 const availabilityChecked  = ref(false);
 const isAvailable = ref(false);
@@ -147,7 +152,7 @@ const minDate = computed(() => today.toISOString().split('T')[0]);
 
 const canSubmit = computed(() => {
   return form.value.appointment_date && form.value.start_time && form.value.end_time &&
-         !dayWarning.value && availabilityChecked.value && isAvailable.value;
+         !dayWarning.value && !timeOrderError.value && availabilityChecked.value && isAvailable.value;
 });
 
 function checkDayOfWeek() {
@@ -160,7 +165,14 @@ function checkDayOfWeek() {
 async function checkAvailability() {
   checkDayOfWeek();
   availabilityChecked.value = false;
+  timeOrderError.value = false;
+
   if (dayWarning.value || !form.value.appointment_date || !form.value.start_time || !form.value.end_time) return;
+
+  if (form.value.end_time <= form.value.start_time) {
+    timeOrderError.value = true;
+    return;
+  }
 
   checkingAvailability.value = true;
   try {
@@ -173,10 +185,6 @@ async function checkAvailability() {
   } finally {
     checkingAvailability.value = false;
   }
-}
-
-function onTimeChange() {
-  checkAvailability();
 }
 
 async function submitSchedule() {

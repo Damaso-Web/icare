@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 
 class PublicSchedulingController extends Controller
 {
-    // No auth required — accessed via unique token link
     public function show($token)
     {
         $appointment = Appointment::where('scheduling_token', $token)
@@ -34,8 +33,12 @@ class PublicSchedulingController extends Controller
             'end_time'         => 'required',
         ]);
 
+        if ($request->end_time <= $request->start_time) {
+            return response()->json(['available' => false, 'message' => 'End time must be later than start time.']);
+        }
+
         $date = new \DateTime($request->appointment_date);
-        $dayOfWeek = (int) $date->format('N'); // 1 = Monday, 7 = Sunday
+        $dayOfWeek = (int) $date->format('N');
 
         if ($dayOfWeek > 5) {
             return response()->json(['available' => false, 'message' => 'Appointments can only be scheduled Monday to Friday.']);
@@ -47,6 +50,7 @@ class PublicSchedulingController extends Controller
 
         $conflict = Appointment::where('unit', $appointment->unit)
             ->where('appointment_date', $request->appointment_date)
+            ->where('id', '!=', $appointment->id)
             ->whereNotIn('status', ['cancelled'])
             ->where(function ($q) use ($request) {
                 $q->whereBetween('start_time', [$request->start_time, $request->end_time])
@@ -69,11 +73,19 @@ class PublicSchedulingController extends Controller
             'end_time'         => 'required',
         ]);
 
+        if ($request->end_time <= $request->start_time) {
+            return response()->json(['message' => 'End time must be later than start time.'], 422);
+        }
+
         $date = new \DateTime($request->appointment_date);
         $dayOfWeek = (int) $date->format('N');
 
         if ($dayOfWeek > 5) {
             return response()->json(['message' => 'Appointments can only be scheduled Monday to Friday.'], 422);
+        }
+
+        if ($request->start_time < '08:00' || $request->end_time > '16:00') {
+            return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
         }
 
         $conflict = Appointment::where('unit', $appointment->unit)
@@ -97,6 +109,10 @@ class PublicSchedulingController extends Controller
             'request_status'   => 'pending_confirmation',
             'status'           => 'pending',
         ]);
+
+        if ($appointment->case?->referral) {
+            $appointment->case->referral->update(['status' => 'scheduled']);
+        }
 
         AuditLog::record('scheduled', "Student self-scheduled appointment {$appointment->appointment_code}.", $appointment);
 
