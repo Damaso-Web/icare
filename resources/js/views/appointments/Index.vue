@@ -22,7 +22,10 @@
             <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
           </div>
           <div style="flex:1;min-width:0;cursor:pointer" @click="goToCase(a)">
-            <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
+              <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+              <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
+            </div>
             <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
               Requested: {{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}
             </div>
@@ -89,9 +92,10 @@
               </div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
-                  <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
-                </div>
+                <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+                <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
+                <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
+              </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
@@ -522,7 +526,8 @@ async function cancelAppt(a) {
 
 function openReschedule(a) {
   rescheduleTarget.value = a;
-  rescheduleForm.value = { appointment_date: a.appointment_date, start_time: '', end_time: '', reschedule_reason: '' };
+  const dateOnly = a.appointment_date ? a.appointment_date.split('T')[0] : '';
+  rescheduleForm.value = { appointment_date: dateOnly, start_time: '', end_time: '', reschedule_reason: '' };
   conflictWarning.value = false;
   showRescheduleModal.value = true;
 }

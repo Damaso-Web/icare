@@ -35,7 +35,7 @@ class AppointmentController extends Controller
         $validated = $request->validate([
             'case_id'          => 'required|exists:cases,id',
             'student_id'       => 'required|exists:students,id',
-            'staff_user_id'    => 'required|exists:users,id',
+            'staff_user_id'    => 'nullable|exists:users,id',
             'unit'             => 'required|in:GCU,SDU,TMDU',
             'appointment_type' => 'required|string',
             'appointment_date' => 'required|date|after_or_equal:today',
@@ -45,7 +45,7 @@ class AppointmentController extends Controller
             'notes'            => 'nullable|string',
         ]);
 
-        if (Appointment::hasConflict(
+        if (!empty($validated['staff_user_id']) && Appointment::hasConflict(
             $validated['staff_user_id'],
             $validated['appointment_date'],
             $validated['start_time'],
@@ -53,6 +53,9 @@ class AppointmentController extends Controller
         )) {
             return response()->json(['message' => 'Scheduling conflict: staff is unavailable at this time.'], 422);
         }
+
+        // Fallback to the creating user if TBA/auto-assign was chosen (column is NOT NULL)
+        $validated['staff_user_id'] = $validated['staff_user_id'] ?: $request->user()->id;
 
         $appt = Appointment::create([
             ...$validated,
@@ -103,7 +106,7 @@ class AppointmentController extends Controller
             'reschedule_reason' => 'required|string',
         ]);
 
-        if (Appointment::hasConflict(
+        if (!empty($appointment->staff_user_id) && Appointment::hasConflict(
             $appointment->staff_user_id,
             $request->appointment_date,
             $request->start_time,
@@ -114,12 +117,16 @@ class AppointmentController extends Controller
         }
 
         $new = $appointment->replicate();
+        $new->appointment_code    = null;
+        $new->scheduling_token    = null;
+        $new->token_expires_at    = null;
         $new->appointment_date    = $request->appointment_date;
         $new->start_time          = $request->start_time;
         $new->end_time            = $request->end_time;
         $new->rescheduled_from_id = $appointment->id;
         $new->reschedule_reason   = $request->reschedule_reason;
         $new->status              = 'pending';
+        $new->request_status      = 'confirmed';
         $new->confirmation_sent   = false;
         $new->save();
 
@@ -160,20 +167,17 @@ class AppointmentController extends Controller
     // FR 2.6: Escalate No-Show to Dean's Secretary
     public function escalateNoShow(Request $request, Appointment $appointment)
     {
-        // Mark appointment as no_show
         $appointment->update([
             'status'               => 'no_show',
             'no_show_escalated'    => true,
             'no_show_escalated_at' => now(),
         ]);
 
-        // Find Dean's Secretary of the student's college
         $deanSecretaries = User::where('role', 'dean_secretary')
             ->where('college', $appointment->student->college)
             ->where('is_active', true)
             ->get();
 
-        // Send notification to each Dean's Secretary
         foreach ($deanSecretaries as $secretary) {
             $secretary->notify(new NoShowEscalationNotification($appointment));
         }
@@ -215,11 +219,15 @@ class AppointmentController extends Controller
     public function checkConflict(Request $request)
     {
         $request->validate([
-            'staff_user_id'    => 'required|exists:users,id',
+            'staff_user_id'    => 'nullable|exists:users,id',
             'appointment_date' => 'required|date',
             'start_time'       => 'required',
             'end_time'         => 'required',
         ]);
+
+        if (empty($request->staff_user_id)) {
+            return response()->json(['has_conflict' => false]);
+        }
 
         $conflict = Appointment::hasConflict(
             $request->staff_user_id,
