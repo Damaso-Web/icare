@@ -6,6 +6,36 @@
       <p>View, schedule, and manage counseling sessions and conferences.</p>
     </div>
 
+    <!-- Awaiting Confirmation Section -->
+    <div v-if="pendingConfirmations.length > 0" class="icard" style="border:2px solid var(--amber);margin-bottom:16px">
+      <div class="icard-header" style="background:var(--amber-lt)">
+        <span class="icard-title" style="color:var(--amber)">⚠ Awaiting Your Confirmation ({{ pendingConfirmations.length }})</span>
+      </div>
+      <div>
+        <div
+          v-for="a in pendingConfirmations"
+          :key="a.id"
+          style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud)"
+        >
+          <div style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
+            <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
+            <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
+          </div>
+          <div style="flex:1;min-width:0;cursor:pointer" @click="goToCase(a)">
+            <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+            <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
+              Requested: {{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
+            <button class="ibtn ibtn-p ibtn-sm" @click.stop="confirmRequest(a)">Confirm</button>
+            <button class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Reschedule</button>
+            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="cancelAppt(a)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
 
       <!-- Left: Appointments List -->
@@ -379,11 +409,15 @@ const timeSlots = [
   { time: '13:00' }, { time: '14:00' }, { time: '15:00' }, { time: '16:00' },
 ];
 
+const pendingConfirmations = computed(() => {
+  return appointments.value.filter(a => a.request_status === 'pending_confirmation');
+});
+
 function validateBusinessDay() {
   businessDayWarning.value = false;
   if (!scheduleForm.value.appointment_date) return;
   const d = new Date(scheduleForm.value.appointment_date + 'T00:00:00');
-  const day = d.getDay(); // 0 = Sunday, 6 = Saturday
+  const day = d.getDay();
   if (day === 0 || day === 6) {
     businessDayWarning.value = true;
   }
@@ -433,6 +467,18 @@ function roleLabel(role) {
   return labels[role] || role;
 }
 
+async function confirmRequest(a) {
+  try {
+    await appointmentAPI.confirm(a.id);
+    a.status = 'confirmed';
+    a.request_status = 'confirmed';
+    toast?.success('Appointment confirmed. Student will be notified.');
+    fetchAppointments();
+  } catch (e) {
+    toast?.error('Failed to confirm appointment.');
+  }
+}
+
 async function confirmAppt(a) {
   try {
     await appointmentAPI.confirm(a.id);
@@ -460,7 +506,6 @@ async function markNoShow(a) {
     a.no_show_escalated = true;
     toast?.success("Marked as no-show and escalated to Dean's Secretary.");
   } catch (e) {
-    console.error('No-show error:', e.response?.data);
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
   }
 }
@@ -605,6 +650,7 @@ function nextMonth() {
 
 function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short' }); }
 function getDay(date)   { return new Date(date).getDate(); }
+function formatDate(date) { return date ? new Date(date).toLocaleDateString() : '—'; }
 
 onMounted(() => {
   fetchAppointments();
