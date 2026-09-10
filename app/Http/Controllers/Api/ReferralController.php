@@ -182,12 +182,14 @@ class ReferralController extends Controller
     ]);
 
     \App\Models\NotificationLog::create([
-        'user_id'    => $referral->referred_by_user_id,
-        'type'       => 'schedule_link',
-        'title'      => 'Referral Acknowledged — Schedule Appointment',
-        'message'    => "The referral for {$referral->student->first_name} {$referral->student->last_name} has been acknowledged. Please share the scheduling link with the student so they can pick their preferred appointment time.",
-        'data'       => json_encode(['scheduling_token' => $token, 'appointment_id' => $appointment->id]),
-    ]);
+    'user_id'       => $referral->referred_by_user_id,
+    'channel'       => 'in_app',
+    'subject'       => 'Referral Acknowledged — Schedule Appointment',
+    'message'       => "The referral for {$referral->student->first_name} {$referral->student->last_name} has been acknowledged. Please share this scheduling link with the student: " . url("/schedule/{$token}"),
+    'related_model' => 'Appointment',
+    'related_id'    => $appointment->id,
+    'status'        => 'pending',
+]);
 
     AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
 
