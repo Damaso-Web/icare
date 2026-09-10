@@ -171,19 +171,6 @@ class ReferralController extends Controller
     // Create a pending appointment request with a scheduling link for the student
     $token = \Illuminate\Support\Str::random(48);
     $appointment = \App\Models\Appointment::create([
-        'case_id'           => $case->id,
-        'student_id'        => $case->student_id,
-        'appointment_type'  => 'initial_counseling',
-        'unit'              => 'GCU',
-        'scheduling_token'  => $token,
-        'token_expires_at'  => now()->addDays(7),
-        'request_status'    => 'awaiting_student',
-        'status'            => 'pending',
-    ]);
-
-    // Create a pending appointment request with a scheduling link for the student
-    $token = \Illuminate\Support\Str::random(48);
-    $appointment = \App\Models\Appointment::create([
         'case_id'             => $case->id,
         'student_id'          => $case->student_id,
         'staff_user_id'       => $request->user()->id,
