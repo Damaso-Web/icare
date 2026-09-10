@@ -181,15 +181,23 @@ class ReferralController extends Controller
         'status'            => 'pending',
     ]);
 
-    \App\Models\NotificationLog::create([
-    'user_id'       => $referral->referred_by_user_id,
-    'channel'       => 'in_app',
-    'subject'       => 'Referral Acknowledged — Schedule Appointment',
-    'message'       => "The referral for {$referral->student->first_name} {$referral->student->last_name} has been acknowledged. Please share this scheduling link with the student: " . url("/schedule/{$token}"),
-    'related_model' => 'Appointment',
-    'related_id'    => $appointment->id,
-    'status'        => 'pending',
-]);
+    // Create a pending appointment request with a scheduling link for the student
+    $token = \Illuminate\Support\Str::random(48);
+    $appointment = \App\Models\Appointment::create([
+        'case_id'             => $case->id,
+        'student_id'          => $case->student_id,
+        'staff_user_id'       => $request->user()->id,
+        'created_by_user_id'  => $request->user()->id,
+        'appointment_type'    => 'initial_counseling',
+        'unit'                => 'GCU',
+        'scheduling_token'    => $token,
+        'token_expires_at'    => now()->addDays(7),
+        'request_status'      => 'awaiting_student',
+        'status'              => 'pending',
+        'appointment_date'    => now()->addDays(1)->format('Y-m-d'),
+        'start_time'          => '08:00',
+        'end_time'            => '09:00',
+    ]);
 
     AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
 
