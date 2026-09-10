@@ -65,13 +65,23 @@ class Appointment extends Model
     ];
 
     protected static function booted(): void
-    {
-        static::creating(function (Appointment $appt) {
-            $year  = now()->year;
-            $count = static::whereYear('created_at', $year)->count() + 1;
-            $appt->appointment_code = 'APT-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
-        });
-    }
+{
+    static::creating(function (Appointment $appt) {
+        $year = now()->year;
+        $lastCode = static::withTrashed()
+            ->where('appointment_code', 'like', "APT-{$year}-%")
+            ->orderByRaw('CAST(SUBSTRING(appointment_code, -4) AS UNSIGNED) DESC')
+            ->value('appointment_code');
+
+        $nextNumber = 1;
+        if ($lastCode) {
+            $lastNumber = (int) substr($lastCode, -4);
+            $nextNumber = $lastNumber + 1;
+        }
+
+        $appt->appointment_code = 'APT-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+    });
+}
 
     public function case()              { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function student()           { return $this->belongsTo(Student::class); }
