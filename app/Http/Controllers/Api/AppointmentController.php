@@ -81,9 +81,14 @@ class AppointmentController extends Controller
     {
         $appointment->update([
             'status'               => 'confirmed',
+            'request_status'       => 'confirmed',
             'confirmation_sent'    => true,
             'confirmation_sent_at' => now(),
         ]);
+
+        if ($appointment->case?->referral) {
+            $appointment->case->referral->update(['status' => 'in_progress']);
+        }
 
         AuditLog::record('confirmed', "Confirmed appointment {$appointment->appointment_code}.", $appointment);
         return response()->json($appointment);
