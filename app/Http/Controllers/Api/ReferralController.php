@@ -146,35 +146,58 @@ class ReferralController extends Controller
     }
 
     public function acknowledge(Request $request, Referral $referral)
-    {
-        $referral->update([
-            'status'                  => 'acknowledged',
-            'acknowledged_at'         => now(),
-            'acknowledged_by_user_id' => $request->user()->id,
-        ]);
+{
+    $referral->update([
+        'status'                  => 'acknowledged',
+        'acknowledged_at'         => now(),
+        'acknowledged_by_user_id' => $request->user()->id,
+    ]);
 
-        $case = CaseFile::create([
-            'student_id'          => $referral->student_id,
-            'referral_id'         => $referral->id,
-            'case_type'           => $referral->referral_type,
-            'current_unit'        => 'GCU',
-            'status'              => 'open',
-            'opened_date'         => today(),
-            'primary_counselor_id'=> $request->user()->id,
-            'presenting_concern'  => $referral->nature_of_concern,
-            'is_recurring'        => $referral->student->isRecurring(),
-        ]);
+    $case = CaseFile::create([
+        'student_id'          => $referral->student_id,
+        'referral_id'         => $referral->id,
+        'case_type'           => $referral->referral_type,
+        'current_unit'        => 'GCU',
+        'status'              => 'open',
+        'opened_date'         => today(),
+        'primary_counselor_id'=> $request->user()->id,
+        'presenting_concern'  => $referral->nature_of_concern,
+        'is_recurring'        => $referral->student->isRecurring(),
+    ]);
 
-        $referral->update(['status' => 'in_review']);
-        $referral->refresh();
+    $referral->update(['status' => 'in_review']);
+    $referral->refresh();
 
-        AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
+    // Create a pending appointment request with a scheduling link for the student
+    $token = \Illuminate\Support\Str::random(48);
+    $appointment = \App\Models\Appointment::create([
+        'case_id'           => $case->id,
+        'student_id'        => $case->student_id,
+        'appointment_type'  => 'initial_counseling',
+        'unit'              => 'GCU',
+        'scheduling_token'  => $token,
+        'token_expires_at'  => now()->addDays(7),
+        'request_status'    => 'awaiting_student',
+        'status'            => 'pending',
+    ]);
 
-        return response()->json([
-            'referral' => $referral,
-            'case'     => $case,
-        ]);
-    }
+    \App\Models\NotificationLog::create([
+        'user_id'    => $referral->referred_by_user_id,
+        'type'       => 'schedule_link',
+        'title'      => 'Referral Acknowledged — Schedule Appointment',
+        'message'    => "The referral for {$referral->student->first_name} {$referral->student->last_name} has been acknowledged. Please share the scheduling link with the student so they can pick their preferred appointment time.",
+        'data'       => json_encode(['scheduling_token' => $token, 'appointment_id' => $appointment->id]),
+    ]);
+
+    AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
+
+    return response()->json([
+        'referral'          => $referral,
+        'case'              => $case,
+        'appointment'       => $appointment,
+        'scheduling_link'   => url("/schedule/{$token}"),
+    ]);
+}
 
     public function assign(Request $request, Referral $referral)
     {

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+
 class Appointment extends Model
 {
     use HasFactory, SoftDeletes;
@@ -39,6 +40,8 @@ class Appointment extends Model
         'no_show_escalated',
         'no_show_escalated_at',
         'notes',
+        'scheduling_token', 'token_expires_at', 'request_status',
+        'call_slip_stage', 'call_slip_initiated_at', 'call_slip_notes', 'reminder_sent_at',
     ];
 
     protected $casts = [
@@ -52,6 +55,9 @@ class Appointment extends Model
         'checked_in_at'         => 'datetime',
         'no_show_escalated'     => 'boolean',
         'no_show_escalated_at'  => 'datetime',
+        'token_expires_at'        => 'datetime',
+        'call_slip_initiated_at'  => 'datetime',
+        'reminder_sent_at'        => 'datetime',
     ];
 
     protected static function booted(): void

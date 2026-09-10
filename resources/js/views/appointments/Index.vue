@@ -48,9 +48,10 @@
             <div
               v-for="a in appointments"
               :key="a.id"
-              style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s"
+              style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s;cursor:pointer"
               @mouseover="$event.currentTarget.style.background='var(--foam)'"
               @mouseleave="$event.currentTarget.style.background=''"
+              @click="goToCase(a)"
             >
               <div style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
                 <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
@@ -71,11 +72,11 @@
                 </div>
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:200px;justify-content:flex-end">
-                <button v-if="a.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click="confirmAppt(a)">Confirm</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(a)">Check In</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="markNoShow(a)">No-Show</button>
-                <button v-if="['pending','confirmed'].includes(a.status)" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(a)">Reschedule</button>
-                <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelAppt(a)">Cancel</button>
+                <button v-if="a.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click.stop="confirmAppt(a)">Confirm</button>
+                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Check In</button>
+                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="markNoShow(a)">No-Show</button>
+                <button v-if="['pending','confirmed'].includes(a.status)" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Reschedule</button>
+                <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="cancelAppt(a)">Cancel</button>
               </div>
             </div>
           </div>
@@ -213,7 +214,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Date <span style="color:var(--red)">*</span></label>
-              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" />
+              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="minDate" @change="validateBusinessDay" />
             </div>
             <div>
               <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
@@ -229,6 +230,10 @@
                 <option value="16:00">04:00 PM</option>
               </select>
             </div>
+          </div>
+
+          <div v-if="businessDayWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
+            ⚠ Appointments can only be scheduled Monday to Friday, 8:00 AM to 4:00 PM.
           </div>
 
           <div>
@@ -282,7 +287,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">New Date <span style="color:var(--red)">*</span></label>
-              <input v-model="rescheduleForm.appointment_date" type="date" class="ifi" />
+              <input v-model="rescheduleForm.appointment_date" type="date" class="ifi" :min="minDate" />
             </div>
             <div>
               <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
@@ -333,16 +338,19 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import { appointmentAPI, caseAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
-const toast = inject('toast');
+const toast  = inject('toast');
+const router = useRouter();
 
 const loading           = ref(true);
 const showScheduleModal = ref(false);
 const showRescheduleModal = ref(false);
 const selectedSlot      = ref('');
 const conflictWarning   = ref(false);
+const businessDayWarning = ref(false);
 const appointments      = ref([]);
 const pagination        = ref({});
 const cases             = ref([]);
@@ -354,6 +362,8 @@ const today        = new Date();
 const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
+
+const minDate = computed(() => today.toISOString().split('T')[0]);
 
 const scheduleForm = ref({
   case_id: '', student_id: '', staff_user_id: '',
@@ -368,6 +378,24 @@ const timeSlots = [
   { time: '08:00' }, { time: '09:00' }, { time: '10:00' }, { time: '11:00' },
   { time: '13:00' }, { time: '14:00' }, { time: '15:00' }, { time: '16:00' },
 ];
+
+function validateBusinessDay() {
+  businessDayWarning.value = false;
+  if (!scheduleForm.value.appointment_date) return;
+  const d = new Date(scheduleForm.value.appointment_date + 'T00:00:00');
+  const day = d.getDay(); // 0 = Sunday, 6 = Saturday
+  if (day === 0 || day === 6) {
+    businessDayWarning.value = true;
+  }
+}
+
+function goToCase(a) {
+  if (a.case_id) {
+    router.push({ name: 'case-show', params: { id: a.case_id } });
+  } else {
+    toast?.error('No linked case found for this appointment.');
+  }
+}
 
 async function fetchAppointments(page = 1) {
   loading.value = true;
@@ -432,7 +460,8 @@ async function markNoShow(a) {
     a.no_show_escalated = true;
     toast?.success("Marked as no-show and escalated to Dean's Secretary.");
   } catch (e) {
-    toast?.error('Failed to mark as no-show.');
+    console.error('No-show error:', e.response?.data);
+    toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
   }
 }
 
@@ -489,6 +518,14 @@ async function scheduleAppointment() {
     toast?.error('Please fill in all required fields.');
     return;
   }
+
+  const d = new Date(scheduleForm.value.appointment_date + 'T00:00:00');
+  const day = d.getDay();
+  if (day === 0 || day === 6) {
+    toast?.error('Appointments can only be scheduled Monday to Friday.');
+    return;
+  }
+
   try {
     await appointmentAPI.store(scheduleForm.value);
     toast?.success('Appointment scheduled successfully.');

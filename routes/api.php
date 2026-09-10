@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StaffAvailabilityController;
+use App\Http\Controllers\Api\PublicSchedulingController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -27,6 +28,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',     [AuthController::class, 'logout']);
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
+    Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
+    Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
+    Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);

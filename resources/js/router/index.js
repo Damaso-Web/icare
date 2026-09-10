@@ -34,6 +34,12 @@ const routes = [
         meta: { guest: true },
     },
     {
+        path: '/schedule/:token',
+        name: 'public-schedule',
+        component: () => import('../views/public/Schedule.vue'),
+        meta: { public: true },
+    },
+    {
         path: '/',
         component: MainLayout,
         meta: { requiresAuth: true },
@@ -153,6 +159,11 @@ router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token');
     const user  = JSON.parse(localStorage.getItem('user') || '{}');
     const role  = user?.role;
+
+    // Public routes (no auth needed, e.g. student scheduling link)
+    if (to.meta.public) {
+        return next();
+    }
 
     // Guest routes (login)
     if (to.meta.guest) {

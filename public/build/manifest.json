@@ -1,11 +1,23 @@
 {
   "resources/js/app.js": {
-    "file": "assets/app-CcZVeKfR.js",
+    "file": "assets/app-Dt0KnAAe.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
+    "dynamicImports": [
+      "resources/js/views/public/schedule.vue"
+    ],
     "css": [
       "assets/app-BttRpANa.css"
+    ]
+  },
+  "resources/js/views/public/schedule.vue": {
+    "file": "assets/schedule-Dd_c_-Vf.js",
+    "name": "schedule",
+    "src": "resources/js/views/public/schedule.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
     ]
   }
 }

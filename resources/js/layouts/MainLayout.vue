@@ -158,6 +158,7 @@ const pageTitle = computed(() => {
     testing:           'Testing Records',
     reports:           'Reports & Analytics',
     users:             'User Management',
+    'faculty-directory': 'Faculty',
     audit:             'Audit Logs',
   };
   return titles[route.name] || 'iCARE';
