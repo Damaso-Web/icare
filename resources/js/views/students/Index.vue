@@ -183,15 +183,15 @@
               </select>
             </div>
             <div>
-              <label class="ifl">Section</label>
-              <input
-                v-model="addForm.section"
-                class="ifi"
-                placeholder="e.g. A"
-                maxlength="1"
-                @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
-              />
-            </div>
+            <label class="ifl">Section <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="addForm.section"
+              class="ifi"
+              placeholder="e.g. A"
+              maxlength="1"
+              @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+            />
+          </div>
             <div>
               <label class="ifl">Email</label>
               <input v-model="addForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
@@ -378,7 +378,7 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
@@ -473,9 +473,20 @@ function clearAddForm() {
 async function saveStudent() {
   addError.value = '';
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
+      !addForm.value.section ||
       !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
       !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
     addError.value = 'Please fill in all required fields.';
+    return;
+  }
+
+  if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) {
+    addError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (!isValidPHContact(addForm.value.guardian_contact)) {
+    addError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
     return;
   }
 
@@ -506,7 +517,11 @@ async function doSaveStudent() {
     showDuplicateNameModal.value = false;
     fetchStudents();
   } catch (e) {
-    addError.value = e.response?.data?.message || 'Please fill in all required fields.';
+    if (e.response?.data?.errors?.student_id) {
+      addError.value = 'This Student ID is already taken.';
+    } else {
+      addError.value = 'Please fill in all required fields.';
+    }
   } finally {
     saving.value = false;
   }
@@ -628,4 +643,6 @@ async function confirmImport(globalChoice) {
     importing.value = false;
   }
 }
+
+onMounted(() => fetchStudents());
 </script>
