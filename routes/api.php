@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StaffAvailabilityController;
 use App\Http\Controllers\Api\PublicSchedulingController;
+use App\Http\Controllers\Api\StudentAuthController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -122,4 +123,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
     });
+
+    // Student authentication routes
+Route::post('student/login', [StudentAuthController::class, 'login']);
+
+Route::middleware('auth:student')->group(function () {
+    Route::post('student/logout', [StudentAuthController::class, 'logout']);
+    Route::get('student/me', [StudentAuthController::class, 'me']);
+    Route::put('student/password', [StudentAuthController::class, 'changePassword']);
+});
 });

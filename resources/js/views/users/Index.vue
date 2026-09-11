@@ -63,7 +63,7 @@
       </button>
     </div>
 
-    <!-- Users Table — ID, Status, View/Deactivate only -->
+    <!-- Users Table -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -119,7 +119,7 @@
       </div>
     </div>
 
-    <!-- View Employee Profile Modal (includes Edit access) -->
+    <!-- View Employee Profile Modal -->
     <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
@@ -160,8 +160,15 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Login</div>
             <div style="font-size:13px;color:var(--ink)">{{ viewedUser.last_login_at ? formatDate(viewedUser.last_login_at) : 'Never' }}</div>
           </div>
+
+          <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+            ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the employee.</div>
+          </div>
+
           <div style="display:flex;gap:8px;margin-top:8px">
             <button v-if="auth.isAdmin" class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
+            <button v-if="auth.isAdmin" class="ibtn ibtn-sm" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetPassword(viewedUser)">Reset Password</button>
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
         </div>
@@ -303,7 +310,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -319,6 +326,7 @@ const showInactive = ref(false);
 const colleges   = COLLEGES;
 const viewedUser = ref({});
 const formError  = ref('');
+const resetPasswordResult = ref('');
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
@@ -377,12 +385,24 @@ function generatePassword() {
 
 function openView(u) {
   viewedUser.value = u;
+  resetPasswordResult.value = '';
   showViewModal.value = true;
 }
 
 function openEditFromView() {
   showViewModal.value = false;
   openEdit(viewedUser.value);
+}
+
+async function resetPassword(u) {
+  if (!auth.isAdmin) return;
+  try {
+    const res = await userAPI.resetPassword(u.id, {});
+    resetPasswordResult.value = res.data.temp_password;
+    toast?.success('Password reset successfully.');
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
 }
 
 function openCreate() {
@@ -423,10 +443,6 @@ async function saveUser() {
   }
   if (userForm.value.email && !isValidEmail(userForm.value.email)) {
     formError.value = 'Please fill in all required fields.';
-    return;
-  }
-  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
-    formError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
   try {

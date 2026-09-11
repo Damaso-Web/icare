@@ -231,6 +231,10 @@
           <div v-if="addError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
             {{ addError }}
           </div>
+          <div v-if="createdPassword" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
+            ✓ Student added. Temporary password: <strong style="font-family:var(--mono)">{{ createdPassword }}</strong>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student — they'll be required to change it on first login.</div>
+          </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="saveStudent" :disabled="saving">
               <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -238,7 +242,7 @@
               {{ saving ? 'Saving...' : 'Add Student' }}
             </button>
             <button class="ibtn ibtn-o" type="button" @click="clearAddForm">Clear Form</button>
-            <button class="ibtn ibtn-o" type="button" @click="showAddModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" type="button" @click="showAddModal = false">Close</button>
           </div>
         </div>
       </div>
@@ -374,11 +378,11 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue';
+import { ref, computed, inject } from 'vue';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const toast   = inject('toast');
 const colleges = COLLEGES;
@@ -394,6 +398,7 @@ const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
 const addError = ref('');
+const createdPassword = ref('');
 
 const showDuplicateNameModal = ref(false);
 const duplicateStudent = ref(null);
@@ -451,6 +456,7 @@ function changePage(page) { fetchStudents(page); }
 
 function openAddModal() {
   clearAddForm();
+  createdPassword.value = '';
   showAddModal.value = true;
 }
 
@@ -466,23 +472,6 @@ function clearAddForm() {
 
 async function saveStudent() {
   addError.value = '';
-  if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
-      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
-      !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
-    addError.value = 'Please fill in all required fields.';
-    return;
-  }
-
-  if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) {
-    addError.value = 'Contact number must start with 09 and be 11 digits long.';
-    return;
-  }
-
-  if (!isValidPHContact(addForm.value.guardian_contact)) {
-    addError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
-    return;
-  }
-  
   if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
       !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
       !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
@@ -511,9 +500,9 @@ async function saveStudent() {
 async function doSaveStudent() {
   saving.value = true;
   try {
-    await studentAPI.store(addForm.value);
+    const res = await studentAPI.store(addForm.value);
+    createdPassword.value = res.data.temp_password || '';
     toast?.success('Student added successfully.');
-    showAddModal.value = false;
     showDuplicateNameModal.value = false;
     fetchStudents();
   } catch (e) {
@@ -639,6 +628,4 @@ async function confirmImport(globalChoice) {
     importing.value = false;
   }
 }
-
-onMounted(() => fetchStudents());
 </script>

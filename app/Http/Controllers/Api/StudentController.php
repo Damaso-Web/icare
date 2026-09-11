@@ -25,8 +25,8 @@ class StudentController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
+{
+    $validated = $request->validate([
         'student_id'             => 'required|string|unique:students,student_id',
         'first_name'             => 'required|string|max:255',
         'last_name'              => 'required|string|max:255',
@@ -45,15 +45,22 @@ class StudentController extends Controller
         'guardian_relationship'  => 'nullable|string',
     ]);
 
-        $student = Student::create([
-            ...$validated,
-            'is_active' => true,
-        ]);
+    $tempPassword = \Illuminate\Support\Str::random(10);
 
-        AuditLog::record('created', "Added student profile for {$student->first_name} {$student->last_name}.", $student);
+    $student = Student::create([
+        ...$validated,
+        'password'              => \Illuminate\Support\Facades\Hash::make($tempPassword),
+        'must_change_password'  => true,
+        'is_active'              => true,
+    ]);
 
-        return response()->json($student, 201);
-    }
+    AuditLog::record('created', "Added student profile for {$student->first_name} {$student->last_name}.", $student);
+
+    return response()->json([
+        ...$student->toArray(),
+        'temp_password' => $tempPassword,
+    ], 201);
+}
 
     public function show(Student $student)
     {

@@ -93,16 +93,16 @@ class UserController extends Controller
     }
 
     public function resetPassword(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'password' => ['required', 'confirmed', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
-        ]);
+{
+    $newPassword = Str::random(10);
+    $user->update(['password' => Hash::make($newPassword)]);
+    AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
 
-        $user->update(['password' => Hash::make($validated['password'])]);
-        AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
-
-        return response()->json(['message' => 'Password reset successfully.']);
-    }
+    return response()->json([
+        'message'       => 'Password reset successfully.',
+        'temp_password' => $newPassword,
+    ]);
+}
 
     public function import(Request $request)
     {
