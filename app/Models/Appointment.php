@@ -100,4 +100,17 @@ class Appointment extends Model
         ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
         ->exists();
 }
+
+public static function hasUnitConflict(string $unit, string $date, string $start, string $end, ?int $excludeId = null): bool
+{
+    return static::where('unit', $unit)
+        ->where('appointment_date', $date)
+        ->whereNotIn('status', ['cancelled'])
+        ->where('request_status', '!=', 'awaiting_student')
+        ->where('start_time', '<', $end)
+        ->where('end_time', '>', $start)
+        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+        ->exists();
+}
+
 }

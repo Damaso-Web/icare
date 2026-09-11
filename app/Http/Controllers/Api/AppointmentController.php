@@ -45,13 +45,12 @@ class AppointmentController extends Controller
             'notes'            => 'nullable|string',
         ]);
 
-        if (!empty($validated['staff_user_id']) && Appointment::hasConflict(
-            $validated['staff_user_id'],
-            $validated['appointment_date'],
-            $validated['start_time'],
-            $validated['end_time']
-        )) {
-            return response()->json(['message' => 'Scheduling conflict: staff is unavailable at this time.'], 422);
+        $conflictFound = !empty($validated['staff_user_id'])
+            ? Appointment::hasConflict($validated['staff_user_id'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'])
+            : Appointment::hasUnitConflict($validated['unit'], $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
+
+        if ($conflictFound) {
+            return response()->json(['message' => 'Scheduling conflict: staff or unit is unavailable at this time.'], 422);
         }
 
         // Fallback to the creating user if TBA/auto-assign was chosen (column is NOT NULL)
@@ -106,13 +105,11 @@ class AppointmentController extends Controller
             'reschedule_reason' => 'required|string',
         ]);
 
-        if (!empty($appointment->staff_user_id) && Appointment::hasConflict(
-            $appointment->staff_user_id,
-            $request->appointment_date,
-            $request->start_time,
-            $request->end_time,
-            $appointment->id
-        )) {
+        $conflictFound = !empty($appointment->staff_user_id)
+            ? Appointment::hasConflict($appointment->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id)
+            : Appointment::hasUnitConflict($appointment->unit, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id);
+
+        if ($conflictFound) {
             return response()->json(['message' => 'Scheduling conflict detected.'], 422);
         }
 
@@ -220,22 +217,15 @@ class AppointmentController extends Controller
     {
         $request->validate([
             'staff_user_id'    => 'nullable|exists:users,id',
+            'unit'             => 'nullable|string',
             'appointment_date' => 'required|date',
             'start_time'       => 'required',
             'end_time'         => 'required',
         ]);
 
-        if (empty($request->staff_user_id)) {
-            return response()->json(['has_conflict' => false]);
-        }
-
-        $conflict = Appointment::hasConflict(
-            $request->staff_user_id,
-            $request->appointment_date,
-            $request->start_time,
-            $request->end_time,
-            $request->exclude_id
-        );
+        $conflict = !empty($request->staff_user_id)
+            ? Appointment::hasConflict($request->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id)
+            : (!empty($request->unit) ? Appointment::hasUnitConflict($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id) : false);
 
         return response()->json(['has_conflict' => $conflict]);
     }

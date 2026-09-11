@@ -68,24 +68,26 @@ class StudentController extends Controller
     }
 
     public function update(Request $request, Student $student)
-    {
-        $validated = $request->validate([
-            'student_id'             => 'sometimes|string|unique:students,student_id,' . $student->id,
-            'first_name'             => 'sometimes|string|max:255',
-            'last_name'              => 'sometimes|string|max:255',
-            'middle_name'            => 'nullable|string|max:255',
-            'suffix'                 => 'nullable|string|max:20',
-            'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
-            'email'                  => 'nullable|email',
-            'contact_number'         => 'nullable|string|max:11',
-            'college'                => 'nullable|string',
-            'program'                => 'nullable|string',
-            'year_level'             => 'nullable|string',
-            'section'                => 'nullable|string|max:1',
-            'guardian_name'          => 'nullable|string|max:255',
-            'guardian_contact'       => 'nullable|string|max:11',
-            'guardian_relationship'  => 'nullable|string',
-        ]);
+{
+    $validated = $request->validate([
+        'student_id'             => 'sometimes|string|unique:students,student_id,' . $student->id,
+        'first_name'             => 'sometimes|string|max:255',
+        'last_name'              => 'sometimes|string|max:255',
+        'middle_name'            => 'nullable|string|max:255',
+        'suffix'                 => 'nullable|string|max:20',
+        'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
+        'email'                  => 'nullable|email',
+        'contact_number'         => 'nullable|string|max:11',
+        'college'                => 'nullable|string',
+        'program'                => 'nullable|string',
+        'year_level'             => 'nullable|string',
+        'section'                => 'nullable|string|max:1',
+        'guardian_first_name'    => 'nullable|string|max:255',
+        'guardian_middle_name'   => 'nullable|string|max:255',
+        'guardian_last_name'     => 'nullable|string|max:255',
+        'guardian_contact'       => 'nullable|string|max:11',
+        'guardian_relationship'  => 'nullable|string',
+    ]);
 
         $old = $student->toArray();
         $student->update($validated);
