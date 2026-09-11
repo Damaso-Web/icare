@@ -193,7 +193,11 @@
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
-                <div style="font-size:13px;color:var(--ink)">{{ student.guardian_name || '—' }}</div>
+                <div style="font-size:13px;color:var(--ink)">
+                  {{ [student.guardian_last_name, student.guardian_first_name, student.guardian_middle_name].filter(Boolean).length
+                      ? `${student.guardian_last_name || ''}, ${student.guardian_first_name || ''} ${student.guardian_middle_name || ''}`.trim()
+                      : '—' }}
+                </div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
@@ -305,15 +309,23 @@
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
-                <label class="ifl">Guardian Name</label>
-                <input v-model="editForm.guardian_name" class="ifi" placeholder="Guardian full name" @input="editForm.guardian_name = onlyLetters(editForm.guardian_name)" />
+                <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
+                <input v-model="editForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
               </div>
               <div>
-                <label class="ifl">Guardian Contact</label>
+                <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
+                <input v-model="editForm.guardian_first_name" class="ifi" placeholder="Juan" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
+              </div>
+              <div>
+                <label class="ifl">Guardian Middle Name</label>
+                <input v-model="editForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
+              </div>
+              <div>
+                <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
                 <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact)" />
               </div>
               <div>
-                <label class="ifl">Relationship</label>
+                <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>
                 <select v-model="editForm.guardian_relationship" class="ifse">
                   <option value="">Select...</option>
                   <option>Mother</option>
@@ -352,7 +364,7 @@ import { useRoute } from 'vue-router';
 import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact } from '../../utils/validators';
 
 const route   = useRoute();
 const toast   = inject('toast');
@@ -370,6 +382,23 @@ const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.
 
 async function saveStudent() {
   editError.value = '';
+
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
+    editError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (!editForm.value.guardian_first_name || !editForm.value.guardian_last_name ||
+      !editForm.value.guardian_contact || !editForm.value.guardian_relationship) {
+    editError.value = 'Please fill in all required guardian fields.';
+    return;
+  }
+
+  if (!isValidPHContact(editForm.value.guardian_contact)) {
+    editError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
   saving.value = true;
   try {
     const res = await studentAPI.update(student.value.id, editForm.value);

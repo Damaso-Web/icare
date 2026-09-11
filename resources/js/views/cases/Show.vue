@@ -493,9 +493,23 @@
               <textarea v-model="closeForm.closure_summary" class="ifta" placeholder="Brief closure summary..."></textarea>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="closeCase">Close Case</button>
+              <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="confirmCloseCase">Close Case</button>
               <button class="ibtn ibtn-o" @click="showCloseModal = false">Cancel</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Secondary Confirmation for Closing Case -->
+      <div v-if="showCloseConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;padding:22px;text-align:center">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Are you sure?</div>
+          <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
+            This will permanently close the case. This action cannot be undone.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="closeCase">Yes, Close Case</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showCloseConfirm = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -545,6 +559,7 @@ const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 const loading              = ref(true);
 const showSessionModal     = ref(false);
 const showCloseModal       = ref(false);
+const showCloseConfirm     = ref(false);
 const showStatusModal      = ref(false);
 const showUnreachableModal = ref(false);
 const newStatus            = ref('');
@@ -611,18 +626,24 @@ async function updateInterventions() {
   }
 }
 
-async function closeCase() {
+function confirmCloseCase() {
   if (!closeForm.value.interventions_applied || !closeForm.value.outcomes || !closeForm.value.closure_summary) {
     toast?.error('Please fill in all required fields.');
     return;
   }
+  showCloseConfirm.value = true;
+}
+
+async function closeCase() {
   try {
     const res = await caseAPI.close(caseFile.value.id, closeForm.value);
     caseFile.value = { ...caseFile.value, ...res.data };
     showCloseModal.value = false;
+    showCloseConfirm.value = false;
     toast?.success('Case closed successfully.');
   } catch (e) {
     toast?.error('Failed to close case.');
+    showCloseConfirm.value = false;
   }
 }
 
