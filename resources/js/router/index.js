@@ -148,6 +148,24 @@ const routes = [
         path: '/:pathMatch(.*)*',
         redirect: '/login',
     },
+    {
+    path: '/student/login',
+    name: 'student-login',
+    component: () => import('../views/StudentLogin.vue'),
+    meta: { public: true },
+},
+{
+    path: '/student/dashboard',
+    name: 'student-dashboard',
+    component: () => import('../views/StudentDashboard.vue'),
+    meta: { public: true },
+},
+{
+    path: 'my-account',
+    name: 'my-account',
+    component: () => import('../views/MyAccount.vue'),
+    meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'] },
+},
 ];
 
 const router = createRouter({

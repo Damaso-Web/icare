@@ -146,24 +146,24 @@ const roleLabel = computed(() => {
 
 const pageTitle = computed(() => {
   const titles = {
-    dashboard:         'Dashboard',
-    students:          'Students',
-    'student-show':    'Student Profile',
-    referrals:         'Referral Queue',
-    'referral-create': 'Refer Student',
-    'referral-show':   'Referral Details',
-    cases:             'Case Management',
-    'case-show':       'Case Details',
-    appointments:      'Appointment Calendar',
-    testing:           'Testing Records',
-    reports:           'Reports & Analytics',
-    users:             'User Management',
+    dashboard:           'Dashboard',
+    students:            'Students',
+    'student-show':      'Student Profile',
+    referrals:           'Referral Queue',
+    'referral-create':   'Refer Student',
+    'referral-show':     'Referral Details',
+    cases:               'Case Management',
+    'case-show':         'Case Details',
+    appointments:        'Appointment Calendar',
+    testing:             'Testing Records',
+    reports:             'Reports & Analytics',
+    users:               'User Management',
     'faculty-directory': 'Faculty',
-    audit:             'Audit Logs',
+    'my-account':        'My Account',
+    audit:               'Audit Logs',
   };
   return titles[route.name] || 'iCARE';
 });
-
 const menuItems = computed(() => {
   const role = auth.user?.role;
 
@@ -250,6 +250,13 @@ const menuItems = computed(() => {
       label:   'Audit Logs',
       icon:    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
       roles:   ['admin'],
+      section: null,
+    },
+    {
+      name:    'my-account',
+      label:   'My Account',
+      icon:    '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
       section: null,
     },
   ];

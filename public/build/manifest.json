@@ -1,18 +1,48 @@
 {
   "resources/js/app.js": {
-    "file": "assets/app-Bxl6za5h.js",
+    "file": "assets/app-ATPVS3Kz.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
     "dynamicImports": [
-      "resources/js/views/public/schedule.vue"
+      "resources/js/views/public/schedule.vue",
+      "resources/js/views/StudentLogin.vue",
+      "resources/js/views/StudentDashboard.vue",
+      "resources/js/views/MyAccount.vue"
     ],
     "css": [
       "assets/app-BttRpANa.css"
     ]
   },
+  "resources/js/views/MyAccount.vue": {
+    "file": "assets/MyAccount-BQmwsbfs.js",
+    "name": "MyAccount",
+    "src": "resources/js/views/MyAccount.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/views/StudentDashboard.vue": {
+    "file": "assets/StudentDashboard-9cDu_mVZ.js",
+    "name": "StudentDashboard",
+    "src": "resources/js/views/StudentDashboard.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
+  "resources/js/views/StudentLogin.vue": {
+    "file": "assets/StudentLogin-CjtfzzaO.js",
+    "name": "StudentLogin",
+    "src": "resources/js/views/StudentLogin.vue",
+    "isDynamicEntry": true,
+    "imports": [
+      "resources/js/app.js"
+    ]
+  },
   "resources/js/views/public/schedule.vue": {
-    "file": "assets/schedule-CjVdPkeA.js",
+    "file": "assets/schedule-DoXlg43q.js",
     "name": "schedule",
     "src": "resources/js/views/public/schedule.vue",
     "isDynamicEntry": true,

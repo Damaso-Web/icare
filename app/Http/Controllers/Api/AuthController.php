@@ -70,4 +70,23 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
+    public function updateProfile(Request $request)
+{
+    $user = $request->user();
+
+    $validated = $request->validate([
+        'first_name'     => 'sometimes|string|max:255',
+        'last_name'      => 'sometimes|string|max:255',
+        'middle_name'    => 'nullable|string|max:255',
+        'email'          => 'sometimes|email|unique:users,email,' . $user->id,
+        'contact_number' => 'nullable|string|max:11',
+    ]);
+
+    $user->update($validated);
+
+    return response()->json($user->only([
+        'id', 'name', 'first_name', 'middle_name', 'last_name',
+        'email', 'role', 'unit', 'college', 'department', 'contact_number', 'employee_id'
+    ]));
+}
 }
