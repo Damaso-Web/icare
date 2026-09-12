@@ -117,7 +117,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('dashboard',    [ReportController::class, 'dashboardStats']);
     });
 
-    // Admin only
+       // Admin only
     Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
@@ -125,14 +125,15 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
     });
+});
 
-    // Student authentication routes
+// Student authentication routes (completely separate from staff auth:sanctum group)
 Route::post('student/login', [StudentAuthController::class, 'login']);
 
 Route::middleware('auth:student')->group(function () {
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
     Route::get('student/me', [StudentAuthController::class, 'me']);
+    Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/password', [StudentAuthController::class, 'changePassword']);
-    Route::put('me/profile', [AuthController::class, 'updateProfile']);
-});
+    Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
 });

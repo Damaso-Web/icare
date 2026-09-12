@@ -29,6 +29,12 @@ const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_
 
 const routes = [
     {
+        path: '/welcome',
+        name: 'login-choice',
+        component: () => import('../views/LoginChoice.vue'),
+        meta: { public: true },
+    },
+    {
         path: '/login',
         name: 'login',
         component: Login,
@@ -165,7 +171,7 @@ const routes = [
     },
     {
         path: '/:pathMatch(.*)*',
-        redirect: '/login',
+        redirect: '/welcome',
     },
 ];
 
@@ -179,7 +185,7 @@ router.beforeEach((to, from, next) => {
     const user  = JSON.parse(localStorage.getItem('user') || '{}');
     const role  = user?.role;
 
-    // Public routes (no auth needed, e.g. student scheduling link)
+    // Public routes (no auth needed, e.g. student scheduling link, login choice)
     if (to.meta.public) {
         return next();
     }
@@ -192,7 +198,7 @@ router.beforeEach((to, from, next) => {
 
     // Auth required
     if (to.meta.requiresAuth || to.meta.roles) {
-        if (!token) return next({ name: 'login' });
+        if (!token) return next({ name: 'login-choice' });
 
         // Check role access
         if (to.meta.roles && !to.meta.roles.includes(role)) {
