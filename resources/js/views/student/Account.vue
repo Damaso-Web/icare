@@ -79,6 +79,12 @@ function authHeaders() {
 
 async function saveProfile() {
   profileError.value = '';
+
+  if (profileForm.value.contact_number && !/^09\d{9}$/.test(profileForm.value.contact_number)) {
+    profileError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
   try {
     const res = await axios.put(`${API_BASE}/student/profile`, profileForm.value, authHeaders());
     student.value = { ...student.value, ...res.data };
@@ -96,8 +102,8 @@ async function changePassword() {
     localStorage.setItem('student', JSON.stringify(student.value));
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
   } catch (e) {
-    pwError.value = e.response?.data?.message || 'Failed to update password.';
-  }
+  profileError.value = 'Please fill in all required fields.';
+}
 }
 
 onMounted(() => {

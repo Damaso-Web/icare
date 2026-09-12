@@ -68,9 +68,19 @@ const routes = [
                 component: () => import('../views/student/Appointments.vue'),
             },
             {
+                path: 'appointments/:id',
+                name: 'student-appointment-show',
+                component: () => import('../views/student/AppointmentShow.vue'),
+            },
+            {
                 path: 'referrals',
                 name: 'student-referrals',
                 component: () => import('../views/student/Referrals.vue'),
+            },
+            {
+                path: 'referrals/:id',
+                name: 'student-referral-show',
+                component: () => import('../views/student/ReferralShow.vue'),
             },
             {
                 path: 'account',

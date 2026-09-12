@@ -89,14 +89,22 @@ class StudentController extends Controller
         'guardian_relationship'  => 'nullable|string',
     ]);
 
-        $old = $student->toArray();
-        $student->update($validated);
-
-        AuditLog::record('updated', "Updated student profile for {$student->first_name} {$student->last_name}.", $student, $old, $student->toArray());
-
-        return response()->json($student);
+    // Don't overwrite year_level with empty/null — keep existing value if not provided
+    if (empty($validated['year_level'])) {
+        unset($validated['year_level']);
     }
 
+    $old = $student->toArray();
+    $student->update($validated);
+
+    AuditLog::record('updated', "Updated student profile for {$student->first_name} {$student->last_name}.", $student, $old, $student->toArray());
+
+    return response()->json($student);
+}
+
+
+
+    
     public function destroy(Student $student)
     {
         $student->delete();

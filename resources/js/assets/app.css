@@ -106,6 +106,7 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 .ibadge-acknowledged{background:var(--blue-lt);color:var(--blue)}
 .ibadge-in_review{background:var(--blue-lt);color:var(--blue)}
 .ibadge-in_progress{background:var(--mist);color:var(--moss)}
+.ibadge-scheduled{background:var(--blue-lt);color:var(--blue)}
 .ibadge-completed{background:var(--mist);color:var(--moss)}
 .ibadge-closed{background:var(--cloud);color:var(--stone)}
 .ibadge-open{background:var(--mist);color:var(--moss)}

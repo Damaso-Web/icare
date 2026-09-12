@@ -13,7 +13,12 @@
         <h3>No referrals yet</h3>
       </div>
       <div v-else>
-        <div v-for="r in referrals" :key="r.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+        <div
+          v-for="r in referrals"
+          :key="r.id"
+          style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+          @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
+        >
           <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}</div>
           <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(r.status) }}</span>

@@ -89,7 +89,7 @@
                 </div>
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
-                <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="confirmAppt(a)">Confirm</button>
+                <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="openConfirm(a)">Confirm</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Check In</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="markNoShow(a)">No-Show</button>
                 <button v-if="['pending','confirmed'].includes(a.status) && a.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
@@ -149,6 +149,29 @@
       </div>
     </div>
 
+    <!-- Confirm & Assign Staff Modal -->
+    <div v-if="showConfirmModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showConfirmModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Appointment</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showConfirmModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div>
+            <label class="ifl">Assign Staff</label>
+            <select v-model="confirmStaffId" class="ifse">
+              <option value="">Keep current / Auto-assign</option>
+              <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }} ({{ roleLabel(u.role) }})</option>
+            </select>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="submitConfirm">Confirm Appointment</button>
+            <button class="ibtn ibtn-o" @click="showConfirmModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Reschedule Request Modal -->
     <div v-if="showRescheduleModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showRescheduleModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -178,7 +201,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { appointmentAPI } from '../../api/index';
+import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
 const toast  = inject('toast');
@@ -193,12 +216,33 @@ const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
 const rescheduleForm      = ref({ reschedule_reason: '' });
 
+const showConfirmModal = ref(false);
+const confirmTarget    = ref(null);
+const confirmStaffId   = ref('');
+const staffList        = ref([]);
+
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const showClosed = ref(false);
+
+function roleLabel(role) {
+  const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
+  return labels[role] || role;
+}
+
+async function fetchStaff() {
+  try {
+    const res = await userAPI.index({ is_active: 1 });
+    staffList.value = (res.data.data || []).filter(u =>
+      ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'].includes(u.role)
+    );
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 function goToCase(a) {
   if (a.case_id) {
@@ -227,12 +271,20 @@ async function fetchAppointments(page = 1) {
   }
 }
 
-async function confirmAppt(a) {
+function openConfirm(a) {
+  confirmTarget.value = a;
+  confirmStaffId.value = '';
+  showConfirmModal.value = true;
+}
+
+async function submitConfirm() {
   try {
-    await appointmentAPI.confirm(a.id);
-    a.status = 'confirmed';
-    a.request_status = 'confirmed';
+    await appointmentAPI.confirm(confirmTarget.value.id, { staff_user_id: confirmStaffId.value || null });
+    confirmTarget.value.status = 'confirmed';
+    confirmTarget.value.request_status = 'confirmed';
     toast?.success('Appointment confirmed. Student will be notified.');
+    showConfirmModal.value = false;
+    fetchAppointments();
   } catch (e) {
     toast?.error('Failed to confirm appointment.');
   }
@@ -347,5 +399,6 @@ function getDay(date)   { return new Date(date).getDate(); }
 
 onMounted(() => {
   fetchAppointments();
+  fetchStaff();
 });
 </script>

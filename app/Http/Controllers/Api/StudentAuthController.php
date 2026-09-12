@@ -105,4 +105,18 @@ public function updateProfile(Request $request)
     ]));
 }
 
+public function showReferral(Request $request, $id)
+{
+    $student = $request->user('student');
+    $referral = $student->referrals()->with('case')->findOrFail($id);
+    return response()->json($referral);
+}
+
+public function showAppointment(Request $request, $id)
+{
+    $student = $request->user('student');
+    $appointment = $student->appointments()->with(['staff', 'case'])->findOrFail($id);
+    return response()->json($appointment);
+}
+
 }
