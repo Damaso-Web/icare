@@ -30,9 +30,15 @@
             <input v-model="profileForm.email" type="email" class="ifi" />
           </div>
           <div>
-            <label class="ifl">Contact Number</label>
-            <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
-          </div>
+        <label class="ifl">Contact Number</label>
+        <input
+            v-model="profileForm.contact_number"
+            class="ifi"
+            placeholder="09XXXXXXXXX"
+            maxlength="11"
+            @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)"
+        />
+        </div>
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="saveProfile">Save Changes</button>
         </div>
       </div>

@@ -137,13 +137,34 @@
                   fontWeight: day.isToday ? '600' : '',
                   pointerEvents: day.isOther ? 'none' : 'auto',
                 }"
-                @click="day.isOther ? null : selectDay(day)"
+                @click="day.isOther ? null : selectDayPreview(day)"
               >
                 {{ day.date }}
                 <span v-if="day.hasAppt && !day.isToday" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--moss)"></span>
                 <span v-if="day.hasAppt && day.isToday" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.7)"></span>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Day Preview Panel -->
+        <div v-if="previewDate" class="icard">
+          <div class="icard-header">
+            <span class="icard-title">{{ previewDateLabel }}</span>
+            <button class="ibtn ibtn-g ibtn-sm" @click="previewDate = null">✕</button>
+          </div>
+          <div v-if="previewAppointments.length === 0" style="padding:16px;font-size:12px;color:var(--stone);text-align:center">
+            No appointments this day.
+          </div>
+          <div v-else>
+            <div v-for="a in previewAppointments" :key="a.id" style="padding:10px 14px;border-bottom:1px solid var(--cloud);font-size:12px;cursor:pointer" @click="goToCase(a)">
+              <div style="font-weight:600;color:var(--ink)">{{ a.start_time }} – {{ a.student?.student_id }}</div>
+              <div style="color:var(--stone);font-size:11px;margin-top:1px">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+              <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block;font-size:10px">{{ toTitleCase(a.status) }}</span>
+            </div>
+          </div>
+          <div style="padding:10px 14px;border-top:1px solid var(--cloud)">
+            <button class="ibtn ibtn-o ibtn-sm" style="width:100%;justify-content:center" @click="selectDay({ dateStr: previewDate })">Filter Full List</button>
           </div>
         </div>
       </div>
@@ -227,6 +248,25 @@ const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const showClosed = ref(false);
+const previewDate = ref(null);
+
+const previewAppointments = computed(() => {
+  if (!previewDate.value) return [];
+  return appointments.value
+    .filter(a => a.appointment_date === previewDate.value)
+    .sort((a, b) => a.start_time.localeCompare(b.start_time));
+});
+
+const previewDateLabel = computed(() => {
+  if (!previewDate.value) return '';
+  return new Date(previewDate.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+});
+
+function selectDayPreview(day) {
+  if (day.isOther || !day.dateStr) return;
+  selectedDate.value = new Date(day.dateStr);
+  previewDate.value = day.dateStr;
+}
 
 function roleLabel(role) {
   const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
@@ -237,8 +277,8 @@ async function fetchStaff() {
   try {
     const res = await userAPI.index({ is_active: 1 });
     staffList.value = (res.data.data || []).filter(u =>
-  ['admin', 'gcu_staff'].includes(u.role)
-  );
+      ['admin', 'gcu_staff'].includes(u.role)
+    );
   } catch (e) {
     console.error(e);
   }
@@ -381,6 +421,7 @@ function selectDay(day) {
   if (day.isOther || !day.dateStr) return;
   selectedDate.value = new Date(day.dateStr);
   filters.value.date = day.dateStr;
+  previewDate.value = null;
   fetchAppointments();
 }
 
