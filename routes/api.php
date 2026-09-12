@@ -49,8 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
-    Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
-    Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
+    
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);
@@ -133,6 +132,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::post('student/login', [StudentAuthController::class, 'login']);
 
 Route::middleware('auth:student')->group(function () {
+    Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
+    Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
     Route::get('student/me', [StudentAuthController::class, 'me']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
