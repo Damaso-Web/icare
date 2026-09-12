@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StaffAvailabilityController;
 use App\Http\Controllers\Api\PublicSchedulingController;
 use App\Http\Controllers\Api\StudentAuthController;
+use App\Http\Controllers\Api\CallSlipController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -125,6 +126,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
+        Route::get('call-slips', [CallSlipController::class, 'index']);
+        Route::post('call-slips/{appointment}/contacted', [CallSlipController::class, 'markContacted']);
+        Route::post('call-slips/{appointment}/reschedule', [CallSlipController::class, 'requestReschedule']);
+        Route::post('call-slips/{appointment}/escalate', [CallSlipController::class, 'escalateToDeptChair']);
     });
 });
 

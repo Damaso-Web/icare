@@ -184,6 +184,12 @@ const routes = [
                 component: AuditLogs,
                 meta: { roles: ADMIN_ONLY },
             },
+            {
+                path: 'call-slips',
+                name: 'call-slips',
+                component: () => import('../views/callslips/Index.vue'),
+                meta: { roles: ['dean_secretary'] },
+            },
         ],
     },
     {

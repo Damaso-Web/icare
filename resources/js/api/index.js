@@ -138,3 +138,9 @@ export const auditAPI = {
     index: (params) => api.get('/audit-logs', { params }),
     show:  (id)     => api.get(`/audit-logs/${id}`),
 };
+export const callSlipAPI = {
+  index: (params) => api.get('/call-slips', { params }),
+  markContacted: (id, data) => api.post(`/call-slips/${id}/contacted`, data),
+  reschedule: (id) => api.post(`/call-slips/${id}/reschedule`),
+  escalate: (id, data) => api.post(`/call-slips/${id}/escalate`, data),
+};

@@ -90,7 +90,7 @@
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
                 <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="openConfirm(a)">Confirm</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Check In</button>
+                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="markNoShow(a)">No-Show</button>
                 <button v-if="['pending','confirmed'].includes(a.status) && a.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
                 <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="cancelAppt(a)">Cancel</button>
