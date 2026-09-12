@@ -60,7 +60,7 @@ const routes = [
             {
                 path: 'dashboard',
                 name: 'student-dashboard',
-                component: () => import('../views/StudentDashboard.vue'),
+                component: () => import('../views/student/StudentDashboard.vue'),
             },
             {
                 path: 'appointments',

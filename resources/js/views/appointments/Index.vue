@@ -12,24 +12,21 @@
       <div style="display:flex;flex-direction:column;gap:16px">
 
         <div style="display:flex;gap:8px;margin-bottom:16px">
-  <button
-    class="ibtn ibtn-sm"
-    :style="!showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-    @click="switchTab(false)"
-  >
-    Open
-  </button>
-  <button
-    class="ibtn ibtn-sm"
-    :style="showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-    @click="switchTab(true)"
-  >
-    Completed / Cancelled
-  </button>
-</div>
-
-<div class="filter-bar">
-  <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
+          <button
+            class="ibtn ibtn-sm"
+            :style="!showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+            @click="switchTab(false)"
+          >
+            Open
+          </button>
+          <button
+            class="ibtn ibtn-sm"
+            :style="showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+            @click="switchTab(true)"
+          >
+            Completed / Cancelled
+          </button>
+        </div>
 
         <!-- Filter Bar -->
         <div class="filter-bar">
@@ -160,18 +157,18 @@
           <button class="ibtn ibtn-g ibtn-sm" @click="showRescheduleModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-        <div style="font-size:13px;color:var(--stone);line-height:1.6">
-          This will notify the student to pick a different appointment time from their dashboard.
+          <div style="font-size:13px;color:var(--stone);line-height:1.6">
+            This will notify the student to pick a different appointment time from their dashboard.
+          </div>
+          <div>
+            <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
+            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
+            <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
+          </div>
         </div>
-        <div>
-          <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
-          <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
-          <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
-        </div>
-      </div>
       </div>
     </div>
 
@@ -195,7 +192,6 @@ const filters = ref({ unit: '', status: 'pending', date: '' });
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
 const rescheduleForm      = ref({ reschedule_reason: '' });
-
 
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
@@ -298,6 +294,7 @@ function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
   filters.value = { unit: '', status: 'pending', date: '' };
+  showClosed.value = false;
   fetchAppointments();
 }
 
