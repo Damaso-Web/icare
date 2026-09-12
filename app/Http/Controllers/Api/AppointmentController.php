@@ -14,21 +14,22 @@ use Carbon\Carbon;
 class AppointmentController extends Controller
 {
     public function index(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
+    $perPage = $request->input('per_page', 20);
 
-        return response()->json(
-            Appointment::with(['student', 'staff', 'case'])
-                ->when($request->date,   fn($q) => $q->where('appointment_date', $request->date))
-                ->when($request->unit,   fn($q) => $q->where('unit', $request->unit))
-                ->when($request->status, fn($q) => $q->where('status', $request->status))
-                ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
-                ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
-                ->orderBy('appointment_date')
-                ->orderBy('start_time')
-                ->paginate(20)
-        );
-    }
+    return response()->json(
+        Appointment::with(['student', 'staff', 'case'])
+            ->when($request->date,   fn($q) => $q->where('appointment_date', $request->date))
+            ->when($request->unit,   fn($q) => $q->where('unit', $request->unit))
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
+            ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
+            ->orderBy('appointment_date')
+            ->orderBy('start_time')
+            ->paginate($perPage)
+    );
+}
 
     public function store(Request $request)
     {

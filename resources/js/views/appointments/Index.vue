@@ -236,6 +236,7 @@ const router = useRouter();
 
 const loading    = ref(true);
 const appointments = ref([]);
+const allAppointments = ref([]);
 const pagination = ref({});
 const filters = ref({ unit: '', status: 'pending', date: '' });
 
@@ -258,7 +259,7 @@ const previewDate = ref(null);
 
 const previewAppointments = computed(() => {
   if (!previewDate.value) return [];
-  return appointments.value
+  return allAppointments.value
     .filter(a => a.appointment_date?.split('T')[0] === previewDate.value)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 });
@@ -285,6 +286,15 @@ async function fetchStaff() {
     staffList.value = (res.data.data || []).filter(u =>
       ['admin', 'gcu_staff'].includes(u.role)
     );
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function fetchAllAppointments() {
+  try {
+    const res = await appointmentAPI.index({ per_page: 1000 });
+    allAppointments.value = res.data.data;
   } catch (e) {
     console.error(e);
   }
@@ -331,6 +341,7 @@ async function submitConfirm() {
     toast?.success('Appointment confirmed. Student will be notified.');
     showConfirmModal.value = false;
     fetchAppointments();
+    fetchAllAppointments();
   } catch (e) {
     toast?.error('Failed to confirm appointment.');
   }
@@ -341,6 +352,7 @@ async function checkIn(a) {
     await appointmentAPI.checkIn(a.id);
     a.status = 'completed';
     toast?.success('Student checked in.');
+    fetchAllAppointments();
   } catch (e) {
     toast?.error('Failed to check in.');
   }
@@ -352,6 +364,7 @@ async function markNoShow(a) {
     a.status = 'no_show';
     a.no_show_escalated = true;
     toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    fetchAllAppointments();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
   }
@@ -362,6 +375,7 @@ async function cancelAppt(a) {
     await appointmentAPI.cancel(a.id, { cancellation_reason: 'Cancelled by staff.' });
     a.status = 'cancelled';
     toast?.success('Appointment cancelled.');
+    fetchAllAppointments();
   } catch (e) {
     toast?.error('Failed to cancel appointment.');
   }
@@ -383,6 +397,7 @@ async function submitReschedule() {
     toast?.success('Reschedule request sent to student.');
     showRescheduleModal.value = false;
     fetchAppointments();
+    fetchAllAppointments();
   } catch (e) {
     toast?.error('Failed to send reschedule request.');
   }
@@ -413,7 +428,7 @@ const calendarDays = computed(() => {
     const dateStr    = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday    = d === today.getDate() && currentMonth.value === today.getMonth() && currentYear.value === today.getFullYear();
     const isSelected = d === selectedDate.value.getDate() && currentMonth.value === selectedDate.value.getMonth() && currentYear.value === selectedDate.value.getFullYear();
-    const dayAppts   = appointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr);
+    const dayAppts   = allAppointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr);
     const apptTitle  = dayAppts.map(a => `${a.start_time} - ${a.student?.student_id || ''}`).join('\n');
     days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr });
   }
@@ -447,6 +462,7 @@ function getDay(date)   { return new Date(date).getDate(); }
 
 onMounted(() => {
   fetchAppointments();
+  fetchAllAppointments();
   fetchStaff();
 });
 </script>
