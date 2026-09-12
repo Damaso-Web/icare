@@ -130,7 +130,8 @@
               <div
                 v-for="day in calendarDays"
                 :key="day.key"
-                style="aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:4px;font-size:10.5px;cursor:pointer;position:relative"
+                :title="day.apptTitle"
+                style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-size:10.5px;cursor:pointer;position:relative"
                 :style="{
                   background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : '',
                   color: day.isToday ? '#fff' : day.isOther ? 'var(--silver)' : 'var(--slate)',
@@ -140,8 +141,13 @@
                 @click="day.isOther ? null : selectDayPreview(day)"
               >
                 {{ day.date }}
-                <span v-if="day.hasAppt && !day.isToday" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:var(--moss)"></span>
-                <span v-if="day.hasAppt && day.isToday" style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:rgba(255,255,255,.7)"></span>
+                <span
+                  v-if="day.apptCount > 0"
+                  style="font-size:8px;line-height:1;margin-top:1px;padding:0 3px;border-radius:6px;font-weight:700"
+                  :style="day.isToday ? 'background:rgba(255,255,255,.25);color:#fff' : 'background:var(--moss);color:#fff'"
+                >
+                  {{ day.apptCount }}
+                </span>
               </div>
             </div>
           </div>
@@ -253,7 +259,7 @@ const previewDate = ref(null);
 const previewAppointments = computed(() => {
   if (!previewDate.value) return [];
   return appointments.value
-    .filter(a => a.appointment_date === previewDate.value)
+    .filter(a => a.appointment_date?.split('T')[0] === previewDate.value)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 });
 
@@ -401,18 +407,19 @@ const calendarDays = computed(() => {
   const daysInPrev  = new Date(currentYear.value, currentMonth.value, 0).getDate();
 
   for (let i = firstDay - 1; i >= 0; i--) {
-    days.push({ date: daysInPrev - i, isOther: true, key: `prev-${i}`, hasAppt: false });
+    days.push({ date: daysInPrev - i, isOther: true, key: `prev-${i}`, hasAppt: false, apptCount: 0, apptTitle: '' });
   }
   for (let d = 1; d <= daysInMonth; d++) {
     const dateStr    = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday    = d === today.getDate() && currentMonth.value === today.getMonth() && currentYear.value === today.getFullYear();
     const isSelected = d === selectedDate.value.getDate() && currentMonth.value === selectedDate.value.getMonth() && currentYear.value === selectedDate.value.getFullYear();
-    const hasAppt    = appointments.value.some(a => a.appointment_date === dateStr);
-    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt, dateStr });
+    const dayAppts   = appointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr);
+    const apptTitle  = dayAppts.map(a => `${a.start_time} - ${a.student?.student_id || ''}`).join('\n');
+    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr });
   }
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
-    days.push({ date: i, isOther: true, key: `next-${i}`, hasAppt: false });
+    days.push({ date: i, isOther: true, key: `next-${i}`, hasAppt: false, apptCount: 0, apptTitle: '' });
   }
   return days;
 });
