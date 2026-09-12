@@ -20,13 +20,10 @@
             <option value="TMDU">TMDU</option>
           </select>
           <select v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="no_show">No Show</option>
-          </select>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="no_show">No Show</option>
+        </select>
           <input v-model="filters.date" type="date" class="ifi" style="width:160px" @change="fetchAppointments" />
           <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
         </div>
@@ -138,29 +135,17 @@
           <button class="ibtn ibtn-g ibtn-sm" @click="showRescheduleModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-        <template v-if="!newSchedulingLink">
-          <div style="font-size:13px;color:var(--stone);line-height:1.6">
-            This will generate a new scheduling link for the student to pick a different time.
-          </div>
-          <div>
-            <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
-            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
-            <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
-          </div>
-        </template>
-        <template v-else>
-          <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:14px;font-size:13px;color:var(--forest)">
-            ✓ Reschedule request created. Share this link with the student:
-          </div>
-          <div style="display:flex;gap:8px;align-items:center">
-            <input :value="newSchedulingLink" readonly class="ifi" style="font-family:var(--mono);font-size:12px" @click="$event.target.select()" />
-            <button class="ibtn ibtn-o ibtn-sm" @click="copyLink">Copy</button>
-          </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="closeRescheduleModal">Done</button>
-        </template>
+        <div style="font-size:13px;color:var(--stone);line-height:1.6">
+          This will notify the student to pick a different appointment time from their dashboard.
+        </div>
+        <div>
+          <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
+          <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
+          <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
+        </div>
       </div>
       </div>
     </div>
@@ -180,12 +165,12 @@ const router = useRouter();
 const loading    = ref(true);
 const appointments = ref([]);
 const pagination = ref({});
-const filters    = ref({ unit: '', status: '', date: '' });
+const filters = ref({ unit: '', status: 'pending', date: '' });
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
 const rescheduleForm      = ref({ reschedule_reason: '' });
-const newSchedulingLink = ref('');
+
 
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
@@ -258,7 +243,6 @@ async function cancelAppt(a) {
 function openReschedule(a) {
   rescheduleTarget.value = a;
   rescheduleForm.value = { reschedule_reason: '' };
-  newSchedulingLink.value = '';
   showRescheduleModal.value = true;
 }
 
@@ -268,29 +252,19 @@ async function submitReschedule() {
     return;
   }
   try {
-    const res = await appointmentAPI.reschedule(rescheduleTarget.value.id, rescheduleForm.value);
-    newSchedulingLink.value = res.data.scheduling_link;
-    toast?.success('Reschedule request created.');
+    await appointmentAPI.reschedule(rescheduleTarget.value.id, rescheduleForm.value);
+    toast?.success('Reschedule request sent to student.');
+    showRescheduleModal.value = false;
     fetchAppointments();
   } catch (e) {
     toast?.error('Failed to send reschedule request.');
   }
 }
 
-function copyLink() {
-  navigator.clipboard.writeText(newSchedulingLink.value);
-  toast?.success('Link copied to clipboard.');
-}
-
-function closeRescheduleModal() {
-  showRescheduleModal.value = false;
-  newSchedulingLink.value = '';
-}
-
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { unit: '', status: '', date: '' };
+  filters.value = { unit: '', status: 'pending', date: '' };
   fetchAppointments();
 }
 

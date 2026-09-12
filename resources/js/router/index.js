@@ -53,10 +53,16 @@ const routes = [
         meta: { public: true },
     },
     {
-        path: '/student/dashboard',
-        name: 'student-dashboard',
-        component: () => import('../views/StudentDashboard.vue'),
+        path: '/student',
+        component: () => import('../layouts/StudentLayout.vue'),
         meta: { public: true },
+        children: [
+            {
+                path: 'dashboard',
+                name: 'student-dashboard',
+                component: () => import('../views/StudentDashboard.vue'),
+            },
+        ],
     },
     {
         path: '/',

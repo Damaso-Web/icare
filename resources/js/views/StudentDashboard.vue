@@ -1,25 +1,14 @@
 <template>
-  <div style="min-height:100vh;background:var(--snow)">
-    <!-- Top bar - styled like staff app header -->
-    <div style="background:var(--forest);padding:14px 24px;display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:32px;height:32px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--forest);font-weight:700">i</div>
-        <div>
-          <div style="font-family:var(--serif);font-style:italic;font-size:16px;color:#fff">iCARE</div>
-          <div style="font-size:10px;color:rgba(255,255,255,.6)">Student Portal</div>
-        </div>
-      </div>
-      <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:13px;color:rgba(255,255,255,.85)">{{ student.first_name }} {{ student.last_name }}</span>
-        <button class="ibtn ibtn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" @click="showEditProfile = true">Edit Profile</button>
-        <button class="ibtn ibtn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" @click="logout">Logout</button>
-      </div>
-    </div>
-
-    <div style="max-width:800px;margin:0 auto;padding:24px">
+  <div>
+    <div style="max-width:800px">
       <div class="ph" style="margin-bottom:20px">
-        <h1>Welcome, {{ student.first_name }}</h1>
-        <p>{{ student.student_id }} · {{ student.college }}</p>
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <h1>Welcome, {{ student.first_name }}</h1>
+            <p>{{ student.student_id }} · {{ student.college }}</p>
+          </div>
+          <button class="ibtn ibtn-o ibtn-sm" @click="openEditProfile">Edit Profile</button>
+        </div>
       </div>
 
       <div v-if="student.must_change_password" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
