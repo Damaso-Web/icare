@@ -1,6 +1,6 @@
 {
   "resources/js/app.js": {
-    "file": "assets/app-Dc2h4dCc.js",
+    "file": "assets/app-DfRA96K6.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,
@@ -21,7 +21,7 @@
     ]
   },
   "resources/js/layouts/StudentLayout.vue": {
-    "file": "assets/StudentLayout-DFaNOB2H.js",
+    "file": "assets/StudentLayout-BOzBsjLq.js",
     "name": "StudentLayout",
     "src": "resources/js/layouts/StudentLayout.vue",
     "isDynamicEntry": true,
@@ -30,7 +30,7 @@
     ]
   },
   "resources/js/views/LoginChoice.vue": {
-    "file": "assets/LoginChoice-CcGtA1dp.js",
+    "file": "assets/LoginChoice-DMyLNBOF.js",
     "name": "LoginChoice",
     "src": "resources/js/views/LoginChoice.vue",
     "isDynamicEntry": true,
@@ -39,7 +39,7 @@
     ]
   },
   "resources/js/views/StudentLogin.vue": {
-    "file": "assets/StudentLogin-54XUqhB8.js",
+    "file": "assets/StudentLogin-B_bGo52H.js",
     "name": "StudentLogin",
     "src": "resources/js/views/StudentLogin.vue",
     "isDynamicEntry": true,
@@ -48,7 +48,7 @@
     ]
   },
   "resources/js/views/public/schedule.vue": {
-    "file": "assets/schedule-DW2UMV1Q.js",
+    "file": "assets/schedule-Cj91lcwI.js",
     "name": "schedule",
     "src": "resources/js/views/public/schedule.vue",
     "isDynamicEntry": true,
@@ -57,7 +57,7 @@
     ]
   },
   "resources/js/views/student/Account.vue": {
-    "file": "assets/Account-yqTnj70t.js",
+    "file": "assets/Account-CTTnw6br.js",
     "name": "Account",
     "src": "resources/js/views/student/Account.vue",
     "isDynamicEntry": true,
@@ -66,7 +66,7 @@
     ]
   },
   "resources/js/views/student/AppointmentShow.vue": {
-    "file": "assets/AppointmentShow-C047yuYl.js",
+    "file": "assets/AppointmentShow-XdNyPIyh.js",
     "name": "AppointmentShow",
     "src": "resources/js/views/student/AppointmentShow.vue",
     "isDynamicEntry": true,
@@ -75,7 +75,7 @@
     ]
   },
   "resources/js/views/student/Appointments.vue": {
-    "file": "assets/Appointments-BzVH410l.js",
+    "file": "assets/Appointments-DhCChxFm.js",
     "name": "Appointments",
     "src": "resources/js/views/student/Appointments.vue",
     "isDynamicEntry": true,
@@ -84,7 +84,7 @@
     ]
   },
   "resources/js/views/student/ReferralShow.vue": {
-    "file": "assets/ReferralShow-BLMJBWXL.js",
+    "file": "assets/ReferralShow-DeynmfKw.js",
     "name": "ReferralShow",
     "src": "resources/js/views/student/ReferralShow.vue",
     "isDynamicEntry": true,
@@ -93,7 +93,7 @@
     ]
   },
   "resources/js/views/student/Referrals.vue": {
-    "file": "assets/Referrals-DGaP5mpo.js",
+    "file": "assets/Referrals-4v4Er5jb.js",
     "name": "Referrals",
     "src": "resources/js/views/student/Referrals.vue",
     "isDynamicEntry": true,
@@ -102,7 +102,7 @@
     ]
   },
   "resources/js/views/student/StudentDashboard.vue": {
-    "file": "assets/StudentDashboard-KF9J_sQI.js",
+    "file": "assets/StudentDashboard-DMaVBX9-.js",
     "name": "StudentDashboard",
     "src": "resources/js/views/student/StudentDashboard.vue",
     "isDynamicEntry": true,

@@ -260,7 +260,7 @@ const previewDate = ref(null);
 const previewAppointments = computed(() => {
   if (!previewDate.value) return [];
   return allAppointments.value
-    .filter(a => a.appointment_date?.split('T')[0] === previewDate.value)
+    .filter(a => a.appointment_date?.split('T')[0] === previewDate.value && ['pending', 'confirmed'].includes(a.status))
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
 });
 
@@ -428,7 +428,7 @@ const calendarDays = computed(() => {
     const dateStr    = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isToday    = d === today.getDate() && currentMonth.value === today.getMonth() && currentYear.value === today.getFullYear();
     const isSelected = d === selectedDate.value.getDate() && currentMonth.value === selectedDate.value.getMonth() && currentYear.value === selectedDate.value.getFullYear();
-    const dayAppts   = allAppointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr);
+    const dayAppts   = allAppointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr && ['pending', 'confirmed'].includes(a.status));
     const apptTitle  = dayAppts.map(a => `${a.start_time} - ${a.student?.student_id || ''}`).join('\n');
     days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr });
   }
