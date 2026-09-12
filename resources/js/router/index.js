@@ -18,6 +18,7 @@ import TestingRecords from '../views/testing/Index.vue';
 import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
+import MyAccount from '../views/MyAccount.vue';
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
@@ -37,6 +38,18 @@ const routes = [
         path: '/schedule/:token',
         name: 'public-schedule',
         component: () => import('../views/public/Schedule.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student/login',
+        name: 'student-login',
+        component: () => import('../views/StudentLogin.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student/dashboard',
+        name: 'student-dashboard',
+        component: () => import('../views/StudentDashboard.vue'),
         meta: { public: true },
     },
     {
@@ -123,6 +136,12 @@ const routes = [
                 meta: { roles: ADMIN_ONLY },
             },
             {
+                path: 'my-account',
+                name: 'my-account',
+                component: MyAccount,
+                meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'] },
+            },
+            {
                 path: 'audit',
                 name: 'audit',
                 component: AuditLogs,
@@ -148,24 +167,6 @@ const routes = [
         path: '/:pathMatch(.*)*',
         redirect: '/login',
     },
-    {
-    path: '/student/login',
-    name: 'student-login',
-    component: () => import('../views/StudentLogin.vue'),
-    meta: { public: true },
-},
-{
-    path: '/student/dashboard',
-    name: 'student-dashboard',
-    component: () => import('../views/StudentDashboard.vue'),
-    meta: { public: true },
-},
-{
-    path: 'my-account',
-    name: 'my-account',
-    component: () => import('../views/MyAccount.vue'),
-    meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'] },
-},
 ];
 
 const router = createRouter({
