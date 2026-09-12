@@ -52,10 +52,8 @@ class PublicSchedulingController extends Controller
             ->where('appointment_date', $request->appointment_date)
             ->where('id', '!=', $appointment->id)
             ->whereNotIn('status', ['cancelled'])
-            ->where(function ($q) use ($request) {
-                $q->whereBetween('start_time', [$request->start_time, $request->end_time])
-                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time]);
-            })
+            ->where('start_time', '<', $request->end_time)
+            ->where('end_time', '>', $request->start_time)
             ->exists();
 
         return response()->json(['available' => !$conflict]);
@@ -92,10 +90,8 @@ class PublicSchedulingController extends Controller
             ->where('appointment_date', $request->appointment_date)
             ->where('id', '!=', $appointment->id)
             ->whereNotIn('status', ['cancelled'])
-            ->where(function ($q) use ($request) {
-                $q->whereBetween('start_time', [$request->start_time, $request->end_time])
-                  ->orWhereBetween('end_time', [$request->start_time, $request->end_time]);
-            })
+            ->where('start_time', '<', $request->end_time)
+            ->where('end_time', '>', $request->start_time)
             ->exists();
 
         if ($conflict) {

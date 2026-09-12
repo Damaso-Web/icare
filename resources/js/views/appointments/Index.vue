@@ -79,7 +79,7 @@
           </div>
           <div v-else>
             <div
-              v-for="a in appointments"
+              v-for="a in filteredAppointments"
               :key="a.id"
               style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s;cursor:pointer"
               @mouseover="$event.currentTarget.style.background='var(--foam)'"
@@ -415,6 +415,10 @@ const timeSlots = [
 
 const pendingConfirmations = computed(() => {
   return appointments.value.filter(a => a.request_status === 'pending_confirmation');
+});
+
+const filteredAppointments = computed(() => {
+  return appointments.value.filter(a => a.request_status !== 'pending_confirmation');
 });
 
 function validateBusinessDay() {

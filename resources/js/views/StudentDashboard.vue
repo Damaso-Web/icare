@@ -1,24 +1,28 @@
 <template>
   <div style="min-height:100vh;background:var(--snow)">
-    <!-- Top bar -->
-    <div style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between">
+    <!-- Top bar - styled like staff app header -->
+    <div style="background:var(--forest);padding:14px 24px;display:flex;align-items:center;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:32px;height:32px;background:var(--forest);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--gold)">i</div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:16px;color:var(--forest)">iCARE Student Portal</div>
+        <div style="width:32px;height:32px;background:var(--gold);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:var(--serif);font-style:italic;color:var(--forest);font-weight:700">i</div>
+        <div>
+          <div style="font-family:var(--serif);font-style:italic;font-size:16px;color:#fff">iCARE</div>
+          <div style="font-size:10px;color:rgba(255,255,255,.6)">Student Portal</div>
+        </div>
       </div>
       <div style="display:flex;align-items:center;gap:12px">
-        <span style="font-size:13px;color:var(--stone)">{{ student.first_name }} {{ student.last_name }}</span>
-        <button class="ibtn ibtn-o ibtn-sm" @click="logout">Logout</button>
+        <span style="font-size:13px;color:rgba(255,255,255,.85)">{{ student.first_name }} {{ student.last_name }}</span>
+        <button class="ibtn ibtn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" @click="showEditProfile = true">Edit Profile</button>
+        <button class="ibtn ibtn-sm" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.25)" @click="logout">Logout</button>
       </div>
     </div>
 
     <div style="max-width:800px;margin:0 auto;padding:24px">
       <div class="ph" style="margin-bottom:20px">
         <h1>Welcome, {{ student.first_name }}</h1>
-        <p>Here's an overview of your referrals and appointments.</p>
+        <p>{{ student.student_id }} · {{ student.college }}</p>
       </div>
 
-      <div v-if="student.must_change_password" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
+      <div v-if="student.must_change_password" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <div style="font-size:13px;color:var(--amber)">⚠ Please change your temporary password.</div>
         <button class="ibtn ibtn-sm" style="background:var(--amber);color:#fff" @click="showChangePassword = true">Change Now</button>
       </div>
@@ -101,8 +105,8 @@
         <div v-else>
           <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
             <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ a.unit }} · {{ a.appointment_type?.replace(/_/g,' ') }}</div>
-            <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ a.status?.replace(/_/g,' ') }}</span>
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ a.unit }} · {{ toTitleCase(a.appointment_type) }}</div>
+            <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(a.status) }}</span>
           </div>
         </div>
       </div>
@@ -115,9 +119,45 @@
         </div>
         <div v-else>
           <div v-for="r in referrals" :key="r.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
-            <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ r.referral_code }}</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ r.referral_type?.replace(/_/g,' ') }} · {{ formatDate(r.created_at) }}</div>
-            <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:6px;display:inline-block">{{ r.status?.replace(/_/g,' ') }}</span>
+            <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}</div>
+            <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(r.status) }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div v-if="showEditProfile" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;padding:22px">
+        <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Edit Profile</div>
+        <div v-if="profileError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:12px">{{ profileError }}</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Last Name</label>
+              <input v-model="profileForm.last_name" class="ifi" />
+            </div>
+            <div>
+              <label class="ifl">First Name</label>
+              <input v-model="profileForm.first_name" class="ifi" />
+            </div>
+          </div>
+          <div>
+            <label class="ifl">Middle Name</label>
+            <input v-model="profileForm.middle_name" class="ifi" />
+          </div>
+          <div>
+            <label class="ifl">Email</label>
+            <input v-model="profileForm.email" type="email" class="ifi" />
+          </div>
+          <div>
+            <label class="ifl">Contact Number</label>
+            <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" />
+          </div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button class="ibtn ibtn-p" @click="saveProfile">Save</button>
+            <button class="ibtn ibtn-o" @click="showEditProfile = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -163,9 +203,12 @@ const appointments = ref([]);
 const referrals = ref([]);
 const pendingAppointment = ref(null);
 const showChangePassword = ref(false);
+const showEditProfile = ref(false);
 const showScheduleForm = ref(false);
 const pwError = ref('');
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
+const profileError = ref('');
+const profileForm = ref({ first_name: '', last_name: '', middle_name: '', email: '', contact_number: '' });
 
 const scheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const dayWarning = ref(false);
@@ -188,6 +231,11 @@ const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };
+}
+
+function toTitleCase(str) {
+  if (!str) return '';
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 async function fetchData() {
@@ -254,6 +302,30 @@ async function submitSchedule() {
     scheduleError.value = e.response?.data?.message || 'Failed to submit your request.';
   } finally {
     submitting.value = false;
+  }
+}
+
+function openEditProfile() {
+  profileForm.value = {
+    first_name: student.value.first_name || '',
+    last_name: student.value.last_name || '',
+    middle_name: student.value.middle_name || '',
+    email: student.value.email || '',
+    contact_number: student.value.contact_number || '',
+  };
+  profileError.value = '';
+  showEditProfile.value = true;
+}
+
+async function saveProfile() {
+  profileError.value = '';
+  try {
+    const res = await axios.put(`${API_BASE}/student/profile`, profileForm.value, authHeaders());
+    student.value = { ...student.value, ...res.data };
+    localStorage.setItem('student', JSON.stringify(student.value));
+    showEditProfile.value = false;
+  } catch (e) {
+    profileError.value = e.response?.data?.message || 'Failed to update profile.';
   }
 }
 
