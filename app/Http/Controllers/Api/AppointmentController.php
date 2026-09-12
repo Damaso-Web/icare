@@ -122,15 +122,16 @@ class AppointmentController extends Controller
 }
 
     public function cancel(Request $request, Appointment $appointment)
-    {
-        $request->validate(['cancellation_reason' => 'required|string']);
+{
+    $request->validate(['cancellation_reason' => 'required|string']);
 
-        $appointment->update([
-            'status'               => 'cancelled',
-            'cancellation_reason'  => $request->cancellation_reason,
-            'cancelled_at'         => now(),
-            'cancelled_by_user_id' => $request->user()->id,
-        ]);
+    $appointment->update([
+        'status'               => 'cancelled',
+        'request_status'       => 'confirmed',
+        'cancellation_reason'  => $request->cancellation_reason,
+        'cancelled_at'         => now(),
+        'cancelled_by_user_id' => $request->user()->id,
+    ]);
 
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
         return response()->json($appointment);

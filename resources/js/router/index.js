@@ -62,6 +62,21 @@ const routes = [
                 name: 'student-dashboard',
                 component: () => import('../views/StudentDashboard.vue'),
             },
+            {
+                path: 'appointments',
+                name: 'student-appointments',
+                component: () => import('../views/student/Appointments.vue'),
+            },
+            {
+                path: 'referrals',
+                name: 'student-referrals',
+                component: () => import('../views/student/Referrals.vue'),
+            },
+            {
+                path: 'account',
+                name: 'student-account',
+                component: () => import('../views/student/Account.vue'),
+            },
         ],
     },
     {

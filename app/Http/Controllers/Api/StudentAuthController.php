@@ -74,6 +74,7 @@ class StudentAuthController extends Controller
 
     $pendingAppointment = $student->appointments()
         ->where('request_status', 'awaiting_student')
+        ->whereNotIn('status', ['cancelled'])
         ->latest()
         ->first();
 

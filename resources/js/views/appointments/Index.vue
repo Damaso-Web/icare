@@ -11,6 +11,26 @@
       <!-- Left: Appointments List -->
       <div style="display:flex;flex-direction:column;gap:16px">
 
+        <div style="display:flex;gap:8px;margin-bottom:16px">
+  <button
+    class="ibtn ibtn-sm"
+    :style="!showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+    @click="switchTab(false)"
+  >
+    Open
+  </button>
+  <button
+    class="ibtn ibtn-sm"
+    :style="showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
+    @click="switchTab(true)"
+  >
+    Completed / Cancelled
+  </button>
+</div>
+
+<div class="filter-bar">
+  <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
+
         <!-- Filter Bar -->
         <div class="filter-bar">
           <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
@@ -19,11 +39,16 @@
             <option value="SDU">SDU</option>
             <option value="TMDU">TMDU</option>
           </select>
-          <select v-model="filters.status" class="fsm" @change="fetchAppointments">
-          <option value="pending">Pending</option>
-          <option value="confirmed">Confirmed</option>
-          <option value="no_show">No Show</option>
-        </select>
+          <select v-if="!showClosed" v-model="filters.status" class="fsm" @change="fetchAppointments">
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="no_show">No Show</option>
+          </select>
+          <select v-else v-model="filters.status" class="fsm" @change="fetchAppointments">
+            <option value="">Both</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
           <input v-model="filters.date" type="date" class="ifi" style="width:160px" @change="fetchAppointments" />
           <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
         </div>
@@ -177,12 +202,20 @@ const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
+const showClosed = ref(false);
+
 function goToCase(a) {
   if (a.case_id) {
     router.push({ name: 'case-show', params: { id: a.case_id } });
   } else {
     toast?.error('No linked case found for this appointment.');
   }
+}
+
+function switchTab(closed) {
+  showClosed.value = closed;
+  filters.value.status = closed ? '' : 'pending';
+  fetchAppointments();
 }
 
 async function fetchAppointments(page = 1) {
