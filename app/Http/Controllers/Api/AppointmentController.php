@@ -97,41 +97,29 @@ class AppointmentController extends Controller
     }
 
     public function reschedule(Request $request, Appointment $appointment)
-    {
-        $request->validate([
-            'appointment_date'  => 'required|date|after_or_equal:today',
-            'start_time'        => 'required|date_format:H:i',
-            'end_time'          => 'required|date_format:H:i|after:start_time',
-            'reschedule_reason' => 'required|string',
-        ]);
+{
+    $request->validate([
+        'reschedule_reason' => 'required|string',
+    ]);
 
-        $conflictFound = !empty($appointment->staff_user_id)
-            ? Appointment::hasConflict($appointment->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id)
-            : Appointment::hasUnitConflict($appointment->unit, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id);
+    $newToken = \Illuminate\Support\Str::random(48);
 
-        if ($conflictFound) {
-            return response()->json(['message' => 'Scheduling conflict detected.'], 422);
-        }
+    $appointment->update([
+        'request_status'    => 'awaiting_student',
+        'status'            => 'pending',
+        'scheduling_token'  => $newToken,
+        'token_expires_at'  => now()->addDays(7),
+        'reschedule_reason' => $request->reschedule_reason,
+    ]);
 
-        $new = $appointment->replicate();
-        $new->appointment_code    = null;
-        $new->scheduling_token    = null;
-        $new->token_expires_at    = null;
-        $new->appointment_date    = $request->appointment_date;
-        $new->start_time          = $request->start_time;
-        $new->end_time            = $request->end_time;
-        $new->rescheduled_from_id = $appointment->id;
-        $new->reschedule_reason   = $request->reschedule_reason;
-        $new->status              = 'pending';
-        $new->request_status      = 'confirmed';
-        $new->confirmation_sent   = false;
-        $new->save();
+    AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}. Reason: {$request->reschedule_reason}", $appointment);
 
-        $appointment->update(['status' => 'rescheduled']);
-
-        AuditLog::record('rescheduled', "Rescheduled appointment {$appointment->appointment_code} to {$new->appointment_code}.", $new);
-        return response()->json($new);
-    }
+    return response()->json([
+        'message'         => 'Reschedule request sent to student.',
+        'appointment'     => $appointment,
+        'scheduling_link' => url("/schedule/{$newToken}"),
+    ]);
+}
 
     public function cancel(Request $request, Appointment $appointment)
     {

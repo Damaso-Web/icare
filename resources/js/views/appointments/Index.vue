@@ -3,40 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Appointment Calendar</h1>
-      <p>View, schedule, and manage counseling sessions and conferences.</p>
-    </div>
-
-    <!-- Awaiting Confirmation Section -->
-    <div v-if="pendingConfirmations.length > 0" class="icard" style="border:2px solid var(--amber);margin-bottom:16px">
-      <div class="icard-header" style="background:var(--amber-lt)">
-        <span class="icard-title" style="color:var(--amber)">⚠ Awaiting Your Confirmation ({{ pendingConfirmations.length }})</span>
-      </div>
-      <div>
-        <div
-          v-for="a in pendingConfirmations"
-          :key="a.id"
-          style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud)"
-        >
-          <div style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
-            <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
-            <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
-          </div>
-          <div style="flex:1;min-width:0;cursor:pointer" @click="goToCase(a)">
-            <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-              <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
-              <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
-            </div>
-            <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
-              Requested: {{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
-            <button class="ibtn ibtn-p ibtn-sm" @click.stop="confirmRequest(a)">Confirm</button>
-            <button class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Reschedule</button>
-            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="cancelAppt(a)">Cancel</button>
-          </div>
-        </div>
-      </div>
+      <p>Confirm, reschedule, or manage student-requested appointments.</p>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
@@ -62,10 +29,6 @@
           </select>
           <input v-model="filters.date" type="date" class="ifi" style="width:160px" @change="fetchAppointments" />
           <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-          <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click="showScheduleModal = true">
-            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Schedule
-          </button>
         </div>
 
         <!-- Appointments -->
@@ -75,11 +38,11 @@
           </div>
           <div v-else-if="appointments.length === 0" class="empty-state">
             <h3>No appointments found</h3>
-            <p>Try adjusting your filters or schedule a new appointment.</p>
+            <p>Appointments will appear here once students request them from their acknowledged referrals.</p>
           </div>
           <div v-else>
             <div
-              v-for="a in filteredAppointments"
+              v-for="a in appointments"
               :key="a.id"
               style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s;cursor:pointer"
               @mouseover="$event.currentTarget.style.background='var(--foam)'"
@@ -92,24 +55,25 @@
               </div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
-                <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
-                <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
-                <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
-              </div>
+                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+                  <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
+                  <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
+                </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
+                  <span v-if="a.request_status === 'awaiting_student'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Awaiting Student</span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
-              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:200px;justify-content:flex-end">
-                <button v-if="a.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click.stop="confirmAppt(a)">Confirm</button>
+              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
+                <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="confirmAppt(a)">Confirm</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Check In</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="markNoShow(a)">No-Show</button>
-                <button v-if="['pending','confirmed'].includes(a.status)" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Reschedule</button>
+                <button v-if="['pending','confirmed'].includes(a.status) && a.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
                 <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="cancelAppt(a)">Cancel</button>
               </div>
             </div>
@@ -129,10 +93,8 @@
 
       </div>
 
-      <!-- Right: Booking Panel -->
+      <!-- Right: Mini Calendar -->
       <div style="display:flex;flex-direction:column;gap:16px">
-
-        <!-- Mini Calendar -->
         <div class="icard">
           <div class="icard-header">
             <span class="icard-title">{{ currentMonthLabel }}</span>
@@ -165,205 +127,41 @@
             </div>
           </div>
         </div>
-
-        <!-- Available Slots -->
-        <div class="icard">
-          <div class="icard-header"><span class="icard-title">Available Slots</span></div>
-          <div style="padding:14px 16px">
-            <div style="font-size:11px;color:var(--stone);margin-bottom:10px">{{ selectedDateLabel }}</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <div
-                v-for="slot in timeSlots"
-                :key="slot.time"
-                style="padding:6px 12px;border:1.5px solid var(--silver);border-radius:var(--r-sm);font-size:12px;transition:all .1s"
-                :style="{
-                  background: selectedSlot === slot.time ? 'var(--moss)' : '#fff',
-                  borderColor: selectedSlot === slot.time ? 'var(--moss)' : 'var(--silver)',
-                  color: selectedSlot === slot.time ? '#fff' : 'var(--slate)',
-                  cursor: 'pointer',
-                }"
-                @click="selectedSlot = slot.time; scheduleForm.start_time = slot.time"
-              >
-                {{ slot.time }}
-              </div>
-            </div>
-            <button class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:12px" @click="showScheduleModal = true" :disabled="!selectedSlot">
-              Book {{ selectedSlot || 'a slot' }}
-            </button>
-          </div>
-        </div>
-
       </div>
     </div>
 
-    <!-- Schedule Modal -->
-    <div v-if="showScheduleModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showScheduleModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:500px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Schedule Appointment</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showScheduleModal = false">✕</button>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-
-          <div>
-            <label class="ifl">Case <span style="color:var(--red)">*</span></label>
-            <select v-model="scheduleForm.case_id" class="ifse" @change="onCaseChange">
-              <option value="">Select case...</option>
-              <option v-for="c in cases" :key="c.id" :value="c.id">
-                {{ c.case_number }} — {{ c.student?.last_name }}, {{ c.student?.first_name }}
-              </option>
-            </select>
-          </div>
-
-          <div>
-            <label class="ifl">Appointment Type <span style="color:var(--red)">*</span></label>
-            <select v-model="scheduleForm.appointment_type" class="ifse">
-              <option value="">Select type...</option>
-              <option value="initial_counseling">Initial Counseling</option>
-              <option value="follow_up_session">Follow Up Session</option>
-              <option value="psychological_testing">Psychological Testing</option>
-              <option value="disciplinary_conference">Disciplinary Conference</option>
-              <option value="parent_conference">Parent Conference</option>
-              <option value="academic_coaching">Academic Coaching</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="ifl">Unit <span style="color:var(--red)">*</span></label>
-            <select v-model="scheduleForm.unit" class="ifse">
-              <option value="GCU">GCU — Guidance &amp; Counseling Unit</option>
-              <option value="SDU">SDU — Student Discipline Unit</option>
-              <option value="TMDU">TMDU — Testing &amp; Measurement</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="ifl">Assign Personnel</label>
-            <select v-model="scheduleForm.staff_user_id" class="ifse">
-              <option value="">Auto-assign / TBA</option>
-              <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }} ({{ roleLabel(u.role) }})</option>
-            </select>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label class="ifl">Date <span style="color:var(--red)">*</span></label>
-              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="minDate" @change="validateBusinessDay" />
-            </div>
-            <div>
-              <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
-              <select v-model="scheduleForm.start_time" class="ifse">
-                <option value="">Select...</option>
-                <option value="08:00">08:00 AM</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="13:00">01:00 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="15:00">03:00 PM</option>
-                <option value="16:00">04:00 PM</option>
-              </select>
-            </div>
-          </div>
-
-          <div v-if="businessDayWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ Appointments can only be scheduled Monday to Friday, 8:00 AM to 4:00 PM.
-          </div>
-
-          <div>
-            <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
-            <select v-model="scheduleForm.end_time" class="ifse">
-              <option value="">Select...</option>
-              <option value="09:00">09:00 AM</option>
-              <option value="10:00">10:00 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="12:00">12:00 PM</option>
-              <option value="14:00">02:00 PM</option>
-              <option value="15:00">03:00 PM</option>
-              <option value="16:00">04:00 PM</option>
-              <option value="17:00">05:00 PM</option>
-            </select>
-          </div>
-
-          <div>
-            <label class="ifl">Location</label>
-            <input v-model="scheduleForm.location" class="ifi" placeholder="e.g. GCU Office, Room 201" />
-          </div>
-
-          <div>
-            <label class="ifl">Notes</label>
-            <textarea v-model="scheduleForm.notes" class="ifta" style="min-height:60px" placeholder="Any special instructions..."></textarea>
-          </div>
-
-          <div v-if="conflictWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ Scheduling conflict detected. Please choose a different time.
-          </div>
-
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="scheduleAppointment">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              Confirm Appointment
-            </button>
-            <button class="ibtn ibtn-o" @click="showScheduleModal = false">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Reschedule Modal -->
+    <!-- Reschedule Request Modal -->
     <div v-if="showRescheduleModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showRescheduleModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reschedule Appointment</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Request Reschedule</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showRescheduleModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label class="ifl">New Date <span style="color:var(--red)">*</span></label>
-              <input v-model="rescheduleForm.appointment_date" type="date" class="ifi" :min="minDate" />
-            </div>
-            <div>
-              <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
-              <select v-model="rescheduleForm.start_time" class="ifse">
-                <option value="">Select...</option>
-                <option value="08:00">08:00 AM</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="13:00">01:00 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="15:00">03:00 PM</option>
-                <option value="16:00">04:00 PM</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
-            <select v-model="rescheduleForm.end_time" class="ifse">
-              <option value="">Select...</option>
-              <option value="09:00">09:00 AM</option>
-              <option value="10:00">10:00 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="12:00">12:00 PM</option>
-              <option value="14:00">02:00 PM</option>
-              <option value="15:00">03:00 PM</option>
-              <option value="16:00">04:00 PM</option>
-              <option value="17:00">05:00 PM</option>
-            </select>
+        <template v-if="!newSchedulingLink">
+          <div style="font-size:13px;color:var(--stone);line-height:1.6">
+            This will generate a new scheduling link for the student to pick a different time.
           </div>
           <div>
             <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
-            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:60px" placeholder="Why is this being rescheduled?"></textarea>
-          </div>
-          <div v-if="conflictWarning" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ Scheduling conflict detected for the selected time.
+            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="submitReschedule">Confirm Reschedule</button>
+            <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
             <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
           </div>
-        </div>
+        </template>
+        <template v-else>
+          <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:14px;font-size:13px;color:var(--forest)">
+            ✓ Reschedule request created. Share this link with the student:
+          </div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input :value="newSchedulingLink" readonly class="ifi" style="font-family:var(--mono);font-size:12px" @click="$event.target.select()" />
+            <button class="ibtn ibtn-o ibtn-sm" @click="copyLink">Copy</button>
+          </div>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="closeRescheduleModal">Done</button>
+        </template>
+      </div>
       </div>
     </div>
 
@@ -373,63 +171,26 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
-import { appointmentAPI, caseAPI, userAPI } from '../../api/index';
+import { appointmentAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
 const toast  = inject('toast');
 const router = useRouter();
 
-const loading           = ref(true);
-const showScheduleModal = ref(false);
+const loading    = ref(true);
+const appointments = ref([]);
+const pagination = ref({});
+const filters    = ref({ unit: '', status: '', date: '' });
+
 const showRescheduleModal = ref(false);
-const selectedSlot      = ref('');
-const conflictWarning   = ref(false);
-const businessDayWarning = ref(false);
-const appointments      = ref([]);
-const pagination        = ref({});
-const cases             = ref([]);
-const staffList         = ref([]);
-const filters           = ref({ unit: '', status: '', date: '' });
-const rescheduleTarget  = ref(null);
+const rescheduleTarget    = ref(null);
+const rescheduleForm      = ref({ reschedule_reason: '' });
+const newSchedulingLink = ref('');
 
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
-
-const minDate = computed(() => today.toISOString().split('T')[0]);
-
-const scheduleForm = ref({
-  case_id: '', student_id: '', staff_user_id: '',
-  appointment_type: '', unit: 'GCU',
-  appointment_date: '', start_time: '', end_time: '',
-  location: '', notes: '',
-});
-
-const rescheduleForm = ref({ appointment_date: '', start_time: '', end_time: '', reschedule_reason: '' });
-
-const timeSlots = [
-  { time: '08:00' }, { time: '09:00' }, { time: '10:00' }, { time: '11:00' },
-  { time: '13:00' }, { time: '14:00' }, { time: '15:00' }, { time: '16:00' },
-];
-
-const pendingConfirmations = computed(() => {
-  return appointments.value.filter(a => a.request_status === 'pending_confirmation');
-});
-
-const filteredAppointments = computed(() => {
-  return appointments.value.filter(a => a.request_status !== 'pending_confirmation');
-});
-
-function validateBusinessDay() {
-  businessDayWarning.value = false;
-  if (!scheduleForm.value.appointment_date) return;
-  const d = new Date(scheduleForm.value.appointment_date + 'T00:00:00');
-  const day = d.getDay();
-  if (day === 0 || day === 6) {
-    businessDayWarning.value = true;
-  }
-}
 
 function goToCase(a) {
   if (a.case_id) {
@@ -452,46 +213,12 @@ async function fetchAppointments(page = 1) {
   }
 }
 
-async function fetchCases() {
-  try {
-    const res = await caseAPI.index({ status: 'open' });
-    cases.value = res.data.data || [];
-  } catch (e) { console.error(e); }
-}
-
-async function fetchStaff() {
-  try {
-    const res = await userAPI.index({ is_active: 1 });
-    staffList.value = (res.data.data || []).filter(u =>
-      ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'].includes(u.role)
-    );
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-function roleLabel(role) {
-  const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
-  return labels[role] || role;
-}
-
-async function confirmRequest(a) {
+async function confirmAppt(a) {
   try {
     await appointmentAPI.confirm(a.id);
     a.status = 'confirmed';
     a.request_status = 'confirmed';
     toast?.success('Appointment confirmed. Student will be notified.');
-    fetchAppointments();
-  } catch (e) {
-    toast?.error('Failed to confirm appointment.');
-  }
-}
-
-async function confirmAppt(a) {
-  try {
-    await appointmentAPI.confirm(a.id);
-    a.status = 'confirmed';
-    toast?.success('Appointment confirmed.');
   } catch (e) {
     toast?.error('Failed to confirm appointment.');
   }
@@ -530,75 +257,34 @@ async function cancelAppt(a) {
 
 function openReschedule(a) {
   rescheduleTarget.value = a;
-  const dateOnly = a.appointment_date ? a.appointment_date.split('T')[0] : '';
-  rescheduleForm.value = { appointment_date: dateOnly, start_time: '', end_time: '', reschedule_reason: '' };
-  conflictWarning.value = false;
+  rescheduleForm.value = { reschedule_reason: '' };
+  newSchedulingLink.value = '';
   showRescheduleModal.value = true;
 }
 
 async function submitReschedule() {
-  if (!rescheduleForm.value.appointment_date || !rescheduleForm.value.start_time || !rescheduleForm.value.end_time || !rescheduleForm.value.reschedule_reason) {
-    toast?.error('Please fill in all fields.');
+  if (!rescheduleForm.value.reschedule_reason) {
+    toast?.error('Please provide a reason for the reschedule.');
     return;
   }
   try {
-    await appointmentAPI.reschedule(rescheduleTarget.value.id, rescheduleForm.value);
-    toast?.success('Appointment rescheduled successfully.');
-    showRescheduleModal.value = false;
+    const res = await appointmentAPI.reschedule(rescheduleTarget.value.id, rescheduleForm.value);
+    newSchedulingLink.value = res.data.scheduling_link;
+    toast?.success('Reschedule request created.');
     fetchAppointments();
   } catch (e) {
-    if (e.response?.status === 422) {
-      conflictWarning.value = true;
-    } else {
-      toast?.error('Failed to reschedule appointment.');
-    }
+    toast?.error('Failed to send reschedule request.');
   }
 }
 
-function onCaseChange() {
-  const selected = cases.value.find(c => c.id === scheduleForm.value.case_id);
-  if (selected) {
-    scheduleForm.value.student_id = selected.student_id;
-  }
+function copyLink() {
+  navigator.clipboard.writeText(newSchedulingLink.value);
+  toast?.success('Link copied to clipboard.');
 }
 
-async function scheduleAppointment() {
-  conflictWarning.value = false;
-  if (!scheduleForm.value.case_id ||
-      !scheduleForm.value.appointment_type ||
-      !scheduleForm.value.appointment_date ||
-      !scheduleForm.value.start_time ||
-      !scheduleForm.value.end_time) {
-    toast?.error('Please fill in all required fields.');
-    return;
-  }
-
-  const d = new Date(scheduleForm.value.appointment_date + 'T00:00:00');
-  const day = d.getDay();
-  if (day === 0 || day === 6) {
-    toast?.error('Appointments can only be scheduled Monday to Friday.');
-    return;
-  }
-
-  try {
-    await appointmentAPI.store(scheduleForm.value);
-    toast?.success('Appointment scheduled successfully.');
-    showScheduleModal.value = false;
-    fetchAppointments();
-    scheduleForm.value = {
-      case_id: '', student_id: '', staff_user_id: '',
-      appointment_type: '', unit: 'GCU',
-      appointment_date: '', start_time: '', end_time: '',
-      location: '', notes: '',
-    };
-    selectedSlot.value = '';
-  } catch (e) {
-    if (e.response?.status === 422) {
-      conflictWarning.value = true;
-    } else {
-      toast?.error('Failed to schedule appointment.');
-    }
-  }
+function closeRescheduleModal() {
+  showRescheduleModal.value = false;
+  newSchedulingLink.value = '';
 }
 
 function changePage(page) { fetchAppointments(page); }
@@ -610,10 +296,6 @@ function resetFilters() {
 
 const currentMonthLabel = computed(() => {
   return new Date(currentYear.value, currentMonth.value).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-});
-
-const selectedDateLabel = computed(() => {
-  return selectedDate.value.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 });
 
 const calendarDays = computed(() => {
@@ -643,7 +325,6 @@ function selectDay(day) {
   if (day.isOther || !day.dateStr) return;
   selectedDate.value = new Date(day.dateStr);
   filters.value.date = day.dateStr;
-  scheduleForm.value.appointment_date = day.dateStr;
   fetchAppointments();
 }
 
@@ -659,11 +340,8 @@ function nextMonth() {
 
 function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short' }); }
 function getDay(date)   { return new Date(date).getDate(); }
-function formatDate(date) { return date ? new Date(date).toLocaleDateString() : '—'; }
 
 onMounted(() => {
   fetchAppointments();
-  fetchCases();
-  fetchStaff();
 });
 </script>
