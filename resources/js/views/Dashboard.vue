@@ -8,7 +8,7 @@
 
     <!-- Stat Cards -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
-      <div class="stat-card" v-for="stat in stats" :key="stat.label">
+      <div class="stat-card" v-for="stat in stats" :key="stat.label" style="cursor:pointer" @click="goToStat(stat)">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
           <div class="stat-icon" :style="{ background: stat.iconBg }">
             <svg viewBox="0 0 24 24" :style="{ color: stat.iconColor }" v-html="stat.icon"></svg>
@@ -192,9 +192,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
 
+const router    = useRouter();
 const auth      = useAuthStore();
 const dashboard = ref({});
 const loading   = ref(true);
@@ -220,34 +222,39 @@ const stats = computed(() => {
   const s = dashboard.value.stats || {};
   if (auth.isAdmin || auth.isGCUStaff) {
     return [
-      { label: 'Open Cases',         value: s.open_cases         ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
-      { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-      { label: 'High Priority',      value: s.high_priority      ?? 0, period: 'Urgent',  iconBg: 'var(--red-lt)',    iconColor: 'var(--red)',    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>' },
-      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+      { label: 'Open Cases',         value: s.open_cases         ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases' },
+      { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', route: 'referrals' },
+      { label: 'High Priority',      value: s.high_priority      ?? 0, period: 'Urgent',  iconBg: 'var(--red-lt)',    iconColor: 'var(--red)',    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', route: 'referrals' },
+      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'appointments' },
     ];
   }
   if (auth.isSDUHead) {
     return [
-      { label: 'Active Cases',       value: s.active_cases       ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
-      { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+      { label: 'Active Cases',       value: s.active_cases       ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases' },
+      { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', route: 'referrals' },
+      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'appointments' },
     ];
   }
   if (auth.isTMDUStaff) {
     return [
-      { label: 'Pending Testing',    value: s.pending_testing    ?? 0, period: 'Queue',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
-      { label: 'In Progress',        value: s.in_progress        ?? 0, period: 'Active',  iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-      { label: 'Completed',          value: s.completed          ?? 0, period: 'Done',    iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="20 6 9 17 4 12"/>' },
-      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+      { label: 'Pending Testing',    value: s.pending_testing    ?? 0, period: 'Queue',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>', route: 'testing' },
+      { label: 'In Progress',        value: s.in_progress        ?? 0, period: 'Active',  iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'testing' },
+      { label: 'Completed',          value: s.completed          ?? 0, period: 'Done',    iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="20 6 9 17 4 12"/>', route: 'testing' },
+      { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'appointments' },
     ];
   }
   return [
-    { label: 'My Referrals',  value: s.my_referrals ?? 0, period: 'Total',    iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>' },
-    { label: 'Pending',       value: s.pending      ?? 0, period: 'Awaiting', iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-    { label: 'Acknowledged',  value: s.acknowledged ?? 0, period: 'Received', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>' },
-    { label: 'Completed',     value: s.completed    ?? 0, period: 'Resolved', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
+    { label: 'My Referrals',  value: s.my_referrals ?? 0, period: 'Total',    iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'referrals' },
+    { label: 'Pending',       value: s.pending      ?? 0, period: 'Awaiting', iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'referrals' },
+    { label: 'Acknowledged',  value: s.acknowledged ?? 0, period: 'Received', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'referrals' },
+    { label: 'Completed',     value: s.completed    ?? 0, period: 'Resolved', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'referrals' },
   ];
 });
+
+function goToStat(stat) {
+  if (!stat.route) return;
+  router.push({ name: stat.route });
+}
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase();
