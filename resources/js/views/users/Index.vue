@@ -425,6 +425,9 @@ async function resetPassword(u) {
   try {
     const res = await userAPI.resetPassword(u.id, {});
     resetPasswordResult.value = res.data.temp_password;
+    tempPasswordValue.value = res.data.temp_password;
+    showTempPassword.value = true;
+    viewedUser.value.must_change_password = true;
     toast?.success('Password reset successfully.');
   } catch (e) {
     toast?.error('Failed to reset password.');
