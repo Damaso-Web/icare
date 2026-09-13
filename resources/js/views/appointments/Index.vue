@@ -68,7 +68,7 @@
               @mouseleave="$event.currentTarget.style.background=''"
               @click="goToCase(a)"
             >
-              <div v-if="a.request_status !== 'awaiting_student'" style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
+              <div v-if="a.request_status !== 'awaiting_student' || a.status === 'cancelled'" style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
                 <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
                 <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
               </div>
@@ -81,9 +81,9 @@
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
-                <div v-if="a.request_status === 'awaiting_student'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
-                  Waiting for student to pick a sched · {{ toTitleCase(a.appointment_type) }}
-                </div>
+                <div v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
+                Waiting for student to pick a schedule
+              </div>
                 <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
