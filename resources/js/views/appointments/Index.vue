@@ -68,9 +68,12 @@
               @mouseleave="$event.currentTarget.style.background=''"
               @click="goToCase(a)"
             >
-              <div style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
+              <div v-if="a.request_status !== 'awaiting_student'" style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
                 <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
                 <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
+              </div>
+              <div v-else style="width:48px;text-align:center;background:var(--amber-lt);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--amber);display:flex;align-items:center;justify-content:center">
+                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
@@ -78,7 +81,10 @@
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
-                <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
+                <div v-if="a.request_status === 'awaiting_student'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
+                  Waiting for student to pick a sched · {{ toTitleCase(a.appointment_type) }}
+                </div>
+                <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">

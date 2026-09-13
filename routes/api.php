@@ -30,9 +30,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',     [AuthController::class, 'logout']);
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
-    Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
-    Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
-    Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
@@ -132,6 +129,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('call-slips/{appointment}/escalate', [CallSlipController::class, 'escalateToDeptChair']);
     });
 });
+
+// Public scheduling routes (token-based, no auth required)
+Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
+Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
+Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
 
 // Student authentication routes (completely separate from staff auth:sanctum group)
 Route::post('student/login', [StudentAuthController::class, 'login']);
