@@ -19,6 +19,7 @@ import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
+import BackupRecovery from '../views/BackupRecovery.vue';
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
@@ -189,6 +190,12 @@ const routes = [
                 name: 'call-slips',
                 component: () => import('../views/callslips/Index.vue'),
                 meta: { roles: ['dean_secretary'] },
+            },
+            {
+                path: 'backup',
+                name: 'backup',
+                component: BackupRecovery,
+                meta: { roles: ADMIN_ONLY },
             },
         ],
     },

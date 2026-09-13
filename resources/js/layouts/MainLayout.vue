@@ -162,6 +162,7 @@ const pageTitle = computed(() => {
     'my-account':        'My Account',
     audit:               'Audit Logs',
     'call-slips':        'Call Slips',
+    backup:              'Backup & Recovery',
   };
   return titles[route.name] || 'iCARE';
 });
