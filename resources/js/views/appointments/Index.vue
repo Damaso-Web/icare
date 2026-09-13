@@ -82,15 +82,17 @@
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
                 <div v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
-                Waiting for student to pick a schedule
-              </div>
+                  {{ a.reschedule_reason ? 'Reschedule Needed — Waiting for Student' : 'Waiting for Student to Pick a Schedule' }}
+                </div>
                 <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} – {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
-                  <span v-if="a.request_status === 'awaiting_student'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Awaiting Student</span>
+                  <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
+                    {{ a.reschedule_reason ? 'Rescheduling' : 'Awaiting Student' }}
+                  </span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
