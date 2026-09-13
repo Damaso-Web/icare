@@ -56,13 +56,22 @@ class CaseFile extends Model
     ];
 
     protected static function booted(): void
-    {
-        static::creating(function (CaseFile $case) {
-            $year  = now()->year;
-            $count = static::whereYear('created_at', $year)->count() + 1;
-            $case->case_number = 'CASE-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
-        });
-    }
+{
+    static::creating(function (CaseFile $case) {
+        $year = now()->year;
+        $lastNumber = static::withTrashed()
+            ->where('case_number', 'like', "CASE-{$year}-%")
+            ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
+            ->value('case_number');
+
+        $nextNumber = 1;
+        if ($lastNumber) {
+            $nextNumber = (int) substr($lastNumber, -4) + 1;
+        }
+
+        $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+    });
+}
 
     public function student()       { return $this->belongsTo(Student::class); }
     public function referral()      { return $this->belongsTo(Referral::class); }
