@@ -412,6 +412,7 @@ function openView(u) {
   resetPasswordResult.value = '';
   showTempPassword.value = false;
   tempPasswordValue.value = '';
+  showViewModal.value = true;
 }
 
 function openEditFromView() {
