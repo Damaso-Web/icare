@@ -24,7 +24,7 @@ class UserController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
-        public function store(Request $request)
+    public function store(Request $request)
     {
         $validated = $request->validate([
             'first_name'            => 'required|string|max:255',
@@ -41,9 +41,11 @@ class UserController extends Controller
 
         $user = User::create([
             ...$validated,
-            'name'      => trim($validated['first_name'] . ' ' . $validated['last_name']),
-            'password'  => Hash::make($validated['password']),
-            'is_active' => true,
+            'name'                  => trim($validated['first_name'] . ' ' . $validated['last_name']),
+            'password'              => Hash::make($validated['password']),
+            'temp_password'         => $validated['password'],
+            'must_change_password'  => true,
+            'is_active'             => true,
         ]);
 
         AuditLog::record('created', "Created employee account for {$user->name} ({$user->role}).", $user);
@@ -56,27 +58,27 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-        public function update(Request $request, User $user)
-{
-    $validated = $request->validate([
-        'first_name'     => 'sometimes|string|max:255',
-        'middle_name'    => 'nullable|string|max:255',
-        'last_name'      => 'sometimes|string|max:255',
-        'email'          => 'sometimes|email|unique:users,email,' . $user->id,
-        'employee_id'    => 'nullable|string|max:50',
-        'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
-        'college'        => 'nullable|string',
-        'department'     => 'nullable|string',
-        'contact_number' => 'nullable|string|max:11',
-    ]);
+    public function update(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'first_name'     => 'sometimes|string|max:255',
+            'middle_name'    => 'nullable|string|max:255',
+            'last_name'      => 'sometimes|string|max:255',
+            'email'          => 'sometimes|email|unique:users,email,' . $user->id,
+            'employee_id'    => 'nullable|string|max:50',
+            'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
+            'college'        => 'nullable|string',
+            'department'     => 'nullable|string',
+            'contact_number' => 'nullable|string|max:11',
+        ]);
 
-    $old = $user->toArray();
-    $user->update($validated);
+        $old = $user->toArray();
+        $user->update($validated);
 
-    AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
+        AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
 
-    return response()->json($user);
-}
+        return response()->json($user);
+    }
 
     public function destroy(User $user)
     {
@@ -93,16 +95,30 @@ class UserController extends Controller
     }
 
     public function resetPassword(Request $request, User $user)
-{
-    $newPassword = Str::random(10);
-    $user->update(['password' => Hash::make($newPassword)]);
-    AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
+    {
+        $newPassword = Str::random(10);
+        $user->update([
+            'password'              => Hash::make($newPassword),
+            'temp_password'         => $newPassword,
+            'must_change_password'  => true,
+        ]);
+        AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
 
-    return response()->json([
-        'message'       => 'Password reset successfully.',
-        'temp_password' => $newPassword,
-    ]);
-}
+        return response()->json([
+            'message'       => 'Password reset successfully.',
+            'temp_password' => $newPassword,
+        ]);
+    }
+
+    // Admin-only: view current temp password if the user hasn't changed it yet
+    public function viewTempPassword(User $user)
+    {
+        if (!$user->must_change_password || !$user->temp_password) {
+            return response()->json(['message' => 'This user has already set their own password.'], 404);
+        }
+
+        return response()->json(['temp_password' => $user->temp_password]);
+    }
 
     public function import(Request $request)
     {
@@ -161,6 +177,7 @@ class UserController extends Controller
         $skipped = 0;
         $errors  = [];
         $rowNum  = 1;
+        $generatedPasswords = [];
 
         foreach ($rows as $rowData) {
             $rowNum++;
@@ -185,28 +202,37 @@ class UserController extends Controller
                 continue;
             }
 
+            $tempPassword = Str::random(10);
             User::create([
-                'first_name'     => $rowData['first_name'],
-                'last_name'      => $rowData['last_name'],
-                'name'           => trim($rowData['first_name'] . ' ' . $rowData['last_name']),
-                'email'          => $rowData['email'],
-                'employee_id'    => $rowData['employee_id'] ?? null,
-                'role'           => $rowData['role'],
-                'college'        => $rowData['college'] ?? null,
-                'department'     => $rowData['department'] ?? null,
-                'contact_number' => $rowData['contact_number'] ?? null,
-                'password'       => Hash::make(Str::random(12)),
-                'is_active'      => true,
+                'first_name'            => $rowData['first_name'],
+                'last_name'             => $rowData['last_name'],
+                'name'                  => trim($rowData['first_name'] . ' ' . $rowData['last_name']),
+                'email'                 => $rowData['email'],
+                'employee_id'           => $rowData['employee_id'] ?? null,
+                'role'                  => $rowData['role'],
+                'college'               => $rowData['college'] ?? null,
+                'department'            => $rowData['department'] ?? null,
+                'contact_number'        => $rowData['contact_number'] ?? null,
+                'password'              => Hash::make($tempPassword),
+                'temp_password'         => $tempPassword,
+                'must_change_password'  => true,
+                'is_active'             => true,
             ]);
             $created++;
+            $generatedPasswords[] = [
+                'email'         => $rowData['email'],
+                'name'          => trim($rowData['first_name'] . ' ' . $rowData['last_name']),
+                'temp_password' => $tempPassword,
+            ];
         }
 
         AuditLog::record('imported', "Bulk imported {$created} employees, skipped {$skipped}.");
 
         return response()->json([
-            'created' => $created,
-            'skipped' => $skipped,
-            'errors'  => $errors,
+            'created'   => $created,
+            'skipped'   => $skipped,
+            'errors'    => $errors,
+            'passwords' => $generatedPasswords,
         ]);
     }
 }

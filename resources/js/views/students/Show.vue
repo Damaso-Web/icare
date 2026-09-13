@@ -203,12 +203,44 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
                 <div style="font-size:13px;color:var(--ink)">{{ student.guardian_contact || '—' }}</div>
               </div>
+
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
                 <div style="font-size:13px;color:var(--ink)">{{ student.guardian_relationship || '—' }}</div>
               </div>
             </div>
           </div>
+
+          <!-- Temp Password Viewer -->
+        <div v-if="student.must_change_password" class="icard">
+          <div class="icard-header"><span class="icard-title">Account Password</span></div>
+          <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+            <div style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
+                <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
+                  <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                    <circle cx="12" cy="12" r="3"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                    <line x1="1" y1="1" x2="23" y2="23"/>
+                  </svg>
+                </button>
+              </div>
+              <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
+                {{ showTempPassword ? (tempPasswordValue || 'Not available — use Reset Password below.') : '••••••••••' }}
+              </div>
+              <div style="font-size:11px;color:var(--stone);margin-top:4px">Student hasn't logged in and changed their password yet.</div>
+            </div>
+            <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);justify-content:center" @click="resetStudentPassword">Reset Password</button>
+            <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--forest)">
+              ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
+            </div>
+          </div>
+        </div>
 
         </div>
       </div>
@@ -377,6 +409,9 @@ const colleges = COLLEGES;
 const editError = ref('');
 
 const editForm = ref({});
+const showTempPassword = ref(false);
+const tempPasswordValue = ref('');
+const resetPasswordResult = ref('');
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
@@ -409,6 +444,30 @@ async function saveStudent() {
     editError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
     saving.value = false;
+  }
+}
+
+async function resetStudentPassword() {
+  try {
+    const res = await studentAPI.resetPassword(student.value.id);
+    resetPasswordResult.value = res.data.temp_password;
+    tempPasswordValue.value = res.data.temp_password;
+    student.value.must_change_password = true;
+    toast?.success('Password reset successfully.');
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
+}
+
+async function toggleTempPasswordVisible() {
+  showTempPassword.value = !showTempPassword.value;
+  if (showTempPassword.value && !tempPasswordValue.value) {
+    try {
+      const res = await studentAPI.viewTempPassword(student.value.id);
+      tempPasswordValue.value = res.data.temp_password;
+    } catch (e) {
+      tempPasswordValue.value = 'Unable to retrieve.';
+    }
   }
 }
 

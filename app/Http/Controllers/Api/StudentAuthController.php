@@ -62,6 +62,7 @@ class StudentAuthController extends Controller
 
         $student->update([
             'password'              => Hash::make($request->password),
+            'temp_password'         => null,
             'must_change_password'  => false,
         ]);
 

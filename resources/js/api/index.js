@@ -51,8 +51,10 @@ export const studentAPI = {
     graduate:      (id) => api.post(`/students/${id}/graduate`),
     import:        (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importPreview: (formData) => api.post('/students/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    viewTempPassword: (id) => api.get(`/students/${id}/temp-password`),
     importConfirm: (data)     => api.post('/students/import-confirm', data),
     checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
+    resetPassword: (id) => api.post(`/students/${id}/reset-password`),
 };
 
 export const referralAPI = {
@@ -125,6 +127,7 @@ export const userAPI = {
     toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    viewTempPassword: (id) => api.get(`/users/${id}/temp-password`),
 };
 
 export const notificationAPI = {

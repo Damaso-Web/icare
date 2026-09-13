@@ -36,6 +36,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Students
     Route::apiResource('students', StudentController::class);
+    Route::get('students/{student}/temp-password', [StudentController::class, 'viewTempPassword']);
+    Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::get('students/{student}/cases',   [StudentController::class, 'cases']);
     Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
@@ -47,7 +49,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
-    
+
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);
@@ -121,6 +123,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+        Route::get('users/{user}/temp-password', [UserController::class, 'viewTempPassword']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
         Route::get('call-slips', [CallSlipController::class, 'index']);

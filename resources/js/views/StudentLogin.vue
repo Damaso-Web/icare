@@ -32,6 +32,8 @@
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   class="ifi"
+
+                  placeholder="Enter Password"
                   required
                   style="padding-right:40px"
                   @keyup="checkCapsLock"
