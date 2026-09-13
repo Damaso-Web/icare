@@ -292,7 +292,7 @@ async function fetchStaff() {
   try {
     const res = await userAPI.index({ is_active: 1 });
     staffList.value = (res.data.data || []).filter(u =>
-      ['admin', 'gcu_staff'].includes(u.role)
+      u.role === 'gcu_staff'
     );
   } catch (e) {
     console.error(e);

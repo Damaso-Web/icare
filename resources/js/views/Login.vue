@@ -42,6 +42,7 @@
               required
               autocomplete="current-password"
               style="padding-right:40px"
+              @keyup="checkCapsLock"
             />
             <button
               type="button"
@@ -61,6 +62,7 @@
               </svg>
             </button>
           </div>
+          <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
         </div>
         <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
           <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -89,6 +91,11 @@ const form = ref({ email: '', password: '' });
 const error       = ref('');
 const loading     = ref(false);
 const showPassword = ref(false);
+const capsLockOn = ref(false);
+
+function checkCapsLock(e) {
+  capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
+}
 
 async function handleLogin() {
   error.value   = '';
