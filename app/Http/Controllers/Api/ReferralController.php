@@ -12,42 +12,42 @@ use Illuminate\Http\Request;
 class ReferralController extends Controller
 {
     public function index(Request $request)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
 
-    $sortDirection = $request->sort === 'asc' ? 'asc' : 'desc';
+        $sortDirection = $request->sort === 'asc' ? 'asc' : 'desc';
 
-    $sduTypes  = ['disciplinary'];
-    $tmduTypes = ['psychological_testing'];
+        $sduTypes  = ['disciplinary'];
+        $tmduTypes = ['psychological_testing'];
 
-    $query = Referral::with(['student', 'referredBy', 'assignedTo'])
-        ->when($request->status,          fn($q) => $q->where('status', $request->status))
-        ->when($request->urgency,         fn($q) => $q->where('urgency_level', $request->urgency))
-        ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
-        ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
-        ->when($request->unit && !$request->violation_type, function ($q) use ($request, $sduTypes, $tmduTypes) {
-            if ($request->unit === 'SDU') {
-                $q->whereIn('referral_type', $sduTypes);
-            } elseif ($request->unit === 'TMDU') {
-                $q->whereIn('referral_type', $tmduTypes);
-            } elseif ($request->unit === 'GCU') {
-                $q->whereNotIn('referral_type', array_merge($sduTypes, $tmduTypes));
-            }
-        })
-        ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
-        ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
-        ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-            $s->where('first_name', 'like', "%{$request->search}%")
-              ->orWhere('last_name', 'like', "%{$request->search}%")
-              ->orWhere('student_id', 'like', "%{$request->search}%")
-        ));
+        $query = Referral::with(['student', 'referredBy', 'assignedTo'])
+            ->when($request->status,          fn($q) => $q->where('status', $request->status))
+            ->when($request->urgency,         fn($q) => $q->where('urgency_level', $request->urgency))
+            ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
+            ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
+            ->when($request->unit && !$request->violation_type, function ($q) use ($request, $sduTypes, $tmduTypes) {
+                if ($request->unit === 'SDU') {
+                    $q->whereIn('referral_type', $sduTypes);
+                } elseif ($request->unit === 'TMDU') {
+                    $q->whereIn('referral_type', $tmduTypes);
+                } elseif ($request->unit === 'GCU') {
+                    $q->whereNotIn('referral_type', array_merge($sduTypes, $tmduTypes));
+                }
+            })
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+                $s->where('first_name', 'like', "%{$request->search}%")
+                  ->orWhere('last_name', 'like', "%{$request->search}%")
+                  ->orWhere('student_id', 'like', "%{$request->search}%")
+            ));
 
-    if ($user->isFaculty() || $user->isDeanSecretary()) {
-        $query->where('referred_by_user_id', $user->id);
+        if ($user->isFaculty() || $user->isDeanSecretary()) {
+            $query->where('referred_by_user_id', $user->id);
+        }
+
+        return response()->json($query->orderBy('created_at', $sortDirection)->paginate(20));
     }
-
-    return response()->json($query->orderBy('created_at', $sortDirection)->paginate(20));
-}
 
     public function archived(Request $request)
     {
@@ -146,55 +146,58 @@ class ReferralController extends Controller
     }
 
     public function acknowledge(Request $request, Referral $referral)
-{
-    $referral->update([
-        'status'                  => 'acknowledged',
-        'acknowledged_at'         => now(),
-        'acknowledged_by_user_id' => $request->user()->id,
-    ]);
+    {
+        // Safety check: ensure cases.student_id doesn't have incorrect unique constraint
+        \Illuminate\Support\Facades\Artisan::call('cases:fix-constraint');
 
-    $case = CaseFile::create([
-        'student_id'          => $referral->student_id,
-        'referral_id'         => $referral->id,
-        'case_type'           => $referral->referral_type,
-        'current_unit'        => 'GCU',
-        'status'              => 'open',
-        'opened_date'         => today(),
-        'primary_counselor_id'=> $request->user()->id,
-        'presenting_concern'  => $referral->nature_of_concern,
-        'is_recurring'        => $referral->student->isRecurring(),
-    ]);
+        $referral->update([
+            'status'                  => 'acknowledged',
+            'acknowledged_at'         => now(),
+            'acknowledged_by_user_id' => $request->user()->id,
+        ]);
 
-    $referral->update(['status' => 'in_review']);
-    $referral->refresh();
+        $case = CaseFile::create([
+            'student_id'          => $referral->student_id,
+            'referral_id'         => $referral->id,
+            'case_type'           => $referral->referral_type,
+            'current_unit'        => 'GCU',
+            'status'              => 'open',
+            'opened_date'         => today(),
+            'primary_counselor_id'=> $request->user()->id,
+            'presenting_concern'  => $referral->nature_of_concern,
+            'is_recurring'        => $referral->student->isRecurring(),
+        ]);
 
-    // Create a pending appointment request with a scheduling link for the student
-    $token = \Illuminate\Support\Str::random(48);
-    $appointment = \App\Models\Appointment::create([
-        'case_id'             => $case->id,
-        'student_id'          => $case->student_id,
-        'staff_user_id'       => $request->user()->id,
-        'created_by_user_id'  => $request->user()->id,
-        'appointment_type'    => 'initial_counseling',
-        'unit'                => 'GCU',
-        'scheduling_token'    => $token,
-        'token_expires_at'    => now()->addDays(7),
-        'request_status'      => 'awaiting_student',
-        'status'              => 'pending',
-        'appointment_date'    => now()->addDays(1)->format('Y-m-d'),
-        'start_time'          => '08:00',
-        'end_time'            => '09:00',
-    ]);
+        $referral->update(['status' => 'in_review']);
+        $referral->refresh();
 
-    AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
+        // Create a pending appointment request with a scheduling link for the student
+        $token = \Illuminate\Support\Str::random(48);
+        $appointment = \App\Models\Appointment::create([
+            'case_id'             => $case->id,
+            'student_id'          => $case->student_id,
+            'staff_user_id'       => $request->user()->id,
+            'created_by_user_id'  => $request->user()->id,
+            'appointment_type'    => 'initial_counseling',
+            'unit'                => 'GCU',
+            'scheduling_token'    => $token,
+            'token_expires_at'    => now()->addDays(7),
+            'request_status'      => 'awaiting_student',
+            'status'              => 'pending',
+            'appointment_date'    => now()->addDays(1)->format('Y-m-d'),
+            'start_time'          => '08:00',
+            'end_time'            => '09:00',
+        ]);
 
-    return response()->json([
-        'referral'          => $referral,
-        'case'              => $case,
-        'appointment'       => $appointment,
-        'scheduling_link'   => url("/schedule/{$token}"),
-    ]);
-}
+        AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
+
+        return response()->json([
+            'referral'          => $referral,
+            'case'              => $case,
+            'appointment'       => $appointment,
+            'scheduling_link'   => url("/schedule/{$token}"),
+        ]);
+    }
 
     public function assign(Request $request, Referral $referral)
     {

@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->string('case_number')->unique();
             $table->foreignId('student_id')->constrained('students')->restrictOnDelete();
-            $table->foreignId('referral_id')->constrained('referrals')->restrictOnDelete();
+            $table->foreignId('referral_id')->nullable()->constrained('referrals')->nullOnDelete();
             $table->foreignId('primary_counselor_id')->nullable()->constrained('users')->nullOnDelete();
             $table->enum('current_unit', ['GCU', 'SDU', 'TMDU'])->default('GCU');
             $table->enum('case_type', [
