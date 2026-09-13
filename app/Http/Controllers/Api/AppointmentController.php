@@ -22,7 +22,13 @@ class AppointmentController extends Controller
         Appointment::with(['student', 'staff', 'case'])
             ->when($request->date,   fn($q) => $q->where('appointment_date', $request->date))
             ->when($request->unit,   fn($q) => $q->where('unit', $request->unit))
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->status, function ($q) use ($request) {
+                if (str_contains($request->status, ',')) {
+                    $q->whereIn('status', explode(',', $request->status));
+                } else {
+                    $q->where('status', $request->status);
+                }
+            })
             ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
             ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
             ->orderBy('appointment_date')

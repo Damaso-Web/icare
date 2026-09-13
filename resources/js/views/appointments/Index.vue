@@ -42,7 +42,7 @@
             <option value="no_show">No Show</option>
           </select>
           <select v-else v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="">Both</option>
+            <option value="completed,cancelled">Both</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -318,7 +318,7 @@ function goToCase(a) {
 
 function switchTab(closed) {
   showClosed.value = closed;
-  filters.value.status = closed ? '' : 'pending';
+  filters.value.status = closed ? 'completed,cancelled' : 'pending';
   fetchAppointments();
 }
 
