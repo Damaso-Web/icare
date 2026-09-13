@@ -69,7 +69,7 @@
           </thead>
           <tbody>
             <tr v-for="s in students" :key="s.id" :style="!s.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
-              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="$router.push({ name: 'student-show', params: { id: s.id } })">
+              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(s)">
                 {{ s.student_id }}
               </td>
               <td>
@@ -79,7 +79,7 @@
               </td>
               <td style="text-align:right">
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'student-show', params: { id: s.id } })">View</button>
+                  <button class="ibtn ibtn-o ibtn-sm" @click.stop="openView(s)">View</button>
                   <button
                     v-if="s.is_active"
                     class="ibtn ibtn-sm"
@@ -111,6 +111,224 @@
         <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Student Profile Modal -->
+    <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
+            {{ initials(viewedStudent.first_name, viewedStudent.last_name) }}
+          </div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedStudent.last_name }}, {{ viewedStudent.first_name }} {{ viewedStudent.middle_name }}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;font-family:var(--mono)">{{ viewedStudent.student_id }}</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.sex || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.year_level || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.college || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.program || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.section || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.email || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.contact_number || '—' }}</div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:6px">
+            Guardian
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
+            <div style="font-size:13px;color:var(--ink)">
+              {{ [viewedStudent.guardian_last_name, viewedStudent.guardian_first_name, viewedStudent.guardian_middle_name].filter(Boolean).length
+                  ? `${viewedStudent.guardian_last_name || ''}, ${viewedStudent.guardian_first_name || ''} ${viewedStudent.guardian_middle_name || ''}`.trim()
+                  : '—' }}
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_contact || '—' }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_relationship || '—' }}</div>
+          </div>
+
+          <div v-if="viewedStudent.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px;margin-top:6px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
+              <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
+                <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
+            <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
+              {{ showTempPassword ? (tempPasswordValue || 'Not available — use Reset Password below.') : '••••••••••' }}
+            </div>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">Student hasn't logged in and changed their password yet.</div>
+          </div>
+          <button v-if="viewedStudent.must_change_password" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);justify-content:center" @click="resetStudentPassword">Reset Password</button>
+          <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--forest)">
+            ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
+            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Student Modal -->
+    <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Student Profile</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Last Name</label>
+              <input v-model="editForm.last_name" class="ifi" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
+            </div>
+            <div>
+              <label class="ifl">First Name</label>
+              <input v-model="editForm.first_name" class="ifi" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
+            </div>
+            <div>
+              <label class="ifl">Middle Name</label>
+              <input v-model="editForm.middle_name" class="ifi" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
+            </div>
+            <div>
+              <label class="ifl">Sex</label>
+              <select v-model="editForm.sex" class="ifse">
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Student ID</label>
+              <input v-model="editForm.student_id" class="ifi" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
+            </div>
+            <div>
+              <label class="ifl">Year Level</label>
+              <select v-model="editForm.year_level" class="ifse">
+                <option value="">Select...</option>
+                <option>1st Year</option>
+                <option>2nd Year</option>
+                <option>3rd Year</option>
+                <option>4th Year</option>
+                <option>5th Year</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">College</label>
+              <select v-model="editForm.college" class="ifse" @change="editForm.program = ''">
+                <option value="">Select college...</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Program</label>
+              <select v-model="editForm.program" class="ifse" :disabled="!editForm.college">
+                <option value="">Select program...</option>
+                <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
+                <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Section</label>
+              <input v-model="editForm.section" class="ifi" maxlength="1" @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()" />
+            </div>
+            <div>
+              <label class="ifl">Email</label>
+              <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
+            </div>
+            <div>
+              <label class="ifl">Contact Number</label>
+              <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number)" />
+            </div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
+            Guardian Information
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
+              <input v-model="editForm.guardian_last_name" class="ifi" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
+              <input v-model="editForm.guardian_first_name" class="ifi" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Middle Name</label>
+              <input v-model="editForm.guardian_middle_name" class="ifi" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
+            </div>
+            <div>
+              <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
+              <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact)" />
+            </div>
+            <div>
+              <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>
+              <select v-model="editForm.guardian_relationship" class="ifse">
+                <option value="">Select...</option>
+                <option>Mother</option>
+                <option>Father</option>
+                <option>Guardian</option>
+                <option>Sibling</option>
+                <option>Relative</option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="editError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            {{ editError }}
+          </div>
+
+          <div style="display:flex;gap:8px;padding-top:4px">
+            <button class="ibtn ibtn-p" @click="saveEditedStudent" :disabled="saving">
+              <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
+          </div>
         </div>
       </div>
     </div>
@@ -403,6 +621,15 @@ const createdPassword = ref('');
 const showDuplicateNameModal = ref(false);
 const duplicateStudent = ref(null);
 
+const showViewModal = ref(false);
+const viewedStudent = ref({});
+const showEditModal = ref(false);
+const editForm = ref({});
+const editError = ref('');
+const showTempPassword = ref(false);
+const tempPasswordValue = ref('');
+const resetPasswordResult = ref('');
+
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
   college: '', program: '', year_level: '', section: '', email: '', contact_number: '',
@@ -411,6 +638,7 @@ const addForm = ref({
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
+const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
@@ -419,6 +647,82 @@ const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' }
 const importing        = ref(false);
 
 let searchTimeout = null;
+
+function initials(first, last) {
+  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
+}
+
+function openView(s) {
+  viewedStudent.value = s;
+  showTempPassword.value = false;
+  tempPasswordValue.value = '';
+  resetPasswordResult.value = '';
+  showViewModal.value = true;
+}
+
+function openEditFromView() {
+  editForm.value = { ...viewedStudent.value };
+  editError.value = '';
+  showViewModal.value = false;
+  showEditModal.value = true;
+}
+
+async function saveEditedStudent() {
+  editError.value = '';
+
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
+    editError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (!editForm.value.guardian_first_name || !editForm.value.guardian_last_name ||
+      !editForm.value.guardian_contact || !editForm.value.guardian_relationship) {
+    editError.value = 'Please fill in all required guardian fields.';
+    return;
+  }
+
+  if (!isValidPHContact(editForm.value.guardian_contact)) {
+    editError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  saving.value = true;
+  try {
+    const res = await studentAPI.update(editForm.value.id, editForm.value);
+    viewedStudent.value = res.data;
+    showEditModal.value = false;
+    toast?.success('Student profile updated successfully.');
+    fetchStudents();
+  } catch (e) {
+    editError.value = e.response?.data?.message || 'Please fill in all required fields.';
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function resetStudentPassword() {
+  try {
+    const res = await studentAPI.resetPassword(viewedStudent.value.id);
+    resetPasswordResult.value = res.data.temp_password;
+    tempPasswordValue.value = res.data.temp_password;
+    viewedStudent.value.must_change_password = true;
+    toast?.success('Password reset successfully.');
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
+}
+
+async function toggleTempPasswordVisible() {
+  showTempPassword.value = !showTempPassword.value;
+  if (showTempPassword.value && !tempPasswordValue.value) {
+    try {
+      const res = await studentAPI.viewTempPassword(viewedStudent.value.id);
+      tempPasswordValue.value = res.data.temp_password;
+    } catch (e) {
+      tempPasswordValue.value = 'Unable to retrieve.';
+    }
+  }
+}
 
 function switchTab(archived) {
   showArchived.value = archived;
