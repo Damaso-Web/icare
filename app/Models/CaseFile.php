@@ -15,7 +15,6 @@ class CaseFile extends Model
     protected $fillable = [
         'case_number',
         'student_id',
-        'referral_id',
         'primary_counselor_id',
         'current_unit',
         'case_type',
@@ -33,6 +32,9 @@ class CaseFile extends Model
         'closure_summary',
         'is_recurring',
         'requires_follow_up',
+        'follow_up_notes',
+        'follow_up_flagged_at',
+        'follow_up_flagged_by',
         'referred_to_tmdu',
         'referred_externally',
         'external_referral_destination',
@@ -49,6 +51,7 @@ class CaseFile extends Model
         'last_session_at'         => 'datetime',
         'is_recurring'            => 'boolean',
         'requires_follow_up'      => 'boolean',
+        'follow_up_flagged_at'    => 'datetime',
         'referred_to_tmdu'        => 'boolean',
         'referred_externally'     => 'boolean',
         'student_unreachable'     => 'boolean',
@@ -56,27 +59,29 @@ class CaseFile extends Model
     ];
 
     protected static function booted(): void
-{
-    static::creating(function (CaseFile $case) {
-        $year = now()->year;
-        $lastNumber = static::withTrashed()
-            ->where('case_number', 'like', "CASE-{$year}-%")
-            ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
-            ->value('case_number');
+    {
+        static::creating(function (CaseFile $case) {
+            $year = now()->year;
+            $lastNumber = static::withTrashed()
+                ->where('case_number', 'like', "CASE-{$year}-%")
+                ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
+                ->value('case_number');
 
-        $nextNumber = 1;
-        if ($lastNumber) {
-            $nextNumber = (int) substr($lastNumber, -4) + 1;
-        }
+            $nextNumber = 1;
+            if ($lastNumber) {
+                $nextNumber = (int) substr($lastNumber, -4) + 1;
+            }
 
-        $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
-    });
-}
+            $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        });
+    }
 
     public function student()       { return $this->belongsTo(Student::class); }
-    public function referral()      { return $this->belongsTo(Referral::class); }
+    public function referrals()     { return $this->hasMany(Referral::class, 'case_id')->orderBy('created_at'); }
+    public function latestReferral(){ return $this->hasOne(Referral::class, 'case_id')->latestOfMany(); }
     public function counselor()     { return $this->belongsTo(User::class, 'primary_counselor_id'); }
     public function flaggedBy()     { return $this->belongsTo(User::class, 'unreachable_flagged_by'); }
+    public function followUpFlaggedBy() { return $this->belongsTo(User::class, 'follow_up_flagged_by'); }
     public function sessionNotes()  { return $this->hasMany(SessionNote::class, 'case_id')->orderBy('session_date'); }
     public function appointments()  { return $this->hasMany(Appointment::class, 'case_id')->orderBy('appointment_date'); }
     public function testingRecord() { return $this->hasOne(TestingRecord::class, 'case_id'); }

@@ -27,7 +27,7 @@ class CaseController extends Controller
 
         $user = $request->user();
 
-        $query = CaseFile::with(['student', 'counselor', 'referral'])
+        $query = CaseFile::with(['student', 'counselor', 'latestReferral'])
             ->whereHas('student', fn($s) => $s->where('is_active', true))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
@@ -55,15 +55,13 @@ class CaseController extends Controller
 
         AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
 
-        $priorCaseCount = CaseFile::where('student_id', $case->student_id)
-            ->where('id', '!=', $case->id)
-            ->count();
+        $referralCount = $case->referrals()->count();
 
         return response()->json([
             ...$case->load([
                 'student',
                 'counselor',
-                'referral.referredBy',
+                'referrals.referredBy',
                 'sessionNotes.recordedBy',
                 'appointments.staff',
                 'testingRecord',
@@ -71,9 +69,10 @@ class CaseController extends Controller
                 'handoffs.toUser',
                 'documents',
             ])->toArray(),
-            'client_status'    => $priorCaseCount > 0 ? 'existing' : 'new',
-            'prior_case_count' => $priorCaseCount,
-        ]);
+            'latest_referral'      => $case->latestReferral()->with('referredBy')->first(),
+            'client_status'        => $referralCount > 1 ? 'existing' : 'new',
+            'prior_referral_count' => max(0, $referralCount - 1),
+                ]);
     }
 
     public function update(Request $request, CaseFile $case)
@@ -137,7 +136,7 @@ class CaseController extends Controller
         return response()->json($case->load([
             'student',
             'counselor',
-            'referral',
+            'referrals',
             'sessionNotes',
             'testingRecord',
             'handoffs',

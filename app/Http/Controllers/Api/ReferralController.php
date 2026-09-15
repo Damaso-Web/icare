@@ -147,26 +147,38 @@ class ReferralController extends Controller
 
     public function acknowledge(Request $request, Referral $referral)
     {
-        // Safety check: ensure cases.student_id doesn't have incorrect unique constraint
-        \Illuminate\Support\Facades\Artisan::call('cases:fix-constraint');
-
         $referral->update([
             'status'                  => 'acknowledged',
             'acknowledged_at'         => now(),
             'acknowledged_by_user_id' => $request->user()->id,
         ]);
 
-        $case = CaseFile::create([
-            'student_id'          => $referral->student_id,
-            'referral_id'         => $referral->id,
-            'case_type'           => $referral->referral_type,
-            'current_unit'        => 'GCU',
-            'status'              => 'open',
-            'opened_date'         => today(),
-            'primary_counselor_id'=> $request->user()->id,
-            'presenting_concern'  => $referral->nature_of_concern,
-            'is_recurring'        => $referral->student->isRecurring(),
+        // A student has exactly one case file for life. Reuse the existing
+        // case if the referral doesn't already carry a case_id (e.g. a
+        // referral submitted before this student had a case at all).
+        $case = $referral->case
+            ?? CaseFile::where('student_id', $referral->student_id)->first()
+            ?? CaseFile::create([
+                'student_id'   => $referral->student_id,
+                'case_type'    => $referral->referral_type,
+                'current_unit' => 'GCU',
+                'status'       => 'open',
+                'opened_date'  => today(),
+            ]);
+
+        if (!$case->isOpen()) {
+            $case->update(['status' => 'open', 'closed_date' => null]);
+        }
+
+        $case->update([
+            'primary_counselor_id' => $case->primary_counselor_id ?? $request->user()->id,
+            'presenting_concern'   => $case->presenting_concern ?? $referral->nature_of_concern,
+            'is_recurring'         => $referral->student->isRecurring(),
         ]);
+
+        if (!$referral->case_id) {
+            $referral->update(['case_id' => $case->id]);
+        }
 
         $referral->update(['status' => 'in_review']);
         $referral->refresh();
@@ -189,7 +201,7 @@ class ReferralController extends Controller
             'end_time'            => '09:00',
         ]);
 
-        AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} and created case {$case->case_number}.", $referral);
+        AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} under case {$case->case_number}.", $referral);
 
         return response()->json([
             'referral'          => $referral,

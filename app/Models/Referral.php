@@ -13,6 +13,7 @@ class Referral extends Model
     protected $fillable = [
         'referral_code',
         'student_id',
+        'case_id',
         'referred_by_user_id',
         'referrer_name',
         'referrer_role',
@@ -48,8 +49,13 @@ class Referral extends Model
     {
         static::creating(function (Referral $referral) {
             $year = now()->year;
-            $count = static::whereYear('created_at', $year)->count() + 1;
-            $referral->referral_code = 'REF-' . $year . '-' . str_pad($count, 4, '0', STR_PAD_LEFT);
+            $lastCode = static::withTrashed()
+                ->where('referral_code', 'like', "REF-{$year}-%")
+                ->orderByRaw('CAST(SUBSTRING(referral_code, -4) AS UNSIGNED) DESC')
+                ->value('referral_code');
+
+            $nextNumber = $lastCode ? ((int) substr($lastCode, -4)) + 1 : 1;
+            $referral->referral_code = 'REF-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
 
@@ -58,7 +64,7 @@ class Referral extends Model
     public function referredBy()     { return $this->belongsTo(User::class, 'referred_by_user_id'); }
     public function assignedTo()     { return $this->belongsTo(User::class, 'assigned_to_user_id'); }
     public function acknowledgedBy() { return $this->belongsTo(User::class, 'acknowledged_by_user_id'); }
-    public function case()           { return $this->hasOne(CaseFile::class, 'referral_id'); }
+    public function case()           { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function documents()      { return $this->morphMany(Document::class, 'documentable'); }
 
     // Helpers

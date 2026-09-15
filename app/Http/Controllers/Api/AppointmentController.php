@@ -88,15 +88,21 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request, Appointment $appointment)
     {
-        $appointment->update([
+        $updateData = [
             'status'               => 'confirmed',
             'request_status'       => 'confirmed',
             'confirmation_sent'    => true,
             'confirmation_sent_at' => now(),
-        ]);
+        ];
 
-        if ($appointment->case?->referral) {
-            $appointment->case->referral->update(['status' => 'in_progress']);
+        if ($request->filled('staff_user_id')) {
+            $updateData['staff_user_id'] = $request->staff_user_id;
+        }
+
+        $appointment->update($updateData);
+
+        if ($appointment->case?->latestReferral) {
+            $appointment->case->latestReferral->update(['status' => 'in_progress']);
         }
 
         AuditLog::record('confirmed', "Confirmed appointment {$appointment->appointment_code}.", $appointment);

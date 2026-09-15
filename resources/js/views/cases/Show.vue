@@ -81,8 +81,8 @@
               <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.last_session_at) }}</div>
             </div>
           </div>
-            <div v-if="caseFile.prior_case_count > 0" style="margin:0 16px 16px;background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--blue)">
-            ℹ️ This student has {{ caseFile.prior_case_count }} prior case{{ caseFile.prior_case_count > 1 ? 's' : '' }} on record.
+            <div v-if="caseFile.prior_referral_count > 0" style="margin:0 16px 16px;background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--blue)">
+            ℹ️ This student has {{ caseFile.prior_referral_count }} prior referral{{ caseFile.prior_referral_count > 1 ? 's' : '' }} on record.
           </div>
             <!-- Unreachable Banner -->
             <div v-if="caseFile.student_unreachable" style="margin:0 16px 16px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
@@ -92,10 +92,10 @@
           </div>
 
           <!-- Full Referral Form View -->
-          <div class="icard" v-if="caseFile.referral">
+          <div class="icard" v-if="caseFile.latest_referral">
             <div class="icard-header">
               <span class="icard-title">Referral Form</span>
-              <span class="ibadge" :class="'ibadge-' + caseFile.referral?.status">{{ toTitleCase(caseFile.referral?.status) }}</span>
+              <span class="ibadge" :class="'ibadge-' + caseFile.latest_referral?.status">{{ toTitleCase(caseFile.latest_referral?.status) }}</span>
             </div>
 
             <!-- Document Code Header -->
@@ -159,19 +159,19 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.referral?.referrer_name || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.latest_referral?.referrer_name || '—' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.referral?.referrer_role) || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referrer_role) || '—' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.referral?.created_at) }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ formatDate(caseFile.latest_referral?.created_at) }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
-                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.referral?.referral_code }}</div>
+                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.latest_referral?.referral_code }}</div>
                   </div>
                 </div>
               </div>
@@ -185,16 +185,16 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.referral?.referral_type) || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referral_type) || '—' }}</div>
                   </div>
                   <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ formatReferralSource(caseFile.referral?.referrer_source) }}</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatReferralSource(caseFile.latest_referral?.referrer_source) }}</div>
                 </div>
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
-                  <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.referral?.nature_of_concern || '—' }}</div>
+                  <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.latest_referral?.nature_of_concern || '—' }}</div>
                 </div>
               </div>
 
@@ -309,7 +309,7 @@
             <div class="icard-header"><span class="icard-title">Case Actions</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <router-link
-                v-if="caseFile.referral?.status !== 'submitted'"
+                v-if="caseFile.latest_referral?.status !== 'submitted'"
                 :to="{ name: 'appointments' }"
                 class="ibtn ibtn-o"
                 style="width:100%;justify-content:center"
@@ -711,8 +711,8 @@ onMounted(async () => {
     appointments.value      = res.data.appointments  || [];
     newStatus.value         = res.data.status;
     previousInterventions.value = res.data.intake_notes || '';
-    interventionBy.value        = res.data.referral?.intervention_by || '';
-    interventionDate.value      = res.data.referral?.intervention_date || '';
+    interventionBy.value        = res.data.latest_referral?.intervention_by || '';
+    interventionDate.value      = res.data.latest_referral?.intervention_date || '';
   } catch (e) {
     console.error(e);
   } finally {

@@ -13,13 +13,13 @@ class PublicSchedulingController extends Controller
     {
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
-            ->with(['student', 'case.referral'])
+            ->with(['student', 'case.latestReferral'])
             ->firstOrFail();
 
         return response()->json([
             'appointment' => $appointment,
             'student'     => $appointment->student,
-            'referral'    => $appointment->case?->referral,
+            'referral'    => $appointment->case?->latestReferral,
         ]);
     }
 
@@ -108,8 +108,8 @@ class PublicSchedulingController extends Controller
             'status'           => 'pending',
         ]);
 
-        if ($appointment->case?->referral) {
-            $appointment->case->referral->update(['status' => 'scheduled']);
+        if ($appointment->case?->latestReferral) {
+            $appointment->case->latestReferral->update(['status' => 'scheduled']);
         }
 
         AuditLog::record('scheduled', "Student self-scheduled appointment {$appointment->appointment_code}.", $appointment);
