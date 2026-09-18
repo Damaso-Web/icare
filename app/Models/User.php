@@ -12,39 +12,42 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-    "name",
-    "first_name",
-    "last_name",
-    "email",
-    "employee_id",
-    "password",
-    "role",
-    "unit",
-    "college",
-    "department",
-    "contact_number",
-    "is_active",
-    "middle_name",
-    "temp_password",
-    "must_change_password",
-];
+        'name',
+        'first_name',
+        'last_name',
+        'email',
+        'employee_id',
+        'password',
+        'role',
+        'unit',
+        'college',
+        'department',
+        'contact_number',
+        'is_active',
+        'middle_name',
+        'suffix',
+        'temp_password',
+        'must_change_password',
+    ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'temp_password',
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'last_login_at'     => 'datetime',
-        'is_active'         => 'boolean',
+        'email_verified_at'    => 'datetime',
+        'last_login_at'        => 'datetime',
+        'is_active'            => 'boolean',
+        'must_change_password' => 'boolean',
     ];
 
     protected static function booted(): void
     {
         static::saving(function (User $user) {
-            if ($user->isDirty('first_name') || $user->isDirty('last_name') || $user->isDirty('middle_name')) {
-                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->middle_name ?? '') . ' ' . ($user->last_name ?? ''));
+            if ($user->isDirty('first_name') || $user->isDirty('last_name') || $user->isDirty('middle_name') || $user->isDirty('suffix')) {
+                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->middle_name ?? '') . ' ' . ($user->last_name ?? '') . ' ' . ($user->suffix ?? ''));
             }
         });
     }

@@ -4,7 +4,7 @@
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="sb-head">
-        <div class="sb-mark">i</div>
+        <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
         <div>
           <div class="sb-brand">iCARE</div>
           <div class="sb-sub">BSU · OSS</div>
@@ -27,6 +27,23 @@
       </div>
 
       <div class="sb-foot">
+        <div v-if="isTester" style="padding:0 2px 10px">
+          <div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px">Switch Test Role</div>
+          <select
+            v-model="devRole"
+            @change="handleDevSwitch"
+            :disabled="switching"
+            style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:var(--r-sm);padding:7px 9px;font-size:12px;font-family:var(--font);cursor:pointer"
+          >
+            <option value="admin" style="color:#000">System Administrator</option>
+            <option value="gcu_staff" style="color:#000">GCU Staff</option>
+            <option value="sdu_head" style="color:#000">SDU Head</option>
+            <option value="tmdu_staff" style="color:#000">TMDU Staff</option>
+            <option value="faculty" style="color:#000">Faculty Member</option>
+            <option value="dean_secretary" style="color:#000">Dean's Secretary</option>
+            <option value="student" style="color:#000">Student (Portal)</option>
+          </select>
+        </div>
         <div class="u-row">
           <div class="u-av">{{ initials }}</div>
           <div>
@@ -76,14 +93,14 @@
                 v-for="n in notifications"
                 :key="n.id"
                 style="padding:12px 16px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
-                :style="{ background: n.read ? '#fff' : 'var(--foam)' }"
-                @click="markOneRead(n)"
+                :style="{ background: n.read_at ? '#fff' : 'var(--foam)' }"
+                @click.stop="openNotification(n)"
               >
                 <div style="display:flex;gap:10px;align-items:flex-start">
-                  <div style="width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0" :style="{ background: n.read ? 'transparent' : 'var(--moss)' }"></div>
+                  <div style="width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0" :style="{ background: n.read_at ? 'transparent' : 'var(--moss)' }"></div>
                   <div>
-                    <div style="font-size:13px;color:var(--ink)">{{ n.text }}</div>
-                    <div style="font-size:11px;color:var(--fog);margin-top:2px">{{ n.time }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ n.data?.message || 'Notification' }}</div>
+                    <div style="font-size:11px;color:var(--fog);margin-top:2px">{{ formatNotifTime(n.created_at) }}</div>
                   </div>
                 </div>
               </div>
@@ -107,47 +124,91 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import { notificationAPI } from '../api/index';
+import { notificationAPI, devAPI } from '../api/index';
 
 const router = useRouter();
 const route  = useRoute();
 const auth   = useAuthStore();
 
-const showNotifs = ref(false);
+const isTester = computed(() => auth.user?.email?.toLowerCase() === 'genrytester@bsu.edu.ph');
+const devRole  = ref(auth.user?.role || 'admin');
+const switching = ref(false);
 
+async function handleDevSwitch() {
+  switching.value = true;
+  try {
+    if (devRole.value === 'student') {
+      const res = await devAPI.switchToStudent();
+      localStorage.setItem('student_token', res.data.token);
+      localStorage.setItem('student', JSON.stringify(res.data.student));
+      window.location.href = '/student/dashboard';
+      return;
+    }
+    const res = await devAPI.switchRole(devRole.value);
+    auth.setUser(res.data);
+    router.push({ name: 'dashboard' });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    switching.value = false;
+  }
+}
+
+const showNotifs = ref(false);
 const notifications = ref([]);
+
+const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
 
 async function fetchNotifications() {
   try {
     const res = await notificationAPI.index();
-    notifications.value = (res.data.data || []).map(n => ({
-      id: n.id,
-      text: n.data.message,
-      time: formatRelativeTime(n.created_at),
-      read: !!n.read_at,
-    }));
+    notifications.value = res.data.data || res.data;
   } catch (e) {
     console.error(e);
   }
 }
 
-function formatRelativeTime(dateStr) {
-  const diff = (Date.now() - new Date(dateStr)) / 1000;
-  if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
-  if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
-  if (diff < 172800) return 'Yesterday';
-  return Math.floor(diff / 86400) + ' days ago';
+async function markRead(n) {
+  if (n.read_at) return;
+  try {
+    await notificationAPI.markRead(n.id);
+    n.read_at = new Date().toISOString();
+  } catch (e) {
+    // Non-fatal - badge just stays until next fetch.
+  }
 }
-
-const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
 async function markAllRead() {
   try {
     await notificationAPI.markAllRead();
-    notifications.value.forEach(n => n.read = true);
+    notifications.value.forEach(n => n.read_at = n.read_at || new Date().toISOString());
   } catch (e) {
-    console.error(e);
+    // Non-fatal.
   }
+}
+
+function openNotification(n) {
+  markRead(n);
+  if (n.data?.referral_id) {
+    router.push({ name: 'referral-show', params: { id: n.data.referral_id } });
+    showNotifs.value = false;
+  } else if (n.data?.type === 'appointment_confirmed') {
+    router.push({ name: 'appointments' });
+    showNotifs.value = false;
+  }
+}
+
+function formatNotifTime(date) {
+  if (!date) return '';
+  const diffMs = Date.now() - new Date(date).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(date).toLocaleDateString();
 }
 
 const initials = computed(() => {
@@ -175,7 +236,6 @@ const pageTitle = computed(() => {
     'referral-create':   'Refer Student',
     'referral-show':     'Referral Details',
     cases:               'Case Management',
-    'case-show':         'Case Details',
     appointments:        'Appointment Calendar',
     testing:             'Testing Records',
     reports:             'Reports & Analytics',
@@ -212,12 +272,6 @@ const menuItems = computed(() => {
       icon:    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
       roles:   ['admin'],
       section: null,
-    },
-    {
-    path: 'monitoring',
-    name: 'monitoring',
-    component: () => import('../views/Monitoring.vue'),
-    meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'] },
     },
     {
       name:    'referral-create',
@@ -262,13 +316,6 @@ const menuItems = computed(() => {
       section: null,
     },
     {
-      name:    'backup',
-      label:   'Backup & Recovery',
-      icon:    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
-      roles:   ['admin'],
-      section: null,
-    },
-    {
     name:    'users',
     label:   'User Management',
     icon:    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
@@ -281,12 +328,19 @@ const menuItems = computed(() => {
       icon:    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
       roles:   ['admin'],
       section: null,
-        },
+    },
     {
       name:    'call-slips',
       label:   'Call Slips',
       icon:    '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.36 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.34 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>',
       roles:   ['dean_secretary'],
+      section: null,
+    },
+    {
+      name:    'backup',
+      label:   'Backup & Recovery',
+      icon:    '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+      roles:   ['admin'],
       section: null,
     },
     {
@@ -315,6 +369,9 @@ const menuItems = computed(() => {
 });
 function isActive(name) {
   const routeName = route.name || '';
+  if ((routeName === 'student-show' || routeName === 'referral-show') && route.query.ctx === 'cases') {
+    return name === 'cases';
+  }
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
   if (name === 'referral-create' && routeName === 'referral-create') return true;
   if (name === 'cases'           && routeName.startsWith('case'))    return true;
@@ -327,7 +384,5 @@ async function handleLogout() {
   router.push({ name: 'login' });
 }
 
-onMounted(() => {
-  fetchNotifications();
-});
+onMounted(() => fetchNotifications());
 </script>

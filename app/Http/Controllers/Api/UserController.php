@@ -19,25 +19,28 @@ class UserController extends Controller
                    ->orWhere('email', 'like', "%{$request->search}%")
             ))
             ->when($request->role, fn($q) => $q->where('role', $request->role))
+            ->when($request->unit, fn($q) => $q->where('unit', $request->unit))
             ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active));
 
-        $query = match ($request->sort) {
-            'name_desc' => $query->orderByDesc('name'),
-            'oldest'    => $query->oldest(),
-            'newest'    => $query->latest(),
-            default     => $query->orderBy('name'),
-        };
+        $sortBy  = in_array($request->sort_by, ['created_at', 'employee_id', 'last_name']) ? $request->sort_by : 'created_at';
+        $sortDir = $request->sort_dir === 'asc' ? 'asc' : 'desc';
+        if ($sortBy === 'last_name') {
+            $query->orderBy('last_name', $sortDir)->orderBy('first_name', $sortDir);
+        } else {
+            $query->orderBy($sortBy, $sortDir);
+        }
 
         return response()->json($query->paginate(20));
     }
 
-    public function store(Request $request)
+        public function store(Request $request)
     {
         $validated = $request->validate([
             'first_name'            => 'required|string|max:255',
             'middle_name'           => 'nullable|string|max:255',
             'last_name'             => 'required|string|max:255',
+            'suffix'                => 'nullable|string|max:20',
             'email'                 => 'required|email|unique:users,email',
             'employee_id'           => 'nullable|string|max:50',
             'role'                  => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
@@ -66,27 +69,28 @@ class UserController extends Controller
         return response()->json($user);
     }
 
-    public function update(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'first_name'     => 'sometimes|string|max:255',
-            'middle_name'    => 'nullable|string|max:255',
-            'last_name'      => 'sometimes|string|max:255',
-            'email'          => 'sometimes|email|unique:users,email,' . $user->id,
-            'employee_id'    => 'nullable|string|max:50',
-            'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
-            'college'        => 'nullable|string',
-            'department'     => 'nullable|string',
-            'contact_number' => 'nullable|string|max:11',
-        ]);
+        public function update(Request $request, User $user)
+{
+    $validated = $request->validate([
+        'first_name'     => 'sometimes|string|max:255',
+        'middle_name'    => 'nullable|string|max:255',
+        'last_name'      => 'sometimes|string|max:255',
+        'suffix'         => 'nullable|string|max:20',
+        'email'          => 'sometimes|email|unique:users,email,' . $user->id,
+        'employee_id'    => 'nullable|string|max:50',
+        'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
+        'college'        => 'nullable|string',
+        'department'     => 'nullable|string',
+        'contact_number' => 'nullable|string|max:11',
+    ]);
 
-        $old = $user->toArray();
-        $user->update($validated);
+    $old = $user->toArray();
+    $user->update($validated);
 
-        AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
+    AuditLog::record('updated', "Updated employee account for {$user->name}.", $user, $old, $user->toArray());
 
-        return response()->json($user);
-    }
+    return response()->json($user);
+}
 
     public function destroy(User $user)
     {
@@ -103,20 +107,20 @@ class UserController extends Controller
     }
 
     public function resetPassword(Request $request, User $user)
-    {
-        $newPassword = Str::random(10);
-        $user->update([
-            'password'              => Hash::make($newPassword),
-            'temp_password'         => $newPassword,
-            'must_change_password'  => true,
-        ]);
-        AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
+{
+    $newPassword = Str::random(10);
+    $user->update([
+        'password'              => Hash::make($newPassword),
+        'temp_password'         => $newPassword,
+        'must_change_password'  => true,
+    ]);
+    AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
 
-        return response()->json([
-            'message'       => 'Password reset successfully.',
-            'temp_password' => $newPassword,
-        ]);
-    }
+    return response()->json([
+        'message'       => 'Password reset successfully.',
+        'temp_password' => $newPassword,
+    ]);
+}
 
     // Admin-only: view current temp password if the user hasn't changed it yet
     public function viewTempPassword(User $user)
@@ -141,6 +145,7 @@ class UserController extends Controller
             'last name'        => 'last_name',
             'first name'       => 'first_name',
             'middle name'      => 'middle_name',
+            'suffix'           => 'suffix',
             'email address'    => 'email',
             'email'            => 'email',
             'role'             => 'role',
@@ -205,7 +210,7 @@ class UserController extends Controller
 
             $exists = User::where('email', $rowData['email'])->exists();
             if ($exists) {
-                $errors[] = "Row {$rowNum}: email {$rowData['email']} already exists — skipped.";
+                $errors[] = "Row {$rowNum}: email {$rowData['email']} already exists - skipped.";
                 $skipped++;
                 continue;
             }
@@ -213,7 +218,9 @@ class UserController extends Controller
             $tempPassword = Str::random(10);
             User::create([
                 'first_name'            => $rowData['first_name'],
+                'middle_name'           => $rowData['middle_name'] ?? null,
                 'last_name'             => $rowData['last_name'],
+                'suffix'                => $rowData['suffix'] ?? null,
                 'name'                  => trim($rowData['first_name'] . ' ' . $rowData['last_name']),
                 'email'                 => $rowData['email'],
                 'employee_id'           => $rowData['employee_id'] ?? null,

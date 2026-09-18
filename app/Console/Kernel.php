@@ -12,9 +12,9 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        $schedule->command('cases:fix-constraint')->daily();
         $schedule->command('reminders:follow-up')->dailyAt('08:00');
-        $schedule->command('appointments:detect-no-show')->hourly();
+        $schedule->command('backup:run --type=all --trigger=scheduled')->daily();
+        $schedule->command('app:detect-missed-appointments')->hourly();
     }
 
     /**

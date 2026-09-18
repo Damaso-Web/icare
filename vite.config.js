@@ -24,6 +24,7 @@ export default defineConfig({
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iCARE · BSU Office of Student Services</title>
+    <link rel="icon" type="image/png" href="/icare-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/${cssFile}">
 </head>
@@ -45,6 +46,13 @@ export default defineConfig({
                         fs.copyFileSync(`${templatesSrc}/${file}`, `${templatesDest}/${file}`);
                     });
                     console.log('✓ Templates copied to build output');
+                }
+
+                // Copy the logo into the build output so Netlify can serve it too
+                const logoSrc = './public/icare-logo.png';
+                if (fs.existsSync(logoSrc)) {
+                    fs.copyFileSync(logoSrc, './public/build/icare-logo.png');
+                    console.log('✓ Logo copied to build output');
                 }
 
                 console.log('✓ index.html and _redirects generated successfully');

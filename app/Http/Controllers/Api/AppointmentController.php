@@ -7,40 +7,48 @@ use App\Models\AuditLog;
 use App\Models\Appointment;
 use App\Models\StaffAvailability;
 use App\Models\User;
+use App\Notifications\AppointmentConfirmedNotification;
 use App\Notifications\NoShowEscalationNotification;
+use App\Notifications\DocumentsRequiredNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Carbon\Carbon;
 
 class AppointmentController extends Controller
 {
+    // A reschedule limit any higher stops functioning as a limit at all.
+    private const RESCHEDULE_LIMIT = 3;
     public function index(Request $request)
-{
-    $user = $request->user();
-    $perPage = $request->input('per_page', 20);
+    {
+        $user = $request->user();
+        $perPage = $request->input('per_page', 20);
 
-    return response()->json(
-        Appointment::with(['student', 'staff', 'case'])
-            ->when($request->date,   fn($q) => $q->where('appointment_date', $request->date))
-            ->when($request->unit,   fn($q) => $q->where('unit', $request->unit))
-            ->when($request->status, function ($q) use ($request) {
-                if (str_contains($request->status, ',')) {
-                    $q->whereIn('status', explode(',', $request->status));
-                } else {
-                    $q->where('status', $request->status);
-                }
-            })
-            ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
-            ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
-            ->orderBy('appointment_date')
-            ->orderBy('start_time')
-            ->paginate($perPage)
-    );
-}
+        return response()->json(
+            Appointment::with(['student', 'staff', 'case'])
+                ->when($request->date,        fn($q) => $q->where('appointment_date', $request->date))
+                ->when($request->unit,        fn($q) => $q->where('unit', $request->unit))
+                ->when($request->status, function ($q) use ($request) {
+                    if (str_contains($request->status, ',')) {
+                        $q->whereIn('status', explode(',', $request->status));
+                    } else {
+                        $q->where('status', $request->status);
+                    }
+                })
+                ->when($request->referral_id,      fn($q) => $q->where('referral_id', $request->referral_id))
+                ->when($request->appointment_type, fn($q) => $q->where('appointment_type', $request->appointment_type))
+                ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
+                ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
+                ->paginate($perPage)
+        );
+    }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'case_id'          => 'required|exists:cases,id',
+            'referral_id'      => 'nullable|exists:referrals,id',
             'student_id'       => 'required|exists:students,id',
             'staff_user_id'    => 'nullable|exists:users,id',
             'unit'             => 'required|in:GCU,SDU,TMDU',
@@ -88,47 +96,45 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request, Appointment $appointment)
     {
-        if ($request->filled('staff_user_id')) {
-            $hasConflict = Appointment::hasConflict(
-                $request->staff_user_id,
-                $appointment->appointment_date->format('Y-m-d'),
-                $appointment->start_time,
-                $appointment->end_time,
-                $appointment->id
-            );
+        $validated = $request->validate([
+            'staff_user_id'       => 'nullable|exists:users,id',
+            'required_documents'  => 'nullable|string',
+        ]);
 
-            if ($hasConflict) {
-                return response()->json(['message' => 'The selected staff member already has a conflicting appointment at this time. Please choose a different staff member or time.'], 422);
-            }
+        $staffToAssign = $validated['staff_user_id'] ?? $appointment->staff_user_id;
+        if ($staffToAssign && Appointment::hasConflict(
+            $staffToAssign,
+            $appointment->appointment_date->format('Y-m-d'),
+            $appointment->start_time,
+            $appointment->end_time,
+            $appointment->id
+        )) {
+            return response()->json(['message' => 'This staff member already has a conflicting appointment at this time.'], 422);
         }
 
-        $updateData = [
+        $appointment->update([
             'status'               => 'confirmed',
             'request_status'       => 'confirmed',
             'confirmation_sent'    => true,
             'confirmation_sent_at' => now(),
-        ];
-
-        if ($request->filled('staff_user_id')) {
-            $updateData['staff_user_id'] = $request->staff_user_id;
-        }
-
-        $appointment->update($updateData);
-
-        $appointment->student->notify(new \App\Notifications\AppointmentConfirmedNotification($appointment));
-
-        $referralType = $appointment->case?->latestReferral?->referral_type;
-        $requiredDocs = Appointment::DOCUMENT_REQUIREMENTS[$referralType] ?? [];
-        if (!empty($requiredDocs)) {
-            $appointment->update(['required_documents' => $requiredDocs]);
-            $appointment->student->notify(new \App\Notifications\PrepareDocumentsNotification($appointment));
-        }
+            ...(!empty($validated['staff_user_id']) ? ['staff_user_id' => $validated['staff_user_id']] : []),
+            ...(!empty($validated['required_documents']) ? ['required_documents' => $validated['required_documents']] : []),
+        ]);
 
         if ($appointment->case?->latestReferral) {
             $appointment->case->latestReferral->update(['status' => 'in_progress']);
         }
 
         AuditLog::record('confirmed', "Confirmed appointment {$appointment->appointment_code}.", $appointment);
+
+        if ($appointment->student) {
+            Notification::send($appointment->student, new AppointmentConfirmedNotification($appointment));
+
+            if (!empty($validated['required_documents'])) {
+                Notification::send($appointment->student, new DocumentsRequiredNotification($appointment));
+            }
+        }
+
         return response()->json($appointment);
     }
 
@@ -139,6 +145,7 @@ class AppointmentController extends Controller
     ]);
 
     $newToken = \Illuminate\Support\Str::random(48);
+    $newCount = $appointment->reschedule_count + 1;
 
     $appointment->update([
         'request_status'    => 'awaiting_student',
@@ -146,9 +153,16 @@ class AppointmentController extends Controller
         'scheduling_token'  => $newToken,
         'token_expires_at'  => now()->addDays(7),
         'reschedule_reason' => $request->reschedule_reason,
+        'reschedule_count'  => $newCount,
+        ...($newCount >= self::RESCHEDULE_LIMIT && !$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
     ]);
 
     AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}. Reason: {$request->reschedule_reason}", $appointment);
+
+    if ($newCount >= self::RESCHEDULE_LIMIT) {
+        $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
+        AuditLog::record('call_slip_generated', "Appointment {$appointment->appointment_code} reached the reschedule limit; call slip generated.", $appointment);
+    }
 
     return response()->json([
         'message'         => 'Reschedule request sent to student.',
@@ -156,6 +170,75 @@ class AppointmentController extends Controller
         'scheduling_link' => url("/schedule/{$newToken}"),
     ]);
 }
+
+    // Student self-service reschedule - same counter/limit as the staff-side
+    // reschedule() above. A student must give a reason each time; the request
+    // that would push the count to the limit is denied outright and escalated
+    // to a no-show/call-slip instead of being granted a new scheduling link,
+    // since there's no staff member in the loop to catch a runaway student.
+    public function requestRescheduleByStudent(Request $request, Appointment $appointment)
+    {
+        if ($appointment->student_id !== $request->user('student')->id) {
+            abort(403, 'This is not your appointment.');
+        }
+
+        if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+            return response()->json(['message' => 'This appointment can no longer be rescheduled.'], 422);
+        }
+
+        $request->validate(['reason' => 'required|string']);
+
+        $newCount = $appointment->reschedule_count + 1;
+
+        if ($newCount >= self::RESCHEDULE_LIMIT) {
+            $appointment->update([
+                'status'               => 'no_show',
+                'reschedule_count'     => $newCount,
+                'no_show_escalated'    => true,
+                'no_show_escalated_at' => now(),
+                'call_slip_stage'      => $appointment->call_slip_stage ?? 'pending',
+            ]);
+
+            $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
+            AuditLog::record('reschedule_limit_reached', "Student exceeded the reschedule limit for appointment {$appointment->appointment_code}. Flagged for staff follow-up.", $appointment);
+
+            return response()->json([
+                'message'     => "You've reached the limit of " . self::RESCHEDULE_LIMIT . " reschedule requests for this appointment. This has been flagged for staff follow-up.",
+                'appointment' => $appointment,
+            ], 422);
+        }
+
+        $newToken = \Illuminate\Support\Str::random(48);
+
+        $appointment->update([
+            'request_status'    => 'awaiting_student',
+            'status'            => 'pending',
+            'scheduling_token'  => $newToken,
+            'token_expires_at'  => now()->addDays(7),
+            'reschedule_reason' => $request->reason,
+            'reschedule_count'  => $newCount,
+        ]);
+
+        AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}. Reason: {$request->reason}", $appointment);
+
+        return response()->json([
+            'message'         => 'Reschedule requested.',
+            'appointment'     => $appointment,
+            'scheduling_link' => url("/schedule/{$newToken}"),
+        ]);
+    }
+
+    private function notifyDeanSecretaries(Appointment $appointment, $notification): void
+    {
+        $deanSecretaries = User::where('role', 'dean_secretary')
+            ->where('college', $appointment->student->college)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($deanSecretaries as $secretary) {
+            $secretary->notify($notification);
+        }
+    }
 
     public function cancel(Request $request, Appointment $appointment)
 {
@@ -170,6 +253,29 @@ class AppointmentController extends Controller
     ]);
 
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
+        return response()->json($appointment);
+    }
+
+    public function cancelByStudent(Request $request, Appointment $appointment)
+    {
+        if ($appointment->student_id !== $request->user('student')->id) {
+            abort(403, 'This is not your appointment.');
+        }
+
+        if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+            return response()->json(['message' => 'This appointment can no longer be cancelled.'], 422);
+        }
+
+        $request->validate(['cancellation_reason' => 'required|string']);
+
+        $appointment->update([
+            'status'              => 'cancelled',
+            'cancellation_reason' => $request->cancellation_reason,
+            'cancelled_at'        => now(),
+        ]);
+
+        AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->cancellation_reason}", $appointment);
+
         return response()->json($appointment);
     }
 
@@ -193,23 +299,16 @@ class AppointmentController extends Controller
             'status'               => 'no_show',
             'no_show_escalated'    => true,
             'no_show_escalated_at' => now(),
+            ...(!$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
         ]);
 
-        $deanSecretaries = User::where('role', 'dean_secretary')
-            ->where('college', $appointment->student->college)
-            ->where('is_active', true)
-            ->get();
-
-        foreach ($deanSecretaries as $secretary) {
-            $secretary->notify(new NoShowEscalationNotification($appointment));
-        }
+        $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
 
         AuditLog::record('no_show_escalated', "No-show escalated for appointment {$appointment->appointment_code} to Dean's Secretary.", $appointment);
 
         return response()->json([
             'message'    => 'No-show escalated to Dean\'s Secretary.',
             'appointment'=> $appointment,
-            'notified'   => $deanSecretaries->count(),
         ]);
     }
 

@@ -38,7 +38,7 @@
       </select>
       <select v-model="filters.requires_follow_up" class="fsm" @change="fetchCases">
         <option value="">All Cases</option>
-        <option value="1">Needs Follow-Up</option>
+        <option value="1">Needs Follow-up</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
@@ -67,7 +67,7 @@
               v-for="c in cases"
               :key="c.id"
               style="cursor:pointer"
-              @click="$router.push({ name: 'case-show', params: { id: c.id } })"
+              @click="$router.push({ name: 'student-show', params: { id: c.student?.id }, query: { ctx: 'cases' } })"
             >
               <td style="font-family:var(--mono);font-size:11px">{{ c.case_number }}</td>
               <td>
@@ -78,7 +78,7 @@
               </td>
               <td style="font-size:12px">{{ formatDate(c.opened_date) }}</td>
               <td>
-                <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'case-show', params: { id: c.id } })">View</button>
+                <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'student-show', params: { id: c.student?.id }, query: { ctx: 'cases' } })">View</button>
               </td>
             </tr>
           </tbody>
@@ -88,7 +88,7 @@
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
-          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
         </span>
         <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
@@ -133,7 +133,7 @@ function initials(first, last) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 onMounted(() => fetchCases());

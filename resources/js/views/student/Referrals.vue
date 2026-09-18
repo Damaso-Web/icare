@@ -32,7 +32,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const loading = ref(true);
 const referrals = ref([]);
@@ -47,7 +47,7 @@ function toTitleCase(str) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 async function fetchData() {

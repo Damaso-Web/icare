@@ -6,7 +6,7 @@
       <p>Complete this form to refer a student to the Office of Student Services.</p>
     </div>
 
-    <div class="icard" style="max-width:820px">
+    <div class="icard" style="max-width:820px;margin:0 auto">
 
       <!-- Document Code Header -->
       <div style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
@@ -62,7 +62,7 @@
                 @click="selectStudent(s)"
               >
                 <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
-                <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '—' }}</div>
+                <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '-' }}</div>
               </div>
             </div>
             <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
@@ -241,6 +241,11 @@
             </select>
           </div>
 
+          <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
+            <label class="ifl">Date of Incident <span style="color:var(--red)">*</span></label>
+            <input v-model="form.incident_date" type="date" class="ifi" :required="form.referral_type === 'disciplinary'" />
+          </div>
+
           <div style="margin-bottom:14px">
             <label class="ifl">{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern / Reason for Referral' }} <span style="color:var(--red)">*</span></label>
             <textarea
@@ -276,10 +281,11 @@
           <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
             <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
-            <div><strong>College:</strong> {{ form.college }} — {{ form.program }}</div>
+            <div><strong>College:</strong> {{ form.college }} - {{ form.program }}</div>
             <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
             <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
             <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
+            <div v-if="form.incident_date"><strong>Date of Incident:</strong> {{ form.incident_date }}</div>
             <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
           </div>
           <div style="display:flex;gap:8px">
@@ -344,6 +350,7 @@ const form = ref({
   referral_source:       'faculty',
   nature_of_concern:     '',
   violation_type:        '',
+  incident_date:         '',
 });
 
 function onServiceChange() {
@@ -450,6 +457,8 @@ async function confirmSubmit() {
       is_self_referred:  form.value.referral_source === 'self',
       referrer_source:   form.value.referral_source,
       violation_type:    form.value.violation_type || null,
+      incident_date:     form.value.referral_type === 'disciplinary' ? (form.value.incident_date || null) : null,
+      incident_description: form.value.referral_type === 'disciplinary' ? form.value.nature_of_concern : null,
     });
 
     showPreview.value = false;
@@ -486,7 +495,7 @@ function clearForm() {
     referrer_first_name:  auth.user?.first_name || '',
     referrer_middle_name: auth.user?.middle_name || '',
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
-    violation_type: '',
+    violation_type: '', incident_date: '',
   };
 }
 

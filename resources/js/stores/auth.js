@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import axios from 'axios';
 
-axios.defaults.baseURL = 'https://icare-backend-5jwe.onrender.com';
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
 axios.defaults.headers.common['Accept'] = 'application/json';
 axios.defaults.headers.common['Content-Type'] = 'application/json';
 
@@ -48,6 +48,11 @@ export const useAuthStore = defineStore('auth', {
             if (this.token) {
                 axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;
             }
+        },
+
+        setUser(user) {
+            this.user = user;
+            localStorage.setItem('user', JSON.stringify(user));
         },
     },
 });

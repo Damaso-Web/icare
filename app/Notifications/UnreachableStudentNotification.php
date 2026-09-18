@@ -30,7 +30,7 @@ class UnreachableStudentNotification extends Notification
             ->line('**Case Number:** ' . $this->case->case_number)
             ->line('**Notes:** ' . ($this->notes ?: 'No additional notes.'))
             ->line('Please assist in locating or contacting this student.')
-            ->salutation('iCARE — BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

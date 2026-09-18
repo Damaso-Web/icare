@@ -30,15 +30,9 @@
             <input v-model="profileForm.email" type="email" class="ifi" />
           </div>
           <div>
-        <label class="ifl">Contact Number</label>
-        <input
-            v-model="profileForm.contact_number"
-            class="ifi"
-            placeholder="09XXXXXXXXX"
-            maxlength="11"
-            @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)"
-        />
-        </div>
+            <label class="ifl">Contact Number</label>
+            <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+          </div>
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="saveProfile">Save Changes</button>
         </div>
       </div>
@@ -71,7 +65,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
 const profileForm = ref({ first_name: '', last_name: '', middle_name: '', email: '', contact_number: '' });

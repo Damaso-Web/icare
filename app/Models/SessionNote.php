@@ -11,6 +11,7 @@ class SessionNote extends Model
 
     protected $fillable = [
         'case_id',
+        'referral_id',
         'student_id',
         'recorded_by_user_id',
         'session_number',
@@ -35,6 +36,7 @@ class SessionNote extends Model
     ];
 
     public function case()       { return $this->belongsTo(CaseFile::class, 'case_id'); }
+    public function referral()   { return $this->belongsTo(Referral::class, 'referral_id'); }
     public function student()    { return $this->belongsTo(Student::class); }
     public function recordedBy() { return $this->belongsTo(User::class, 'recorded_by_user_id'); }
 }

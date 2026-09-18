@@ -25,7 +25,7 @@ class AppointmentConfirmedNotification extends Notification
             'appointment_code'  => $this->appointment->appointment_code,
             'appointment_date'  => $this->appointment->appointment_date,
             'start_time'        => $this->appointment->start_time,
-            'message'           => "Your appointment {$this->appointment->appointment_code} on {$this->appointment->appointment_date} at {$this->appointment->start_time} has been confirmed.",
+            'message'           => "Your appointment {$this->appointment->appointment_code} on {$this->appointment->appointment_date} has been confirmed.",
         ];
     }
 }

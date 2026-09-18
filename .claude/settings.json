@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(echo \"Exit code: $?\")",
+      "Read(//c/Users/genry/.claude/projects/d--Xampp-htdocs-icare/**)",
+      "Bash(grep -o 'B64[^\"]\\\\{0,300\\\\}' \"C:\\\\Users\\\\genry\\\\.claude\\\\projects\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f.jsonl\" | head -20)",
+      "Bash(grep -o 'B64\\) Student/Faculty filters[^\"]\\\\{0,2000\\\\}' \"C:\\\\Users\\\\genry\\\\.claude\\\\projects\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f.jsonl\" | head -1)",
+      "Bash(grep -o 'B64\\) Student/Faculty filters[^\"]\\\\{0,4000\\\\}' \"C:\\\\Users\\\\genry\\\\.claude\\\\projects\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f.jsonl\" | head -1 | sed 's/\\\\\\\\n/\\\\n/g')",
+      "Bash(grep -o 'B64\\) Student/Faculty filters[^\"]\\\\{0,4000\\\\}' \"C:\\\\Users\\\\genry\\\\.claude\\\\projects\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f.jsonl\" | head -1 | wc -c)",
+      "Bash(perl -ne 'if \\(/B64\\\\\\) Student\\\\/Faculty filters\\(.{0,3000}\\)/\\) { print $1; exit }' \"C:\\\\Users\\\\genry\\\\.claude\\\\projects\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f.jsonl\")",
+      "Bash(grep -n 'protected $fillable\\\\|closed_date\\\\|case_number' app/Models/CaseFile.php)"
+    ]
+  }
+}

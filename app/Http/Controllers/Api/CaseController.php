@@ -8,8 +8,12 @@ use App\Models\CaseFile;
 use App\Models\CaseHandoff;
 use App\Models\TestingRecord;
 use App\Models\User;
+use App\Notifications\CaseHandoffNotification;
+use App\Notifications\HandoffAcknowledgedNotification;
 use App\Notifications\UnreachableStudentNotification;
+use App\Notifications\TestingReferralNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 
 class CaseController extends Controller
 {
@@ -18,6 +22,17 @@ class CaseController extends Controller
         $user = request()->user();
         if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
             abort(403, 'Unauthorized. Only OSS staff may access case files.');
+        }
+    }
+
+    private function authorizeUnitAccess(CaseFile $case): void
+    {
+        $user = request()->user();
+        if ($user->isTMDUStaff() && $case->current_unit !== 'TMDU') {
+            abort(403, 'Unauthorized. This case belongs to a different unit.');
+        }
+        if ($user->isSDUHead() && $case->current_unit !== 'SDU') {
+            abort(403, 'Unauthorized. This case belongs to a different unit.');
         }
     }
 
@@ -32,7 +47,7 @@ class CaseController extends Controller
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
             ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
-            ->when($request->has('requires_follow_up') && $request->requires_follow_up !== '', fn($q) => $q->where('requires_follow_up', true))
+            ->when($request->filled('requires_follow_up'), fn($q) => $q->where('requires_follow_up', $request->boolean('requires_follow_up')))
             ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
                 $s->where('first_name', 'like', "%{$request->search}%")
                   ->orWhere('last_name', 'like', "%{$request->search}%")
@@ -47,21 +62,19 @@ class CaseController extends Controller
             $query->where('current_unit', 'SDU');
         }
 
-        return response()->json($query->latest()->paginate(20));
+        return response()->json(
+            $query->orderByRaw("CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END ASC")
+                ->orderBy('created_at', 'desc')
+                ->paginate(20)
+        );
     }
 
-    public function show(Request $request, CaseFile $case)
+    public function show(CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeUnitAccess($case);
 
-        $user = $request->user();
-        $isOwner = $case->primary_counselor_id === $user->id;
-
-        if ($isOwner) {
-            AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
-        } else {
-            AuditLog::record('viewed_by_other', "{$user->name} (not the assigned counselor) opened case {$case->case_number}.", $case);
-        }
+        AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
 
         $referralCount = $case->referrals()->count();
 
@@ -76,44 +89,29 @@ class CaseController extends Controller
                 'handoffs.fromUser',
                 'handoffs.toUser',
                 'documents',
-                'interventions.personInCharge',
-                'interventions.recordedBy',
-                'interventions.completedBy',
-                'interventions.referral',
             ])->toArray(),
-            'latest_referral'      => $case->latestReferral()->with('referredBy')->first(),
             'client_status'        => $referralCount > 1 ? 'existing' : 'new',
             'prior_referral_count' => max(0, $referralCount - 1),
-            'follow_up_count'      => $case->interventions()->where('type', 'follow_up')->count(),
-            'parent_conference_count' => $case->interventions()->where('type', 'parent_conference')->count(),
-                ]);
+        ]);
     }
 
     public function update(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeUnitAccess($case);
 
         $old = $case->toArray();
         $case->update($request->only([
             'primary_counselor_id',
             'target_resolution_date',
             'presenting_concern',
-            'background_info',
             'interventions_applied',
             'outcomes',
             'recommendations',
             'intake_notes',
         ]));
-
-        if ($case->wasChanged('primary_counselor_id') && $case->counselor && $case->counselor->id !== $request->user()->id) {
-            $case->counselor->notify(new \App\Notifications\CaseAssignedNotification(
-                $case,
-                "You have been assigned as primary counselor for case {$case->case_number}."
-            ));
-        }
-
         AuditLog::record('updated', "Updated case {$case->case_number}.", $case, $old, $case->toArray());
-        return response()->json($case);
+        return response()->json($case->load('counselor'));
     }
 
     public function updateStatus(Request $request, CaseFile $case)
@@ -193,16 +191,11 @@ class CaseController extends Controller
             'reason'       => $request->reason,
         ]);
 
-        $tmduStaff = User::where('role', 'tmdu_staff')->where('is_active', true)->get();
-        foreach ($tmduStaff as $staff) {
-            $staff->notify(new \App\Notifications\CaseAssignedNotification(
-                $case,
-                "Case {$case->case_number} has been referred to TMDU for testing.",
-                $request->reason
-            ));
-        }
-
         AuditLog::record('referred_tmdu', "Case {$case->case_number} referred to TMDU.", $case);
+
+        $tmduStaff = User::where('role', 'tmdu_staff')->where('is_active', true)->get();
+        Notification::send($tmduStaff, new TestingReferralNotification($case));
+
         return response()->json(['case' => $case, 'testing_record' => $testing]);
     }
 
@@ -236,7 +229,7 @@ class CaseController extends Controller
             'notes'      => 'nullable|string',
         ]);
 
-        CaseHandoff::create([
+        $handoff = CaseHandoff::create([
             'case_id'      => $case->id,
             'from_user_id' => $request->user()->id,
             'to_user_id'   => $request->to_user_id,
@@ -248,26 +241,20 @@ class CaseController extends Controller
 
         $case->update(['current_unit' => $request->to_unit]);
 
-        $toUser = \App\Models\User::find($request->to_user_id);
-        if ($toUser) {
-            $toUser->notify(new \App\Notifications\CaseAssignedNotification(
-                $case,
-                "Case {$case->case_number} has been handed off to you ({$request->to_unit}).",
-                $request->notes
-            ));
+        if ($handoff->toUser) {
+            Notification::send($handoff->toUser, new CaseHandoffNotification($handoff));
         }
 
         AuditLog::record('handoff', "Case {$case->case_number} handed off to {$request->to_unit}.", $case);
         return response()->json($case);
     }
 
-    // Feature 55: Confirm receipt of an endorsed/handed-off case
-    public function confirmHandoff(Request $request, \App\Models\CaseHandoff $handoff)
+    public function acknowledgeHandoff(Request $request, CaseFile $case, CaseHandoff $handoff)
     {
         $this->authorizeStaffAccess();
 
-        if ($handoff->to_user_id !== $request->user()->id) {
-            abort(403, 'Only the receiving staff member may confirm this handoff.');
+        if ($handoff->case_id !== $case->id) {
+            abort(422, 'This handoff does not belong to this case.');
         }
 
         $handoff->update([
@@ -275,9 +262,13 @@ class CaseController extends Controller
             'acknowledged_at' => now(),
         ]);
 
-        AuditLog::record('handoff_confirmed', "Confirmed receipt of case {$handoff->case->case_number} handoff.", $handoff);
+        AuditLog::record('handoff_acknowledged', "Confirmed receipt of case {$case->case_number} handed off to {$handoff->to_unit}.", $case);
 
-        return response()->json($handoff);
+        if ($handoff->fromUser) {
+            Notification::send($handoff->fromUser, new HandoffAcknowledgedNotification($handoff));
+        }
+
+        return response()->json($handoff->load(['fromUser', 'toUser']));
     }
 
     // FR 2.7: Alert Dean's Secretary for Unreachable Students
@@ -330,14 +321,6 @@ class CaseController extends Controller
             'follow_up_flagged_by' => $request->user()->id,
         ]);
 
-        if ($case->counselor && $case->counselor->id !== $request->user()->id) {
-            $case->counselor->notify(new \App\Notifications\CaseAssignedNotification(
-                $case,
-                "Case {$case->case_number} has been flagged as needing further attention.",
-                $request->notes
-            ));
-        }
-
         AuditLog::record('follow_up_flagged', "Case {$case->case_number} flagged for further attention.", $case, $old, $case->toArray());
 
         return response()->json($case);
@@ -353,22 +336,5 @@ class CaseController extends Controller
         AuditLog::record('follow_up_resolved', "Follow-up flag cleared for case {$case->case_number}.", $case, $old, $case->toArray());
 
         return response()->json($case);
-    }
-
-    // Feature 59: Dean's Secretary view of college cases needing follow-up
-    public function collegeFollowUps(Request $request)
-    {
-        $user = $request->user();
-        if (!$user->isDeanSecretary()) {
-            abort(403, 'Unauthorized.');
-        }
-
-        $cases = CaseFile::where('requires_follow_up', true)
-            ->whereHas('student', fn($s) => $s->where('college', $user->college))
-            ->with(['student', 'counselor', 'latestReferral'])
-            ->latest('follow_up_flagged_at')
-            ->paginate(20);
-
-        return response()->json($cases);
     }
 }

@@ -13,7 +13,11 @@ class CallSlipController extends Controller
     {
         $user = $request->user();
 
-        $appointments = Appointment::where('no_show_escalated', true)
+        // 3 mirrors AppointmentController::RESCHEDULE_LIMIT
+        $appointments = Appointment::where(function ($q) {
+                $q->where('no_show_escalated', true)
+                  ->orWhere('reschedule_count', '>=', 3);
+            })
             ->whereHas('student', function ($q) use ($user) {
                 $q->where('college', $user->college);
             })

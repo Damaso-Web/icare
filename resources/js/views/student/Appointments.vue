@@ -9,7 +9,7 @@
     <div v-if="pendingAppointment && !showScheduleForm" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
       <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
         <div>
-          <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have a pending appointment request</div>
+          <div style="font-size:14px;font-weight:600;color:var(--ink)">You have a pending appointment request</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time.</div>
         </div>
         <button class="ibtn ibtn-p" @click="showScheduleForm = true">Schedule Now</button>
@@ -20,40 +20,55 @@
     <div v-if="showScheduleForm && pendingAppointment" class="icard" style="margin-bottom:20px">
       <div class="icard-header"><span class="icard-title">Choose Your Appointment Time</span></div>
       <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
-        <div style="font-size:13px;color:var(--stone)">
-          Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.
+        <div style="font-size:13px;color:var(--stone);display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px">
+          <span>Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.</span>
+          <span style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px">
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--mist);border:1px solid var(--mint);display:inline-block"></span> Available</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-lt);border:1px solid #f0a8a8;display:inline-block"></span> Full</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--cloud);border:1px solid var(--silver);display:inline-block"></span> Closed</span>
+          </span>
         </div>
+
+        <!-- Availability Calendar -->
+        <div style="background:var(--snow);border-radius:var(--r-sm);padding:16px;max-width:400px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+            <button type="button" class="ibtn ibtn-g ibtn-sm" @click="prevCalMonth">‹</button>
+            <span style="font-size:14px;font-weight:600;color:var(--ink)">{{ calMonthLabel }}</span>
+            <button type="button" class="ibtn ibtn-g ibtn-sm" @click="nextCalMonth">›</button>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+            <div v-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="d" style="text-align:center;font-size:10.5px;font-weight:700;color:var(--fog);padding:2px 0">{{ d }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+            <div v-for="blank in calLeadingBlanks" :key="'b'+blank"></div>
+            <div
+              v-for="day in calDays"
+              :key="day.date"
+              :title="calStatusLabel(day.status)"
+              style="width:100%;aspect-ratio:1;max-height:46px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:13.5px"
+              :style="calDayStyle(day)"
+              @click="day.status === 'available' && selectCalendarDate(day.date)"
+            >
+              {{ Number(day.date.split('-')[2]) }}
+            </div>
+          </div>
+        </div>
+
         <div>
-          <label class="ifl">Preferred Date</label>
-          <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="minDate" @change="checkAvailability" />
+          <label class="ifl">Selected Date</label>
+          <div style="font-size:13.5px;color:var(--ink);font-weight:600;padding:9px 0">
+            {{ scheduleForm.appointment_date ? formatDate(scheduleForm.appointment_date) : 'Pick a date on the calendar above' }}
+          </div>
           <div v-if="dayWarning" style="font-size:11px;color:var(--red);margin-top:4px">Please select a weekday (Monday to Friday).</div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div>
             <label class="ifl">Start Time</label>
-            <select v-model="scheduleForm.start_time" class="ifse" @change="checkAvailability">
-              <option value="">Select...</option>
-              <option value="08:00">08:00 AM</option>
-              <option value="09:00">09:00 AM</option>
-              <option value="10:00">10:00 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="13:00">01:00 PM</option>
-              <option value="14:00">02:00 PM</option>
-              <option value="15:00">03:00 PM</option>
-            </select>
+            <input v-model="scheduleForm.start_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
           </div>
           <div>
             <label class="ifl">End Time</label>
-            <select v-model="scheduleForm.end_time" class="ifse" @change="checkAvailability">
-              <option value="">Select...</option>
-              <option value="09:00">09:00 AM</option>
-              <option value="10:00">10:00 AM</option>
-              <option value="11:00">11:00 AM</option>
-              <option value="12:00">12:00 PM</option>
-              <option value="14:00">02:00 PM</option>
-              <option value="15:00">03:00 PM</option>
-              <option value="16:00">04:00 PM</option>
-            </select>
+            <input v-model="scheduleForm.end_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
           </div>
         </div>
         <div v-if="timeOrderError" style="font-size:11px;color:var(--red)">End time must be later than start time.</div>
@@ -81,15 +96,20 @@
         <p>You'll see your appointment details here once one is scheduled.</p>
       </div>
       <div v-else>
-        <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer" @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })">
-        <div v-if="a.request_status === 'awaiting_student'" style="font-size:13.5px;font-weight:600;color:var(--amber)">Set Your Appointment Schedule</div>
-        <div v-else style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}</div>
-        <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ a.unit }} · {{ toTitleCase(a.appointment_type) }}</div>
-        <div v-if="a.case?.latest_referral" style="font-size:11px;color:var(--fog);margin-top:2px">
-          For referral: {{ a.case.latest_referral.referral_code }} ({{ toTitleCase(a.case.latest_referral.referral_type) }})
+        <div
+          v-for="a in appointments"
+          :key="a.id"
+          style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+          @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })"
+        >
+          <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} - {{ a.end_time }}</div>
+          <div style="font-size:12px;color:var(--stone);margin-top:2px;display:flex;align-items:center;gap:6px">
+            <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
+            {{ toTitleCase(a.appointment_type) }}
+          </div>
+          <div v-if="a.referral || a.case?.latest_referral" style="font-size:11px;color:var(--fog);margin-top:4px">For referral {{ (a.referral || a.case.latest_referral).referral_code }}</div>
+          <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(a.status) }}</span>
         </div>
-        <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(a.status) }}</span>
-      </div>
       </div>
     </div>
   </div>
@@ -99,7 +119,7 @@
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const loading = ref(true);
 const appointments = ref([]);
@@ -118,6 +138,52 @@ const scheduleError = ref('');
 const today = new Date();
 const minDate = computed(() => today.toISOString().split('T')[0]);
 
+const calYear  = ref(today.getFullYear());
+const calMonth = ref(today.getMonth());
+const calDays  = ref([]);
+
+const calMonthLabel = computed(() => new Date(calYear.value, calMonth.value, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+const calLeadingBlanks = computed(() => new Date(calYear.value, calMonth.value, 1).getDay());
+
+function calStatusLabel(status) {
+  return { available: 'Available', full: 'Fully booked', closed: 'Not open for appointments', past: 'Past date' }[status] || '';
+}
+
+function calDayStyle(day) {
+  if (day.status === 'available') return 'cursor:pointer;background:var(--mist);color:var(--moss);font-weight:600';
+  if (day.status === 'full') return 'cursor:not-allowed;background:var(--red-lt);color:var(--red)';
+  if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
+  return 'cursor:not-allowed;background:var(--cloud);color:var(--fog)';
+}
+
+function selectCalendarDate(dateStr) {
+  scheduleForm.value.appointment_date = dateStr;
+  checkAvailability();
+}
+
+async function fetchMonthAvailability() {
+  if (!pendingAppointment.value?.scheduling_token) return;
+  const monthStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`;
+  try {
+    const res = await axios.get(`${API_BASE}/schedule/${pendingAppointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
+    calDays.value = res.data.days;
+  } catch (e) {
+    calDays.value = [];
+  }
+}
+
+function prevCalMonth() {
+  calMonth.value--;
+  if (calMonth.value < 0) { calMonth.value = 11; calYear.value--; }
+  fetchMonthAvailability();
+}
+
+function nextCalMonth() {
+  calMonth.value++;
+  if (calMonth.value > 11) { calMonth.value = 0; calYear.value++; }
+  fetchMonthAvailability();
+}
+
 const canSubmit = computed(() => {
   return scheduleForm.value.appointment_date && scheduleForm.value.start_time && scheduleForm.value.end_time &&
          !dayWarning.value && !timeOrderError.value && availabilityChecked.value && isAvailable.value;
@@ -133,7 +199,7 @@ function toTitleCase(str) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 async function fetchData() {
@@ -142,6 +208,7 @@ async function fetchData() {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     pendingAppointment.value = res.data.pending_appointment || null;
+    fetchMonthAvailability();
   } catch (e) {
     console.error(e);
   } finally {

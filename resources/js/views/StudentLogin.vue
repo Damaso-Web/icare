@@ -7,7 +7,9 @@
       </button>
 
       <div style="text-align:center;margin-bottom:24px">
-        <div style="width:52px;height:52px;background:var(--forest);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-family:var(--serif);font-style:italic;font-size:24px;color:var(--gold)">i</div>
+        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
+          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
+        </div>
         <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
         <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
       </div>
@@ -26,14 +28,12 @@
               <input v-model="form.student_id" class="ifi" placeholder="e.g. 2302021" required />
             </div>
             <div style="margin-bottom:18px">
-            <label class="ifl">Password</label>
-            <div style="position:relative">
+              <label class="ifl">Password</label>
+              <div style="position:relative">
                 <input
                   v-model="form.password"
                   :type="showPassword ? 'text' : 'password'"
                   class="ifi"
-
-                  placeholder="Enter Password"
                   required
                   style="padding-right:40px"
                   @keyup="checkCapsLock"
@@ -79,12 +79,16 @@ import axios from 'axios';
 const router = useRouter();
 const loading = ref(false);
 const error   = ref('');
+
+const form = ref({ student_id: '', password: '' });
 const showPassword = ref(false);
 const capsLockOn = ref(false);
 
-const form = ref({ student_id: '', password: '' });
+function checkCapsLock(e) {
+  capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
+}
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 async function handleLogin() {
   error.value = '';
@@ -99,9 +103,5 @@ async function handleLogin() {
   } finally {
     loading.value = false;
   }
-}
-
-function checkCapsLock(e) {
-  capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
 }
 </script>

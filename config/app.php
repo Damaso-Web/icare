@@ -123,7 +123,6 @@ return [
     */
 
     'key' => env('APP_KEY'),
-    'cron_secret' => env('CRON_SECRET'),
 
     'cipher' => 'AES-256-CBC',
 

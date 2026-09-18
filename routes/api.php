@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\StudentController;
 use App\Http\Controllers\Api\ReferralController;
 use App\Http\Controllers\Api\CaseController;
+use App\Http\Controllers\Api\CaseInterventionController;
 use App\Http\Controllers\Api\SessionNoteController;
 use App\Http\Controllers\Api\AppointmentController;
 use App\Http\Controllers\Api\TestingRecordController;
@@ -18,14 +19,16 @@ use App\Http\Controllers\Api\StaffAvailabilityController;
 use App\Http\Controllers\Api\PublicSchedulingController;
 use App\Http\Controllers\Api\StudentAuthController;
 use App\Http\Controllers\Api\CallSlipController;
-use App\Http\Controllers\Api\CronController;
-use App\Http\Controllers\Api\CaseInterventionController;
-use App\Http\Controllers\Api\MonitoringController;
-use App\Http\Controllers\Api\AvailabilityController;
+use App\Http\Controllers\Api\BackupController;
+use App\Http\Controllers\Api\DevController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
+Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
+Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability']);
+Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -35,28 +38,27 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
 
+    // Dev/QA role switcher - locked to one designated tester account inside the controller
+    Route::post('dev/switch-role',       [DevController::class, 'switchRole']);
+    Route::post('dev/switch-to-student', [DevController::class, 'switchToStudent']);
+
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Students
     Route::apiResource('students', StudentController::class);
-    Route::get('students/{student}/temp-password', [StudentController::class, 'viewTempPassword']);
-    Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
-    Route::get('students/{student}/cases',   [StudentController::class, 'cases']);
     Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
     Route::post('students/import', [StudentController::class, 'import']);
-    Route::post('users/import',    [UserController::class, 'import']);
     Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
     Route::post('students/import-preview', [StudentController::class, 'importPreview']);
     Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
+    Route::get('students/{student}/temp-password',  [StudentController::class, 'viewTempPassword']);
+    Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
-    Route::get('student/notifications', [StudentAuthController::class, 'notifications']);
-    Route::post('student/notifications/{id}/read', [StudentAuthController::class, 'markNotificationRead']);
-    Route::post('student/notifications/read-all', [StudentAuthController::class, 'markAllNotificationsRead']);
-
+    
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);
@@ -67,6 +69,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign']);
     Route::patch('referrals/{referral}/status',     [ReferralController::class, 'updateStatus']);
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);
+    Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
+    Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
+    Route::get('referrals/{referral}/session-notes',    [SessionNoteController::class, 'indexByReferral']);
+    Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral']);
 
     // Cases
     Route::apiResource('cases', CaseController::class);
@@ -76,15 +82,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cases/{case}/refer-tmdu',     [CaseController::class, 'referToTmdu']);
     Route::post('cases/{case}/refer-external', [CaseController::class, 'referExternal']);
     Route::post('cases/{case}/handoff',        [CaseController::class, 'handoff']);
-    Route::post('case-handoffs/{handoff}/confirm', [CaseController::class, 'confirmHandoff']);
-    Route::get('college-follow-ups', [CaseController::class, 'collegeFollowUps']);
+    Route::post('cases/{case}/handoffs/{handoff}/acknowledge', [CaseController::class, 'acknowledgeHandoff']);
 
-    //Case Intervention
+
     Route::post('cases/{case}/flag-unreachable',            [CaseController::class, 'flagUnreachable']);
-    Route::post('cases/{case}/flag-follow-up', [CaseController::class, 'flagFollowUp']);
-    Route::post('cases/{case}/resolve-follow-up', [CaseController::class, 'resolveFollowUp']);
-    Route::post('cases/{case}/interventions', [CaseInterventionController::class, 'store']);
-    Route::post('case-interventions/{intervention}/complete', [CaseInterventionController::class, 'markCompleted']);
+    Route::post('cases/{case}/flag-follow-up',               [CaseController::class, 'flagFollowUp']);
+    Route::post('cases/{case}/resolve-follow-up',             [CaseController::class, 'resolveFollowUp']);
+    Route::post('cases/{case}/interventions',                 [CaseInterventionController::class, 'store']);
+    Route::post('interventions/{intervention}/complete',      [CaseInterventionController::class, 'complete']);
+    Route::delete('interventions/{intervention}',              [CaseInterventionController::class, 'destroy']);
 
     // Session Notes
     Route::get('cases/{case}/session-notes',           [SessionNoteController::class, 'index']);
@@ -102,11 +108,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
-    Route::post('student/appointments/{id}/request-reschedule', [StudentAuthController::class, 'requestReschedule']);
-    Route::post('student/appointments/{id}/cancel', [StudentAuthController::class, 'cancelAppointment']);
 
-    //Monitoring
-    Route::get('monitoring', [MonitoringController::class, 'index']);
+    // Call Slips (Dean's Secretary - escalated no-show follow-up)
+    Route::get('call-slips',                          [CallSlipController::class, 'index']);
+    Route::post('call-slips/{appointment}/contacted', [CallSlipController::class, 'markContacted']);
+    Route::post('call-slips/{appointment}/reschedule', [CallSlipController::class, 'requestReschedule']);
+    Route::post('call-slips/{appointment}/escalate',  [CallSlipController::class, 'escalateToDeptChair']);
 
     // Staff Availability
     Route::apiResource('staff-availability', StaffAvailabilityController::class);
@@ -114,8 +121,8 @@ Route::middleware('auth:sanctum')->group(function () {
     // Testing Records
     Route::apiResource('testing-records', TestingRecordController::class);
     Route::patch('testing-records/{testingRecord}/status',      [TestingRecordController::class, 'updateStatus']);
-    Route::post('testing-records/{testingRecord}/acknowledge', [TestingRecordController::class, 'acknowledge']);
     Route::post('testing-records/{testingRecord}/send-to-gcu',  [TestingRecordController::class, 'sendToGcu']);
+    Route::post('testing-records/{testingRecord}/acknowledge',  [TestingRecordController::class, 'acknowledge']);
 
     // Documents
     Route::post('documents/upload',                [DocumentController::class, 'upload']);
@@ -134,33 +141,27 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('referrals',    [ReportController::class, 'referrals']);
         Route::get('appointments', [ReportController::class, 'appointments']);
         Route::get('cases',        [ReportController::class, 'cases']);
+        Route::get('recurring-concerns', [ReportController::class, 'recurringConcerns']);
         Route::get('dashboard',    [ReportController::class, 'dashboardStats']);
     });
 
        // Admin only
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
-        Route::get('users/{user}/temp-password', [UserController::class, 'viewTempPassword']);
+        Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
+        Route::post('users/import', [UserController::class, 'import']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
-        Route::get('call-slips', [CallSlipController::class, 'index']);
-        Route::post('call-slips/{appointment}/contacted', [CallSlipController::class, 'markContacted']);
-        Route::post('call-slips/{appointment}/reschedule', [CallSlipController::class, 'requestReschedule']);
-        Route::post('call-slips/{appointment}/escalate', [CallSlipController::class, 'escalateToDeptChair']);
+
+        // Backup & Recovery
+        Route::get('backups',                [BackupController::class, 'index']);
+        Route::post('backups/run',           [BackupController::class, 'store']);
+        Route::post('backups/restore-data',  [BackupController::class, 'restoreData']);
+        Route::post('backups/restore-config',[BackupController::class, 'restoreConfig']);
     });
 });
-
-// Public scheduling routes (token-based, no auth required)
-Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
-Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
-Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
-Route::get('schedule/{token}/week', [AvailabilityController::class, 'weekGrid']);
-
-// Cron trigger route (protected by X-Cron-Secret header, not user auth — called by external cron service)
-Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders']);
-Route::post('cron/detect-no-shows', [CronController::class, 'detectNoShows']);
 
 // Student authentication routes (completely separate from staff auth:sanctum group)
 Route::post('student/login', [StudentAuthController::class, 'login']);
@@ -168,9 +169,14 @@ Route::post('student/login', [StudentAuthController::class, 'login']);
 Route::middleware('auth:student')->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
+    Route::post('student/appointments/{appointment}/request-reschedule', [AppointmentController::class, 'requestRescheduleByStudent']);
+    Route::post('student/appointments/{appointment}/cancel', [AppointmentController::class, 'cancelByStudent']);
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
     Route::get('student/me', [StudentAuthController::class, 'me']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/password', [StudentAuthController::class, 'changePassword']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
+    Route::get('student/notifications', [NotificationController::class, 'index']);
+    Route::post('student/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::post('student/notifications/read-all', [NotificationController::class, 'markAllRead']);
 });

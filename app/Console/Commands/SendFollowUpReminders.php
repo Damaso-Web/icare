@@ -5,28 +5,29 @@ namespace App\Console\Commands;
 use App\Models\CaseFile;
 use App\Notifications\FollowUpReminderNotification;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Notification;
 
 class SendFollowUpReminders extends Command
 {
     protected $signature = 'reminders:follow-up';
-    protected $description = 'Send reminder notifications for cases still flagged as requiring follow-up';
 
-    public function handle()
+    protected $description = 'Notify each case\'s counselor about cases still flagged as requiring follow-up.';
+
+    public function handle(): int
     {
-        $cases = CaseFile::where('requires_follow_up', true)
-            ->where('follow_up_flagged_at', '<=', now()->subDays(3))
-            ->with('counselor')
+        $cases = CaseFile::with('counselor')
+            ->where('requires_follow_up', true)
+            ->whereNotNull('primary_counselor_id')
             ->get();
-
-        $sent = 0;
 
         foreach ($cases as $case) {
             if ($case->counselor) {
-                $case->counselor->notify(new FollowUpReminderNotification($case));
-                $sent++;
+                Notification::send($case->counselor, new FollowUpReminderNotification($case));
             }
         }
 
-        $this->info("Sent {$sent} follow-up reminder(s).");
+        $this->info("Sent {$cases->count()} follow-up reminder(s).");
+
+        return self::SUCCESS;
     }
 }

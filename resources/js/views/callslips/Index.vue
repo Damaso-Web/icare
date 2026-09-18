@@ -23,7 +23,8 @@
             Missed appointment on {{ formatDate(a.appointment_date) }} at {{ a.start_time }} · {{ a.unit }}
           </div>
           <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-            <span class="ibadge" style="background:var(--red-lt);color:var(--red)">No-Show</span>
+            <span v-if="a.no_show_escalated" class="ibadge" style="background:var(--red-lt);color:var(--red)">No-Show</span>
+            <span v-if="!a.no_show_escalated && a.reschedule_count >= 3" class="ibadge" style="background:var(--red-lt);color:var(--red)">Reschedule Limit Reached ({{ a.reschedule_count }}x)</span>
             <span v-if="a.call_slip_stage" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">{{ toTitleCase(a.call_slip_stage) }}</span>
           </div>
           <div v-if="a.call_slip_notes" style="font-size:12px;color:var(--stone);margin-top:8px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm)">
@@ -33,6 +34,7 @@
             <button class="ibtn ibtn-o ibtn-sm" @click="openContact(a)">Mark Contacted</button>
             <button class="ibtn ibtn-sm" style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)" @click="reschedule(a)">Send Reschedule Link</button>
             <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openEscalate(a)">Escalate to Dept Chair</button>
+            <router-link :to="{ name: 'call-slip-print', params: { id: a.id } }" target="_blank" class="ibtn ibtn-g ibtn-sm">Print Call Slip</router-link>
           </div>
         </div>
       </div>
@@ -80,7 +82,7 @@ function toTitleCase(str) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 async function fetchCallSlips() {

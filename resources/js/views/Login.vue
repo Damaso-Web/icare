@@ -9,7 +9,9 @@
 
       <!-- Logo -->
       <div style="text-align:center;margin-bottom:28px">
-        <div style="width:52px;height:52px;background:var(--forest);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-family:var(--serif);font-style:italic;font-size:24px;color:var(--gold)">i</div>
+        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
+          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
+        </div>
         <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
         <div style="font-size:12px;color:var(--fog);margin-top:2px">BSU · Office of Student Services</div>
       </div>
@@ -71,7 +73,7 @@
       </form>
 
       <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
-        iCARE — Integrated Case Management and Referral System<br>
+        iCARE - Integrated Case Management and Referral System<br>
         Benguet State University
       </div>
 

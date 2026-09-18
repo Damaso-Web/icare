@@ -14,8 +14,8 @@ class CaseIntervention extends Model
     protected $fillable = [
         'case_id',
         'referral_id',
-        'description',
         'type',
+        'description',
         'person_in_charge_id',
         'excused',
         'recorded_by_user_id',

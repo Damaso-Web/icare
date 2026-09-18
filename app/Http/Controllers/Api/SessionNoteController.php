@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
+use App\Models\Referral;
 use App\Models\SessionNote;
 use Illuminate\Http\Request;
 
@@ -21,6 +22,70 @@ class SessionNoteController extends Controller
         return response()->json(
             $case->sessionNotes()->with('recordedBy')->get()
         );
+    }
+
+    public function indexByReferral(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+
+        if ($user->isFaculty() || $user->isDeanSecretary()) {
+            abort(403, 'Access denied.');
+        }
+
+        return response()->json(
+            $referral->sessionNotes()->with('recordedBy')->get()
+        );
+    }
+
+    public function storeByReferral(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+
+        if (!$user->canCounsel()) {
+            abort(403, 'Access denied.');
+        }
+
+        $validated = $request->validate([
+            'session_date'       => 'required|date',
+            'session_start_time' => 'nullable|date_format:H:i',
+            'session_end_time'   => 'nullable|date_format:H:i|after:session_start_time',
+            'session_type'       => 'required|in:initial,follow_up,assessment,conference,final',
+            'observations'       => 'required|string',
+            'interventions'      => 'nullable|string',
+            'student_response'   => 'nullable|string',
+            'next_steps'         => 'nullable|string',
+            'student_showed_up'  => 'boolean',
+            'mood_rating'        => 'nullable|in:1,2,3,4,5',
+            'follow_up_needed'   => 'boolean',
+        ]);
+
+        $sessionNumber = $referral->sessionNotes()->count() + 1;
+
+        $duration = null;
+        if (!empty($validated['session_start_time']) && !empty($validated['session_end_time'])) {
+            $duration = (int) \Carbon\Carbon::createFromFormat('H:i', $validated['session_start_time'])
+                ->diffInMinutes(\Carbon\Carbon::createFromFormat('H:i', $validated['session_end_time']));
+        }
+
+        $note = SessionNote::create([
+            ...$validated,
+            'case_id'             => $referral->case_id,
+            'referral_id'         => $referral->id,
+            'student_id'          => $referral->student_id,
+            'recorded_by_user_id' => $user->id,
+            'session_number'      => $sessionNumber,
+            'duration_minutes'    => $duration,
+        ]);
+
+        if ($referral->case) {
+            $referral->case->update([
+                'total_sessions'  => $referral->case->total_sessions + 1,
+                'last_session_at' => now(),
+            ]);
+        }
+
+        AuditLog::record('created', "Logged session #{$sessionNumber} for referral {$referral->referral_code}.", $note);
+        return response()->json($note->load('recordedBy'), 201);
     }
 
     public function store(Request $request, CaseFile $case)

@@ -12,14 +12,13 @@ import Referrals from '../views/referrals/Index.vue';
 import ReferralCreate from '../views/referrals/Create.vue';
 import ReferralShow from '../views/referrals/Show.vue';
 import Cases from '../views/cases/Index.vue';
-import CaseShow from '../views/cases/Show.vue';
 import Appointments from '../views/appointments/Index.vue';
 import TestingRecords from '../views/testing/Index.vue';
 import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
-import BackupRecovery from '../views/BackupRecovery.vue';
+import CallSlips from '../views/callslips/Index.vue';
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
@@ -138,12 +137,6 @@ const routes = [
                 meta: { roles: STAFF_ROLES },
             },
             {
-                path: 'cases/:id',
-                name: 'case-show',
-                component: CaseShow,
-                meta: { roles: STAFF_ROLES },
-            },
-            {
                 path: 'appointments',
                 name: 'appointments',
                 component: Appointments,
@@ -188,16 +181,28 @@ const routes = [
             {
                 path: 'call-slips',
                 name: 'call-slips',
-                component: () => import('../views/callslips/Index.vue'),
+                component: CallSlips,
                 meta: { roles: ['dean_secretary'] },
             },
             {
                 path: 'backup',
                 name: 'backup',
-                component: BackupRecovery,
+                component: () => import('../views/backup/Index.vue'),
                 meta: { roles: ADMIN_ONLY },
             },
         ],
+    },
+    {
+        path: '/cases/:id/study-report',
+        name: 'case-study-report',
+        component: () => import('../views/cases/StudyReport.vue'),
+        meta: { requiresAuth: true, roles: STAFF_ROLES },
+    },
+    {
+        path: '/call-slips/:id/print',
+        name: 'call-slip-print',
+        component: () => import('../views/callslips/CallSlipForm.vue'),
+        meta: { requiresAuth: true, roles: ['dean_secretary', 'admin'] },
     },
     {
         path: '/unauthorized',

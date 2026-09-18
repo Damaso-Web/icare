@@ -52,11 +52,13 @@
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
-      <select v-model="filters.sort" class="fsm" @change="fetchUsers">
-        <option value="name_asc">Name (A–Z)</option>
-        <option value="name_desc">Name (Z–A)</option>
-        <option value="newest">Newest First</option>
-        <option value="oldest">Oldest First</option>
+      <select v-model="sortOption" class="fsm" @change="applySort">
+        <option value="created_at:desc">Newest First</option>
+        <option value="created_at:asc">Oldest First</option>
+        <option value="employee_id:asc">Employee ID: Ascending</option>
+        <option value="employee_id:desc">Employee ID: Descending</option>
+        <option value="last_name:asc">Name: A-Z</option>
+        <option value="last_name:desc">Name: Z-A</option>
       </select>
       <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -93,7 +95,7 @@
           </thead>
           <tbody>
             <tr v-for="u in users" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
-              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '—' }}</td>
+              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
@@ -120,7 +122,7 @@
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
-          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
         </span>
         <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
@@ -136,13 +138,13 @@
           <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
             {{ initials(viewedUser.first_name, viewedUser.last_name) }}
           </div>
-          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.last_name }}, {{ viewedUser.first_name }} {{ viewedUser.middle_name }}</div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedUser.last_name }}, {{ viewedUser.first_name }} {{ viewedUser.middle_name }} {{ viewedUser.suffix }}</div>
           <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">{{ viewedUser.email }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Employee ID</div>
-            <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ viewedUser.employee_id || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ viewedUser.employee_id || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
@@ -171,7 +173,7 @@
             <div style="font-size:13px;color:var(--ink)">{{ viewedUser.last_login_at ? formatDate(viewedUser.last_login_at) : 'Never' }}</div>
           </div>
 
-              <div v-if="auth.isAdmin && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
+          <div v-if="auth.isAdmin && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
               <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
@@ -180,8 +182,7 @@
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
                 <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
                   <line x1="1" y1="1" x2="23" y2="23"/>
                 </svg>
               </button>
@@ -204,10 +205,9 @@
           </div>
         </div>
       </div>
-      
     </div>
 
-    <!-- Add / Edit Employee Modal — admin only -->
+    <!-- Add / Edit Employee Modal - admin only -->
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
@@ -229,9 +229,15 @@
               <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = onlyLetters(userForm.first_name)" />
             </div>
           </div>
-          <div>
-            <label class="ifl">Middle Name</label>
-            <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = onlyLetters(userForm.middle_name)" />
+          <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Middle Name</label>
+              <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = onlyLetters(userForm.middle_name)" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <input v-model="userForm.suffix" class="ifi" placeholder="Jr., III" />
+            </div>
           </div>
           <div>
             <label class="ifl">Email <span style="color:var(--red)">*</span></label>
@@ -353,20 +359,28 @@ const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', role: '', college: '', sort: 'name_asc' });
+const filters    = ref({ search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
+const sortOption = ref('created_at:desc');
 const showInactive = ref(false);
+
+function applySort() {
+  const [sortBy, sortDir] = sortOption.value.split(':');
+  filters.value.sort_by = sortBy;
+  filters.value.sort_dir = sortDir;
+  fetchUsers();
+}
 const colleges   = COLLEGES;
 const viewedUser = ref({});
-const showTempPassword = ref(false);
-const tempPasswordValue = ref('');
 const formError  = ref('');
 const resetPasswordResult = ref('');
+const showTempPassword = ref(false);
+const tempPasswordValue = ref('');
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
 
 const userForm = ref({
-  first_name: '', middle_name: '', last_name: '', email: '', employee_id: '', role: '',
+  first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '', role: '',
   college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
 });
@@ -461,7 +475,7 @@ function openCreate() {
   isEditing.value = false;
   formError.value = '';
   userForm.value  = {
-    first_name: '', middle_name: '', last_name: '', email: '', employee_id: '',
+    first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
     college: '', department: '', contact_number: '',
     password: '', password_confirmation: '',
@@ -552,7 +566,8 @@ async function uploadImportFile() {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', role: '', college: '', sort: 'name_asc' };
+  filters.value = { search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  sortOption.value = 'created_at:desc';
   fetchUsers();
 }
 
@@ -585,7 +600,7 @@ function initials(first, last) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 onMounted(() => fetchUsers());

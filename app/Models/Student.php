@@ -13,35 +13,37 @@ class Student extends Authenticatable
     use HasApiTokens, HasFactory, SoftDeletes, Notifiable;
 
     protected $fillable = [
-    "student_id",
-    "first_name",
-    "last_name",
-    "middle_name",
-    "email",
-    "password",
-    "contact_number",
-    "sex",
-    "birthdate",
-    "year_level",
-    "college",
-    "program",
-    "section",
-    "address",
-    "guardian_first_name",
-    "guardian_middle_name",
-    "guardian_last_name",
-    "guardian_contact",
-    "guardian_relationship",
-    "medical_notes",
-    "is_active",
-    "last_login_at",
-    "must_change_password",
-    "temp_password",
-];
+        'student_id',
+        'first_name',
+        'last_name',
+        'middle_name',
+        'suffix',
+        'email',
+        'password',
+        'contact_number',
+        'sex',
+        'birthdate',
+        'year_level',
+        'college',
+        'program',
+        'section',
+        'address',
+        'guardian_first_name',
+        'guardian_middle_name',
+        'guardian_last_name',
+        'guardian_contact',
+        'guardian_relationship',
+        'medical_notes',
+        'is_active',
+        'last_login_at',
+        'must_change_password',
+        'temp_password',
+    ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'temp_password',
     ];
 
     protected $casts = [
@@ -61,5 +63,5 @@ class Student extends Authenticatable
     public function documents()      { return $this->morphMany(Document::class, 'documentable'); }
 
     public function activeCase()     { return $this->hasOne(CaseFile::class)->whereIn('status', ['open', 'in_progress', 'awaiting_testing']); }
-    public function isRecurring(): bool { return $this->cases()->count() > 1; }
+    public function isRecurring(): bool { return $this->referrals()->count() > 1; }
 }

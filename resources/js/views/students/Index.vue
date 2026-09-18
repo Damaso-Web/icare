@@ -38,17 +38,17 @@
           @input="onSearchInput"
         />
       </div>
-      <select v-model="filters.college" class="fsm" @change="fetchStudents()">
+      <select v-model="filters.college" class="fsm" @change="fetchStudents">
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
-      <select v-model="filters.sort" class="fsm" @change="fetchStudents()">
-        <option value="last_name_asc">Name (A–Z)</option>
-        <option value="last_name_desc">Name (Z–A)</option>
-        <option value="student_id_asc">Student ID (Low–High)</option>
-        <option value="student_id_desc">Student ID (High–Low)</option>
-        <option value="newest">Newest First</option>
-        <option value="oldest">Oldest First</option>
+      <select v-model="sortOption" class="fsm" @change="applySort">
+        <option value="created_at:desc">Newest First</option>
+        <option value="created_at:asc">Oldest First</option>
+        <option value="student_id:asc">Student ID: Ascending</option>
+        <option value="student_id:desc">Student ID: Descending</option>
+        <option value="last_name:asc">Name: A-Z</option>
+        <option value="last_name:desc">Name: Z-A</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
@@ -118,7 +118,7 @@
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
-          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
         </span>
         <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
@@ -140,55 +140,56 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.sex || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.sex || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.year_level || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.year_level || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.college || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.college || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.program || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.program || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.section || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.section || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.email || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.email || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.contact_number || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.contact_number || '-' }}</div>
           </div>
 
-          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:6px">
-            Guardian
-            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          <div style="height:1px;background:var(--cloud);margin:4px 0"></div>
+
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Guardian</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
             <div style="font-size:13px;color:var(--ink)">
               {{ [viewedStudent.guardian_last_name, viewedStudent.guardian_first_name, viewedStudent.guardian_middle_name].filter(Boolean).length
                   ? `${viewedStudent.guardian_last_name || ''}, ${viewedStudent.guardian_first_name || ''} ${viewedStudent.guardian_middle_name || ''}`.trim()
-                  : '—' }}
+                  : '-' }}
             </div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_contact || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_contact || '-' }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
-            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_relationship || '—' }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_relationship || '-' }}</div>
           </div>
 
-          <div v-if="viewedStudent.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px;margin-top:6px">
+          <div v-if="viewedStudent.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
               <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
@@ -197,23 +198,29 @@
                   <circle cx="12" cy="12" r="3"/>
                 </svg>
                 <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
                   <line x1="1" y1="1" x2="23" y2="23"/>
                 </svg>
               </button>
             </div>
             <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
-              {{ showTempPassword ? (tempPasswordValue || 'Not available — use Reset Password below.') : '••••••••••' }}
+              {{ showTempPassword ? (tempPasswordValue || 'Loading...') : '••••••••••' }}
             </div>
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Student hasn't logged in and changed their password yet.</div>
           </div>
-          <button v-if="viewedStudent.must_change_password" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);justify-content:center" @click="resetStudentPassword">Reset Password</button>
-          <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--forest)">
+
+          <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student.</div>
           </div>
 
-          <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="ibtn ibtn-sm" style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetStudentPassword">Reset Password</button>
+
+          <router-link :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
+            View Full Profile &amp; Referral History
+          </router-link>
+
+          <div style="display:flex;gap:8px;margin-top:4px">
             <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
@@ -221,26 +228,31 @@
       </div>
     </div>
 
-    <!-- Edit Student Modal -->
-    <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
+    <!-- Edit Student Profile Modal -->
+    <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Student Profile</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="editForm.last_name" class="ifi" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
+              <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="editForm.first_name" class="ifi" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
+              <input v-model="editForm.first_name" class="ifi" placeholder="First Name" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="editForm.middle_name" class="ifi" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
+              <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
             </div>
             <div>
               <label class="ifl">Sex</label>
@@ -252,7 +264,7 @@
             </div>
             <div>
               <label class="ifl">Student ID</label>
-              <input v-model="editForm.student_id" class="ifi" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
+              <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
             </div>
             <div>
               <label class="ifl">Year Level</label>
@@ -282,7 +294,13 @@
             </div>
             <div>
               <label class="ifl">Section</label>
-              <input v-model="editForm.section" class="ifi" maxlength="1" @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()" />
+              <input
+                v-model="editForm.section"
+                class="ifi"
+                placeholder="e.g. A"
+                maxlength="1"
+                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+              />
             </div>
             <div>
               <label class="ifl">Email</label>
@@ -302,15 +320,15 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.guardian_last_name" class="ifi" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
+              <input v-model="editForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
             </div>
             <div>
               <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.guardian_first_name" class="ifi" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
+              <input v-model="editForm.guardian_first_name" class="ifi" placeholder="Juan" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
-              <input v-model="editForm.guardian_middle_name" class="ifi" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
+              <input v-model="editForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
             </div>
             <div>
               <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
@@ -334,10 +352,10 @@
           </div>
 
           <div style="display:flex;gap:8px;padding-top:4px">
-            <button class="ibtn ibtn-p" @click="saveEditedStudent" :disabled="saving">
-              <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ saving ? 'Saving...' : 'Save Changes' }}
+            <button class="ibtn ibtn-p" @click="saveEditedStudent" :disabled="editSaving">
+              <svg v-if="!editSaving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-if="editSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ editSaving ? 'Saving...' : 'Save Changes' }}
             </button>
             <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
           </div>
@@ -349,7 +367,7 @@
     <div v-if="showAddModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Student</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Add New Student</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showAddModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -463,7 +481,7 @@
           </div>
           <div v-if="createdPassword" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ Student added. Temporary password: <strong style="font-family:var(--mono)">{{ createdPassword }}</strong>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student — they'll be required to change it on first login.</div>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student - they'll be required to change it on first login.</div>
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="saveStudent" :disabled="saving">
@@ -512,7 +530,7 @@
           </template>
 
           <template v-else>
-            <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found — {{ previewData.duplicates }} duplicate(s)</div>
+            <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found - {{ previewData.duplicates }} duplicate(s)</div>
 
             <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
               ⚠ Some Student IDs already exist. Choose how to handle all duplicates below.
@@ -530,7 +548,7 @@
                 <tbody>
                   <tr v-for="item in previewData.preview" :key="item.row">
                     <td style="font-size:12px">{{ item.row }}</td>
-                    <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '—' }}</td>
+                    <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '-' }}</td>
                     <td>
                       <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
                       <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
@@ -621,7 +639,15 @@ const students   = ref([]);
 const loading    = ref(false);
 const saving     = ref(false);
 const pagination = ref({});
-const filters    = ref({ search: '', college: '', sort: 'last_name_asc' });
+const filters    = ref({ search: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
+const sortOption = ref('created_at:desc');
+
+function applySort() {
+  const [sortBy, sortDir] = sortOption.value.split(':');
+  filters.value.sort_by = sortBy;
+  filters.value.sort_dir = sortDir;
+  fetchStudents();
+}
 const showArchived = ref(false);
 const showAddModal    = ref(false);
 const showGraduateModal = ref(false);
@@ -630,17 +656,20 @@ const studentToGraduate = ref(null);
 const addError = ref('');
 const createdPassword = ref('');
 
-const showDuplicateNameModal = ref(false);
-const duplicateStudent = ref(null);
-
-const showViewModal = ref(false);
-const viewedStudent = ref({});
-const showEditModal = ref(false);
-const editForm = ref({});
-const editError = ref('');
-const showTempPassword = ref(false);
+const showViewModal  = ref(false);
+const viewedStudent  = ref({});
+const showTempPassword  = ref(false);
 const tempPasswordValue = ref('');
 const resetPasswordResult = ref('');
+
+const showEditModal = ref(false);
+const editForm      = ref({});
+const editError      = ref('');
+const editSaving     = ref(false);
+const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
+
+const showDuplicateNameModal = ref(false);
+const duplicateStudent = ref(null);
 
 const addForm = ref({
   student_id: '', last_name: '', first_name: '', middle_name: '', suffix: '', sex: '',
@@ -650,7 +679,6 @@ const addForm = ref({
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
-const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 
 const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
@@ -659,82 +687,6 @@ const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' }
 const importing        = ref(false);
 
 let searchTimeout = null;
-
-function initials(first, last) {
-  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
-}
-
-function openView(s) {
-  viewedStudent.value = s;
-  showTempPassword.value = false;
-  tempPasswordValue.value = '';
-  resetPasswordResult.value = '';
-  showViewModal.value = true;
-}
-
-function openEditFromView() {
-  editForm.value = { ...viewedStudent.value };
-  editError.value = '';
-  showViewModal.value = false;
-  showEditModal.value = true;
-}
-
-async function saveEditedStudent() {
-  editError.value = '';
-
-  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
-    editError.value = 'Contact number must start with 09 and be 11 digits long.';
-    return;
-  }
-
-  if (!editForm.value.guardian_first_name || !editForm.value.guardian_last_name ||
-      !editForm.value.guardian_contact || !editForm.value.guardian_relationship) {
-    editError.value = 'Please fill in all required guardian fields.';
-    return;
-  }
-
-  if (!isValidPHContact(editForm.value.guardian_contact)) {
-    editError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
-    return;
-  }
-
-  saving.value = true;
-  try {
-    const res = await studentAPI.update(editForm.value.id, editForm.value);
-    viewedStudent.value = res.data;
-    showEditModal.value = false;
-    toast?.success('Student profile updated successfully.');
-    fetchStudents();
-  } catch (e) {
-    editError.value = e.response?.data?.message || 'Please fill in all required fields.';
-  } finally {
-    saving.value = false;
-  }
-}
-
-async function resetStudentPassword() {
-  try {
-    const res = await studentAPI.resetPassword(viewedStudent.value.id);
-    resetPasswordResult.value = res.data.temp_password;
-    tempPasswordValue.value = res.data.temp_password;
-    viewedStudent.value.must_change_password = true;
-    toast?.success('Password reset successfully.');
-  } catch (e) {
-    toast?.error('Failed to reset password.');
-  }
-}
-
-async function toggleTempPasswordVisible() {
-  showTempPassword.value = !showTempPassword.value;
-  if (showTempPassword.value && !tempPasswordValue.value) {
-    try {
-      const res = await studentAPI.viewTempPassword(viewedStudent.value.id);
-      tempPasswordValue.value = res.data.temp_password;
-    } catch (e) {
-      tempPasswordValue.value = 'Unable to retrieve.';
-    }
-  }
-}
 
 function switchTab(archived) {
   showArchived.value = archived;
@@ -764,7 +716,8 @@ async function fetchStudents(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', college: '', sort: 'last_name_asc' };
+  filters.value = { search: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  sortOption.value = 'created_at:desc';
   fetchStudents();
 }
 
@@ -889,6 +842,84 @@ async function toggleActive(s) {
     fetchStudents();
   } catch (e) {
     toast?.error('Please fill in all required fields.');
+  }
+}
+
+function initials(first, last) {
+  return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
+}
+
+function openView(s) {
+  viewedStudent.value = s;
+  resetPasswordResult.value = '';
+  showTempPassword.value = false;
+  tempPasswordValue.value = '';
+  showViewModal.value = true;
+}
+
+function openEditFromView() {
+  showViewModal.value = false;
+  editForm.value = { ...viewedStudent.value };
+  editError.value = '';
+  showEditModal.value = true;
+}
+
+async function saveEditedStudent() {
+  editError.value = '';
+
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
+    editError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (!editForm.value.guardian_first_name || !editForm.value.guardian_last_name ||
+      !editForm.value.guardian_contact || !editForm.value.guardian_relationship) {
+    editError.value = 'Please fill in all required guardian fields.';
+    return;
+  }
+
+  if (!isValidPHContact(editForm.value.guardian_contact)) {
+    editError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  editSaving.value = true;
+  try {
+    const res = await studentAPI.update(editForm.value.id, editForm.value);
+    Object.assign(viewedStudent.value, res.data);
+    const idx = students.value.findIndex(s => s.id === res.data.id);
+    if (idx !== -1) students.value[idx] = res.data;
+    showEditModal.value = false;
+    toast?.success('Student profile updated successfully.');
+  } catch (e) {
+    editError.value = e.response?.data?.message || 'Please fill in all required fields.';
+  } finally {
+    editSaving.value = false;
+  }
+}
+
+async function resetStudentPassword() {
+  try {
+    const res = await studentAPI.resetPassword(viewedStudent.value.id);
+    resetPasswordResult.value = res.data.temp_password;
+    tempPasswordValue.value = res.data.temp_password;
+    showTempPassword.value = true;
+    viewedStudent.value.must_change_password = true;
+    toast?.success('Password reset successfully.');
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
+}
+
+async function toggleTempPasswordVisible() {
+  showTempPassword.value = !showTempPassword.value;
+  if (showTempPassword.value && !tempPasswordValue.value) {
+    try {
+      const res = await studentAPI.viewTempPassword(viewedStudent.value.id);
+      tempPasswordValue.value = res.data.temp_password;
+    } catch (e) {
+      tempPasswordValue.value = 'Unable to retrieve.';
+    }
   }
 }
 

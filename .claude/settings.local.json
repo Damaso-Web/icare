@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(php artisan tinker '--execute= *)",
+      "Bash(unzip -p faculty_masterlist_template.xlsx xl/sharedStrings.xml)",
+      "Bash(unzip -p employee_masterlist_template.xlsx xl/sharedStrings.xml)",
+      "Bash(unzip -l student_masterlist_template.xlsx)",
+      "Bash(unzip -p student_masterlist_template.xlsx xl/worksheets/sheet1.xml)",
+      "Bash(unzip -p faculty_masterlist_template.xlsx xl/worksheets/sheet1.xml)",
+      "Bash(unzip -p employee_masterlist_template.xlsx xl/worksheets/sheet1.xml)",
+      "Bash(awk 'NR==846,NR==900' resources/js/views/students/Index.vue)",
+      "Bash(php artisan *)",
+      "Bash(php -r ' *)",
+      "Bash(php \"C:\\\\Users\\\\genry\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--Xampp-htdocs-icare\\\\a2fe5b1d-f16f-4057-bc70-7da9cc4a0b4f\\\\scratchpad\\\\regen_templates.php\")",
+      "Bash(php -l app/Http/Controllers/Api/StudentController.php)",
+      "Bash(php -l app/Http/Controllers/Api/UserController.php)",
+      "Bash(php -l app/Models/CaseFile.php)",
+      "Bash(php -l app/Models/Student.php)",
+      "Bash(php -l app/Http/Controllers/Api/ReferralController.php)"
+    ]
+  }
+}

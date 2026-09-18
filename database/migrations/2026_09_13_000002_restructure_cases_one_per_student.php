@@ -87,7 +87,7 @@ return new class extends Migration
             }
         }
 
-        // 3. The 1:1 referral_id column is now redundant — the relationship lives
+        // 3. The 1:1 referral_id column is now redundant - the relationship lives
         //    on referrals.case_id instead (one case has many referrals).
         if (Schema::hasColumn('cases', 'referral_id')) {
             Schema::table('cases', function (Blueprint $table) {
@@ -97,7 +97,7 @@ return new class extends Migration
         }
 
         // 4. Restore the data-integrity guarantee: exactly one case per student.
-        //    Add the unique index before dropping the old plain index — MySQL
+        //    Add the unique index before dropping the old plain index - MySQL
         //    requires the student_id foreign key stay backed by an index at
         //    all times, so both must briefly coexist.
         $hasUnique = collect(DB::select("SHOW INDEX FROM cases WHERE Key_name = 'cases_student_id_unique'"))->isNotEmpty();

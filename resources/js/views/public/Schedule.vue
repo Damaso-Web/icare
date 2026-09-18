@@ -4,7 +4,9 @@
 
       <!-- Header -->
       <div style="text-align:center;margin-bottom:24px">
-        <div style="width:52px;height:52px;background:var(--forest);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-family:var(--serif);font-style:italic;font-size:24px;color:var(--gold)">i</div>
+        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
+          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
+        </div>
         <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
         <div style="font-size:12px;color:var(--fog);margin-top:2px">BSU · Office of Student Services</div>
       </div>
@@ -28,7 +30,7 @@
         </div>
         <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;margin-top:16px;text-align:left;font-size:13px">
           <div><strong>Date:</strong> {{ formatDate(form.appointment_date) }}</div>
-          <div><strong>Time:</strong> {{ form.start_time }} – {{ form.end_time }}</div>
+          <div><strong>Time:</strong> {{ form.start_time }} - {{ form.end_time }}</div>
         </div>
       </div>
 
@@ -49,43 +51,71 @@
             <div style="margin-top:4px"><strong>Unit:</strong> {{ appointment.unit }}</div>
           </div>
 
-          <div style="font-size:13px;color:var(--stone);line-height:1.6">
-            Tap an open time slot below. Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.
+          <div style="font-size:13px;color:var(--stone);line-height:1.6;display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px">
+            <span>Please select your preferred date and time below. Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.</span>
+            <span style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px">
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--mist);border:1px solid var(--mint);display:inline-block"></span> Available</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-lt);border:1px solid #f0a8a8;display:inline-block"></span> Full</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--cloud);border:1px solid var(--silver);display:inline-block"></span> Closed</span>
+            </span>
           </div>
 
-          <!-- Week Navigator -->
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <button class="ibtn ibtn-g ibtn-sm" @click="prevWeek" :disabled="isThisWeek">‹ Prev</button>
-            <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ weekLabel }}</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="nextWeek">Next ›</button>
-          </div>
-
-          <!-- Availability Grid -->
-          <div v-if="loadingGrid" style="text-align:center;padding:24px">
-            <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
-          </div>
-          <div v-else style="overflow-x:auto">
-            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;min-width:480px">
-              <div v-for="day in weekGrid" :key="day.date" style="display:flex;flex-direction:column;gap:5px">
-                <div style="text-align:center;font-size:11px;font-weight:700;color:var(--stone);padding:4px 0;border-bottom:1px solid var(--cloud)">
-                  {{ day.label }}
-                </div>
-                <button
-                  v-for="slot in day.slots"
-                  :key="slot.start"
-                  type="button"
-                  :disabled="!slot.available"
-                  @click="selectSlot(day.date, slot)"
-                  :style="slotStyle(day.date, slot)"
-                >
-                  {{ formatSlotTime(slot.start) }}
-                </button>
+          <!-- Availability Calendar -->
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:16px;max-width:400px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <button type="button" class="ibtn ibtn-g ibtn-sm" @click="prevCalMonth">‹</button>
+              <span style="font-size:14px;font-weight:600;color:var(--ink)">{{ calMonthLabel }}</span>
+              <button type="button" class="ibtn ibtn-g ibtn-sm" @click="nextCalMonth">›</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px">
+              <div v-for="d in ['Su','Mo','Tu','We','Th','Fr','Sa']" :key="d" style="text-align:center;font-size:10.5px;font-weight:700;color:var(--fog);padding:2px 0">{{ d }}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px">
+              <div v-for="blank in calLeadingBlanks" :key="'b'+blank"></div>
+              <div
+                v-for="day in calDays"
+                :key="day.date"
+                :title="calStatusLabel(day.status)"
+                style="width:100%;aspect-ratio:1;max-height:46px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:13.5px"
+                :style="calDayStyle(day)"
+                @click="day.status === 'available' && selectCalendarDate(day.date)"
+              >
+                {{ Number(day.date.split('-')[2]) }}
               </div>
             </div>
           </div>
 
-          <div v-if="form.appointment_date && form.start_time" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--forest)">
-            ✓ Selected: {{ formatDate(form.appointment_date) }}, {{ formatSlotTime(form.start_time) }} – {{ formatSlotTime(form.end_time) }}
+          <div>
+            <label class="ifl">Selected Date <span style="color:var(--red)">*</span></label>
+            <div style="font-size:13.5px;color:var(--ink);font-weight:600;padding:9px 0">
+              {{ form.appointment_date ? formatDate(form.appointment_date) : 'Pick a date on the calendar above' }}
+            </div>
+            <div v-if="dayWarning" style="font-size:11px;color:var(--red);margin-top:4px">
+              Please select a weekday (Monday to Friday).
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
+              <input v-model="form.start_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
+            </div>
+            <div>
+              <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
+              <input v-model="form.end_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
+            </div>
+          </div>
+
+          <div v-if="timeOrderError" style="font-size:11px;color:var(--red);margin-top:-8px">
+            End time must be later than start time.
+          </div>
+
+          <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
+          <div v-else-if="availabilityChecked && !isAvailable" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
+            ⚠ This time slot is already taken. Please choose another.
+          </div>
+          <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
+            ✓ This time slot is available.
           </div>
 
           <div v-if="submitError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">
@@ -105,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 
@@ -119,11 +149,13 @@ const submitting = ref(false);
 const submitError = ref('');
 const appointment = ref({});
 const referral     = ref(null);
+const dayWarning   = ref(false);
+const timeOrderError = ref(false);
+const checkingAvailability = ref(false);
+const availabilityChecked  = ref(false);
+const isAvailable = ref(false);
 
-const loadingGrid = ref(false);
-const weekGrid    = ref([]);
-
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const form = ref({
   appointment_date: '',
@@ -131,89 +163,90 @@ const form = ref({
   end_time: '',
 });
 
-function mondayOf(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
+const today = new Date();
+const minDate = computed(() => today.toISOString().split('T')[0]);
+
+const calYear  = ref(today.getFullYear());
+const calMonth = ref(today.getMonth());
+const calDays  = ref([]);
+
+const calMonthLabel = computed(() => new Date(calYear.value, calMonth.value, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+const calLeadingBlanks = computed(() => new Date(calYear.value, calMonth.value, 1).getDay());
+
+function calStatusLabel(status) {
+  return { available: 'Available', full: 'Fully booked', closed: 'Not open for appointments', past: 'Past date' }[status] || '';
 }
 
-const currentWeekStart = ref(mondayOf(new Date()));
+function calDayStyle(day) {
+  if (day.status === 'available') return 'cursor:pointer;background:var(--mist);color:var(--moss);font-weight:600';
+  if (day.status === 'full') return 'cursor:not-allowed;background:var(--red-lt);color:var(--red)';
+  if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
+  return 'cursor:not-allowed;background:var(--cloud);color:var(--fog)';
+}
 
-const isThisWeek = computed(() => {
-  return currentWeekStart.value.getTime() <= mondayOf(new Date()).getTime();
-});
+function selectCalendarDate(dateStr) {
+  form.value.appointment_date = dateStr;
+  checkAvailability();
+}
 
-const weekLabel = computed(() => {
-  const start = currentWeekStart.value;
-  const end = new Date(start);
-  end.setDate(end.getDate() + 4);
-  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
-});
+async function fetchMonthAvailability() {
+  const monthStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`;
+  try {
+    const res = await axios.get(`${API_BASE}/schedule/${token}/month-availability`, { params: { month: monthStr } });
+    calDays.value = res.data.days;
+  } catch (e) {
+    calDays.value = [];
+  }
+}
+
+function prevCalMonth() {
+  calMonth.value--;
+  if (calMonth.value < 0) { calMonth.value = 11; calYear.value--; }
+  fetchMonthAvailability();
+}
+
+function nextCalMonth() {
+  calMonth.value++;
+  if (calMonth.value > 11) { calMonth.value = 0; calYear.value++; }
+  fetchMonthAvailability();
+}
 
 const canSubmit = computed(() => {
-  return !!(form.value.appointment_date && form.value.start_time && form.value.end_time);
+  return form.value.appointment_date && form.value.start_time && form.value.end_time &&
+         !dayWarning.value && !timeOrderError.value && availabilityChecked.value && isAvailable.value;
 });
 
-function formatSlotTime(t) {
-  const [h, m] = t.split(':').map(Number);
-  const period = h >= 12 ? 'PM' : 'AM';
-  const hour12 = h % 12 === 0 ? 12 : h % 12;
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+function checkDayOfWeek() {
+  if (!form.value.appointment_date) { dayWarning.value = false; return; }
+  const d = new Date(form.value.appointment_date + 'T00:00:00');
+  const day = d.getDay();
+  dayWarning.value = (day === 0 || day === 6);
 }
 
-function slotStyle(date, slot) {
-  const isSelected = form.value.appointment_date === date && form.value.start_time === slot.start;
-  if (isSelected) {
-    return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1.5px solid var(--moss);background:var(--moss);color:#fff;cursor:pointer;font-weight:600';
+async function checkAvailability() {
+  checkDayOfWeek();
+  availabilityChecked.value = false;
+  timeOrderError.value = false;
+
+  if (dayWarning.value || !form.value.appointment_date || !form.value.start_time || !form.value.end_time) return;
+
+  if (form.value.end_time <= form.value.start_time) {
+    timeOrderError.value = true;
+    return;
   }
-  if (!slot.available) {
-    return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1px solid var(--cloud);background:var(--cloud);color:var(--fog);cursor:not-allowed';
-  }
-  return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1px solid var(--mint);background:var(--mist);color:var(--moss);cursor:pointer';
-}
 
-function selectSlot(date, slot) {
-  if (!slot.available) return;
-  form.value.appointment_date = date;
-  form.value.start_time = slot.start;
-  form.value.end_time = slot.end;
-}
-
-async function fetchWeekGrid() {
-  loadingGrid.value = true;
+  checkingAvailability.value = true;
   try {
-    const weekStartStr = currentWeekStart.value.toISOString().split('T')[0];
-    const res = await axios.get(`${API_BASE}/schedule/${token}/week`, {
-      params: { week_start: weekStartStr },
-    });
-    weekGrid.value = res.data.days;
+    const res = await axios.post(`${API_BASE}/schedule/${token}/check-availability`, form.value);
+    isAvailable.value = res.data.available;
+    availabilityChecked.value = true;
   } catch (e) {
-    weekGrid.value = [];
+    isAvailable.value = false;
+    availabilityChecked.value = true;
   } finally {
-    loadingGrid.value = false;
+    checkingAvailability.value = false;
   }
 }
-
-function prevWeek() {
-  if (isThisWeek.value) return;
-  const d = new Date(currentWeekStart.value);
-  d.setDate(d.getDate() - 7);
-  currentWeekStart.value = d;
-}
-
-function nextWeek() {
-  const d = new Date(currentWeekStart.value);
-  d.setDate(d.getDate() + 7);
-  currentWeekStart.value = d;
-}
-
-watch(currentWeekStart, () => {
-  form.value = { appointment_date: '', start_time: '', end_time: '' };
-  fetchWeekGrid();
-});
 
 async function submitSchedule() {
   submitError.value = '';
@@ -223,14 +256,13 @@ async function submitSchedule() {
     submitted.value = true;
   } catch (e) {
     submitError.value = e.response?.data?.message || 'Failed to submit your request. Please try again.';
-    fetchWeekGrid();
   } finally {
     submitting.value = false;
   }
 }
 
 function formatDate(date) {
-  return date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
 }
 
 onMounted(async () => {
@@ -238,7 +270,7 @@ onMounted(async () => {
     const res = await axios.get(`${API_BASE}/schedule/${token}`);
     appointment.value = res.data.appointment;
     referral.value     = res.data.referral;
-    await fetchWeekGrid();
+    fetchMonthAvailability();
   } catch (e) {
     error.value = e.response?.data?.message || 'This scheduling link is invalid or has expired.';
   } finally {

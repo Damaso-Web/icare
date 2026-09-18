@@ -32,8 +32,19 @@ class Referral extends Model
         'violation_type',
         'incident_description',
         'incident_date',
+        'sanction',
+        'sanction_notes',
         'has_attachments',
         'intake_notes',
+        'feedback_notes',
+        'feedback_sent_at',
+        'feedback_sent_by_user_id',
+        'admission_date',
+        'admission_time_in',
+        'admission_time_out',
+        'admission_remarks',
+        'admission_issued_at',
+        'admission_issued_by_user_id',
     ];
 
     protected $casts = [
@@ -43,6 +54,9 @@ class Referral extends Model
         'assigned_at'      => 'datetime',
         'acknowledged_at'  => 'datetime',
         'incident_date'    => 'date',
+        'feedback_sent_at'  => 'datetime',
+        'admission_date'    => 'date',
+        'admission_issued_at' => 'datetime',
     ];
 
     protected static function booted(): void
@@ -66,6 +80,10 @@ class Referral extends Model
     public function acknowledgedBy() { return $this->belongsTo(User::class, 'acknowledged_by_user_id'); }
     public function case()           { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function documents()      { return $this->morphMany(Document::class, 'documentable'); }
+    public function sessionNotes()   { return $this->hasMany(SessionNote::class, 'referral_id')->orderBy('session_date'); }
+    public function appointments()   { return $this->hasMany(Appointment::class, 'referral_id')->orderBy('appointment_date'); }
+    public function feedbackSentBy() { return $this->belongsTo(User::class, 'feedback_sent_by_user_id'); }
+    public function admissionIssuedBy() { return $this->belongsTo(User::class, 'admission_issued_by_user_id'); }
 
     // Helpers
     public function isUrgent(): bool  { return in_array($this->urgency_level, ['high', 'critical']); }

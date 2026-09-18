@@ -52,16 +52,14 @@ class CaseInterventionController extends Controller
             'case_id'              => $case->id,
             'person_in_charge_id'  => $user->id,
             'recorded_by_user_id'  => $user->id,
-            'is_completed'         => false,
         ]);
 
-        AuditLog::record('created', "Recorded a {$validated['type']} intervention for case {$case->case_number}.", $intervention);
+        AuditLog::record('created', "Recorded a {$validated['type']} entry for case {$case->case_number}.", $intervention);
 
         return response()->json($intervention->load(['personInCharge', 'recordedBy', 'referral']), 201);
     }
 
-    // Feature 56: Record completion of required intervention
-    public function markCompleted(Request $request, CaseIntervention $intervention)
+    public function complete(Request $request, CaseIntervention $intervention)
     {
         $user = $request->user();
         if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
@@ -69,13 +67,26 @@ class CaseInterventionController extends Controller
         }
 
         $intervention->update([
-            'is_completed'          => true,
-            'completed_at'          => now(),
-            'completed_by_user_id'  => $user->id,
+            'is_completed'         => true,
+            'completed_at'         => now(),
+            'completed_by_user_id' => $user->id,
         ]);
 
-        AuditLog::record('intervention_completed', "Marked intervention as completed for case {$intervention->caseFile->case_number}.", $intervention);
+        AuditLog::record('completed', "Marked an intervention as completed for case #{$intervention->case_id}.", $intervention);
 
-        return response()->json($intervention->load(['personInCharge', 'recordedBy', 'completedBy', 'referral']));
+        return response()->json($intervention->load(['personInCharge', 'recordedBy', 'referral', 'completedBy']));
+    }
+
+    public function destroy(Request $request, CaseIntervention $intervention)
+    {
+        $user = $request->user();
+        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
+            abort(403, 'Unauthorized. Only OSS staff may access case files.');
+        }
+
+        AuditLog::record('deleted', "Deleted a previous intervention entry for case #{$intervention->case_id}.", $intervention, $intervention->toArray());
+        $intervention->delete();
+
+        return response()->json(['message' => 'Intervention entry deleted.']);
     }
 }

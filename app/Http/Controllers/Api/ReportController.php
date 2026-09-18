@@ -100,6 +100,7 @@ class ReportController extends Controller
 
         return response()->json([
             'total'          => $query->count(),
+            'pending'        => $query->clone()->whereNotIn('status', ['resolved', 'closed'])->count(),
             'by_status'      => $query->clone()->groupBy('status')
                                     ->select('status', DB::raw('count(*) as count'))
                                     ->get(),
@@ -111,6 +112,11 @@ class ReportController extends Controller
                                     ->get(),
             'recurring'      => $query->clone()->where('is_recurring', true)->count(),
             'referred_tmdu'  => $query->clone()->where('referred_to_tmdu', true)->count(),
+            'avg_days_to_close' => round(
+                (clone $query)->where('status', 'closed')->whereNotNull('closed_date')
+                    ->avg(DB::raw('DATEDIFF(closed_date, opened_date)')) ?? 0,
+                1
+            ),
             'monthly_trend'  => $query->clone()
                                     ->select(
                                         DB::raw('MONTH(opened_date) as month'),
@@ -121,6 +127,46 @@ class ReportController extends Controller
                                     ->orderBy('year')
                                     ->orderBy('month')
                                     ->get(),
+        ]);
+    }
+
+    public function recurringConcerns(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to'   => 'nullable|date',
+        ]);
+
+        $query = Referral::query()
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
+
+        $byType = $query->clone()
+            ->select('referral_type', 'student_id')
+            ->get()
+            ->groupBy('referral_type')
+            ->map(function ($referrals, $type) {
+                $byStudent = $referrals->groupBy('student_id');
+                return [
+                    'referral_type'      => $type,
+                    'total_referrals'    => $referrals->count(),
+                    'distinct_students'  => $byStudent->count(),
+                    'recurring_students' => $byStudent->filter(fn($g) => $g->count() > 1)->count(),
+                ];
+            })
+            ->sortByDesc('recurring_students')
+            ->values();
+
+        $topRecurringStudents = Student::withCount('referrals')
+            ->having('referrals_count', '>', 1)
+            ->orderByDesc('referrals_count')
+            ->limit(10)
+            ->get(['id', 'student_id', 'first_name', 'last_name', 'college']);
+
+        return response()->json([
+            'by_type'                  => $byType,
+            'total_recurring_students' => Student::withCount('referrals')->having('referrals_count', '>', 1)->count(),
+            'top_recurring_students'   => $topRecurringStudents,
         ]);
     }
 

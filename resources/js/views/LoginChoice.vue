@@ -2,7 +2,9 @@
   <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div style="width:100%;max-width:420px">
       <div style="text-align:center;margin-bottom:32px">
-        <div style="width:56px;height:56px;background:var(--forest);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 14px;font-family:var(--serif);font-style:italic;font-size:26px;color:var(--gold)">i</div>
+        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:10px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:14px">
+          <img :src="'/icare-logo.png'" alt="iCARE" style="width:64px;height:64px;object-fit:contain;display:block" />
+        </div>
         <div style="font-family:var(--serif);font-style:italic;font-size:24px;color:var(--forest)">iCARE</div>
         <div style="font-size:13px;color:var(--fog);margin-top:4px">BSU · Office of Student Services</div>
       </div>

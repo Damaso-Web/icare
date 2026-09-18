@@ -31,7 +31,6 @@ class Appointment extends Model
         'reminder_sent_at',
         'rescheduled_from_id',
         'reschedule_reason',
-        'reschedule_count',
         'cancellation_reason',
         'cancelled_at',
         'cancelled_by_user_id',
@@ -48,6 +47,7 @@ class Appointment extends Model
         'call_slip_initiated_at',
         'call_slip_notes',
         'required_documents',
+        'reschedule_count',
     ];
 
     protected $casts = [
@@ -63,18 +63,6 @@ class Appointment extends Model
         'checked_in_at'         => 'datetime',
         'no_show_escalated'     => 'boolean',
         'no_show_escalated_at'  => 'datetime',
-        'required_documents'    => 'array',
-    ];
-
-    const MAX_RESCHEDULES = 3;
-
-    const DOCUMENT_REQUIREMENTS = [
-        'leave_of_absence'       => ['Leave of Absence Form', 'Parent/Guardian Consent Letter'],
-        'readmission'            => ['Readmission Application Form', 'Clearance from previous college'],
-        'shifting'               => ['Shifting Form', 'Transcript of Records (unofficial)'],
-        'withdrawal'             => ['Withdrawal Form', 'Clearance Slip'],
-        'psychological_testing'  => ['Valid School ID', 'Referral Slip'],
-        'academic_deficiency'    => ['Grade Slip / Report Card'],
     ];
 
     protected static function booted(): void
@@ -97,6 +85,7 @@ class Appointment extends Model
     }
 
     public function case()              { return $this->belongsTo(CaseFile::class, 'case_id'); }
+    public function referral()          { return $this->belongsTo(Referral::class, 'referral_id'); }
     public function student()           { return $this->belongsTo(Student::class); }
     public function staff()             { return $this->belongsTo(User::class, 'staff_user_id'); }
     public function createdBy()         { return $this->belongsTo(User::class, 'created_by_user_id'); }

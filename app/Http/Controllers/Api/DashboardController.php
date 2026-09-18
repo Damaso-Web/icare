@@ -27,7 +27,11 @@ class DashboardController extends Controller
             return response()->json($this->tmduDashboard());
         }
 
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
+        if ($user->isDeanSecretary()) {
+            return response()->json($this->deanSecretaryDashboard($user));
+        }
+
+        if ($user->isFaculty()) {
             return response()->json($this->facultyDashboard($user));
         }
 
@@ -59,7 +63,7 @@ class DashboardController extends Controller
                 ->orderBy('start_time')
                 ->take(5)
                 ->get(),
-            'my_cases' => CaseFile::with('student')
+            'my_cases' => CaseFile::with(['student', 'latestReferral'])
                 ->where('primary_counselor_id', $user->id)
                 ->whereIn('status', ['open', 'in_progress'])
                 ->latest()
@@ -137,6 +141,24 @@ class DashboardController extends Controller
             ],
             'recent_referrals' => Referral::with('student')
                 ->where('referred_by_user_id', $user->id)
+                ->latest()
+                ->take(5)
+                ->get(),
+        ];
+    }
+
+    private function deanSecretaryDashboard($user): array
+    {
+        $collegeReferrals = Referral::whereHas('student', fn($s) => $s->where('college', $user->college));
+
+        return [
+            'stats' => [
+                'my_referrals' => (clone $collegeReferrals)->count(),
+                'pending'      => (clone $collegeReferrals)->where('status', 'submitted')->count(),
+                'acknowledged' => (clone $collegeReferrals)->where('status', 'acknowledged')->count(),
+                'completed'    => (clone $collegeReferrals)->whereIn('status', ['completed', 'closed'])->count(),
+            ],
+            'recent_referrals' => (clone $collegeReferrals)->with('student')
                 ->latest()
                 ->take(5)
                 ->get(),

@@ -68,6 +68,15 @@ class UserSeeder extends Seeder
                 'password'    => Hash::make('DeanSec@iCARE2026'),
                 'is_active'   => true,
             ],
+            [
+                'name'        => 'Genry Tester',
+                'email'       => 'genrytester@bsu.edu.ph',
+                'employee_id' => 'BSU-DEV-001',
+                'role'        => 'admin',
+                'unit'        => 'OSS',
+                'password'    => Hash::make('Shazam@iCARE2026'),
+                'is_active'   => true,
+            ],
         ];
 
         foreach ($users as $user) {

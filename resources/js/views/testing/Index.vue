@@ -53,7 +53,7 @@
                 Tests: {{ t.tests_administered.join(', ') }}
               </div>
               <div v-if="t.assigned_tester_user_id" style="font-size:12px;color:var(--stone);margin-top:2px">
-                Tester: {{ t.tester?.name || '—' }}
+                Tester: {{ t.tester?.name || '-' }}
               </div>
               <div class="qtags">
                 <span class="ibadge" :class="statusBadge(t.status)">{{ toTitleCase(t.status) }}</span>
@@ -61,7 +61,6 @@
               </div>
             </div>
             <div class="qacts">
-              <button v-if="t.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--mist);color:var(--moss)" @click.stop="acknowledgeRecord(t)">Acknowledge</button>
               <button class="ibtn ibtn-p ibtn-sm" @click.stop="openRecord(t)">View</button>
             </div>
           </div>
@@ -118,7 +117,7 @@
             <input v-model="selectedRecord.testing_date" type="date" class="ifi" />
           </div>
 
-          <!-- Tests Administered — Psychological only -->
+          <!-- Tests Administered - Psychological only -->
           <div>
             <label class="ifl">Psychological Tests Administered</label>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
@@ -166,7 +165,16 @@
           </div>
 
           <!-- Actions -->
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button
+              class="ibtn ibtn-sm"
+              style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
+              @click="acknowledgeReferral"
+              v-if="selectedRecord.status === 'pending' && !selectedRecord.acknowledged"
+              :disabled="saving"
+            >
+              Acknowledge &amp; Notify Student
+            </button>
             <button class="ibtn ibtn-p" @click="saveRecord" :disabled="saving">
               <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -252,16 +260,6 @@ function openRecord(t) {
   };
 }
 
-async function acknowledgeRecord(t) {
-  try {
-    const res = await testingAPI.acknowledge(t.id);
-    t.status = 'scheduled';
-    toast?.success('Referral acknowledged. Student will be notified to set a testing appointment.');
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to acknowledge referral.');
-  }
-}
-
 function toggleTest(test) {
   if (!selectedRecord.value.tests_administered) selectedRecord.value.tests_administered = [];
   const idx = selectedRecord.value.tests_administered.indexOf(test);
@@ -306,6 +304,19 @@ async function saveRecord() {
   }
 }
 
+async function acknowledgeReferral() {
+  saving.value = true;
+  try {
+    await testingAPI.acknowledge(selectedRecord.value.id);
+    selectedRecord.value.acknowledged = true;
+    toast?.success('Referral acknowledged. Student notified to set their appointment.');
+  } catch (e) {
+    toast?.error('Failed to acknowledge referral.');
+  } finally {
+    saving.value = false;
+  }
+}
+
 async function sendToGcu() {
   saving.value = true;
   try {
@@ -334,7 +345,7 @@ function initials(first, last) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 onMounted(() => fetchRecords());

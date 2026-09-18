@@ -29,7 +29,7 @@ class NoShowEscalationNotification extends Notification
             ->line('**Appointment Date:** ' . $this->appointment->appointment_date)
             ->line('**Appointment Type:** ' . $this->appointment->appointment_type)
             ->line('Please coordinate with the student regarding their missed appointment.')
-            ->salutation('iCARE — BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

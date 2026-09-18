@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
+
 const api = axios.create({
-    baseURL: 'https://icare-backend-5jwe.onrender.com/api',
+    baseURL: `${API_ROOT}/api`,
     headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -35,7 +37,7 @@ export default api;
 // Separate axios instance for student-authenticated requests, so a failed
 // student request never wipes the STAFF token/session or vice versa.
 const studentApi = axios.create({
-    baseURL: 'https://icare-backend-5jwe.onrender.com/api',
+    baseURL: `${API_ROOT}/api`,
     headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -81,10 +83,10 @@ export const studentAPI = {
     graduate:      (id) => api.post(`/students/${id}/graduate`),
     import:        (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importPreview: (formData) => api.post('/students/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    viewTempPassword: (id) => api.get(`/students/${id}/temp-password`),
     importConfirm: (data)     => api.post('/students/import-confirm', data),
     checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
-    resetPassword: (id) => api.post(`/students/${id}/reset-password`),
+    viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
+    resetPassword:    (id)    => api.post(`/students/${id}/reset-password`),
 };
 
 export const referralAPI = {
@@ -96,6 +98,11 @@ export const referralAPI = {
     assign:       (id, data) => api.post(`/referrals/${id}/assign`, data),
     updateStatus: (id, data) => api.patch(`/referrals/${id}/status`, data),
     tracking:     (id)       => api.get(`/referrals/${id}/tracking`),
+    sendFeedback:     (id, data) => api.post(`/referrals/${id}/feedback`, data),
+    saveAdmissionSlip:(id, data) => api.post(`/referrals/${id}/admission-slip`, data),
+    archive:      (id)       => api.post(`/referrals/${id}/archive`),
+    unarchive:    (id)       => api.post(`/referrals/${id}/unarchive`),
+    archived:     (params)   => api.get('/referrals-archived', { params }),
 };
 
 export const caseAPI = {
@@ -108,7 +115,22 @@ export const caseAPI = {
     referToTmdu:     (id, data) => api.post(`/cases/${id}/refer-tmdu`, data),
     referExternal:   (id, data) => api.post(`/cases/${id}/refer-external`, data),
     handoff:         (id, data) => api.post(`/cases/${id}/handoff`, data),
+    acknowledgeHandoff: (id, handoffId) => api.post(`/cases/${id}/handoffs/${handoffId}/acknowledge`),
     flagUnreachable: (id, data) => api.post(`/cases/${id}/flag-unreachable`, data),
+    flagFollowUp:    (id, data) => api.post(`/cases/${id}/flag-follow-up`, data),
+    resolveFollowUp: (id)       => api.post(`/cases/${id}/resolve-follow-up`),
+    addIntervention: (id, data) => api.post(`/cases/${id}/interventions`, data),
+    completeIntervention: (interventionId) => api.post(`/interventions/${interventionId}/complete`),
+    deleteIntervention:   (interventionId) => api.delete(`/interventions/${interventionId}`),
+};
+
+export const caseHandoffAPI = {
+    confirm: (id) => api.post(`/case-handoffs/${id}/confirm`),
+};
+
+export const caseInterventionAPI = {
+    store: (caseId, data) => api.post(`/cases/${caseId}/interventions`, data),
+    markCompleted: (id) => api.post(`/case-interventions/${id}/complete`),
 };
 
 export const sessionNoteAPI = {
@@ -117,6 +139,8 @@ export const sessionNoteAPI = {
     show:    (id)            => api.get(`/session-notes/${id}`),
     update:  (id, data)      => api.put(`/session-notes/${id}`, data),
     destroy: (id)            => api.delete(`/session-notes/${id}`),
+    indexByReferral: (referralId)       => api.get(`/referrals/${referralId}/session-notes`),
+    storeByReferral: (referralId, data) => api.post(`/referrals/${referralId}/session-notes`, data),
 };
 
 export const appointmentAPI = {
@@ -124,7 +148,7 @@ export const appointmentAPI = {
     store:          (data)     => api.post('/appointments', data),
     show:           (id)       => api.get(`/appointments/${id}`),
     update:         (id, data) => api.put(`/appointments/${id}`, data),
-    confirm:        (id)       => api.post(`/appointments/${id}/confirm`),
+    confirm:        (id, data) => api.post(`/appointments/${id}/confirm`, data),
     reschedule:     (id, data) => api.post(`/appointments/${id}/reschedule`, data),
     cancel:         (id, data) => api.post(`/appointments/${id}/cancel`, data),
     checkIn:        (id)       => api.post(`/appointments/${id}/check-in`),
@@ -139,12 +163,14 @@ export const testingAPI = {
     update:       (id, data) => api.put(`/testing-records/${id}`, data),
     updateStatus: (id, data) => api.patch(`/testing-records/${id}/status`, data),
     sendToGcu:    (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data),
+    acknowledge:  (id)       => api.post(`/testing-records/${id}/acknowledge`),
 };
 
 export const reportAPI = {
     referrals:    (params) => api.get('/reports/referrals', { params }),
     appointments: (params) => api.get('/reports/appointments', { params }),
     cases:        (params) => api.get('/reports/cases', { params }),
+    recurringConcerns: (params) => api.get('/reports/recurring-concerns', { params }),
     dashboard:    ()       => api.get('/reports/dashboard'),
 };
 
@@ -157,7 +183,14 @@ export const userAPI = {
     toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    viewTempPassword: (id) => api.get(`/users/${id}/temp-password`),
+    viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
+};
+
+export const callSlipAPI = {
+    index:         (params)     => api.get('/call-slips', { params }),
+    markContacted: (id, data)   => api.post(`/call-slips/${id}/contacted`, data),
+    reschedule:    (id)         => api.post(`/call-slips/${id}/reschedule`),
+    escalate:      (id, data)   => api.post(`/call-slips/${id}/escalate`, data),
 };
 
 export const notificationAPI = {
@@ -167,36 +200,29 @@ export const notificationAPI = {
     logs:        ()   => api.get('/notification-logs'),
 };
 
-export const auditAPI = {
-    index: (params) => api.get('/audit-logs', { params }),
-    show:  (id)     => api.get(`/audit-logs/${id}`),
-};
-export const callSlipAPI = {
-  index: (params) => api.get('/call-slips', { params }),
-  markContacted: (id, data) => api.post(`/call-slips/${id}/contacted`, data),
-  reschedule: (id) => api.post(`/call-slips/${id}/reschedule`),
-  escalate: (id, data) => api.post(`/call-slips/${id}/escalate`, data),
-};
-
 export const studentNotificationAPI = {
     index:       ()   => studentApi.get('/student/notifications'),
     markRead:    (id) => studentApi.post(`/student/notifications/${id}/read`),
     markAllRead: ()   => studentApi.post('/student/notifications/read-all'),
 };
 
-export const caseHandoffAPI = {
-    confirm: (id) => api.post(`/case-handoffs/${id}/confirm`),
-};
-
 export const monitoringAPI = {
     index: () => api.get('/monitoring'),
 };
 
-export const availabilityAPI = {
-    weekGrid: (token, weekStart) => api.get(`/schedule/${token}/week`, { params: { week_start: weekStart } }),
+export const backupAPI = {
+    index:         (params) => api.get('/backups', { params }),
+    run:           (type)   => api.post('/backups/run', { type }),
+    restoreData:   (confirm)=> api.post('/backups/restore-data', { confirm }),
+    restoreConfig: (confirm)=> api.post('/backups/restore-config', { confirm }),
 };
 
-export const caseInterventionAPI = {
-    store: (caseId, data) => api.post(`/cases/${caseId}/interventions`, data),
-    markCompleted: (id) => api.post(`/case-interventions/${id}/complete`),
+export const devAPI = {
+    switchRole:      (role) => api.post('/dev/switch-role', { role }),
+    switchToStudent: ()     => api.post('/dev/switch-to-student'),
+};
+
+export const auditAPI = {
+    index: (params) => api.get('/audit-logs', { params }),
+    show:  (id)     => api.get(`/audit-logs/${id}`),
 };

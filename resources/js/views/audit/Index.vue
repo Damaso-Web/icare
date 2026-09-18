@@ -85,7 +85,7 @@
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
-          Showing {{ pagination.from }}–{{ pagination.to }} of {{ pagination.total }}
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
         </span>
         <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>

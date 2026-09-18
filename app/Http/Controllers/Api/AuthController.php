@@ -53,27 +53,27 @@ class AuthController extends Controller
     }
 
     public function changePassword(Request $request)
-{
-    $request->validate([
-        'current_password' => 'required',
-        'password'         => 'required|min:8|confirmed',
-    ]);
+    {
+        $request->validate([
+            'current_password' => 'required',
+            'password'         => 'required|min:8|confirmed',
+        ]);
 
-    $user = $request->user();
+        $user = $request->user();
 
-    if (!Hash::check($request->current_password, $user->password)) {
-        return response()->json(['message' => 'Current password is incorrect.'], 422);
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Current password is incorrect.'], 422);
+        }
+
+        $user->update([
+            'password'            => Hash::make($request->password),
+            'temp_password'       => null,
+            'must_change_password'=> false,
+        ]);
+        AuditLog::record('password_change', "User {$user->name} changed their password.");
+
+        return response()->json(['message' => 'Password updated successfully.']);
     }
-
-    $user->update([
-        'password'              => Hash::make($request->password),
-        'temp_password'         => null,
-        'must_change_password'  => false,
-    ]);
-    AuditLog::record('password_change', "User {$user->name} changed their password.");
-
-    return response()->json(['message' => 'Password updated successfully.']);
-}
     public function updateProfile(Request $request)
 {
     $user = $request->user();

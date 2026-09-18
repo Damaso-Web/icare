@@ -7,15 +7,26 @@
     </div>
 
     <template v-else>
-      <!-- Back + Header -->
+      <!-- Back + Case pill + Edit -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
         <button class="ibtn ibtn-o ibtn-sm" @click="$router.back()">
           <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <div class="ph" style="margin:0">
-          <h1>{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</h1>
-          <p>{{ student.student_id }} · {{ student.year_level }}, {{ student.college }}</p>
-        </div>
+        <span
+          v-if="primaryCase"
+          class="ibadge"
+          style="font-family:var(--mono);background:var(--mist);color:var(--moss)"
+        >
+          {{ primaryCase.case_number }}
+        </span>
+        <span
+          v-if="primaryCase && ['closed', 'resolved'].includes(primaryCase.status)"
+          class="ibadge"
+          style="background:var(--cloud);color:var(--stone)"
+        >
+          {{ primaryCase.status === 'closed' ? 'Closed Case' : 'Resolved Case' }}
+        </span>
+        <span v-if="isRecurringStudent" class="ibadge ibadge-in_progress">Recurring</span>
         <div style="margin-left:auto">
           <button class="ibtn ibtn-o ibtn-sm" @click="showEditModal = true">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -24,104 +35,196 @@
         </div>
       </div>
 
-      <div style="max-width:520px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:grid;grid-template-columns:1fr 300px;gap:16px">
 
-        <!-- Profile Card -->
-        <div class="icard">
-          <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:20px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
-            <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
-              {{ initials(student.first_name, student.last_name) }}
-            </div>
-            <div style="font-size:15px;font-weight:600;color:#fff">{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</div>
-            <div style="font-size:11px;color:rgba(255,255,255,.5);font-family:var(--mono);margin-top:2px">{{ student.student_id }}</div>
-          </div>
-          <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.sex || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.year_level || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.college || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.program || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.section || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.email || '—' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.contact_number || '—' }}</div>
-            </div>
-          </div>
-        </div>
+        <!-- Left: Referrals -->
+        <div style="display:flex;flex-direction:column;gap:16px">
 
-        <!-- Guardian Info -->
-        <div class="icard">
-          <div class="icard-header"><span class="icard-title">Guardian</span></div>
-          <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
-              <div style="font-size:13px;color:var(--ink)">
-                {{ [student.guardian_last_name, student.guardian_first_name, student.guardian_middle_name].filter(Boolean).length
-                    ? `${student.guardian_last_name || ''}, ${student.guardian_first_name || ''} ${student.guardian_middle_name || ''}`.trim()
-                    : '—' }}
+          <!-- Referral List -->
+          <div class="icard">
+            <div class="icard-header"><span class="icard-title">Referrals</span></div>
+            <div style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
+              <div style="position:relative">
+                <svg viewBox="0 0 24 24" style="width:15px;height:15px;position:absolute;left:10px;top:50%;transform:translateY(-50%);stroke:var(--fog);fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input v-model="referralSearch" class="ifi" style="padding-left:32px" placeholder="Search referral no." />
               </div>
             </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.guardian_contact || '—' }}</div>
+            <div v-if="!history.referrals?.length" class="empty-state">
+              <h3>No referrals yet</h3>
+              <p>No referrals found for this student.</p>
             </div>
-
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
-              <div style="font-size:13px;color:var(--ink)">{{ student.guardian_relationship || '—' }}</div>
+            <div v-else-if="!filteredReferrals.length" class="empty-state">
+              <h3>No matches</h3>
+              <p>No referrals match "{{ referralSearch }}".</p>
+            </div>
+            <div class="ts" v-else>
+              <table class="itable">
+                <thead>
+                  <tr>
+                    <th>Refer No.</th>
+                    <th>Type</th>
+                    <th>Unit</th>
+                    <th>Urgency</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="r in filteredReferrals"
+                    :key="r.id"
+                    style="cursor:pointer"
+                    @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: { ctx: 'cases' } })"
+                  >
+                    <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
+                    <td>{{ toTitleCase(r.referral_type) }}</td>
+                    <td><span class="ibadge" :class="'unit-' + referralUnit(r.referral_type).toLowerCase()">{{ referralUnit(r.referral_type) }}</span></td>
+                    <td><span v-if="r.urgency_level" class="ibadge" :class="'ibadge-' + r.urgency_level">{{ toTitleCase(r.urgency_level) }}</span></td>
+                    <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
+                    <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
+                    <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id }, query: { ctx: 'cases' } })">View</button></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-        </div>
 
-        <!-- Temp Password Viewer -->
-        <div v-if="student.must_change_password" class="icard">
-          <div class="icard-header"><span class="icard-title">Account Password</span></div>
-          <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
-            <div style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
-              <div style="display:flex;align-items:center;justify-content:space-between">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
-                <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
-                  <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                  <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                </button>
+          <!-- Related Concerns Comparison - group referrals by type to spot recurrence/escalation -->
+          <div class="icard" v-if="history.referrals?.length > 1">
+            <div class="icard-header"><span class="icard-title">Related Concerns Comparison</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:16px">
+              <div v-for="group in concernGroups" :key="group.type">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  <div style="font-size:12.5px;font-weight:700;color:var(--ink)">{{ toTitleCase(group.type) }}</div>
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.referrals.length }}</span>
+                  <span v-if="group.referrals.length > 1" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Recurring</span>
+                </div>
+                <div class="ts">
+                  <table class="itable" style="table-layout:fixed">
+                    <colgroup>
+                      <col style="width:15%" />
+                      <col style="width:50%" />
+                      <col style="width:17.5%" />
+                      <col style="width:17.5%" />
+                    </colgroup>
+                    <thead>
+                      <tr><th>Date</th><th>Concern</th><th>Urgency</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="r in group.referrals" :key="r.id" style="cursor:pointer" @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: { ctx: 'cases' } })">
+                        <td style="font-size:12px;white-space:nowrap">{{ formatDate(r.created_at) }}</td>
+                        <td style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.nature_of_concern || '-' }}</td>
+                        <td><span v-if="r.urgency_level" class="ibadge" :class="'ibadge-' + r.urgency_level">{{ toTitleCase(r.urgency_level) }}</span></td>
+                        <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
-                {{ showTempPassword ? (tempPasswordValue || 'Not available — use Reset Password below.') : '••••••••••' }}
-              </div>
-              <div style="font-size:11px;color:var(--stone);margin-top:4px">Student hasn't logged in and changed their password yet.</div>
-            </div>
-            <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);justify-content:center" @click="resetStudentPassword">Reset Password</button>
-            <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;color:var(--forest)">
-              ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
             </div>
           </div>
+
         </div>
 
+        <!-- Right: Student Info -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Student Information (+ Guardian, + Login Credentials) -->
+          <div class="icard">
+            <div class="icard-header"><span class="icard-title">Student Information</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                <div class="qav" style="width:40px;height:40px;font-size:15px">
+                  {{ initials(student.first_name, student.last_name) }}
+                </div>
+                <div>
+                  <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ student.last_name }}, {{ student.first_name }} {{ student.middle_name }}</div>
+                  <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ student.student_id }}</div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.college || '-' }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.program || '-' }}</div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.year_level || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.section || '-' }}</div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.sex || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.contact_number || '-' }}</div>
+                </div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
+                <div style="font-size:13px;color:var(--ink)">{{ student.email || '-' }}</div>
+              </div>
+
+              <div style="height:1px;background:var(--cloud);margin:4px 0"></div>
+
+              <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Guardian</div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Full Name</div>
+                <div style="font-size:13px;color:var(--ink)">
+                  {{ [student.guardian_last_name, student.guardian_first_name, student.guardian_middle_name].filter(Boolean).length
+                      ? `${student.guardian_last_name || ''}, ${student.guardian_first_name || ''} ${student.guardian_middle_name || ''}`.trim()
+                      : '-' }}
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.guardian_relationship || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ student.guardian_contact || '-' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Appointments -->
+          <div class="icard">
+            <div class="icard-header"><span class="icard-title">Appointments</span></div>
+            <div v-if="!history.appointments?.length" class="empty-state">
+              <h3>No appointments yet</h3>
+              <p>No appointments scheduled for this student.</p>
+            </div>
+            <div v-else>
+              <div
+                v-for="a in history.appointments"
+                :key="a.id"
+                style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:flex-start;gap:8px"
+              >
+                <div>
+                  <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
+                  <div style="font-size:11px;color:var(--stone);margin-top:2px;font-family:var(--mono)">{{ a.appointment_code }}</div>
+                  <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                  <div style="font-size:11px;color:var(--fog);margin-top:2px">With {{ a.staff?.name || '-' }}</div>
+                </div>
+                <span class="ibadge" :class="'ibadge-' + a.status" style="flex-shrink:0">{{ toTitleCase(a.status) }}</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
 
       <!-- Edit Student Modal -->
@@ -276,22 +379,55 @@ import { studentAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';
 import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
 
 const route   = useRoute();
 const toast   = inject('toast');
+const auth    = useAuthStore();
 const loading = ref(true);
 const saving  = ref(false);
 const showEditModal = ref(false);
 const student = ref({});
+const history = ref({});
 const colleges = COLLEGES;
 const editError = ref('');
 
 const editForm = ref({});
-const showTempPassword = ref(false);
-const tempPasswordValue = ref('');
-const resetPasswordResult = ref('');
+const referralSearch = ref('');
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
+const primaryCase = computed(() => history.value.cases?.[0] || null);
+const isRecurringStudent = computed(() => (history.value.referrals?.length || 0) > 1);
+
+const filteredReferrals = computed(() => {
+  const refs = history.value.referrals || [];
+  const q = referralSearch.value.trim().toLowerCase();
+  if (!q) return refs;
+  return refs.filter(r => r.referral_code?.toLowerCase().includes(q));
+});
+
+const concernGroups = computed(() => {
+  const refs = history.value.referrals || [];
+  const groups = {};
+  for (const r of refs) {
+    const type = r.referral_type || 'other';
+    if (!groups[type]) groups[type] = [];
+    groups[type].push(r);
+  }
+  return Object.entries(groups)
+    .map(([type, referrals]) => ({ type, referrals }))
+    .filter(g => g.referrals.length > 0)
+    .sort((a, b) => b.referrals.length - a.referrals.length);
+});
+
+const SDU_TYPES = ['disciplinary'];
+const TMDU_TYPES = ['psychological_testing'];
+
+function referralUnit(referralType) {
+  if (SDU_TYPES.includes(referralType)) return 'SDU';
+  if (TMDU_TYPES.includes(referralType)) return 'TMDU';
+  return 'GCU';
+}
 
 async function saveStudent() {
   editError.value = '';
@@ -325,43 +461,23 @@ async function saveStudent() {
   }
 }
 
-async function resetStudentPassword() {
-  try {
-    const res = await studentAPI.resetPassword(student.value.id);
-    resetPasswordResult.value = res.data.temp_password;
-    tempPasswordValue.value = res.data.temp_password;
-    student.value.must_change_password = true;
-    toast?.success('Password reset successfully.');
-  } catch (e) {
-    toast?.error('Failed to reset password.');
-  }
-}
-
-async function toggleTempPasswordVisible() {
-  showTempPassword.value = !showTempPassword.value;
-  if (showTempPassword.value && !tempPasswordValue.value) {
-    try {
-      const res = await studentAPI.viewTempPassword(student.value.id);
-      tempPasswordValue.value = res.data.temp_password;
-    } catch (e) {
-      tempPasswordValue.value = 'Unable to retrieve.';
-    }
-  }
-}
-
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 onMounted(async () => {
   try {
-    const res = await studentAPI.show(route.params.id);
-    student.value = res.data;
-    editForm.value = { ...res.data };
+    const [studentRes, historyRes] = await Promise.all([
+      studentAPI.show(route.params.id),
+      studentAPI.history(route.params.id),
+    ]);
+    student.value = studentRes.data;
+    history.value = historyRes.data;
+    editForm.value = { ...studentRes.data };
   } catch (e) {
     console.error(e);
   } finally {

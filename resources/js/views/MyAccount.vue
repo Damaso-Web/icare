@@ -5,7 +5,7 @@
       <p>Update your personal information and password.</p>
     </div>
 
-    <div style="max-width:520px;display:flex;flex-direction:column;gap:16px">
+    <div style="max-width:1080px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
 
       <div class="icard">
         <div class="icard-header"><span class="icard-title">Profile Information</span></div>

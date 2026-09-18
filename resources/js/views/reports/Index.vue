@@ -145,6 +145,55 @@
         </div>
       </div>
 
+      <!-- Recurring Concerns -->
+      <div class="icard" style="margin-bottom:16px">
+        <div class="icard-header">
+          <span class="icard-title">Recurring Concerns</span>
+          <span class="ibadge" style="background:var(--blue-lt);color:var(--blue)">{{ recurringData.total_recurring_students ?? 0 }} students with recurring referrals</span>
+        </div>
+        <div class="ts">
+          <table class="itable">
+            <thead>
+              <tr>
+                <th>Referral Type</th>
+                <th>Total Referrals</th>
+                <th>Distinct Students</th>
+                <th>Recurring Students</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in recurringData.by_type" :key="row.referral_type">
+                <td>{{ toTitleCase(row.referral_type) }}</td>
+                <td>{{ row.total_referrals }}</td>
+                <td>{{ row.distinct_students }}</td>
+                <td>
+                  <span class="ibadge" :style="row.recurring_students > 0 ? 'background:var(--blue-lt);color:var(--blue)' : 'background:var(--cloud);color:var(--stone)'">
+                    {{ row.recurring_students }}
+                  </span>
+                </td>
+              </tr>
+              <tr v-if="!recurringData.by_type?.length">
+                <td colspan="4" style="text-align:center;color:var(--fog)">No data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div v-if="recurringData.top_recurring_students?.length" style="padding:14px 18px;border-top:1px solid var(--cloud)">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Most Frequently Referred Students</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <router-link
+              v-for="s in recurringData.top_recurring_students"
+              :key="s.id"
+              :to="{ name: 'student-show', params: { id: s.id } }"
+              style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink);text-decoration:none"
+            >
+              <span>{{ s.last_name }}, {{ s.first_name }} <span style="color:var(--fog);font-family:var(--mono)">({{ s.student_id }})</span></span>
+              <span style="color:var(--stone)">{{ s.referrals_count }} referrals</span>
+            </router-link>
+          </div>
+        </div>
+      </div>
+
       <!-- Appointments Summary -->
       <div class="icard">
         <div class="icard-header"><span class="icard-title">Appointment Summary</span></div>
@@ -190,15 +239,18 @@ const loading  = ref(true);
 const dateFrom = ref('');
 const dateTo   = ref('');
 
-const referralData = ref({});
-const caseData     = ref({});
-const apptData     = ref({});
-const dashData     = ref({});
+const referralData  = ref({});
+const caseData      = ref({});
+const apptData      = ref({});
+const dashData      = ref({});
+const recurringData = ref({});
 
 const summaryStats = computed(() => [
   { label: 'Total Referrals',    value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
   { label: 'Total Cases',        value: caseData.value.total        ?? 0, iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
+  { label: 'Pending Cases',      value: caseData.value.pending      ?? 0, iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'Closed Cases',       value: caseData.value.by_status?.find(s => s.status === 'closed')?.count ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Avg. Days to Close', value: caseData.value.avg_days_to_close ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'Total Appointments', value: apptData.value.total        ?? 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)',  icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
   { label: 'TMDU Assessments',   value: caseData.value.referred_tmdu ?? 0, iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
 ]);
@@ -228,16 +280,18 @@ async function fetchAll() {
   loading.value = true;
   try {
     const params = { date_from: dateFrom.value, date_to: dateTo.value };
-    const [r, c, a, d] = await Promise.all([
+    const [r, c, a, d, rc] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
       reportAPI.appointments(params),
       reportAPI.dashboard(),
+      reportAPI.recurringConcerns(params),
     ]);
-    referralData.value = r.data;
-    caseData.value     = c.data;
-    apptData.value     = a.data;
-    dashData.value     = d.data;
+    referralData.value  = r.data;
+    caseData.value      = c.data;
+    apptData.value      = a.data;
+    dashData.value      = d.data;
+    recurringData.value = rc.data;
   } catch (e) {
     console.error(e);
   } finally {

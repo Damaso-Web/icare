@@ -25,7 +25,6 @@ class CaseFile extends Model
         'total_sessions',
         'last_session_at',
         'presenting_concern',
-        'background_info',
         'interventions_applied',
         'outcomes',
         'recommendations',
@@ -42,6 +41,7 @@ class CaseFile extends Model
         'unreachable_flagged_at',
         'unreachable_flagged_by',
         'unreachable_notes',
+        'status_changed_at',
     ];
 
     protected $casts = [
@@ -56,29 +56,24 @@ class CaseFile extends Model
         'referred_externally'     => 'boolean',
         'student_unreachable'     => 'boolean',
         'unreachable_flagged_at'  => 'datetime',
+        'status_changed_at'       => 'datetime',
     ];
 
     protected static function booted(): void
     {
         static::creating(function (CaseFile $case) {
-            $studentId = optional(Student::find($case->student_id))->student_id;
+            // One case per student for life, so the student's own ID number
+            // is already a stable, unique key - no separate counter needed.
+            $studentIdNumber = Student::whereKey($case->student_id)->value('student_id');
+            $case->case_number = 'CASE-' . ($studentIdNumber ?: $case->student_id);
+            $case->status_changed_at = now();
+        });
 
-            if ($studentId) {
-                $case->case_number = 'CASE-' . $studentId;
-            } else {
-                // Fallback for the rare case where the student record can't be resolved yet
-                $year = now()->year;
-                $lastNumber = static::withTrashed()
-                    ->where('case_number', 'like', "CASE-{$year}-%")
-                    ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
-                    ->value('case_number');
-
-                $nextNumber = 1;
-                if ($lastNumber) {
-                    $nextNumber = (int) substr($lastNumber, -4) + 1;
-                }
-
-                $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+        // Centralized so every status change - wherever it happens - resets
+        // the inactivity clock the automatic status engine reads from.
+        static::updating(function (CaseFile $case) {
+            if ($case->isDirty('status')) {
+                $case->status_changed_at = now();
             }
         });
     }
@@ -89,6 +84,7 @@ class CaseFile extends Model
     public function counselor()     { return $this->belongsTo(User::class, 'primary_counselor_id'); }
     public function flaggedBy()     { return $this->belongsTo(User::class, 'unreachable_flagged_by'); }
     public function followUpFlaggedBy() { return $this->belongsTo(User::class, 'follow_up_flagged_by'); }
+    public function interventions()  { return $this->hasMany(CaseIntervention::class, 'case_id')->latest(); }
     public function sessionNotes()  { return $this->hasMany(SessionNote::class, 'case_id')->orderBy('session_date'); }
     public function appointments()  { return $this->hasMany(Appointment::class, 'case_id')->orderBy('appointment_date'); }
     public function testingRecord() { return $this->hasOne(TestingRecord::class, 'case_id'); }
@@ -96,4 +92,30 @@ class CaseFile extends Model
     public function documents()     { return $this->morphMany(Document::class, 'documentable'); }
 
     public function isOpen(): bool  { return !in_array($this->status, ['resolved', 'closed']); }
+
+    // Anything that would make an inactivity-based auto-transition wrong:
+    // a session logged recently, an intervention logged recently, or an
+    // upcoming appointment that just hasn't happened yet.
+    public function hasRecentActivity(int $days): bool
+    {
+        $since = now()->subDays($days);
+
+        if ($this->last_session_at && $this->last_session_at->gte($since)) {
+            return true;
+        }
+
+        if ($this->interventions()->where('created_at', '>=', $since)->exists()) {
+            return true;
+        }
+
+        if ($this->appointments()
+            ->where('appointment_date', '>=', now()->toDateString())
+            ->whereNotIn('status', ['cancelled'])
+            ->exists()
+        ) {
+            return true;
+        }
+
+        return false;
+    }
 }

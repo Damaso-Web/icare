@@ -111,11 +111,11 @@
                   v-for="c in dashboard.my_cases"
                   :key="c.id"
                   style="cursor:pointer"
-                  @click="$router.push({ name: 'case-show', params: { id: c.id } })"
+                  @click="goToReferral(c)"
                 >
                   <td style="font-family:var(--mono);font-size:11px">{{ c.case_number }}</td>
                   <td>{{ c.student?.first_name }} {{ c.student?.last_name }}</td>
-                  <td><span class="ibadge" :class="'ibadge-' + c.status">{{ c.status }}</span></td>
+                  <td><span class="ibadge" :class="'ibadge-' + c.status">{{ toTitleCase(c.status) }}</span></td>
                 </tr>
               </tbody>
             </table>
@@ -141,7 +141,7 @@
                 <tr v-for="t in dashboard.testing_queue" :key="t.id">
                   <td>{{ t.student?.first_name }} {{ t.student?.last_name }}</td>
                   <td>{{ t.referred_by?.name }}</td>
-                  <td><span class="ibadge" :class="'ibadge-' + t.status">{{ t.status }}</span></td>
+                  <td><span class="ibadge" :class="'ibadge-' + t.status">{{ toTitleCase(t.status) }}</span></td>
                 </tr>
               </tbody>
             </table>
@@ -191,15 +191,25 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
+import { toTitleCase } from '../utils/validators';
 
-const router    = useRouter();
 const auth      = useAuthStore();
+const router    = useRouter();
+const toast     = inject('toast');
 const dashboard = ref({});
 const loading   = ref(true);
+
+function goToReferral(c) {
+  if (c.latest_referral?.id) {
+    router.push({ name: 'referral-show', params: { id: c.latest_referral.id } });
+  } else {
+    toast?.error('No linked referral found for this case.');
+  }
+}
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 
@@ -265,7 +275,7 @@ function urgencyRow(level) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 onMounted(async () => {
