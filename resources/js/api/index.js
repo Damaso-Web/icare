@@ -32,6 +32,36 @@ api.interceptors.response.use(
 
 export default api;
 
+// Separate axios instance for student-authenticated requests, so a failed
+// student request never wipes the STAFF token/session or vice versa.
+const studentApi = axios.create({
+    baseURL: 'https://icare-backend-5jwe.onrender.com/api',
+    headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+    },
+});
+
+studentApi.interceptors.request.use((config) => {
+    const token = localStorage.getItem('student_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+studentApi.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            localStorage.removeItem('student_token');
+            localStorage.removeItem('student');
+            window.location.href = '/student/login';
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const authAPI = {
     login:          (data) => api.post('/login', data),
     logout:         ()     => api.post('/logout'),
@@ -149,9 +179,9 @@ export const callSlipAPI = {
 };
 
 export const studentNotificationAPI = {
-    index:       ()   => api.get('/student/notifications'),
-    markRead:    (id) => api.post(`/student/notifications/${id}/read`),
-    markAllRead: ()   => api.post('/student/notifications/read-all'),
+    index:       ()   => studentApi.get('/student/notifications'),
+    markRead:    (id) => studentApi.post(`/student/notifications/${id}/read`),
+    markAllRead: ()   => studentApi.post('/student/notifications/read-all'),
 };
 
 export const caseHandoffAPI = {
