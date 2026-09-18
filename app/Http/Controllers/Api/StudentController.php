@@ -21,7 +21,16 @@ class StudentController extends Controller
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
-        return response()->json($query->latest()->paginate($request->per_page ?? 10));
+        $query = match ($request->sort) {
+            'last_name_desc'   => $query->orderByDesc('last_name'),
+            'student_id_asc'   => $query->orderBy('student_id'),
+            'student_id_desc'  => $query->orderByDesc('student_id'),
+            'oldest'           => $query->oldest(),
+            'newest'           => $query->latest(),
+            default            => $query->orderBy('last_name'),
+        };
+
+        return response()->json($query->paginate($request->per_page ?? 10));
     }
 
     public function store(Request $request)
@@ -71,9 +80,9 @@ class StudentController extends Controller
     public function update(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'student_id'             => 'sometimes|string|unique:students,student_id,' . $student->id,
-            'first_name'             => 'sometimes|string|max:255',
-            'last_name'              => 'sometimes|string|max:255',
+            'student_id'             => 'required|string|unique:students,student_id,' . $student->id,
+            'first_name'             => 'required|string|max:255',
+            'last_name'              => 'required|string|max:255',
             'middle_name'            => 'nullable|string|max:255',
             'suffix'                 => 'nullable|string|max:20',
             'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
@@ -83,11 +92,11 @@ class StudentController extends Controller
             'program'                => 'nullable|string',
             'year_level'             => 'nullable|string',
             'section'                => 'nullable|string|max:1',
-            'guardian_first_name'    => 'nullable|string|max:255',
+            'guardian_first_name'    => 'required|string|max:255',
             'guardian_middle_name'   => 'nullable|string|max:255',
-            'guardian_last_name'     => 'nullable|string|max:255',
-            'guardian_contact'       => 'nullable|string|max:11',
-            'guardian_relationship'  => 'nullable|string',
+            'guardian_last_name'     => 'required|string|max:255',
+            'guardian_contact'       => 'required|string|max:11',
+            'guardian_relationship'  => 'required|string',
         ]);
 
         // Don't overwrite year_level with empty/null — keep existing value if not provided
@@ -119,10 +128,6 @@ class StudentController extends Controller
 
     public function graduate(Request $request, Student $student)
     {
-        $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
-        if ($openCases > 0) {
-            return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
-        }
         $student->update(['is_active' => false]);
         AuditLog::record('graduated', "Marked student {$student->student_id} as graduated/inactive.", $student);
         return response()->json($student);

@@ -38,6 +38,18 @@
           @input="onSearchInput"
         />
       </div>
+      <select v-model="filters.college" class="fsm" @change="fetchStudents()">
+        <option value="">All Colleges</option>
+        <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+      </select>
+      <select v-model="filters.sort" class="fsm" @change="fetchStudents()">
+        <option value="last_name_asc">Name (A–Z)</option>
+        <option value="last_name_desc">Name (Z–A)</option>
+        <option value="student_id_asc">Student ID (Low–High)</option>
+        <option value="student_id_desc">Student ID (High–Low)</option>
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+      </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
       <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -609,7 +621,7 @@ const students   = ref([]);
 const loading    = ref(false);
 const saving     = ref(false);
 const pagination = ref({});
-const filters    = ref({ search: '' });
+const filters    = ref({ search: '', college: '', sort: 'last_name_asc' });
 const showArchived = ref(false);
 const showAddModal    = ref(false);
 const showGraduateModal = ref(false);
@@ -752,7 +764,7 @@ async function fetchStudents(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '' };
+  filters.value = { search: '', college: '', sort: 'last_name_asc' };
   fetchStudents();
 }
 

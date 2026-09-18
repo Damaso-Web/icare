@@ -42,7 +42,6 @@
             <option value="no_show">No Show</option>
           </select>
           <select v-else v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="completed,cancelled">Both</option>
             <option value="completed">Completed</option>
             <option value="cancelled">Cancelled</option>
           </select>
@@ -66,7 +65,7 @@
               style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s;cursor:pointer"
               @mouseover="$event.currentTarget.style.background='var(--foam)'"
               @mouseleave="$event.currentTarget.style.background=''"
-              @click="goToCase(a)"
+              @click="openDetail(a)"
             >
               <div v-if="a.request_status !== 'awaiting_student' || a.status === 'cancelled'" style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
                 <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
@@ -146,7 +145,7 @@
                   fontWeight: day.isToday ? '600' : '',
                   pointerEvents: day.isOther ? 'none' : 'auto',
                 }"
-                @click="day.isOther ? null : selectDayPreview(day)"
+                @click="day.isOther ? null : selectDay(day)"
               >
                 {{ day.date }}
                 <span
@@ -160,25 +159,59 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- Day Preview Panel -->
-        <div v-if="previewDate" class="icard">
-          <div class="icard-header">
-            <span class="icard-title">{{ previewDateLabel }}</span>
-            <button class="ibtn ibtn-g ibtn-sm" @click="previewDate = null">✕</button>
+    <!-- Appointment Detail Modal -->
+    <div v-if="showDetailModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDetailModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ detailAppt.appointment_code }}</div>
+            <div style="font-size:12px;color:var(--stone)">{{ detailAppt.student?.last_name }}, {{ detailAppt.student?.first_name }}</div>
           </div>
-          <div v-if="previewAppointments.length === 0" style="padding:16px;font-size:12px;color:var(--stone);text-align:center">
-            No appointments this day.
+          <button class="ibtn ibtn-g ibtn-sm" @click="showDetailModal = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+            <span class="ibadge" :class="'ibadge-' + detailAppt.status">{{ toTitleCase(detailAppt.status) }}</span>
+          </div>
+          <div v-if="detailAppt.request_status !== 'awaiting_student' || detailAppt.status === 'cancelled'">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date & Time</div>
+            <div style="font-size:13px;color:var(--ink)">{{ getMonth(detailAppt.appointment_date) }} {{ getDay(detailAppt.appointment_date) }} · {{ detailAppt.start_time }} – {{ detailAppt.end_time }}</div>
           </div>
           <div v-else>
-            <div v-for="a in previewAppointments" :key="a.id" style="padding:10px 14px;border-bottom:1px solid var(--cloud);font-size:12px;cursor:pointer" @click="goToCase(a)">
-              <div style="font-weight:600;color:var(--ink)">{{ a.start_time }} – {{ a.student?.student_id }}</div>
-              <div style="color:var(--stone);font-size:11px;margin-top:1px">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
-              <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block;font-size:10px">{{ toTitleCase(a.status) }}</span>
-            </div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date & Time</div>
+            <div style="font-size:13px;color:var(--amber)">Awaiting student's schedule selection</div>
           </div>
-          <div style="padding:10px 14px;border-top:1px solid var(--cloud)">
-            <button class="ibtn ibtn-o ibtn-sm" style="width:100%;justify-content:center" @click="selectDay({ dateStr: previewDate })">Filter Full List</button>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
+            <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(detailAppt.appointment_type) }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Unit</div>
+            <div style="font-size:13px;color:var(--ink)">{{ detailAppt.unit }}</div>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Assigned Staff</div>
+            <div style="font-size:13px;color:var(--ink)">{{ detailAppt.staff?.name || 'TBA' }}</div>
+          </div>
+          <div v-if="detailAppt.location">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Location</div>
+            <div style="font-size:13px;color:var(--ink)">📍 {{ detailAppt.location }}</div>
+          </div>
+          <div v-if="detailAppt.reschedule_reason">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Reschedule Reason</div>
+            <div style="font-size:13px;color:var(--ink)">{{ detailAppt.reschedule_reason }}</div>
+          </div>
+          <div v-if="detailAppt.cancellation_reason">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Cancellation Reason</div>
+            <div style="font-size:13px;color:var(--ink)">{{ detailAppt.cancellation_reason }}</div>
+          </div>
+          <div style="display:flex;gap:8px;padding-top:8px">
+            <button v-if="detailAppt.case_id" class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="goToCase(detailAppt)">Open Case</button>
+            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showDetailModal = false">Close</button>
           </div>
         </div>
       </div>
@@ -253,6 +286,8 @@ const rescheduleTarget    = ref(null);
 const rescheduleForm      = ref({ reschedule_reason: '' });
 
 const showConfirmModal = ref(false);
+const showDetailModal = ref(false);
+const detailAppt = ref({});
 const confirmTarget    = ref(null);
 const confirmStaffId   = ref('');
 const staffList        = ref([]);
@@ -263,25 +298,6 @@ const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const showClosed = ref(false);
-const previewDate = ref(null);
-
-const previewAppointments = computed(() => {
-  if (!previewDate.value) return [];
-  return allAppointments.value
-    .filter(a => a.appointment_date?.split('T')[0] === previewDate.value && ['pending', 'confirmed'].includes(a.status))
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
-});
-
-const previewDateLabel = computed(() => {
-  if (!previewDate.value) return '';
-  return new Date(previewDate.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-});
-
-function selectDayPreview(day) {
-  if (day.isOther || !day.dateStr) return;
-  selectedDate.value = new Date(day.dateStr);
-  previewDate.value = day.dateStr;
-}
 
 function roleLabel(role) {
   const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
@@ -316,9 +332,14 @@ function goToCase(a) {
   }
 }
 
+function openDetail(a) {
+  detailAppt.value = a;
+  showDetailModal.value = true;
+}
+
 function switchTab(closed) {
   showClosed.value = closed;
-  filters.value.status = closed ? 'completed,cancelled' : 'pending';
+  filters.value.status = closed ? 'completed' : 'pending';
   fetchAppointments();
 }
 
@@ -451,7 +472,6 @@ function selectDay(day) {
   if (day.isOther || !day.dateStr) return;
   selectedDate.value = new Date(day.dateStr);
   filters.value.date = day.dateStr;
-  previewDate.value = null;
   fetchAppointments();
 }
 

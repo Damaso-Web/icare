@@ -61,6 +61,7 @@
               </div>
             </div>
             <div class="qacts">
+              <button v-if="t.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--mist);color:var(--moss)" @click.stop="acknowledgeRecord(t)">Acknowledge</button>
               <button class="ibtn ibtn-p ibtn-sm" @click.stop="openRecord(t)">View</button>
             </div>
           </div>
@@ -249,6 +250,16 @@ function openRecord(t) {
     tests_administered: [...(t.tests_administered || [])],
     tester_name: t.tester?.name || '',
   };
+}
+
+async function acknowledgeRecord(t) {
+  try {
+    const res = await testingAPI.acknowledge(t.id);
+    t.status = 'scheduled';
+    toast?.success('Referral acknowledged. Student will be notified to set a testing appointment.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to acknowledge referral.');
+  }
 }
 
 function toggleTest(test) {

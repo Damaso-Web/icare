@@ -198,42 +198,97 @@
                 </div>
               </div>
 
-              <!-- Previous Interventions — editable by GCU -->
+              <!-- Interventions — dated, authored list (B87, B92) -->
               <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:12px">
-                  Previous Interventions (if any)
+                <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                  Interventions
                   <div style="flex:1;height:1px;background:var(--cloud)"></div>
+                  <button v-if="isGCU" class="ibtn ibtn-p ibtn-sm" @click="openInterventionModal">
+                    <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add
+                  </button>
                 </div>
-                <div style="font-size:11px;color:var(--stone);margin-bottom:6px;font-style:italic">For OSS Personnel</div>
-                <textarea
-                  v-if="isGCU"
-                  v-model="previousInterventions"
-                  class="ifta"
-                  style="min-height:60px"
-                  placeholder="Describe any prior support or actions already taken..."
-                ></textarea>
-                <div
-                  v-else
-                  style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)"
-                >
-                  {{ previousInterventions || '—' }}
+                <div style="display:flex;gap:8px;margin-bottom:10px">
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">Follow-Ups: {{ caseFile.follow_up_count ?? 0 }}</span>
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">Parent Conferences: {{ caseFile.parent_conference_count ?? 0 }}</span>
                 </div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px" v-if="isGCU">
-                  <div>
-                    <label class="ifl">By</label>
-                    <input v-model="interventionBy" class="ifi" placeholder="Name of OSS Personnel" />
+                <div v-if="!caseFile.interventions?.length" style="font-size:12px;color:var(--fog);font-style:italic;padding:8px 0">
+                  No interventions recorded yet.
+                </div>
+                <div v-else style="display:flex;flex-direction:column;gap:10px">
+                  <div
+                    v-for="iv in caseFile.interventions"
+                    :key="iv.id"
+                    style="background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)"
+                  >
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                      <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ interventionTypeLabel(iv.type) }}</span>
+                      <span v-if="iv.is_completed" class="ibadge" style="background:var(--mist);color:var(--moss)">✓ Completed</span>
+                      <button v-else-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="markInterventionCompleted(iv)">Mark Completed</button>
+                    </div>
+                    <div style="font-size:13px;color:var(--slate);line-height:1.6;margin-top:6px">{{ iv.description }}</div>
+                    <div v-if="iv.excused !== null" style="font-size:11px;margin-top:4px" :style="iv.excused ? 'color:var(--moss)' : 'color:var(--red)'">
+                      {{ iv.excused ? 'Excused' : 'Unexcused' }}
+                    </div>
+                    <div style="font-size:11px;color:var(--fog);margin-top:6px">
+                      Recorded by {{ iv.recorded_by?.name }} · {{ formatDate(iv.created_at) }}
+                      <span v-if="iv.is_completed"> · Completed by {{ iv.completed_by?.name }} on {{ formatDate(iv.completed_at) }}</span>
+                    </div>
                   </div>
-                  <div>
-                    <label class="ifl">Date</label>
-                    <input v-model="interventionDate" type="date" class="ifi" />
-                  </div>
                 </div>
-                <button v-if="isGCU" class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="updateInterventions">
-                  <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-                  Update Interventions
-                </button>
               </div>
 
+            </div>
+          </div>
+
+          <!-- Referral History (B86, B93) -->
+          <div class="icard" v-if="caseFile.referrals?.length">
+            <div class="icard-header">
+              <span class="icard-title">Related Referrals</span>
+              <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ caseFile.referrals.length }} total</span>
+            </div>
+            <div>
+              <div
+                v-for="r in caseFile.referrals"
+                :key="r.id"
+                style="padding:12px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+                @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
+              >
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                  <div style="font-size:12.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
+                  <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
+                </div>
+                <div style="font-size:11px;color:var(--stone);margin-top:3px">
+                  {{ toTitleCase(r.referral_type) }} · {{ r.referred_by?.name }} · {{ formatDate(r.created_at) }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Appointments -->
+          <div class="icard" v-if="isGCU">
+            <div class="icard-header"><span class="icard-title">Appointments</span></div>
+            <div v-if="appointments.length === 0" class="empty-state">
+              <h3>No appointments yet</h3>
+            </div>
+            <div v-else>
+              <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}</div>
+                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ toTitleCase(a.appointment_type) }} · {{ a.staff?.name || 'TBA' }}</div>
+                  </div>
+                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
+                </div>
+                <button
+                  v-if="a.status === 'confirmed'"
+                  class="ibtn ibtn-sm"
+                  style="margin-top:8px;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
+                  @click="escalateNoShow(a)"
+                >
+                  Mark as Missed / No-Show
+                </button>
+              </div>
             </div>
           </div>
 
@@ -332,6 +387,124 @@
               <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                 ✓ Already referred to TMDU
               </div>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openHandoffModal">
+                <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Handoff Case
+              </button>
+            </div>
+          </div>
+
+          <!-- Handoff / Endorsement History -->
+          <div class="icard" v-if="caseFile.handoffs?.length">
+            <div class="icard-header"><span class="icard-title">Endorsement History</span></div>
+            <div>
+              <div v-for="h in caseFile.handoffs" :key="h.id" style="padding:12px 16px;border-bottom:1px solid var(--cloud)">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                  <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ h.from_unit }} → {{ h.to_unit }}</div>
+                  <span class="ibadge" :style="h.acknowledged ? 'background:var(--mist);color:var(--moss)' : 'background:var(--amber-lt);color:var(--amber)'">
+                    {{ h.acknowledged ? 'Received' : 'Pending' }}
+                  </span>
+                </div>
+                <div style="font-size:11px;color:var(--stone);margin-top:3px">
+                  {{ h.from_user?.name }} → {{ h.to_user?.name }} · {{ formatDate(h.created_at) }}
+                </div>
+                <div style="font-size:12px;color:var(--slate);margin-top:6px">{{ h.reason }}</div>
+                <div v-if="h.notes" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ h.notes }}</div>
+                <button
+                  v-if="!h.acknowledged && h.to_user_id === auth.user?.id"
+                  class="ibtn ibtn-p ibtn-sm"
+                  style="margin-top:8px"
+                  @click="confirmHandoffReceipt(h)"
+                >
+                  Confirm
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Add Intervention Modal -->
+          <div v-if="showInterventionModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showInterventionModal = false">
+            <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+              <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Intervention</div>
+                <button class="ibtn ibtn-g ibtn-sm" @click="showInterventionModal = false">✕</button>
+              </div>
+              <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+                <div>
+                  <label class="ifl">Type</label>
+                  <select v-model="interventionForm.type" class="ifse">
+                    <option value="previous_intervention">Previous Intervention</option>
+                    <option value="follow_up">Follow-Up</option>
+                    <option value="parent_conference">Parent Conference</option>
+                    <option value="home_visit">Home Visit</option>
+                    <option value="referral_external">External Referral</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div v-if="caseFile.referrals?.length">
+                  <label class="ifl">Related Referral (optional)</label>
+                  <select v-model="interventionForm.referral_id" class="ifse">
+                    <option value="">Not linked to a specific referral</option>
+                    <option v-for="r in caseFile.referrals" :key="r.id" :value="r.id">{{ r.referral_code }} — {{ toTitleCase(r.referral_type) }}</option>
+                  </select>
+                </div>
+                <div v-if="interventionShowsExcused">
+                  <label class="ifl">Excused?</label>
+                  <select v-model="interventionForm.excused" class="ifse">
+                    <option :value="null">Not applicable</option>
+                    <option :value="true">Excused</option>
+                    <option :value="false">Unexcused</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ifl">Description</label>
+                  <textarea v-model="interventionForm.description" class="ifta" style="min-height:80px" placeholder="Describe what was done..."></textarea>
+                </div>
+                <div v-if="interventionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ interventionError }}</div>
+                <div style="display:flex;gap:8px">
+                  <button class="ibtn ibtn-p" @click="submitIntervention">Save</button>
+                  <button class="ibtn ibtn-o" @click="showInterventionModal = false">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Handoff Modal -->
+          <div v-if="showHandoffModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showHandoffModal = false">
+            <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+              <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:15px;font-weight:600;color:var(--ink)">Handoff Case</div>
+                <button class="ibtn ibtn-g ibtn-sm" @click="showHandoffModal = false">✕</button>
+              </div>
+              <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+                <div>
+                  <label class="ifl">To Unit</label>
+                  <select v-model="handoffForm.to_unit" class="ifse">
+                    <option value="GCU">GCU</option>
+                    <option value="SDU">SDU</option>
+                    <option value="TMDU">TMDU</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ifl">Receiving Staff</label>
+                  <select v-model="handoffForm.to_user_id" class="ifse">
+                    <option value="">Select staff...</option>
+                    <option v-for="u in handoffStaffOptions" :key="u.id" :value="u.id">{{ u.name }}</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="ifl">Reason</label>
+                  <textarea v-model="handoffForm.reason" class="ifta" style="min-height:70px"></textarea>
+                </div>
+                <div>
+                  <label class="ifl">Notes</label>
+                  <textarea v-model="handoffForm.notes" class="ifta" style="min-height:60px"></textarea>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button class="ibtn ibtn-p" @click="submitHandoff">Send Handoff</button>
+                  <button class="ibtn ibtn-o" @click="showHandoffModal = false">Cancel</button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -388,9 +561,9 @@
         </div>
       </div>
 
-      <!-- Add Notes Drawer -->
-      <div v-if="showSessionModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="showSessionModal = false">
-        <div style="position:fixed;top:0;right:0;width:min(520px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
+      <!-- Add Notes Modal -->
+      <div v-if="showSessionModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showSessionModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Session Notes</div>
@@ -445,17 +618,6 @@
             <div>
               <label class="ifl">Next Steps</label>
               <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" placeholder="Recommended next steps?"></textarea>
-            </div>
-            <div>
-              <label class="ifl">Mood Rating (1=Distressed, 5=Stable)</label>
-              <select v-model="sessionForm.mood_rating" class="ifse">
-                <option value="">Select...</option>
-                <option value="1">1 — Very Distressed</option>
-                <option value="2">2 — Distressed</option>
-                <option value="3">3 — Neutral</option>
-                <option value="4">4 — Stable</option>
-                <option value="5">5 — Very Stable</option>
-              </select>
             </div>
             <div style="display:flex;gap:8px;padding-top:8px">
               <button class="ibtn ibtn-p" @click="logSession">
@@ -547,7 +709,7 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import { toTitleCase } from '../../utils/validators';
 import { useRoute } from 'vue-router';
-import { caseAPI, sessionNoteAPI, appointmentAPI } from '../../api/index';
+import { caseAPI, sessionNoteAPI, appointmentAPI, caseHandoffAPI, userAPI, caseInterventionAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 
 const route  = useRoute();
@@ -564,9 +726,64 @@ const showStatusModal      = ref(false);
 const showUnreachableModal = ref(false);
 const newStatus            = ref('');
 const unreachableNotes     = ref('');
-const previousInterventions = ref('');
-const interventionBy        = ref('');
-const interventionDate      = ref('');
+
+const showInterventionModal = ref(false);
+const interventionForm = ref({ type: 'previous_intervention', referral_id: '', excused: null, description: '' });
+const interventionError = ref('');
+
+const interventionShowsExcused = computed(() => {
+  if (!interventionForm.value.referral_id) return false;
+  const r = caseFile.value.referrals?.find(r => r.id === interventionForm.value.referral_id);
+  return r?.referral_type === 'class_attendance';
+});
+
+function interventionTypeLabel(type) {
+  const labels = {
+    previous_intervention: 'Previous Intervention',
+    follow_up: 'Follow-Up',
+    parent_conference: 'Parent Conference',
+    home_visit: 'Home Visit',
+    referral_external: 'External Referral',
+    other: 'Other',
+  };
+  return labels[type] || type;
+}
+
+function openInterventionModal() {
+  interventionForm.value = { type: 'previous_intervention', referral_id: '', excused: null, description: '' };
+  interventionError.value = '';
+  showInterventionModal.value = true;
+}
+
+async function submitIntervention() {
+  interventionError.value = '';
+  if (!interventionForm.value.description) {
+    interventionError.value = 'Please provide a description.';
+    return;
+  }
+  try {
+    const payload = { ...interventionForm.value, referral_id: interventionForm.value.referral_id || null };
+    const res = await caseInterventionAPI.store(caseFile.value.id, payload);
+    if (!caseFile.value.interventions) caseFile.value.interventions = [];
+    caseFile.value.interventions.unshift(res.data);
+    if (res.data.type === 'follow_up') caseFile.value.follow_up_count = (caseFile.value.follow_up_count || 0) + 1;
+    if (res.data.type === 'parent_conference') caseFile.value.parent_conference_count = (caseFile.value.parent_conference_count || 0) + 1;
+    showInterventionModal.value = false;
+    toast?.success('Intervention recorded.');
+  } catch (e) {
+    interventionError.value = e.response?.data?.message || 'Failed to save intervention.';
+  }
+}
+
+async function markInterventionCompleted(iv) {
+  try {
+    const res = await caseInterventionAPI.markCompleted(iv.id);
+    Object.assign(iv, res.data);
+    toast?.success('Marked as completed.');
+  } catch (e) {
+    toast?.error('Failed to mark as completed.');
+  }
+}
 
 const caseFile     = ref({});
 const sessionNotes = ref([]);
@@ -575,7 +792,7 @@ const appointments = ref([]);
 const sessionForm = ref({
   session_date: '', session_start_time: '', session_end_time: '',
   session_type: 'follow_up', observations: '', interventions: '',
-  student_response: '', next_steps: '', mood_rating: '', student_showed_up: true,
+  student_response: '', next_steps: '', student_showed_up: true,
 });
 
 const closeForm = ref({
@@ -596,7 +813,7 @@ async function logSession() {
     sessionForm.value = {
       session_date: '', session_start_time: '', session_end_time: '',
       session_type: 'follow_up', observations: '', interventions: '',
-      student_response: '', next_steps: '', mood_rating: '', student_showed_up: true,
+      student_response: '', next_steps: '', student_showed_up: true,
     };
   } catch (e) {
     toast?.error('Failed to save session notes.');
@@ -611,18 +828,6 @@ async function updateStatus() {
     toast?.success('Status updated.');
   } catch (e) {
     toast?.error('Failed to update status.');
-  }
-}
-
-async function updateInterventions() {
-  try {
-    await caseAPI.update(caseFile.value.id, {
-      intake_notes: previousInterventions.value,
-    });
-    caseFile.value.intake_notes = previousInterventions.value;
-    toast?.success('Previous interventions saved as intake notes.');
-  } catch (e) {
-    toast?.error('Failed to update interventions.');
   }
 }
 
@@ -656,6 +861,52 @@ async function referToTmdu() {
     toast?.success('Case referred to TMDU.');
   } catch (e) {
     toast?.error('Failed to refer to TMDU.');
+  }
+}
+
+const showHandoffModal = ref(false);
+const handoffForm = ref({ to_unit: 'GCU', to_user_id: '', reason: '', notes: '' });
+const staffOptions = ref([]);
+
+const handoffStaffOptions = computed(() => staffOptions.value);
+
+async function fetchStaffOptions() {
+  try {
+    const res = await userAPI.index({ is_active: 1 });
+    staffOptions.value = res.data.data || [];
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function openHandoffModal() {
+  handoffForm.value = { to_unit: 'GCU', to_user_id: '', reason: '', notes: '' };
+  showHandoffModal.value = true;
+  if (staffOptions.value.length === 0) fetchStaffOptions();
+}
+
+async function submitHandoff() {
+  if (!handoffForm.value.to_user_id || !handoffForm.value.reason) {
+    toast?.error('Please select receiving staff and provide a reason.');
+    return;
+  }
+  try {
+    await caseAPI.handoff(caseFile.value.id, handoffForm.value);
+    toast?.success('Case handed off successfully.');
+    showHandoffModal.value = false;
+    fetchCase();
+  } catch (e) {
+    toast?.error('Failed to hand off case.');
+  }
+}
+
+async function confirmHandoffReceipt(handoff) {
+  try {
+    await caseHandoffAPI.confirm(handoff.id);
+    handoff.acknowledged = true;
+    toast?.success('Receipt confirmed.');
+  } catch (e) {
+    toast?.error('Failed to confirm receipt.');
   }
 }
 
@@ -703,20 +954,21 @@ function formatReferralSource(source) {
   return labels[source] || source || '—';
 }
 
-onMounted(async () => {
+async function fetchCase() {
   try {
     const res = await caseAPI.show(route.params.id);
     caseFile.value          = res.data;
     sessionNotes.value      = res.data.session_notes || [];
     appointments.value      = res.data.appointments  || [];
     newStatus.value         = res.data.status;
-    previousInterventions.value = res.data.intake_notes || '';
-    interventionBy.value        = res.data.latest_referral?.intervention_by || '';
-    interventionDate.value      = res.data.latest_referral?.intervention_date || '';
   } catch (e) {
     console.error(e);
   } finally {
     loading.value = false;
   }
+}
+
+onMounted(() => {
+  fetchCase();
 });
 </script>

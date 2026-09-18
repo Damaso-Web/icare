@@ -50,56 +50,42 @@
           </div>
 
           <div style="font-size:13px;color:var(--stone);line-height:1.6">
-            Please select your preferred date and time below. Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.
+            Tap an open time slot below. Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.
           </div>
 
-          <div>
-            <label class="ifl">Preferred Date <span style="color:var(--red)">*</span></label>
-            <input v-model="form.appointment_date" type="date" class="ifi" :min="minDate" @change="checkAvailability" />
-            <div v-if="dayWarning" style="font-size:11px;color:var(--red);margin-top:4px">
-              Please select a weekday (Monday to Friday).
+          <!-- Week Navigator -->
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <button class="ibtn ibtn-g ibtn-sm" @click="prevWeek" :disabled="isThisWeek">‹ Prev</button>
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ weekLabel }}</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="nextWeek">Next ›</button>
+          </div>
+
+          <!-- Availability Grid -->
+          <div v-if="loadingGrid" style="text-align:center;padding:24px">
+            <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+          </div>
+          <div v-else style="overflow-x:auto">
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;min-width:480px">
+              <div v-for="day in weekGrid" :key="day.date" style="display:flex;flex-direction:column;gap:5px">
+                <div style="text-align:center;font-size:11px;font-weight:700;color:var(--stone);padding:4px 0;border-bottom:1px solid var(--cloud)">
+                  {{ day.label }}
+                </div>
+                <button
+                  v-for="slot in day.slots"
+                  :key="slot.start"
+                  type="button"
+                  :disabled="!slot.available"
+                  @click="selectSlot(day.date, slot)"
+                  :style="slotStyle(day.date, slot)"
+                >
+                  {{ formatSlotTime(slot.start) }}
+                </button>
+              </div>
             </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
-              <select v-model="form.start_time" class="ifse" @change="checkAvailability">
-                <option value="">Select...</option>
-                <option value="08:00">08:00 AM</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="13:00">01:00 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="15:00">03:00 PM</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
-              <select v-model="form.end_time" class="ifse" @change="checkAvailability">
-                <option value="">Select...</option>
-                <option value="09:00">09:00 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="12:00">12:00 PM</option>
-                <option value="14:00">02:00 PM</option>
-                <option value="15:00">03:00 PM</option>
-                <option value="16:00">04:00 PM</option>
-              </select>
-            </div>
-          </div>
-
-          <div v-if="timeOrderError" style="font-size:11px;color:var(--red);margin-top:-8px">
-            End time must be later than start time.
-          </div>
-
-          <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
-          <div v-else-if="availabilityChecked && !isAvailable" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ This time slot is already taken. Please choose another.
-          </div>
-          <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
-            ✓ This time slot is available.
+          <div v-if="form.appointment_date && form.start_time" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--forest)">
+            ✓ Selected: {{ formatDate(form.appointment_date) }}, {{ formatSlotTime(form.start_time) }} – {{ formatSlotTime(form.end_time) }}
           </div>
 
           <div v-if="submitError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">
@@ -119,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 
@@ -133,11 +119,9 @@ const submitting = ref(false);
 const submitError = ref('');
 const appointment = ref({});
 const referral     = ref(null);
-const dayWarning   = ref(false);
-const timeOrderError = ref(false);
-const checkingAvailability = ref(false);
-const availabilityChecked  = ref(false);
-const isAvailable = ref(false);
+
+const loadingGrid = ref(false);
+const weekGrid    = ref([]);
 
 const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
 
@@ -147,45 +131,89 @@ const form = ref({
   end_time: '',
 });
 
-const today = new Date();
-const minDate = computed(() => today.toISOString().split('T')[0]);
+function mondayOf(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  d.setDate(diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
-const canSubmit = computed(() => {
-  return form.value.appointment_date && form.value.start_time && form.value.end_time &&
-         !dayWarning.value && !timeOrderError.value && availabilityChecked.value && isAvailable.value;
+const currentWeekStart = ref(mondayOf(new Date()));
+
+const isThisWeek = computed(() => {
+  return currentWeekStart.value.getTime() <= mondayOf(new Date()).getTime();
 });
 
-function checkDayOfWeek() {
-  if (!form.value.appointment_date) { dayWarning.value = false; return; }
-  const d = new Date(form.value.appointment_date + 'T00:00:00');
-  const day = d.getDay();
-  dayWarning.value = (day === 0 || day === 6);
+const weekLabel = computed(() => {
+  const start = currentWeekStart.value;
+  const end = new Date(start);
+  end.setDate(end.getDate() + 4);
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+});
+
+const canSubmit = computed(() => {
+  return !!(form.value.appointment_date && form.value.start_time && form.value.end_time);
+});
+
+function formatSlotTime(t) {
+  const [h, m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
-async function checkAvailability() {
-  checkDayOfWeek();
-  availabilityChecked.value = false;
-  timeOrderError.value = false;
-
-  if (dayWarning.value || !form.value.appointment_date || !form.value.start_time || !form.value.end_time) return;
-
-  if (form.value.end_time <= form.value.start_time) {
-    timeOrderError.value = true;
-    return;
+function slotStyle(date, slot) {
+  const isSelected = form.value.appointment_date === date && form.value.start_time === slot.start;
+  if (isSelected) {
+    return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1.5px solid var(--moss);background:var(--moss);color:#fff;cursor:pointer;font-weight:600';
   }
+  if (!slot.available) {
+    return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1px solid var(--cloud);background:var(--cloud);color:var(--fog);cursor:not-allowed';
+  }
+  return 'padding:8px 4px;border-radius:6px;font-size:11.5px;border:1px solid var(--mint);background:var(--mist);color:var(--moss);cursor:pointer';
+}
 
-  checkingAvailability.value = true;
+function selectSlot(date, slot) {
+  if (!slot.available) return;
+  form.value.appointment_date = date;
+  form.value.start_time = slot.start;
+  form.value.end_time = slot.end;
+}
+
+async function fetchWeekGrid() {
+  loadingGrid.value = true;
   try {
-    const res = await axios.post(`${API_BASE}/schedule/${token}/check-availability`, form.value);
-    isAvailable.value = res.data.available;
-    availabilityChecked.value = true;
+    const weekStartStr = currentWeekStart.value.toISOString().split('T')[0];
+    const res = await axios.get(`${API_BASE}/schedule/${token}/week`, {
+      params: { week_start: weekStartStr },
+    });
+    weekGrid.value = res.data.days;
   } catch (e) {
-    isAvailable.value = false;
-    availabilityChecked.value = true;
+    weekGrid.value = [];
   } finally {
-    checkingAvailability.value = false;
+    loadingGrid.value = false;
   }
 }
+
+function prevWeek() {
+  if (isThisWeek.value) return;
+  const d = new Date(currentWeekStart.value);
+  d.setDate(d.getDate() - 7);
+  currentWeekStart.value = d;
+}
+
+function nextWeek() {
+  const d = new Date(currentWeekStart.value);
+  d.setDate(d.getDate() + 7);
+  currentWeekStart.value = d;
+}
+
+watch(currentWeekStart, () => {
+  form.value = { appointment_date: '', start_time: '', end_time: '' };
+  fetchWeekGrid();
+});
 
 async function submitSchedule() {
   submitError.value = '';
@@ -195,13 +223,14 @@ async function submitSchedule() {
     submitted.value = true;
   } catch (e) {
     submitError.value = e.response?.data?.message || 'Failed to submit your request. Please try again.';
+    fetchWeekGrid();
   } finally {
     submitting.value = false;
   }
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  return date ? new Date(date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '';
 }
 
 onMounted(async () => {
@@ -209,6 +238,7 @@ onMounted(async () => {
     const res = await axios.get(`${API_BASE}/schedule/${token}`);
     appointment.value = res.data.appointment;
     referral.value     = res.data.referral;
+    await fetchWeekGrid();
   } catch (e) {
     error.value = e.response?.data?.message || 'This scheduling link is invalid or has expired.';
   } finally {

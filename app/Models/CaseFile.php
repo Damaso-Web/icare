@@ -61,18 +61,25 @@ class CaseFile extends Model
     protected static function booted(): void
     {
         static::creating(function (CaseFile $case) {
-            $year = now()->year;
-            $lastNumber = static::withTrashed()
-                ->where('case_number', 'like', "CASE-{$year}-%")
-                ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
-                ->value('case_number');
+            $studentId = optional(Student::find($case->student_id))->student_id;
 
-            $nextNumber = 1;
-            if ($lastNumber) {
-                $nextNumber = (int) substr($lastNumber, -4) + 1;
+            if ($studentId) {
+                $case->case_number = 'CASE-' . $studentId;
+            } else {
+                // Fallback for the rare case where the student record can't be resolved yet
+                $year = now()->year;
+                $lastNumber = static::withTrashed()
+                    ->where('case_number', 'like', "CASE-{$year}-%")
+                    ->orderByRaw('CAST(SUBSTRING(case_number, -4) AS UNSIGNED) DESC')
+                    ->value('case_number');
+
+                $nextNumber = 1;
+                if ($lastNumber) {
+                    $nextNumber = (int) substr($lastNumber, -4) + 1;
+                }
+
+                $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             }
-
-            $case->case_number = 'CASE-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
 

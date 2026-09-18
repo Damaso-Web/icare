@@ -19,9 +19,17 @@ class UserController extends Controller
                    ->orWhere('email', 'like', "%{$request->search}%")
             ))
             ->when($request->role, fn($q) => $q->where('role', $request->role))
+            ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active));
 
-        return response()->json($query->latest()->paginate(20));
+        $query = match ($request->sort) {
+            'name_desc' => $query->orderByDesc('name'),
+            'oldest'    => $query->oldest(),
+            'newest'    => $query->latest(),
+            default     => $query->orderBy('name'),
+        };
+
+        return response()->json($query->paginate(20));
     }
 
     public function store(Request $request)

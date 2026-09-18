@@ -41,11 +41,48 @@
 
     <!-- Main content -->
     <div style="flex:1;background:var(--snow);min-width:0">
-      <div style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between">
+      <div style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:relative">
         <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
-        <span style="font-size:13px;color:var(--stone)">{{ student.email }}</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:13px;color:var(--stone)">{{ student.email }}</span>
+
+          <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:8px">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            </svg>
+            <span v-if="unreadCount > 0" style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff"></span>
+          </button>
+
+          <div v-if="showNotifs" style="position:absolute;top:58px;right:16px;width:320px;background:#fff;border-radius:16px;box-shadow:var(--sh-lg);border:1px solid var(--cloud);z-index:100;overflow:hidden">
+            <div style="padding:12px 16px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">Notifications</div>
+              <button class="ibtn ibtn-g ibtn-sm" @click="markAllRead" style="font-size:11px">Mark all read</button>
+            </div>
+            <div style="max-height:320px;overflow-y:auto">
+              <div v-if="notifications.length === 0" style="padding:20px;text-align:center;font-size:13px;color:var(--fog)">
+                No notifications
+              </div>
+              <div
+                v-for="n in notifications"
+                :key="n.id"
+                style="padding:12px 16px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
+                :style="{ background: n.read ? '#fff' : 'var(--foam)' }"
+                @click="markOneRead(n)"
+              >
+                <div style="display:flex;gap:10px;align-items:flex-start">
+                  <div style="width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0" :style="{ background: n.read ? 'transparent' : 'var(--moss)' }"></div>
+                  <div>
+                    <div style="font-size:13px;color:var(--ink)">{{ n.text }}</div>
+                    <div style="font-size:11px;color:var(--fog);margin-top:2px">{{ n.time }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-      <div style="padding:24px">
+      <div style="padding:24px" @click="showNotifs = false">
         <router-view />
       </div>
     </div>
@@ -53,12 +90,59 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { studentNotificationAPI } from '../api/index';
 
 const route  = useRoute();
 const router = useRouter();
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
+
+const showNotifs = ref(false);
+const notifications = ref([]);
+
+async function fetchNotifications() {
+  try {
+    const res = await studentNotificationAPI.index();
+    notifications.value = (res.data.data || []).map(n => ({
+      id: n.id,
+      text: n.data.message,
+      time: formatRelativeTime(n.created_at),
+      read: !!n.read_at,
+    }));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function formatRelativeTime(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+  if (diff < 172800) return 'Yesterday';
+  return Math.floor(diff / 86400) + ' days ago';
+}
+
+const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
+
+async function markAllRead() {
+  try {
+    await studentNotificationAPI.markAllRead();
+    notifications.value.forEach(n => n.read = true);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function markOneRead(n) {
+  if (n.read) return;
+  n.read = true;
+  try {
+    await studentNotificationAPI.markRead(n.id);
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 const menuItems = [
   { name: 'student-dashboard', label: 'Dashboard', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
@@ -90,4 +174,8 @@ function logout() {
   localStorage.removeItem('student');
   router.push({ name: 'student-login' });
 }
+
+onMounted(() => {
+  fetchNotifications();
+});
 </script>

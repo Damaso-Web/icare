@@ -88,6 +88,20 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request, Appointment $appointment)
     {
+        if ($request->filled('staff_user_id')) {
+            $hasConflict = Appointment::hasConflict(
+                $request->staff_user_id,
+                $appointment->appointment_date->format('Y-m-d'),
+                $appointment->start_time,
+                $appointment->end_time,
+                $appointment->id
+            );
+
+            if ($hasConflict) {
+                return response()->json(['message' => 'The selected staff member already has a conflicting appointment at this time. Please choose a different staff member or time.'], 422);
+            }
+        }
+
         $updateData = [
             'status'               => 'confirmed',
             'request_status'       => 'confirmed',
@@ -100,6 +114,15 @@ class AppointmentController extends Controller
         }
 
         $appointment->update($updateData);
+
+        $appointment->student->notify(new \App\Notifications\AppointmentConfirmedNotification($appointment));
+
+        $referralType = $appointment->case?->latestReferral?->referral_type;
+        $requiredDocs = Appointment::DOCUMENT_REQUIREMENTS[$referralType] ?? [];
+        if (!empty($requiredDocs)) {
+            $appointment->update(['required_documents' => $requiredDocs]);
+            $appointment->student->notify(new \App\Notifications\PrepareDocumentsNotification($appointment));
+        }
 
         if ($appointment->case?->latestReferral) {
             $appointment->case->latestReferral->update(['status' => 'in_progress']);

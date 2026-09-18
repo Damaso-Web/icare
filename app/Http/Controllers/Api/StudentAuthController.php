@@ -80,7 +80,7 @@ class StudentAuthController extends Controller
         ->first();
 
     return response()->json([
-        'appointments'         => $student->appointments()->with('staff')->latest()->get(),
+        'appointments'         => $student->appointments()->with(['staff', 'case.latestReferral'])->latest()->get(),
         'referrals'            => $student->referrals()->latest()->get(),
         'pending_appointment'  => $pendingAppointment,
     ]);
@@ -116,8 +116,105 @@ public function showReferral(Request $request, $id)
 public function showAppointment(Request $request, $id)
 {
     $student = $request->user('student');
-    $appointment = $student->appointments()->with(['staff', 'case'])->findOrFail($id);
+    $appointment = $student->appointments()->with(['staff', 'case.latestReferral'])->findOrFail($id);
     return response()->json($appointment);
+}
+
+public function notifications(Request $request)
+{
+    $student = $request->user('student');
+    return response()->json($student->notifications()->latest()->paginate(20));
+}
+
+public function markNotificationRead(Request $request, string $id)
+{
+    $student = $request->user('student');
+    $notification = $student->notifications()->findOrFail($id);
+    $notification->markAsRead();
+    return response()->json(['message' => 'Notification marked as read.']);
+}
+
+public function markAllNotificationsRead(Request $request)
+{
+    $student = $request->user('student');
+    $student->unreadNotifications->markAsRead();
+    return response()->json(['message' => 'All notifications marked as read.']);
+}
+
+// Feature B76: Student-initiated reschedule request
+public function requestReschedule(Request $request, $id)
+{
+    $student = $request->user('student');
+    $appointment = $student->appointments()->findOrFail($id);
+
+    if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+        return response()->json(['message' => 'This appointment can no longer be rescheduled.'], 422);
+    }
+
+    $request->validate(['reason' => 'required|string']);
+
+    $newCount = $appointment->reschedule_count + 1;
+
+    if ($newCount >= \App\Models\Appointment::MAX_RESCHEDULES) {
+        $appointment->update([
+            'status'               => 'no_show',
+            'reschedule_count'     => $newCount,
+            'no_show_escalated'    => true,
+            'no_show_escalated_at' => now(),
+        ]);
+
+        $deanSecretaries = \App\Models\User::where('role', 'dean_secretary')
+            ->where('college', $student->college)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($deanSecretaries as $secretary) {
+            $secretary->notify(new \App\Notifications\NoShowEscalationNotification($appointment));
+        }
+
+        \App\Models\AuditLog::record('reschedule_limit_reached', "Student exceeded reschedule limit for appointment {$appointment->appointment_code}. Flagged as no-show.", $appointment);
+
+        return response()->json(['message' => 'You have reached the maximum number of reschedules. This has been flagged for staff follow-up.', 'appointment' => $appointment], 422);
+    }
+
+    $newToken = \Illuminate\Support\Str::random(48);
+
+    $appointment->update([
+        'request_status'    => 'awaiting_student',
+        'status'            => 'pending',
+        'scheduling_token'  => $newToken,
+        'token_expires_at'  => now()->addDays(7),
+        'reschedule_reason' => 'Student requested: ' . $request->reason,
+        'reschedule_count'  => $newCount,
+    ]);
+
+    \App\Models\AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code} ({$newCount}/" . \App\Models\Appointment::MAX_RESCHEDULES . ").", $appointment);
+
+    return response()->json(['message' => 'Reschedule request submitted. Please pick a new time.', 'appointment' => $appointment]);
+}
+
+// Feature B77: Student-initiated cancellation with reason
+public function cancelAppointment(Request $request, $id)
+{
+    $student = $request->user('student');
+    $appointment = $student->appointments()->findOrFail($id);
+
+    if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+        return response()->json(['message' => 'This appointment cannot be cancelled.'], 422);
+    }
+
+    $request->validate(['reason' => 'required|string']);
+
+    $appointment->update([
+        'status'               => 'cancelled',
+        'request_status'       => 'confirmed',
+        'cancellation_reason'  => $request->reason,
+        'cancelled_at'         => now(),
+    ]);
+
+    \App\Models\AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->reason}", $appointment);
+
+    return response()->json(['message' => 'Appointment cancelled.', 'appointment' => $appointment]);
 }
 
 }

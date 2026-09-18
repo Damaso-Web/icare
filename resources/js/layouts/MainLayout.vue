@@ -77,7 +77,7 @@
                 :key="n.id"
                 style="padding:12px 16px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
                 :style="{ background: n.read ? '#fff' : 'var(--foam)' }"
-                @click="n.read = true"
+                @click="markOneRead(n)"
               >
                 <div style="display:flex;gap:10px;align-items:flex-start">
                   <div style="width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0" :style="{ background: n.read ? 'transparent' : 'var(--moss)' }"></div>
@@ -107,6 +107,7 @@
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { notificationAPI } from '../api/index';
 
 const router = useRouter();
 const route  = useRoute();
@@ -114,18 +115,39 @@ const auth   = useAuthStore();
 
 const showNotifs = ref(false);
 
-const notifications = ref([
-  { id: 1, text: 'New referral submitted for Maria Santos',      time: '2 hours ago', read: false },
-  { id: 2, text: 'Appointment confirmed: Ana Versoza - Jul 11',  time: '3 hours ago', read: false },
-  { id: 3, text: 'TMDU completed assessment for Luz Bacani',     time: 'Yesterday',   read: true  },
-  { id: 4, text: 'Case CASE-2026-0005 has been closed',          time: 'Yesterday',   read: true  },
-  { id: 5, text: 'Reminder: 3 appointments scheduled this week', time: '2 days ago',  read: true  },
-]);
+const notifications = ref([]);
+
+async function fetchNotifications() {
+  try {
+    const res = await notificationAPI.index();
+    notifications.value = (res.data.data || []).map(n => ({
+      id: n.id,
+      text: n.data.message,
+      time: formatRelativeTime(n.created_at),
+      read: !!n.read_at,
+    }));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function formatRelativeTime(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 3600) return Math.floor(diff / 60) + ' minutes ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + ' hours ago';
+  if (diff < 172800) return 'Yesterday';
+  return Math.floor(diff / 86400) + ' days ago';
+}
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read).length);
 
-function markAllRead() {
-  notifications.value.forEach(n => n.read = true);
+async function markAllRead() {
+  try {
+    await notificationAPI.markAllRead();
+    notifications.value.forEach(n => n.read = true);
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 const initials = computed(() => {
@@ -190,6 +212,12 @@ const menuItems = computed(() => {
       icon:    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
       roles:   ['admin'],
       section: null,
+    },
+    {
+    path: 'monitoring',
+    name: 'monitoring',
+    component: () => import('../views/Monitoring.vue'),
+    meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'] },
     },
     {
       name:    'referral-create',
@@ -298,4 +326,8 @@ async function handleLogout() {
   await auth.logout();
   router.push({ name: 'login' });
 }
+
+onMounted(() => {
+  fetchNotifications();
+});
 </script>

@@ -11,9 +11,11 @@ class Kernel extends ConsoleKernel
      * Define the application's command schedule.
      */
     protected function schedule(Schedule $schedule): void
-{
-    $schedule->command('cases:fix-constraint')->daily();
-}
+    {
+        $schedule->command('cases:fix-constraint')->daily();
+        $schedule->command('reminders:follow-up')->dailyAt('08:00');
+        $schedule->command('appointments:detect-no-show')->hourly();
+    }
 
     /**
      * Register the commands for the application.

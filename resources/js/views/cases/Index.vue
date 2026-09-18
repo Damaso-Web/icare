@@ -36,6 +36,10 @@
         <option value="disciplinary">Disciplinary</option>
         <option value="consultation">Consultation</option>
       </select>
+      <select v-model="filters.requires_follow_up" class="fsm" @change="fetchCases">
+        <option value="">All Cases</option>
+        <option value="1">Needs Follow-Up</option>
+      </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
 
@@ -102,7 +106,7 @@ import { caseAPI } from '../../api/index';
 const cases      = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', type: '' });
+const filters    = ref({ search: '', status: '', unit: '', type: '', requires_follow_up: '' });
 
 async function fetchCases(page = 1) {
   loading.value = true;
@@ -118,7 +122,7 @@ async function fetchCases(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '' };
+  filters.value = { search: '', status: '', unit: '', type: '', requires_follow_up: '' };
   fetchCases();
 }
 

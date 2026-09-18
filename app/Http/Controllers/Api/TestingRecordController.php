@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\TestingRecord;
+use App\Models\Appointment;
+use App\Notifications\ReferralAcknowledgedNotification;
 use Illuminate\Http\Request;
 
 class TestingRecordController extends Controller
@@ -26,6 +28,46 @@ class TestingRecordController extends Controller
     {
         AuditLog::record('viewed', "Viewed testing record #{$testingRecord->id}.", $testingRecord);
         return response()->json($testingRecord->load(['student', 'referredBy', 'tester', 'case', 'documents']));
+    }
+
+    // TMDU acknowledges the referred case and the student is prompted to pick a
+    // testing appointment, the same way GCU's initial acknowledge works.
+    public function acknowledge(Request $request, TestingRecord $testingRecord)
+    {
+        $user = $request->user();
+
+        if ($testingRecord->status !== 'pending') {
+            return response()->json(['message' => 'This testing referral has already been acknowledged.'], 422);
+        }
+
+        $testingRecord->update([
+            'status'                  => 'scheduled',
+            'assigned_tester_user_id' => $testingRecord->assigned_tester_user_id ?? $user->id,
+        ]);
+
+        $token = \Illuminate\Support\Str::random(48);
+        $appointment = Appointment::create([
+            'case_id'             => $testingRecord->case_id,
+            'student_id'          => $testingRecord->student_id,
+            'staff_user_id'       => $user->id,
+            'created_by_user_id'  => $user->id,
+            'appointment_type'    => 'psychological_testing',
+            'unit'                => 'TMDU',
+            'scheduling_token'    => $token,
+            'token_expires_at'    => now()->addDays(7),
+            'request_status'      => 'awaiting_student',
+            'status'              => 'pending',
+            'appointment_date'    => now()->addDays(1)->format('Y-m-d'),
+            'start_time'          => '08:00',
+            'end_time'            => '09:00',
+        ]);
+
+        AuditLog::record('acknowledged', "TMDU acknowledged testing referral for testing record #{$testingRecord->id}.", $testingRecord);
+
+        return response()->json([
+            'testing_record' => $testingRecord,
+            'appointment'    => $appointment,
+        ]);
     }
 
     public function update(Request $request, TestingRecord $testingRecord)

@@ -147,3 +147,26 @@ export const callSlipAPI = {
   reschedule: (id) => api.post(`/call-slips/${id}/reschedule`),
   escalate: (id, data) => api.post(`/call-slips/${id}/escalate`, data),
 };
+
+export const studentNotificationAPI = {
+    index:       ()   => api.get('/student/notifications'),
+    markRead:    (id) => api.post(`/student/notifications/${id}/read`),
+    markAllRead: ()   => api.post('/student/notifications/read-all'),
+};
+
+export const caseHandoffAPI = {
+    confirm: (id) => api.post(`/case-handoffs/${id}/confirm`),
+};
+
+export const monitoringAPI = {
+    index: () => api.get('/monitoring'),
+};
+
+export const availabilityAPI = {
+    weekGrid: (token, weekStart) => api.get(`/schedule/${token}/week`, { params: { week_start: weekStart } }),
+};
+
+export const caseInterventionAPI = {
+    store: (caseId, data) => api.post(`/cases/${caseId}/interventions`, data),
+    markCompleted: (id) => api.post(`/case-interventions/${id}/complete`),
+};

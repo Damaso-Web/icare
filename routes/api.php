@@ -18,6 +18,10 @@ use App\Http\Controllers\Api\StaffAvailabilityController;
 use App\Http\Controllers\Api\PublicSchedulingController;
 use App\Http\Controllers\Api\StudentAuthController;
 use App\Http\Controllers\Api\CallSlipController;
+use App\Http\Controllers\Api\CronController;
+use App\Http\Controllers\Api\CaseInterventionController;
+use App\Http\Controllers\Api\MonitoringController;
+use App\Http\Controllers\Api\AvailabilityController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -49,6 +53,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
+    Route::get('student/notifications', [StudentAuthController::class, 'notifications']);
+    Route::post('student/notifications/{id}/read', [StudentAuthController::class, 'markNotificationRead']);
+    Route::post('student/notifications/read-all', [StudentAuthController::class, 'markAllNotificationsRead']);
 
 
     // Referrals
@@ -69,9 +76,15 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cases/{case}/refer-tmdu',     [CaseController::class, 'referToTmdu']);
     Route::post('cases/{case}/refer-external', [CaseController::class, 'referExternal']);
     Route::post('cases/{case}/handoff',        [CaseController::class, 'handoff']);
+    Route::post('case-handoffs/{handoff}/confirm', [CaseController::class, 'confirmHandoff']);
+    Route::get('college-follow-ups', [CaseController::class, 'collegeFollowUps']);
 
-
+    //Case Intervention
     Route::post('cases/{case}/flag-unreachable',            [CaseController::class, 'flagUnreachable']);
+    Route::post('cases/{case}/flag-follow-up', [CaseController::class, 'flagFollowUp']);
+    Route::post('cases/{case}/resolve-follow-up', [CaseController::class, 'resolveFollowUp']);
+    Route::post('cases/{case}/interventions', [CaseInterventionController::class, 'store']);
+    Route::post('case-interventions/{intervention}/complete', [CaseInterventionController::class, 'markCompleted']);
 
     // Session Notes
     Route::get('cases/{case}/session-notes',           [SessionNoteController::class, 'index']);
@@ -89,6 +102,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
+    Route::post('student/appointments/{id}/request-reschedule', [StudentAuthController::class, 'requestReschedule']);
+    Route::post('student/appointments/{id}/cancel', [StudentAuthController::class, 'cancelAppointment']);
+
+    //Monitoring
+    Route::get('monitoring', [MonitoringController::class, 'index']);
 
     // Staff Availability
     Route::apiResource('staff-availability', StaffAvailabilityController::class);
@@ -96,6 +114,7 @@ Route::middleware('auth:sanctum')->group(function () {
     // Testing Records
     Route::apiResource('testing-records', TestingRecordController::class);
     Route::patch('testing-records/{testingRecord}/status',      [TestingRecordController::class, 'updateStatus']);
+    Route::post('testing-records/{testingRecord}/acknowledge', [TestingRecordController::class, 'acknowledge']);
     Route::post('testing-records/{testingRecord}/send-to-gcu',  [TestingRecordController::class, 'sendToGcu']);
 
     // Documents
@@ -137,6 +156,11 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
 Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
 Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
+Route::get('schedule/{token}/week', [AvailabilityController::class, 'weekGrid']);
+
+// Cron trigger route (protected by X-Cron-Secret header, not user auth — called by external cron service)
+Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders']);
+Route::post('cron/detect-no-shows', [CronController::class, 'detectNoShows']);
 
 // Student authentication routes (completely separate from staff auth:sanctum group)
 Route::post('student/login', [StudentAuthController::class, 'login']);

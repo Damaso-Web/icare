@@ -48,6 +48,16 @@
         <option value="faculty">Faculty</option>
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
+      <select v-model="filters.college" class="fsm" @change="fetchUsers">
+        <option value="">All Colleges</option>
+        <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+      </select>
+      <select v-model="filters.sort" class="fsm" @change="fetchUsers">
+        <option value="name_asc">Name (A–Z)</option>
+        <option value="name_desc">Name (Z–A)</option>
+        <option value="newest">Newest First</option>
+        <option value="oldest">Oldest First</option>
+      </select>
       <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
@@ -343,7 +353,7 @@ const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', role: '' });
+const filters    = ref({ search: '', role: '', college: '', sort: 'name_asc' });
 const showInactive = ref(false);
 const colleges   = COLLEGES;
 const viewedUser = ref({});
@@ -542,7 +552,7 @@ async function uploadImportFile() {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', role: '' };
+  filters.value = { search: '', role: '', college: '', sort: 'name_asc' };
   fetchUsers();
 }
 

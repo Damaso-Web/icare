@@ -82,9 +82,12 @@
       </div>
       <div v-else>
         <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer" @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })">
-        <div v-if="a.request_status === 'awaiting_student'" style="font-size:13.5px;font-weight:600;color:var(--amber)">Reschedule Requested — Pick a New Time</div>
+        <div v-if="a.request_status === 'awaiting_student'" style="font-size:13.5px;font-weight:600;color:var(--amber)">Set Your Appointment Schedule</div>
         <div v-else style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}</div>
         <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ a.unit }} · {{ toTitleCase(a.appointment_type) }}</div>
+        <div v-if="a.case?.latest_referral" style="font-size:11px;color:var(--fog);margin-top:2px">
+          For referral: {{ a.case.latest_referral.referral_code }} ({{ toTitleCase(a.case.latest_referral.referral_type) }})
+        </div>
         <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(a.status) }}</span>
       </div>
       </div>

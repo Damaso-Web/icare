@@ -42,11 +42,17 @@ class ReferralController extends Controller
                   ->orWhere('student_id', 'like', "%{$request->search}%")
             ));
 
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
+        if ($user->isFaculty()) {
             $query->where('referred_by_user_id', $user->id);
+        } elseif ($user->isDeanSecretary()) {
+            $query->whereHas('student', fn($s) => $s->where('college', $user->college));
         }
 
-        return response()->json($query->orderBy('created_at', $sortDirection)->paginate(20));
+        return response()->json(
+            $query->orderByRaw("CASE WHEN status IN ('resolved', 'completed', 'closed') THEN 1 ELSE 0 END ASC")
+                  ->orderBy('created_at', $sortDirection)
+                  ->paginate(20)
+        );
     }
 
     public function archived(Request $request)
@@ -92,6 +98,15 @@ class ReferralController extends Controller
         ]);
 
         AuditLog::record('created', "Submitted referral {$referral->referral_code} for student {$student->student_id}.", $referral);
+
+        $deanSecretaries = \App\Models\User::where('role', 'dean_secretary')
+            ->where('college', $student->college)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($deanSecretaries as $secretary) {
+            $secretary->notify(new \App\Notifications\ReferralSubmittedToCollegeNotification($referral));
+        }
 
         return response()->json([
             ...$referral->load(['student', 'referredBy'])->toArray(),
@@ -153,6 +168,12 @@ class ReferralController extends Controller
             'acknowledged_by_user_id' => $request->user()->id,
         ]);
 
+        $unit = match ($referral->referral_type) {
+            'disciplinary'           => 'SDU',
+            'psychological_testing'  => 'TMDU',
+            default                  => 'GCU',
+        };
+
         // A student has exactly one case file for life. Reuse the existing
         // case if the referral doesn't already carry a case_id (e.g. a
         // referral submitted before this student had a case at all).
@@ -161,7 +182,7 @@ class ReferralController extends Controller
             ?? CaseFile::create([
                 'student_id'   => $referral->student_id,
                 'case_type'    => $referral->referral_type,
-                'current_unit' => 'GCU',
+                'current_unit' => $unit,
                 'status'       => 'open',
                 'opened_date'  => today(),
             ]);
@@ -183,6 +204,10 @@ class ReferralController extends Controller
         $referral->update(['status' => 'in_review']);
         $referral->refresh();
 
+        if ($referral->referredBy) {
+            $referral->referredBy->notify(new \App\Notifications\ReferralAcknowledgedNotification($referral));
+        }
+
         // Create a pending appointment request with a scheduling link for the student
         $token = \Illuminate\Support\Str::random(48);
         $appointment = \App\Models\Appointment::create([
@@ -191,7 +216,7 @@ class ReferralController extends Controller
             'staff_user_id'       => $request->user()->id,
             'created_by_user_id'  => $request->user()->id,
             'appointment_type'    => 'initial_counseling',
-            'unit'                => 'GCU',
+            'unit'                => $unit,
             'scheduling_token'    => $token,
             'token_expires_at'    => now()->addDays(7),
             'request_status'      => 'awaiting_student',
@@ -228,11 +253,16 @@ class ReferralController extends Controller
     public function updateStatus(Request $request, Referral $referral)
     {
         $request->validate([
-            'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
+            'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,resolved,completed,closed'
         ]);
-        $old = ['status' => $referral->status];
+        $oldStatus = $referral->status;
         $referral->update(['status' => $request->status]);
-        AuditLog::record('status_updated', "Updated referral {$referral->referral_code} status to {$request->status}.", $referral, $old);
+
+        if ($referral->referredBy && $oldStatus !== $referral->status) {
+            $referral->referredBy->notify(new \App\Notifications\ReferralStatusUpdatedNotification($referral, $oldStatus));
+        }
+
+        AuditLog::record('status_updated', "Updated referral {$referral->referral_code} status to {$request->status}.", $referral, ['status' => $oldStatus]);
         return response()->json($referral);
     }
 
@@ -249,6 +279,10 @@ class ReferralController extends Controller
     private function authorizeView(Referral $referral, $user): void
     {
         if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
+            abort(403, 'Unauthorized.');
+        }
+
+        if ($user->isDeanSecretary() && $referral->student->college !== $user->college) {
             abort(403, 'Unauthorized.');
         }
     }
