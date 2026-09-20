@@ -91,7 +91,11 @@ class ReferralController extends Controller
         ]);
 
         $user = $request->user();
-        $student = Student::findOrFail($validated['student_id']);
+                $student = Student::findOrFail($validated['student_id']);
+
+        if (!$student->is_active) {
+            return response()->json(['message' => 'This student account is deactivated and cannot be referred. Please reactivate the student first.'], 422);
+        }
 
         // A student has exactly one case file for life. New referral -> new
         // case if they've never had one; existing referral -> attach to the

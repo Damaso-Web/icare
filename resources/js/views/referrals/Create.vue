@@ -379,7 +379,7 @@ function onStudentSearch() {
   }
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentAPI.index({ search: studentSearchQuery.value });
+      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1 });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
     } catch (e) {

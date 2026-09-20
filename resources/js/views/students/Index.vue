@@ -293,13 +293,13 @@
                 <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
               </select>
             </div>
-            <div>
+                        <div>
               <label class="ifl">Section</label>
               <input
                 v-model="editForm.section"
                 class="ifi"
-                placeholder="e.g. A"
-                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                placeholder="e.g. 3A"
+                @input="editForm.section = editForm.section.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()"
               />
             </div>
             <div>
@@ -432,17 +432,17 @@
                 <option>7th Year</option>
               </select>
             </div>
-            <div>
+                        <div>
               <label class="ifl">Section <span style="color:var(--red)">*</span></label>
               <input
                 v-model="addForm.section"
                 class="ifi"
-                placeholder="e.g. A"
-                @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                placeholder="e.g. 3A"
+                @input="addForm.section = addForm.section.replace(/[^a-zA-Z0-9]/g, '').slice(0, 6).toUpperCase()"
               />
             </div>
-            <div>
-              <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
+                        <div>
+              <label class="ifl">Email <span style="color:var(--red)">*</span></label>
               <input v-model="addForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
             </div>
             <div>
@@ -499,7 +499,13 @@
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ saving ? 'Saving...' : 'Add Student' }}
             </button>
-            <button class="ibtn ibtn-o" type="button" @click="handleClearAddForm" :disabled="isAddFormEmpty">Clear Form</button>
+              <button
+              class="ibtn"
+              type="button"
+              :style="isAddFormEmpty ? 'background:var(--cloud);color:var(--fog);border:1.5px solid var(--cloud);cursor:not-allowed;opacity:.6' : 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0'"
+              @click="handleClearAddForm"
+              :disabled="isAddFormEmpty"
+            >Clear Form</button>
           </div>
         </div>
       </div>
@@ -901,6 +907,23 @@ async function doGraduate() {
   }
 }
 
+function confirmGraduate(s) {
+  studentToGraduate.value = s;
+  graduateReason.value = '';
+  graduateNotes.value = '';
+  graduateConfirmed.value = false;
+  showGraduateModal.value = true;
+}
+
+async function toggleActive(s) {
+  try {
+    await studentAPI.toggleActive(s.id);
+    toast?.success('Student account activated.');
+    fetchStudents();
+  } catch (e) {
+    toast?.error('Please fill in all required fields.');
+  }
+}
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
