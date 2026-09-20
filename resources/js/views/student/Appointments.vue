@@ -21,7 +21,7 @@
 </div>
 
     <!-- Inline Scheduling Form -->
-    <div v-if="showScheduleForm && pendingAppointment" class="icard" style="margin-bottom:20px">
+        <div v-if="showScheduleForm && activeAppointment" class="icard" style="margin-bottom:20px">
       <div class="icard-header"><span class="icard-title">Choose Your Appointment Time</span></div>
       <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
         <div style="font-size:13px;color:var(--stone);display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px">
