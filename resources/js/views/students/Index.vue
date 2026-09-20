@@ -901,27 +901,6 @@ async function doGraduate() {
   }
 }
 
-async function doGraduate() {
-  if (!studentToGraduate.value) return;
-  try {
-    await studentAPI.graduate(studentToGraduate.value.id);
-    showGraduateModal.value = false;
-    toast?.success('Deactivated Student Account.');
-    fetchStudents();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Please fill in all required fields.');
-  }
-}
-
-async function toggleActive(s) {
-  try {
-    await studentAPI.toggleActive(s.id);
-    toast?.success('Student account activated.');
-    fetchStudents();
-  } catch (e) {
-    toast?.error('Please fill in all required fields.');
-  }
-}
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
