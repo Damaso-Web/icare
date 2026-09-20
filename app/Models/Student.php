@@ -38,6 +38,8 @@ class Student extends Authenticatable
         'last_login_at',
         'must_change_password',
         'temp_password',
+        'deactivation_reason',
+        'deactivation_notes',
     ];
 
     protected $hidden = [

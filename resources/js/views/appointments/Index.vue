@@ -238,6 +238,14 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Notes</div>
             <div style="font-size:13px;color:var(--ink)">{{ detailTarget.notes }}</div>
           </div>
+          
+          <div v-if="!['cancelled','completed'].includes(detailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
+            <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
+            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="markNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
+            <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
+            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
+          </div>
           <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToReferral(detailTarget)">View Case File</button>
         </div>
       </div>

@@ -10,15 +10,15 @@
       <router-link :to="{ name: 'student-account' }" class="ibtn ibtn-sm" style="background:var(--amber);color:#fff">Change Now</router-link>
     </div>
 
-    <div v-if="pendingAppointment" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
-      <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have a pending appointment request</div>
-          <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time.</div>
-        </div>
-        <router-link :to="{ name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
+    <div v-if="pendingAppointments.length" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
+    <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}</div>
+        <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.</div>
       </div>
+      <router-link :to="{ name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
     </div>
+  </div>
 
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="icard">
@@ -63,7 +63,7 @@ const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
 const loading = ref(true);
 const appointments = ref([]);
 const referrals = ref([]);
-const pendingAppointment = ref(null);
+const pendingAppointments = ref([]);
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };
@@ -84,7 +84,7 @@ async function fetchData() {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     referrals.value = res.data.referrals || [];
-    pendingAppointment.value = res.data.pending_appointment || null;
+    pendingAppointments.value = res.data.pending_appointments || [];
   } catch (e) {
     console.error(e);
   } finally {

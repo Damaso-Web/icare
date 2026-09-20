@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\StudentAuthController;
 use App\Http\Controllers\Api\CallSlipController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\DevController;
+use App\Http\Controllers\Api\CronController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -29,6 +30,10 @@ Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
 Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
 Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability']);
 Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
+
+// External cron endpoints (secured via X-Cron-Secret header, checked inside the controller)
+Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders']);
+Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows']);
 
 // Authenticated routes
 Route::middleware('auth:sanctum')->group(function () {

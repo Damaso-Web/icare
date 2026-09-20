@@ -73,16 +73,17 @@ class StudentAuthController extends Controller
 {
     $student = $request->user('student');
 
-    $pendingAppointment = $student->appointments()
+    $pendingAppointments = $student->appointments()
         ->where('request_status', 'awaiting_student')
         ->whereNotIn('status', ['cancelled'])
         ->latest()
-        ->first();
+        ->get();
 
     return response()->json([
-        'appointments'         => $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->latest()->get(),
-        'referrals'            => $student->referrals()->latest()->get(),
-        'pending_appointment'  => $pendingAppointment,
+        'appointments'          => $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->latest()->get(),
+        'referrals'             => $student->referrals()->latest()->get(),
+        'pending_appointments'  => $pendingAppointments,
+        'pending_appointment'   => $pendingAppointments->first(),
     ]);
 }
 

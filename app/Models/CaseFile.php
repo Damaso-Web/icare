@@ -42,6 +42,7 @@ class CaseFile extends Model
         'unreachable_flagged_by',
         'unreachable_notes',
         'status_changed_at',
+        'follow_up_due_date',
     ];
 
     protected $casts = [
@@ -57,6 +58,7 @@ class CaseFile extends Model
         'student_unreachable'     => 'boolean',
         'unreachable_flagged_at'  => 'datetime',
         'status_changed_at'       => 'datetime',
+        'follow_up_due_date'      => 'date',
     ];
 
     protected static function booted(): void

@@ -30,7 +30,7 @@
             class="ifi"
             placeholder="name@bsu.edu.ph"
             required
-            autocomplete="email"
+            autocomplete="off"
           />
         </div>
         <div style="margin-bottom:20px">

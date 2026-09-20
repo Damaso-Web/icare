@@ -55,7 +55,6 @@ class SessionNoteController extends Controller
             'student_response'   => 'nullable|string',
             'next_steps'         => 'nullable|string',
             'student_showed_up'  => 'boolean',
-            'mood_rating'        => 'nullable|in:1,2,3,4,5',
             'follow_up_needed'   => 'boolean',
         ]);
 
@@ -100,7 +99,6 @@ class SessionNoteController extends Controller
             'student_response'   => 'nullable|string',
             'next_steps'         => 'nullable|string',
             'student_showed_up'  => 'boolean',
-            'mood_rating'        => 'nullable|in:1,2,3,4,5',
             'follow_up_needed'   => 'boolean',
         ]);
 
@@ -151,7 +149,6 @@ class SessionNoteController extends Controller
             'interventions',
             'student_response',
             'next_steps',
-            'mood_rating',
             'follow_up_needed',
         ]));
 

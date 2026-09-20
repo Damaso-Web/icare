@@ -28,6 +28,7 @@ return [
     | services the application utilizes. Set this in your ".env" file.
     |
     */
+    'cron_secret' => env('CRON_SECRET'),
 
     'env' => env('APP_ENV', 'production'),
 

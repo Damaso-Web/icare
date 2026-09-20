@@ -23,16 +23,16 @@ class CronController extends Controller
     }
 
     public function detectNoShows(Request $request)
-    {
-        if ($request->header('X-Cron-Secret') !== config('app.cron_secret')) {
-            abort(403, 'Unauthorized.');
-        }
-
-        Artisan::call('appointments:detect-no-show');
-
-        return response()->json([
-            'message' => 'No-show detection executed.',
-            'output'  => Artisan::output(),
-        ]);
+{
+    if ($request->header('X-Cron-Secret') !== config('app.cron_secret')) {
+        abort(403, 'Unauthorized.');
     }
+
+    Artisan::call('app:detect-missed-appointments');
+
+    return response()->json([
+        'message' => 'No-show detection executed.',
+        'output'  => Artisan::output(),
+    ]);
+}
 }

@@ -134,7 +134,7 @@
           <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
             {{ initials(viewedStudent.first_name, viewedStudent.last_name) }}
           </div>
-          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedStudent.last_name }}, {{ viewedStudent.first_name }} {{ viewedStudent.middle_name }}</div>
+                    <div style="font-size:15px;font-weight:600;color:#fff">{{ viewedStudent.last_name }}, {{ viewedStudent.first_name }} {{ viewedStudent.middle_name }} {{ viewedStudent.suffix }}</div>
           <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px;font-family:var(--mono)">{{ viewedStudent.student_id }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
@@ -181,7 +181,7 @@
             </div>
           </div>
           <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Guardian Contact</div>
             <div style="font-size:13px;color:var(--ink)">{{ viewedStudent.guardian_contact || '-' }}</div>
           </div>
           <div>
@@ -214,16 +214,15 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student.</div>
           </div>
 
-          <button class="ibtn ibtn-sm" style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetStudentPassword">Reset Password</button>
-
-          <router-link :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
+                    <router-link :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
             View Full Profile &amp; Referral History
           </router-link>
 
           <div style="display:flex;gap:8px;margin-top:4px">
-            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
+          <button class="ibtn ibtn-sm" style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetStudentPassword">Reset Password</button>
         </div>
       </div>
     </div>
@@ -275,6 +274,8 @@
                 <option>3rd Year</option>
                 <option>4th Year</option>
                 <option>5th Year</option>
+                <option>6th Year</option>
+                <option>7th Year</option>
               </select>
             </div>
             <div>
@@ -298,7 +299,6 @@
                 v-model="editForm.section"
                 class="ifi"
                 placeholder="e.g. A"
-                maxlength="1"
                 @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
               />
             </div>
@@ -363,11 +363,11 @@
       </div>
     </div>
 
-    <!-- Add Student Modal -->
+        <!-- Add Student Modal -->
     <div v-if="showAddModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Add New Student</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Student</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showAddModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -382,7 +382,7 @@
               />
             </div>
             <div>
-              <label class="ifl">Sex</label>
+              <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
               <select v-model="addForm.sex" class="ifse">
                 <option value="">Select...</option>
                 <option value="Male">Male</option>
@@ -391,36 +391,36 @@
             </div>
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.last_name" class="ifi" placeholder="Dela Cruz" @input="addForm.last_name = onlyLetters(addForm.last_name)" />
+              <input v-model="addForm.last_name" class="ifi" placeholder="Dela Cruz" @input="addForm.last_name = titleCase(onlyLetters(addForm.last_name))" />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.first_name" class="ifi" placeholder="Juan" @input="addForm.first_name = onlyLetters(addForm.first_name)" />
+              <input v-model="addForm.first_name" class="ifi" placeholder="Juan" @input="addForm.first_name = titleCase(onlyLetters(addForm.first_name))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="addForm.middle_name" class="ifi" placeholder="Santos" @input="addForm.middle_name = onlyLetters(addForm.middle_name)" />
+              <input v-model="addForm.middle_name" class="ifi" placeholder="Santos" @input="addForm.middle_name = titleCase(onlyLetters(addForm.middle_name))" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="addForm.suffix" class="ifi" placeholder="Jr." @input="addForm.suffix = onlyLettersStrict(addForm.suffix)" />
+              <input v-model="addForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="addForm.suffix = onlyLettersStrict(addForm.suffix)" />
             </div>
             <div>
-              <label class="ifl">College</label>
+              <label class="ifl">College <span style="color:var(--red)">*</span></label>
               <select v-model="addForm.college" class="ifse" @change="addForm.program = ''">
                 <option value="">Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
-              <label class="ifl">Program</label>
+              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
               <select v-model="addForm.program" class="ifse" :disabled="!addForm.college">
                 <option value="">Select program...</option>
                 <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
               </select>
             </div>
             <div>
-              <label class="ifl">Year Level</label>
+              <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
               <select v-model="addForm.year_level" class="ifse">
                 <option value="">Select...</option>
                 <option>1st Year</option>
@@ -428,37 +428,46 @@
                 <option>3rd Year</option>
                 <option>4th Year</option>
                 <option>5th Year</option>
+                <option>6th Year</option>
+                <option>7th Year</option>
               </select>
             </div>
             <div>
-            <label class="ifl">Section <span style="color:var(--red)">*</span></label>
-            <input
-              v-model="addForm.section"
-              class="ifi"
-              placeholder="e.g. A"
-              maxlength="1"
-              @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
-            />
-          </div>
+              <label class="ifl">Section <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="addForm.section"
+                class="ifi"
+                placeholder="e.g. A"
+                @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+              />
+            </div>
             <div>
-              <label class="ifl">Email</label>
+              <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
               <input v-model="addForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
             </div>
             <div>
-              <label class="ifl">Contact Number</label>
+              <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
               <input v-model="addForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="addForm.contact_number = contactNumberInput(addForm.contact_number)" />
             </div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
+            Guardian Information
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="addForm.guardian_last_name = onlyLetters(addForm.guardian_last_name)" />
+              <input v-model="addForm.guardian_last_name" class="ifi" placeholder="Santos" @input="addForm.guardian_last_name = titleCase(onlyLetters(addForm.guardian_last_name))" />
             </div>
             <div>
               <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.guardian_first_name" class="ifi" placeholder="Juan" @input="addForm.guardian_first_name = onlyLetters(addForm.guardian_first_name)" />
+              <input v-model="addForm.guardian_first_name" class="ifi" placeholder="Maria" @input="addForm.guardian_first_name = titleCase(onlyLetters(addForm.guardian_first_name))" />
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
-              <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="addForm.guardian_middle_name = onlyLetters(addForm.guardian_middle_name)" />
+              <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Reyes" @input="addForm.guardian_middle_name = titleCase(onlyLetters(addForm.guardian_middle_name))" />
             </div>
             <div>
               <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
@@ -476,6 +485,7 @@
               </select>
             </div>
           </div>
+
           <div v-if="addError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
             {{ addError }}
           </div>
@@ -489,8 +499,7 @@
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ saving ? 'Saving...' : 'Add Student' }}
             </button>
-            <button class="ibtn ibtn-o" type="button" @click="clearAddForm">Clear Form</button>
-            <button class="ibtn ibtn-o" type="button" @click="showAddModal = false">Close</button>
+            <button class="ibtn ibtn-o" type="button" @click="handleClearAddForm" :disabled="isAddFormEmpty">Clear Form</button>
           </div>
         </div>
       </div>
@@ -600,7 +609,7 @@
       </div>
     </div>
 
-    <!-- Deactivate Confirmation Modal -->
+       <!-- Deactivate Confirmation Modal -->
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
@@ -608,14 +617,33 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            This should only be done when the student is no longer enrolled at Benguet State University. Their records will be preserved and can be reactivated later if needed.
+            Deactivating preserves the student's records, which can be reactivated later if needed.
+          </div>
+          <div>
+            <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>
+            <select v-model="graduateReason" class="ifse">
+              <option value="">Select a reason...</option>
+              <option value="no_longer_enrolled">No longer enrolled</option>
+              <option value="leave_of_absence">Leave of Absence (LOA)</option>
+              <option value="disciplinary_suspension">Disciplinary Suspension</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div v-if="graduateReason === 'other'">
+            <label class="ifl">Please specify</label>
+            <input v-model="graduateNotes" class="ifi" placeholder="Reason details" />
           </div>
           <div style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" v-model="graduateConfirmed" id="gradConfirm" style="width:15px;height:15px;accent-color:var(--moss)" />
-            <label for="gradConfirm" style="font-size:13px;color:var(--slate);cursor:pointer">I confirm this student is no longer enrolled.</label>
+            <label for="gradConfirm" style="font-size:13px;color:var(--slate);cursor:pointer">I confirm this deactivation is correct.</label>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="!graduateConfirmed" @click="doGraduate">Confirm</button>
+            <button
+              class="ibtn"
+              :style="canDeactivate ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--cloud);color:var(--fog);border:1.5px solid var(--cloud);cursor:not-allowed;opacity:.6'"
+              :disabled="!canDeactivate"
+              @click="doGraduate"
+            >Deactivate Student</button>
             <button class="ibtn ibtn-o" @click="showGraduateModal = false">Cancel</button>
           </div>
         </div>
@@ -653,6 +681,14 @@ const showAddModal    = ref(false);
 const showGraduateModal = ref(false);
 const graduateConfirmed = ref(false);
 const studentToGraduate = ref(null);
+const graduateReason = ref('');
+const graduateNotes = ref('');
+const canDeactivate = computed(() =>
+  graduateConfirmed.value &&
+  graduateReason.value &&
+  (graduateReason.value !== 'other' || graduateNotes.value.trim())
+);
+
 const addError = ref('');
 const createdPassword = ref('');
 
@@ -679,6 +715,19 @@ const addForm = ref({
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
+
+function titleCase(str) {
+  return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+const isAddFormEmpty = computed(() => Object.values(addForm.value).every(v => !v));
+
+function handleClearAddForm() {
+  if (isAddFormEmpty.value) return;
+  if (confirm('Clear all entered information? This cannot be undone.')) {
+    clearAddForm();
+  }
+}
 
 const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
@@ -741,21 +790,41 @@ function clearAddForm() {
 
 async function saveStudent() {
   addError.value = '';
-  if (!addForm.value.student_id || !addForm.value.last_name || !addForm.value.first_name ||
-      !addForm.value.section ||
-      !addForm.value.guardian_first_name || !addForm.value.guardian_last_name ||
-      !addForm.value.guardian_contact || !addForm.value.guardian_relationship) {
-    addError.value = 'Please fill in all required fields.';
+
+  const requiredFields = [
+    ['student_id', 'Student ID'],
+    ['last_name', 'Last Name'],
+    ['first_name', 'First Name'],
+    ['sex', 'Sex'],
+    ['college', 'College'],
+    ['program', 'Program'],
+    ['year_level', 'Year Level'],
+    ['section', 'Section'],
+    ['email', 'Email Address'],
+    ['contact_number', 'Contact Number'],
+    ['guardian_first_name', 'Guardian First Name'],
+    ['guardian_last_name', 'Guardian Last Name'],
+    ['guardian_contact', 'Guardian Contact'],
+    ['guardian_relationship', 'Guardian Relationship'],
+  ];
+  const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
+  if (missing.length) {
+    addError.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
 
-  if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) {
+  if (!isValidPHContact(addForm.value.contact_number)) {
     addError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
 
   if (!isValidPHContact(addForm.value.guardian_contact)) {
     addError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
+  if (addForm.value.guardian_contact === addForm.value.contact_number) {
+    addError.value = "Guardian contact number can't be the same as the student's own contact number.";
     return;
   }
 
@@ -817,10 +886,19 @@ async function updateExistingAndProceed() {
   }
 }
 
-function confirmGraduate(s) {
-  studentToGraduate.value = s;
-  graduateConfirmed.value = false;
-  showGraduateModal.value = true;
+async function doGraduate() {
+  if (!studentToGraduate.value || !canDeactivate.value) return;
+  try {
+    await studentAPI.graduate(studentToGraduate.value.id, {
+      deactivation_reason: graduateReason.value,
+      deactivation_notes: graduateReason.value === 'other' ? graduateNotes.value : null,
+    });
+    showGraduateModal.value = false;
+    toast?.success('Deactivated Student Account.');
+    fetchStudents();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Please fill in all required fields.');
+  }
 }
 
 async function doGraduate() {

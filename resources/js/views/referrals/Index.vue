@@ -2,8 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Referral Queue</h1>
-      <p>Review, assign, and track incoming referrals.</p>
+      <p>{{ filters.archived ? 'Archived referrals.' : 'Review, assign, and track incoming referrals.' }}</p>
     </div>
 
     <!-- Filter Bar -->
@@ -13,6 +12,13 @@
         <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @keypress="blockSpecialKeypress" @input="onSearchInput" style="width:220px"/>
       </div>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button
+        class="ibtn ibtn-sm"
+        :class="filters.archived ? 'ibtn-p' : 'ibtn-o'"
+        @click="filters.archived = !filters.archived; fetchReferrals()"
+      >
+        {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
+      </button>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
@@ -68,8 +74,9 @@
         >
           <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
           <div class="qi">
-            <div class="qn" style="font-size:16px;font-weight:700;font-family:var(--mono)">
-              {{ r.referral_code }}
+            <div class="qtags">
+              <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
+              <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
             </div>
             <div class="qmeta">
               {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}
@@ -108,7 +115,8 @@ import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '' });
+const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false });
+
 
 const SERVICES_BY_UNIT = {
   GCU: [
@@ -176,7 +184,7 @@ function onSearchInput() {
 async function fetchReferrals(page = 1) {
   loading.value = true;
   try {
-    const res = await referralAPI.index({ ...filters.value, page });
+    const res = await referralAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
     referrals.value  = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -187,7 +195,7 @@ async function fetchReferrals(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '' };
+  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false };
   fetchReferrals();
 }
 

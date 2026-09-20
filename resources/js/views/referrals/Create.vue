@@ -97,9 +97,17 @@
               <label class="ifl">Middle Name</label>
               <input v-model="form.middle_name" class="ifi" placeholder="e.g. Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
-            <div>
+                        <div>
               <label class="ifl">Suffix</label>
-              <input v-model="form.suffix" class="ifi" placeholder="e.g. Jr." :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.suffix = onlyLettersStrict(form.suffix)" />
+              <select v-model="form.suffix" class="ifse" :disabled="studentFound">
+                <option value="">None</option>
+                <option>Jr.</option>
+                <option>Sr.</option>
+                <option>II</option>
+                <option>III</option>
+                <option>IV</option>
+                <option>V</option>
+              </select>
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
@@ -262,7 +270,7 @@
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ loading ? 'Submitting...' : 'Refer Student' }}
             </button>
-            <button type="button" class="ibtn ibtn-o" @click="clearForm">Clear Form</button>
+            <button type="button" class="ibtn ibtn-o" @click="handleClearForm">Clear Form</button>
             <button type="button" class="ibtn ibtn-g" @click="goBack">Cancel</button>
           </div>
 
@@ -281,7 +289,8 @@
           <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
             <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
-            <div><strong>College:</strong> {{ form.college }} - {{ form.program }}</div>
+            <div><strong>College:</strong> {{ form.college }}</div>
+            <div><strong>Program:</strong> {{ form.program }}</div>
             <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
             <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
             <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
@@ -384,6 +393,7 @@ async function selectStudent(s) {
   form.value.last_name        = s.last_name;
   form.value.first_name       = s.first_name;
   form.value.middle_name      = s.middle_name || '';
+  form.value.suffix           = s.suffix || '';
   form.value.sex              = s.sex || '';
   form.value.college          = s.college || '';
   form.value.year_level       = s.year_level || '';
@@ -497,6 +507,16 @@ function clearForm() {
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
     violation_type: '', incident_date: '',
   };
+}
+
+
+function handleClearForm() {
+  const hasData = form.value.student_id_input || form.value.last_name || form.value.first_name ||
+                  form.value.nature_of_concern || form.value.referral_type;
+  if (hasData && !confirm('Clear all entered information? This cannot be undone.')) {
+    return;
+  }
+  clearForm();
 }
 
 onMounted(() => {

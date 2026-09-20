@@ -45,20 +45,29 @@ class AppointmentController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $validated = $request->validate([
-            'case_id'          => 'required|exists:cases,id',
-            'referral_id'      => 'nullable|exists:referrals,id',
-            'student_id'       => 'required|exists:students,id',
-            'staff_user_id'    => 'nullable|exists:users,id',
-            'unit'             => 'required|in:GCU,SDU,TMDU',
-            'appointment_type' => 'required|string',
-            'appointment_date' => 'required|date|after_or_equal:today',
-            'start_time'       => 'required|date_format:H:i',
-            'end_time'         => 'required|date_format:H:i|after:start_time',
-            'location'         => 'nullable|string',
-            'notes'            => 'nullable|string',
-        ]);
+{
+    $validated = $request->validate([
+        'case_id'          => 'required|exists:cases,id',
+        'referral_id'      => 'nullable|exists:referrals,id',
+        'student_id'       => 'required|exists:students,id',
+        'staff_user_id'    => 'nullable|exists:users,id',
+        'unit'             => 'required|in:GCU,SDU,TMDU',
+        'appointment_type' => 'required|string',
+        'appointment_date' => [
+            'required',
+            'date',
+            'after_or_equal:today',
+            function ($attribute, $value, $fail) {
+                if (\Carbon\Carbon::parse($value)->isSunday()) {
+                    $fail('Appointments cannot be scheduled on a Sunday.');
+                }
+            },
+        ],
+        'start_time'       => 'required|date_format:H:i',
+        'end_time'         => 'required|date_format:H:i|after:start_time',
+        'location'         => 'nullable|string',
+        'notes'            => 'nullable|string',
+    ]);
 
         $conflictFound = !empty($validated['staff_user_id'])
             ? Appointment::hasConflict($validated['staff_user_id'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'])

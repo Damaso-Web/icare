@@ -6,15 +6,19 @@
     </div>
 
     <!-- Pending Appointment Request Banner -->
-    <div v-if="pendingAppointment && !showScheduleForm" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
-      <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-        <div>
-          <div style="font-size:14px;font-weight:600;color:var(--ink)">You have a pending appointment request</div>
-          <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time.</div>
-        </div>
-        <button class="ibtn ibtn-p" @click="showScheduleForm = true">Schedule Now</button>
+<div v-if="pendingAppointments.length && !showScheduleForm" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
+  <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:14px;font-weight:600;color:var(--ink)">
+        You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}
+      </div>
+      <div style="font-size:12px;color:var(--stone);margin-top:2px">
+        Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — you can schedule the next one right after' : '' }}.
       </div>
     </div>
+    <button class="ibtn ibtn-p" @click="openScheduleForm(pendingAppointments[0])">Schedule Now</button>
+  </div>
+</div>
 
     <!-- Inline Scheduling Form -->
     <div v-if="showScheduleForm && pendingAppointment" class="icard" style="margin-bottom:20px">
@@ -123,7 +127,8 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 
 const loading = ref(true);
 const appointments = ref([]);
-const pendingAppointment = ref(null);
+const pendingAppointments = ref([]);
+const activeAppointment = ref(null);
 const showScheduleForm = ref(false);
 
 const scheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
@@ -161,11 +166,25 @@ function selectCalendarDate(dateStr) {
   checkAvailability();
 }
 
+function openScheduleForm(appt) {
+  activeAppointment.value = appt;
+  scheduleForm.value = { appointment_date: '', start_time: '', end_time: '' };
+  dayWarning.value = false;
+  timeOrderError.value = false;
+  availabilityChecked.value = false;
+  isAvailable.value = false;
+  scheduleError.value = '';
+  calYear.value = today.getFullYear();
+  calMonth.value = today.getMonth();
+  showScheduleForm.value = true;
+  fetchMonthAvailability();
+}
+
 async function fetchMonthAvailability() {
-  if (!pendingAppointment.value?.scheduling_token) return;
+  if (!activeAppointment.value?.scheduling_token) return;
   const monthStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`;
   try {
-    const res = await axios.get(`${API_BASE}/schedule/${pendingAppointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
+    const res = await axios.get(`${API_BASE}/schedule/${activeAppointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
     calDays.value = res.data.days;
   } catch (e) {
     calDays.value = [];
@@ -207,8 +226,7 @@ async function fetchData() {
   try {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
-    pendingAppointment.value = res.data.pending_appointment || null;
-    fetchMonthAvailability();
+    pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
   } catch (e) {
     console.error(e);
   } finally {
@@ -238,7 +256,7 @@ async function checkAvailability() {
   checkingAvailability.value = true;
   try {
     const res = await axios.post(
-      `${API_BASE}/schedule/${pendingAppointment.value.scheduling_token}/check-availability`,
+      `${API_BASE}/schedule/${activeAppointment.value.scheduling_token}/check-availability`,
       scheduleForm.value
     );
     isAvailable.value = res.data.available;
@@ -256,11 +274,11 @@ async function submitSchedule() {
   submitting.value = true;
   try {
     await axios.post(
-      `${API_BASE}/schedule/${pendingAppointment.value.scheduling_token}/submit`,
+      `${API_BASE}/schedule/${activeAppointment.value.scheduling_token}/submit`,
       scheduleForm.value
     );
     showScheduleForm.value = false;
-    pendingAppointment.value = null;
+    activeAppointment.value = null;
     fetchData();
   } catch (e) {
     scheduleError.value = e.response?.data?.message || 'Failed to submit your request.';

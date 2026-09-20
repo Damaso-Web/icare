@@ -25,7 +25,6 @@ class SessionNote extends Model
         'student_response',
         'next_steps',
         'student_showed_up',
-        'mood_rating',
         'follow_up_needed',
     ];
 

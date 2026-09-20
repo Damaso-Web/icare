@@ -26,6 +26,7 @@ class ReferralController extends Controller
     $tmduTypes = ['psychological_testing'];
 
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])
+        ->where('is_archived', $request->boolean('archived'))
         ->when($request->status,          fn($q) => $q->where('status', $request->status))
         ->when($request->urgency,         fn($q) => $q->where('urgency_level', $request->urgency))
         ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))

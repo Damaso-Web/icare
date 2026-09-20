@@ -14,6 +14,7 @@ use App\Notifications\UnreachableStudentNotification;
 use App\Notifications\TestingReferralNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
+use App\Notifications\FollowUpReminderNotification;
 
 class CaseController extends Controller
 {
@@ -306,35 +307,41 @@ class CaseController extends Controller
     }
 
     public function flagFollowUp(Request $request, CaseFile $case)
-    {
-        $this->authorizeStaffAccess();
+{
+    $this->authorizeStaffAccess();
 
-        $request->validate([
-            'notes' => 'nullable|string',
-        ]);
+    $request->validate([
+        'notes'    => 'nullable|string',
+        'due_date' => 'required|date|after_or_equal:today',
+    ]);
 
-        $old = $case->toArray();
-        $case->update([
-            'requires_follow_up'   => true,
-            'follow_up_notes'      => $request->notes,
-            'follow_up_flagged_at' => now(),
-            'follow_up_flagged_by' => $request->user()->id,
-        ]);
+    $old = $case->toArray();
+    $case->update([
+        'requires_follow_up'   => true,
+        'follow_up_notes'      => $request->notes,
+        'follow_up_due_date'   => $request->due_date,
+        'follow_up_flagged_at' => now(),
+        'follow_up_flagged_by' => $request->user()->id,
+    ]);
 
-        AuditLog::record('follow_up_flagged', "Case {$case->case_number} flagged for further attention.", $case, $old, $case->toArray());
+    AuditLog::record('follow_up_flagged', "Case {$case->case_number} flagged for follow-up, due {$request->due_date}.", $case, $old, $case->toArray());
 
-        return response()->json($case);
+    if ($case->counselor) {
+        Notification::send($case->counselor, new FollowUpReminderNotification($case));
     }
 
-    public function resolveFollowUp(Request $request, CaseFile $case)
-    {
-        $this->authorizeStaffAccess();
+    return response()->json($case);
+}
 
-        $old = $case->toArray();
-        $case->update(['requires_follow_up' => false]);
+public function resolveFollowUp(Request $request, CaseFile $case)
+{
+    $this->authorizeStaffAccess();
 
-        AuditLog::record('follow_up_resolved', "Follow-up flag cleared for case {$case->case_number}.", $case, $old, $case->toArray());
+    $old = $case->toArray();
+    $case->update(['requires_follow_up' => false, 'follow_up_due_date' => null]);
 
-        return response()->json($case);
-    }
+    AuditLog::record('follow_up_resolved', "Follow-up flag cleared for case {$case->case_number}.", $case, $old, $case->toArray());
+
+    return response()->json($case);
+}
 }

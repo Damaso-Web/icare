@@ -38,23 +38,25 @@ class AuditLog extends Model
 
     // Static logger
     public static function record(string $action, string $description, $model = null, array $old = [], array $new = []): void
-    {
-        $user = auth()->user();
-        static::create([
-            'user_id'     => $user?->id,
-            'user_name'   => $user?->name,
-            'user_role'   => $user?->role,
-            'ip_address'  => request()->ip(),
-            'user_agent'  => request()->userAgent(),
-            'action'      => $action,
-            'model_type'  => $model ? get_class($model) : null,
-            'model_id'    => $model?->id,
-            'description' => $description,
-            'old_values'  => $old,
-            'new_values'  => $new,
-            'url'         => request()->fullUrl(),
-            'method'      => request()->method(),
-            'created_at'  => now(),
-        ]);
-    }
+{
+    $user = auth()->user() ?: auth('student')->user();
+    $isStaffUser = $user instanceof \App\Models\User;
+
+    static::create([
+        'user_id'     => $isStaffUser ? $user->id : null,
+        'user_name'   => $user?->name,
+        'user_role'   => $isStaffUser ? $user->role : ($user ? 'student' : null),
+        'ip_address'  => request()->ip(),
+        'user_agent'  => request()->userAgent(),
+        'action'      => $action,
+        'model_type'  => $model ? get_class($model) : null,
+        'model_id'    => $model?->id,
+        'description' => $description,
+        'old_values'  => $old,
+        'new_values'  => $new,
+        'url'         => request()->fullUrl(),
+        'method'      => request()->method(),
+        'created_at'  => now(),
+    ]);
+}
 }

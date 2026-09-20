@@ -67,6 +67,7 @@
           <div>
             <label class="ifl">Reason for rescheduling</label>
             <textarea v-model="rescheduleReason" class="ifi" rows="3" placeholder="Let us know why you need a new time..."></textarea>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">After submitting, you'll be able to pick a new date and time from the calendar on your Appointments page.</div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="requestingReschedule || !rescheduleReason.trim()" @click="requestReschedule">

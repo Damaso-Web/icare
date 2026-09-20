@@ -80,24 +80,24 @@ class StudentController extends Controller
     public function update(Request $request, Student $student)
 {
     $validated = $request->validate([
-        'student_id'             => 'sometimes|string|unique:students,student_id,' . $student->id,
-        'first_name'             => 'sometimes|string|max:255',
-        'last_name'              => 'sometimes|string|max:255',
-        'middle_name'            => 'nullable|string|max:255',
-        'suffix'                 => 'nullable|string|max:20',
-        'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
-        'email'                  => 'nullable|email',
-        'contact_number'         => 'nullable|string|max:11',
-        'college'                => 'nullable|string',
-        'program'                => 'nullable|string',
-        'year_level'             => 'nullable|string',
-        'section'                => 'nullable|string|max:1',
-        'guardian_first_name'    => 'nullable|string|max:255',
-        'guardian_middle_name'   => 'nullable|string|max:255',
-        'guardian_last_name'     => 'nullable|string|max:255',
-        'guardian_contact'       => 'nullable|string|max:11',
-        'guardian_relationship'  => 'nullable|string',
-    ]);
+    'student_id'             => 'sometimes|required|string|unique:students,student_id,' . $student->id,
+    'first_name'             => 'sometimes|required|string|max:255',
+    'last_name'              => 'sometimes|required|string|max:255',
+    'middle_name'            => 'nullable|string|max:255',
+    'suffix'                 => 'nullable|string|max:20',
+    'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
+    'email'                  => 'nullable|email',
+    'contact_number'         => 'nullable|string|max:11',
+    'college'                => 'sometimes|required|string',
+    'program'                => 'nullable|string',
+    'year_level'             => 'sometimes|required|string',
+    'section'                => 'nullable|string|max:1',
+    'guardian_first_name'    => 'nullable|string|max:255',
+    'guardian_middle_name'   => 'nullable|string|max:255',
+    'guardian_last_name'     => 'nullable|string|max:255',
+    'guardian_contact'       => 'nullable|string|max:11',
+    'guardian_relationship'  => 'nullable|string',
+]);
 
     // Nullable fields only ever mean "leave as-is" when submitted blank - an
     // edit form re-sends the whole record, so an empty value here is never a
@@ -139,15 +139,26 @@ class StudentController extends Controller
     }
 
     public function graduate(Request $request, Student $student)
-    {
-        $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
-        if ($openCases > 0) {
-            return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
-        }
-        $student->update(['is_active' => false]);
-        AuditLog::record('graduated', "Marked student {$student->student_id} as graduated/inactive.", $student);
-        return response()->json($student);
+{
+    $validated = $request->validate([
+        'deactivation_reason' => 'required|in:no_longer_enrolled,leave_of_absence,disciplinary_suspension,other',
+        'deactivation_notes'  => 'nullable|string|required_if:deactivation_reason,other',
+    ]);
+
+    $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
+    if ($openCases > 0) {
+        return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
     }
+
+    $student->update([
+        'is_active'            => false,
+        'deactivation_reason'  => $validated['deactivation_reason'],
+        'deactivation_notes'   => $validated['deactivation_notes'] ?? null,
+    ]);
+
+    \App\Models\AuditLog::record('graduated', "Deactivated student {$student->student_id}. Reason: {$validated['deactivation_reason']}.", $student);
+    return response()->json($student);
+}
 
     public function history(Student $student)
     {

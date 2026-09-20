@@ -16,7 +16,7 @@
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
         <div v-if="(isGCU || isSDUHead) && referral.case" style="margin-left:auto;display:flex;gap:8px">
-          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="showStatusModal = true">
+          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
@@ -233,7 +233,7 @@
 
           <!-- Previous Interventions - case-level, append-only log. For Class Attendance referrals, this doubles as the admission slip: an Unexcused mark locks the referral. -->
           <div class="icard" v-if="referral.case">
-            <div class="icard-header"><span class="icard-title">Previous Interventions</span></div>
+            <div class="icard-header"><span class="icard-title">Case Intervention Log</span></div>
             <div class="icard-body">
               <div style="font-size:11px;color:var(--stone);margin-bottom:10px;font-style:italic">For OSS Personnel</div>
 
@@ -630,24 +630,34 @@
       </div>
 
       <!-- Update Referral Status Modal -->
-      <div v-if="showStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showStatusModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Referral Status</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showStatusModal = false">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
-            <select v-model="newStatus" class="ifse">
-              <option value="submitted">Submitted</option>
-              <option value="acknowledged">Acknowledged</option>
-              <option value="in_review">In Review</option>
-              <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
-            </select>
-            <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateStatus">Save Status</button>
-          </div>
-        </div>
-      </div>
+<div v-if="showStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showStatusModal = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Referral Status</div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showStatusModal = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
+      <select v-model="newStatus" class="ifse">
+        <option
+          v-for="step in pipeline"
+          :key="step.key"
+          :value="step.key"
+          :disabled="!isStatusSelectable(step.key)"
+        >
+          {{ step.label }}{{ statusOrder.indexOf(step.key) < statusOrder.indexOf(referral.status) ? ' (already completed)' : !isStatusSelectable(step.key) ? ' (complete previous step first)' : '' }}
+        </option>
+      </select>
+      <div style="font-size:11px;color:var(--stone)">Steps must be completed in order — you can only move to the next step in the pipeline.</div>
+      <button
+        class="ibtn ibtn-p"
+        style="width:100%;justify-content:center"
+        :style="{ opacity: !isStatusSelectable(newStatus) ? .5 : 1, cursor: !isStatusSelectable(newStatus) ? 'not-allowed' : 'pointer' }"
+        :disabled="!isStatusSelectable(newStatus)"
+        @click="updateStatus"
+      >Save Status</button>
+    </div>
+  </div>
+</div>
 
       <!-- Update Case Status Modal -->
       <div v-if="showCaseStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseStatusModal = false">
@@ -757,20 +767,25 @@
             <button class="ibtn ibtn-g ibtn-sm" @click="showFollowUpFlagModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div style="background:var(--purple-lt);border:1px solid var(--purple);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--purple)">
-              This marks the case as requiring further attention so it stands out in the case list.
-            </div>
-            <div>
-              <label class="ifl">Notes / Reason</label>
-              <textarea v-model="followUpFlagNotes" class="ifta" placeholder="Why does this case need further attention?"></textarea>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn" style="background:var(--purple-lt);color:var(--purple);border:1.5px solid var(--purple)" @click="flagFollowUp">
-                Flag for Follow-up
-              </button>
-              <button class="ibtn ibtn-o" @click="showFollowUpFlagModal = false">Cancel</button>
-            </div>
+          <div style="background:var(--purple-lt);border:1px solid var(--purple);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--purple)">
+            This marks the case as requiring further attention and schedules a reminder for the counselor.
           </div>
+          <div>
+            <label class="ifl">Follow-up Due Date <span style="color:var(--red)">*</span></label>
+            <input v-model="followUpDueDate" type="date" class="ifi" />
+          </div>
+          <div>
+            <label class="ifl">Notes / Reason</label>
+            <textarea v-model="followUpFlagNotes" class="ifta" placeholder="Why does this case need further attention?"></textarea>
+          </div>
+          <div v-if="followUpFlagError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ followUpFlagError }}</div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--purple-lt);color:var(--purple);border:1.5px solid var(--purple)" @click="flagFollowUp">
+              Flag for Follow-up
+            </button>
+            <button class="ibtn ibtn-o" @click="showFollowUpFlagModal = false">Cancel</button>
+          </div>
+        </div>
         </div>
       </div>
 
@@ -914,6 +929,8 @@ const auth    = useAuthStore();
 const loading = ref(true);
 const acknowledging = ref(false);
 const referral = ref({});
+const followUpDueDate = ref('');
+const followUpFlagError = ref('');
 
 const sessionNotes      = ref([]);
 const showSessionModal  = ref(false);
@@ -1083,6 +1100,19 @@ function isStepDone(key) {
   const current = statusOrder.indexOf(referral.value.status);
   const step    = statusOrder.indexOf(key);
   return step < current;
+}
+
+function isStatusSelectable(key) {
+  const current = statusOrder.indexOf(referral.value.status);
+  const target  = statusOrder.indexOf(key);
+  return target === current || target === current + 1;
+}
+
+function openStatusModal() {
+  const current = statusOrder.indexOf(referral.value.status);
+  const next    = pipeline[current + 1];
+  newStatus.value = next ? next.key : referral.value.status;
+  showStatusModal.value = true;
 }
 
 function isCurrentStep(key) {
@@ -1317,14 +1347,21 @@ async function markCaseAppointmentNoShow(a) {
 }
 
 async function flagFollowUp() {
+  followUpFlagError.value = '';
+  if (!followUpDueDate.value) {
+    followUpFlagError.value = 'Please select a follow-up due date.';
+    return;
+  }
   try {
-    await caseAPI.flagFollowUp(referral.value.case.id, { notes: followUpFlagNotes.value });
-    referral.value.case.requires_follow_up = true;
-    referral.value.case.follow_up_notes    = followUpFlagNotes.value;
-    showFollowUpFlagModal.value            = false;
+    await caseAPI.flagFollowUp(referral.value.case.id, { notes: followUpFlagNotes.value, due_date: followUpDueDate.value });
+    referral.value.case.requires_follow_up  = true;
+    referral.value.case.follow_up_notes     = followUpFlagNotes.value;
+    referral.value.case.follow_up_due_date  = followUpDueDate.value;
+    showFollowUpFlagModal.value             = false;
+    followUpDueDate.value                   = '';
     toast?.success('Case flagged for follow-up.');
   } catch (e) {
-    toast?.error('Failed to flag case for follow-up.');
+    followUpFlagError.value = e.response?.data?.message || 'Failed to flag case for follow-up.';
   }
 }
 

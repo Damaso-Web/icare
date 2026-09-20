@@ -97,7 +97,7 @@
             <tr v-for="u in users" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
               <td>
-                <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
+                <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--ink);border:1px solid var(--fog)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
@@ -107,7 +107,7 @@
                   <button
                     v-if="auth.isAdmin"
                     class="ibtn ibtn-sm"
-                    :style="u.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'"
+                    :style="u.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mint);color:var(--forest);border:1.5px solid var(--moss)'"
                     @click="toggleActive(u)"
                   >
                     {{ u.is_active ? 'Deactivate' : 'Activate' }}
@@ -199,10 +199,10 @@
           </div>
 
           <div style="display:flex;gap:8px;margin-top:8px">
-            <button v-if="auth.isAdmin" class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
-            <button v-if="auth.isAdmin" class="ibtn ibtn-sm" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetPassword(viewedUser)">Reset Password</button>
+            <button v-if="auth.isAdmin" class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
+          <button v-if="auth.isAdmin" class="ibtn ibtn-sm" style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetPassword(viewedUser)">Reset Password</button>
         </div>
       </div>
     </div>
@@ -211,32 +211,39 @@
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? 'Edit Employee Profile' : (isFacultyView ? 'Add New Faculty' : 'Add New Employee') }}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? (isFacultyView ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
-            <label class="ifl">Employee ID</label>
-            <input v-model="userForm.employee_id" class="ifi" placeholder="e.g. 12345" @input="userForm.employee_id = onlyDigits(userForm.employee_id)" />
+            <label class="ifl">Employee ID <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="userForm.employee_id"
+              class="ifi"
+              placeholder="e.g. 12345"
+              :readonly="isEditing"
+              :style="isEditing ? 'background:var(--snow);color:var(--stone)' : ''"
+              @input="userForm.employee_id = onlyDigits(userForm.employee_id)"
+            />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="userForm.last_name" class="ifi" placeholder="Reyes" @input="userForm.last_name = onlyLetters(userForm.last_name)" />
+              <input v-model="userForm.last_name" class="ifi" placeholder="Reyes" @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name))" />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = onlyLetters(userForm.first_name)" />
+              <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = onlyLetters(userForm.middle_name)" />
+              <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = titleCase(onlyLetters(userForm.middle_name))" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="userForm.suffix" class="ifi" placeholder="Jr., III" />
+              <input v-model="userForm.suffix" class="ifi" placeholder="Jr., III" @input="userForm.suffix = onlyLettersStrict(userForm.suffix)" />
             </div>
           </div>
           <div>
@@ -256,14 +263,14 @@
             </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
-            <label class="ifl">College</label>
+            <label class="ifl">College <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.college" class="ifse" @change="userForm.department = ''">
               <option value="">Select college...</option>
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
-            <label class="ifl">Department</label>
+            <label class="ifl">Department <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.department" class="ifse" :disabled="!userForm.college">
               <option value="">Select department...</option>
               <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
@@ -296,6 +303,7 @@
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
             </button>
+            <button v-if="!isEditing" class="ibtn ibtn-o" @click="openCreate">Clear Form</button>
             <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
         </div>
@@ -348,7 +356,11 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+
+function titleCase(str) {
+  return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
 
 const route      = useRoute();
 const toast      = inject('toast');
@@ -498,16 +510,24 @@ async function saveUser() {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-  if (!isEditing.value && (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role)) {
+  if (!isEditing.value && (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role || !userForm.value.employee_id)) {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-  if (isEditing.value && !userForm.value.email) {
+  if (isEditing.value && (!userForm.value.email || !userForm.value.employee_id)) {
     formError.value = 'Please fill in all required fields.';
+    return;
+  }
+  if (['faculty', 'dean_secretary'].includes(userForm.value.role) && (!userForm.value.college || !userForm.value.department)) {
+    formError.value = 'College and Department are required for this role.';
     return;
   }
   if (userForm.value.email && !isValidEmail(userForm.value.email)) {
-    formError.value = 'Please fill in all required fields.';
+    formError.value = 'Please enter a valid email address.';
+    return;
+  }
+  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
+    formError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
   try {
