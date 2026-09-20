@@ -112,8 +112,8 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { referralAPI } from '../../api/index';
-import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
+import { referralAPI } from '../api/index';
+import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../utils/validators';
 
 const referrals  = ref([]);
 const loading    = ref(true);
