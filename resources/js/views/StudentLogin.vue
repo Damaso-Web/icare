@@ -1,107 +1,216 @@
 <template>
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div style="width:100%;max-width:400px">
-      <button @click="router.push({ name: 'login-choice' })" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back
+  <div class="fade-up">
+    <!-- Page Header -->
+    <div class="ph" style="margin-bottom:20px">
+      <p>{{ filters.archived ? 'Archived referrals.' : 'Review, assign, and track incoming referrals.' }}</p>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="sw">
+        <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or ID..." @keypress="blockSpecialKeypress" @input="onSearchInput" style="width:220px"/>
+      </div>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button
+        class="ibtn ibtn-sm"
+        :class="filters.archived ? 'ibtn-p' : 'ibtn-o'"
+        @click="filters.archived = !filters.archived; fetchReferrals()"
+      >
+        {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
+      <select v-model="filters.status" class="fsm" @change="fetchReferrals">
+        <option value="">All Status</option>
+        <option value="submitted">Submitted</option>
+        <option value="acknowledged">Acknowledged</option>
+        <option value="in_review">In Review</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+        <option value="closed">Closed</option>
+      </select>
+      <select v-model="filters.unit" class="fsm" @change="onUnitChange">
+        <option value="">All Units</option>
+        <option value="GCU">GCU</option>
+        <option value="SDU">SDU</option>
+        <option value="TMDU">TMDU</option>
+      </select>
+      <select v-if="filters.unit === 'GCU' || filters.unit === 'TMDU'" v-model="filters.type" class="fsm" @change="fetchReferrals">
+        <option value="">All Services</option>
+        <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
+      </select>
+      <select v-else-if="filters.unit === 'SDU'" v-model="filters.violation_type" class="fsm" @change="fetchReferrals">
+        <option value="">All Acts of Misconduct</option>
+        <option v-for="v in SERVICES_BY_UNIT.SDU" :key="v.violation" :value="v.violation">{{ v.violation }}</option>
+      </select>
+      <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
+        <option value="desc">Date: Newest First</option>
+        <option value="asc">Date: Oldest First</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+        <span style="color:var(--stone);font-size:13px">-</span>
+        <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
+      </div>
+    </div>
 
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
-          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
-        </div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
-        <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
+    <!-- Referral List -->
+    <div class="icard">
+      <div v-if="loading" style="text-align:center;padding:44px">
+        <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
 
-      <div class="icard">
-        <div style="padding:24px">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">Student Login</div>
+      <div v-else-if="referrals.length === 0" class="empty-state">
+        <h3>No referrals found</h3>
+        <p>Try adjusting your filters.</p>
+      </div>
 
-          <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
-            {{ error }}
+      <div v-else>
+        <div
+          v-for="r in referrals"
+          :key="r.id"
+          class="qr"
+          :class="urgencyRow(r.urgency_level)"
+          :style="r.is_archived ? 'cursor:not-allowed;opacity:.6' : ''"
+          @click="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+        >
+          <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
+          <div class="qi">
+            <div class="qtags">
+              <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
+              <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+            </div>
+            <div class="qmeta">
+              {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}
+            </div>
           </div>
-
-          <form @submit.prevent="handleLogin">
-            <div style="margin-bottom:14px">
-              <label class="ifl">Student ID</label>
-              <input v-model="form.student_id" class="ifi" placeholder="e.g. 2302021" required />
-            </div>
-            <div style="margin-bottom:18px">
-              <label class="ifl">Password</label>
-              <div style="position:relative">
-                <input
-                  v-model="form.password"
-                  :type="showPassword ? 'text' : 'password'"
-                  class="ifi"
-                  required
-                  style="padding-right:40px"
-                  @keyup="checkCapsLock"
-                />
-                <button
-                  type="button"
-                  @click="showPassword = !showPassword"
-                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);padding:4px;display:flex;align-items:center"
-                >
-                  <svg v-if="!showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                  <svg v-if="showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                </button>
-              </div>
-              <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
-            </div>
-            <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
-              <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ loading ? 'Signing in...' : 'Sign In' }}
+          <div class="qacts">
+            <button
+              class="ibtn ibtn-p ibtn-sm"
+              :disabled="r.is_archived"
+              :title="r.is_archived ? 'This referral is archived and no longer active.' : ''"
+              @click.stop="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+            >
+              View
             </button>
-          </form>
+          </div>
         </div>
       </div>
 
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
-        Having trouble logging in? Contact the Office of Student Services.
+      <!-- Pagination -->
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
+        </span>
+        <div style="display:flex;gap:6px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { ref, computed, onMounted } from 'vue';
+import { referralAPI } from '../../api/index';
+import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 
-const router = useRouter();
-const loading = ref(false);
-const error   = ref('');
+const referrals  = ref([]);
+const loading    = ref(true);
+const pagination = ref({});
+const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false });
 
-const form = ref({ student_id: '', password: '' });
-const showPassword = ref(false);
-const capsLockOn = ref(false);
 
-function checkCapsLock(e) {
-  capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
+const SERVICES_BY_UNIT = {
+  GCU: [
+    { value: 'class_attendance',    label: 'Class Attendance' },
+    { value: 'counseling',          label: 'Counseling' },
+    { value: 'academic_deficiency', label: 'Academic Deficiency' },
+    { value: 'leave_of_absence',    label: 'Leave of Absence' },
+    { value: 'withdrawal',          label: 'Withdrawal' },
+    { value: 'readmission',         label: 'Readmission' },
+    { value: 'shifting',            label: 'Shifting' },
+  ],
+  TMDU: [
+    { value: 'psychological_testing', label: 'Psychological Testing' },
+  ],
+  SDU: [
+    { violation: 'Intellectual Dishonesty' },
+    { violation: 'Fraud' },
+    { violation: 'Harm to Persons' },
+    { violation: 'Damage to Property' },
+    { violation: 'Unauthorized Possession/Use of Dangerous Objects' },
+    { violation: 'Unauthorized Possession/Use of Prohibited Drugs' },
+    { violation: 'Undermining or Obstructing Investigations' },
+    { violation: 'Violation of IT Resources Policies' },
+    { violation: 'Stealing within University Premises' },
+    { violation: 'Preparing or Disseminating Libelous/Subversive Materials' },
+    { violation: 'Committing Sexual Acts within University Premises' },
+    { violation: 'Instigating or Leading Boycotts/Disruption of Classes' },
+    { violation: 'Drinking Alcoholic Beverages or Drunken Behavior' },
+    { violation: 'Smoking' },
+    { violation: 'Gambling within University Premises' },
+    { violation: 'Violation of Municipal/Provincial Ordinance' },
+    { violation: 'Non-wearing of Valid School I.D.' },
+    { violation: 'Unauthorized Use of Borrowed or Stolen I.D.' },
+    { violation: 'Loitering During Curfew Hours' },
+    { violation: 'Failure to Obtain Permit for Facility Use' },
+    { violation: 'Unauthorized Use of University Name' },
+    { violation: 'Unauthorized Posting/Distributing of Notices' },
+    { violation: 'Possessing/Distributing Immoral, Indecent, or Subversive Literature' },
+    { violation: 'Littering' },
+    { violation: 'Spitting' },
+    { violation: 'Violating Legally Posted Instructions or Signage' },
+    { violation: 'Disobeying Lawful Written Orders' },
+    { violation: 'Appropriating Property of Another (Student Organization)' },
+    { violation: 'Other Form of Misconduct' },
+  ],
+};
+
+const availableServices = computed(() => {
+  if (filters.value.unit === 'GCU') return SERVICES_BY_UNIT.GCU;
+  if (filters.value.unit === 'TMDU') return SERVICES_BY_UNIT.TMDU;
+  return [];
+});
+
+function onUnitChange() {
+  filters.value.type = '';
+  filters.value.violation_type = '';
+  fetchReferrals();
 }
 
-const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function onSearchInput() {
+  filters.value.search = safeSearchInput(filters.value.search);
+  fetchReferrals();
+}
 
-async function handleLogin() {
-  error.value = '';
+async function fetchReferrals(page = 1) {
   loading.value = true;
   try {
-    const res = await axios.post(`${API_BASE}/student/login`, form.value);
-    localStorage.setItem('student_token', res.data.token);
-    localStorage.setItem('student', JSON.stringify(res.data.student));
-    router.push({ name: 'student-dashboard' });
+    const res = await referralAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
+    referrals.value  = res.data.data;
+    pagination.value = res.data;
   } catch (e) {
-    error.value = e.response?.data?.message || 'Invalid Student ID or password.';
+    console.error(e);
   } finally {
     loading.value = false;
   }
 }
+
+function resetFilters() {
+  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false };
+  fetchReferrals();
+}
+
+function changePage(page) { fetchReferrals(page); }
+
+function urgencyRow(level) {
+  return { uh: level === 'high' || level === 'critical', um: level === 'medium', ul: level === 'low' };
+}
+
+function formatDate(date) {
+  return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+onMounted(() => fetchReferrals());
 </script>

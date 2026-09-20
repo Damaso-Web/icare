@@ -16,7 +16,7 @@
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
         <div v-if="(isGCU || isSDUHead) && referral.case" style="margin-left:auto;display:flex;gap:8px">
-          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
+          <button v-if="isGCU && referral.status !== 'submitted'" class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
@@ -135,7 +135,11 @@
                 <button v-if="!referral.is_archived" class="ibtn ibtn-o ibtn-sm" @click="openEditModal">Edit</button>
                 <button
                   class="ibtn ibtn-o ibtn-sm"
-                  :style="referral.is_archived ? 'background:var(--mist);color:var(--moss);border-color:var(--mint)' : ''"
+                  :disabled="!referral.is_archived && !isArchivable"
+                  :title="!referral.is_archived && !isArchivable ? 'Case must be Resolved or Closed before it can be archived.' : ''"
+                  :style="referral.is_archived
+                    ? 'background:var(--mist);color:var(--moss);border-color:var(--mint)'
+                    : (!isArchivable ? 'opacity:.5;cursor:not-allowed' : '')"
                   @click="toggleArchive"
                 >
                   {{ referral.is_archived ? 'Unarchive' : 'Archive' }}
@@ -242,11 +246,11 @@
                 <div style="margin-bottom:12px">
                   <label class="ifl">Type</label>
                   <select v-model="interventionForm.type" class="ifse">
-                    <option value="previous_intervention">Previous Intervention</option>
+                    <option value="previous_intervention">Counseling Session</option>
                     <option value="follow_up">Follow-up</option>
                     <option value="parent_conference">Parent Conference</option>
                     <option value="home_visit">Home Visit</option>
-                    <option value="referral_external">External Referral</option>
+                    <option value="referral_external">Referral to External Unit</option>
                     <option value="other">Other</option>
                   </select>
                 </div>
@@ -854,7 +858,6 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Referral</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
@@ -906,7 +909,7 @@
               </div>
             </template>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="submitEdit">Save Changes</button>
+              <button class="ibtn ibtn-p" :disabled="isEditFormUnchanged" @click="submitEdit">Save Changes</button>
               <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
             </div>
           </div>
@@ -960,6 +963,19 @@ const selectedIntervention = ref(null);
 
 const showEditModal = ref(false);
 const editForm = ref({ nature_of_concern: '', urgency_level: '', intake_notes: '', violation_type: '', incident_description: '', incident_date: '', sanction: '', sanction_notes: '' });
+const editFormSnapshot = ref('');
+
+const isEditFormUnchanged = computed(() => JSON.stringify(editForm.value) === editFormSnapshot.value);
+
+// Archiving is only allowed once the case itself has wrapped up - archiving
+// an in-progress/open case would hide a client that's still being worked.
+const isArchivable = computed(() => ['resolved', 'closed'].includes(referral.value.case?.status));
+
+const EDIT_FIELD_LABELS = {
+  urgency_level: 'Urgency Level',
+  nature_of_concern: 'Concern',
+  intake_notes: 'Intake Notes',
+};
 
 function openEditModal() {
   editForm.value = {
@@ -972,10 +988,20 @@ function openEditModal() {
     sanction: referral.value.sanction || '',
     sanction_notes: referral.value.sanction_notes || '',
   };
+  editFormSnapshot.value = JSON.stringify(editForm.value);
   showEditModal.value = true;
 }
 
 async function submitEdit() {
+  const before = JSON.parse(editFormSnapshot.value);
+  const changeLines = Object.keys(EDIT_FIELD_LABELS)
+    .filter(key => before[key] !== editForm.value[key])
+    .map(key => `${EDIT_FIELD_LABELS[key]}:\n  Before: ${before[key] || '(blank)'}\n  After: ${editForm.value[key] || '(blank)'}`);
+
+  if (changeLines.length && !confirm(`Confirm the following changes?\n\n${changeLines.join('\n\n')}`)) {
+    return;
+  }
+
   try {
     const res = await referralAPI.update(referral.value.id, editForm.value);
     referral.value = { ...referral.value, ...res.data };
@@ -987,6 +1013,9 @@ async function submitEdit() {
 }
 
 async function toggleArchive() {
+  if (!referral.value.is_archived && !isArchivable.value) return;
+  const action = referral.value.is_archived ? 'restore this referral from the archive' : 'archive this referral';
+  if (!confirm(`Are you sure you want to ${action}?`)) return;
   try {
     const res = referral.value.is_archived
       ? await referralAPI.unarchive(referral.value.id)

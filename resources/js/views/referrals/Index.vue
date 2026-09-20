@@ -70,7 +70,8 @@
           :key="r.id"
           class="qr"
           :class="urgencyRow(r.urgency_level)"
-          @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
+          :style="r.is_archived ? 'cursor:not-allowed;opacity:.6' : ''"
+          @click="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
         >
           <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
           <div class="qi">
@@ -81,12 +82,14 @@
             <div class="qmeta">
               {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}
             </div>
-            <div class="qtags">
-              <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
-            </div>
           </div>
           <div class="qacts">
-            <button class="ibtn ibtn-p ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id } })">
+            <button
+              class="ibtn ibtn-p ibtn-sm"
+              :disabled="r.is_archived"
+              :title="r.is_archived ? 'This referral is archived and no longer active.' : ''"
+              @click.stop="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+            >
               View
             </button>
           </div>

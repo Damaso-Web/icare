@@ -65,12 +65,28 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div v-if="modalError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px">{{ modalError }}</div>
           <div>
-            <label class="ifl">Reason for rescheduling</label>
-            <textarea v-model="rescheduleReason" class="ifi" rows="3" placeholder="Let us know why you need a new time..."></textarea>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">After submitting, you'll be able to pick a new date and time from the calendar on your Appointments page.</div>
+            <label class="ifl">Preferred Date</label>
+            <input v-model="preferredDate" type="date" class="ifi" @change="validatePreferredDate" />
+            <div v-if="preferredDateWarning" style="font-size:11px;color:var(--red);margin-top:4px">Please select a weekday (Monday to Friday).</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Preferred Start Time</label>
+              <input v-model="preferredStart" type="time" class="ifi" min="08:00" max="16:00" @change="validatePreferredTimes" />
+            </div>
+            <div>
+              <label class="ifl">Preferred End Time</label>
+              <input v-model="preferredEnd" type="time" class="ifi" min="08:00" max="16:00" @change="validatePreferredTimes" />
+            </div>
+          </div>
+          <div v-if="preferredTimeError" style="font-size:11px;color:var(--red)">{{ preferredTimeError }}</div>
+          <div>
+            <label class="ifl">Reason for Rescheduling</label>
+            <textarea v-model="rescheduleReason" class="ifi" rows="3" placeholder="Please tell us why you need to reschedule..."></textarea>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">This is a preference, not a confirmed booking — staff will confirm the actual new time.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="requestingReschedule || !rescheduleReason.trim()" @click="requestReschedule">
+            <button class="ibtn ibtn-p" :disabled="!canSubmitReschedule" @click="requestReschedule">
               {{ requestingReschedule ? 'Submitting...' : 'Submit Request' }}
             </button>
             <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
@@ -105,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -121,6 +137,42 @@ const modalError = ref('');
 
 const showRescheduleModal = ref(false);
 const rescheduleReason = ref('');
+const preferredDate = ref('');
+const preferredStart = ref('');
+const preferredEnd = ref('');
+const preferredDateWarning = ref(false);
+const preferredTimeError = ref('');
+
+const OFFICE_START = '08:00';
+const OFFICE_END   = '16:00';
+
+const canSubmitReschedule = computed(() =>
+  !requestingReschedule.value &&
+  rescheduleReason.value.trim() &&
+  !preferredDateWarning.value &&
+  !preferredTimeError.value
+);
+
+function validatePreferredDate() {
+  if (!preferredDate.value) { preferredDateWarning.value = false; return; }
+  const day = new Date(preferredDate.value + 'T00:00:00').getDay();
+  preferredDateWarning.value = (day === 0 || day === 6);
+}
+
+function validatePreferredTimes() {
+  preferredTimeError.value = '';
+  if (preferredStart.value && (preferredStart.value < OFFICE_START || preferredStart.value > OFFICE_END)) {
+    preferredTimeError.value = 'Please select a time between 8:00 AM and 4:00 PM.';
+    return;
+  }
+  if (preferredEnd.value && (preferredEnd.value < OFFICE_START || preferredEnd.value > OFFICE_END)) {
+    preferredTimeError.value = 'Please select a time between 8:00 AM and 4:00 PM.';
+    return;
+  }
+  if (preferredStart.value && preferredEnd.value && preferredEnd.value <= preferredStart.value) {
+    preferredTimeError.value = 'End time must be later than start time.';
+  }
+}
 
 const showCancelModal = ref(false);
 const cancelReason = ref('');
@@ -128,6 +180,11 @@ const cancellingAppointment = ref(false);
 
 function openRescheduleModal() {
   rescheduleReason.value = '';
+  preferredDate.value = '';
+  preferredStart.value = '';
+  preferredEnd.value = '';
+  preferredDateWarning.value = false;
+  preferredTimeError.value = '';
   modalError.value = '';
   showRescheduleModal.value = true;
 }
@@ -143,7 +200,17 @@ async function requestReschedule() {
   modalError.value = '';
   requestingReschedule.value = true;
   try {
-    await axios.post(`${API_BASE}/student/appointments/${route.params.id}/request-reschedule`, { reason: rescheduleReason.value }, authHeaders());
+    const parts = [];
+    if (preferredDate.value) {
+      const dateLabel = new Date(preferredDate.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+      let slot = `Preferred: ${dateLabel}`;
+      if (preferredStart.value && preferredEnd.value) slot += ` ${preferredStart.value}–${preferredEnd.value}`;
+      parts.push(slot);
+    }
+    if (rescheduleReason.value.trim()) parts.push(rescheduleReason.value.trim());
+    const reason = parts.join('. ') || 'No reason provided.';
+
+    await axios.post(`${API_BASE}/student/appointments/${route.params.id}/request-reschedule`, { reason }, authHeaders());
     router.push({ name: 'student-appointments' });
   } catch (e) {
     const message = e.response?.data?.message || 'Failed to request a reschedule.';

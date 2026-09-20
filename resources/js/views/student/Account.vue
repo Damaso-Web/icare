@@ -14,26 +14,37 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="profileForm.last_name" class="ifi" />
+              <input v-model="profileForm.last_name" class="ifi" @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="profileForm.first_name" class="ifi" />
+              <input v-model="profileForm.first_name" class="ifi" @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
           </div>
           <div>
             <label class="ifl">Middle Name</label>
-            <input v-model="profileForm.middle_name" class="ifi" />
+            <input v-model="profileForm.middle_name" class="ifi" @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, '')" />
           </div>
           <div>
-            <label class="ifl">Email</label>
+            <label class="ifl">Suffix</label>
+            <select v-model="profileForm.suffix" class="ifse">
+              <option value="">None</option>
+              <option value="Jr.">Jr.</option>
+              <option value="Sr.">Sr.</option>
+              <option value="I">I</option>
+              <option value="II">II</option>
+              <option value="III">III</option>
+            </select>
+          </div>
+          <div>
+            <label class="ifl">Email Address</label>
             <input v-model="profileForm.email" type="email" class="ifi" />
           </div>
           <div>
             <label class="ifl">Contact Number</label>
             <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="saveProfile">Save Changes</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged" @click="saveProfile">Save Changes</button>
         </div>
       </div>
 
@@ -62,13 +73,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
-const profileForm = ref({ first_name: '', last_name: '', middle_name: '', email: '', contact_number: '' });
+const profileForm = ref({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', contact_number: '' });
+const profileSnapshot = ref('');
+const isProfileUnchanged = computed(() => JSON.stringify(profileForm.value) === profileSnapshot.value);
 const profileError = ref('');
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
 const pwError = ref('');
@@ -89,6 +102,7 @@ async function saveProfile() {
     const res = await axios.put(`${API_BASE}/student/profile`, profileForm.value, authHeaders());
     student.value = { ...student.value, ...res.data };
     localStorage.setItem('student', JSON.stringify(student.value));
+    profileSnapshot.value = JSON.stringify(profileForm.value);
   } catch (e) {
     profileError.value = e.response?.data?.message || 'Failed to update profile.';
   }
@@ -111,8 +125,10 @@ onMounted(() => {
     first_name: student.value.first_name || '',
     last_name: student.value.last_name || '',
     middle_name: student.value.middle_name || '',
+    suffix: student.value.suffix || '',
     email: student.value.email || '',
     contact_number: student.value.contact_number || '',
   };
+  profileSnapshot.value = JSON.stringify(profileForm.value);
 });
 </script>

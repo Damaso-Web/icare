@@ -279,6 +279,15 @@ class ReferralController extends Controller
             : null;
     } else {
         $token = \Illuminate\Support\Str::random(48);
+
+        // This is just a placeholder slot until the student picks their own
+        // date/time via the scheduling link - but it's still a real row with
+        // a real date, so it must never land on a weekend by default.
+        $placeholderDate = now()->addDay();
+        while ($placeholderDate->isWeekend()) {
+            $placeholderDate->addDay();
+        }
+
         $appointment = \App\Models\Appointment::create([
             'case_id'             => $case->id,
             'referral_id'         => $referral->id,
@@ -291,7 +300,7 @@ class ReferralController extends Controller
             'token_expires_at'    => now()->addDays(7),
             'request_status'      => 'awaiting_student',
             'status'              => 'pending',
-            'appointment_date'    => now()->addDays(1)->format('Y-m-d'),
+            'appointment_date'    => $placeholderDate->format('Y-m-d'),
             'start_time'          => '08:00',
             'end_time'            => '09:00',
         ]);

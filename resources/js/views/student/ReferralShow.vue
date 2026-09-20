@@ -49,14 +49,16 @@
         <div class="icard-header"><span class="icard-title">Choose Your Appointment Time</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pendingAppointment.reschedule_reason" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--amber)">
-            🔁 You're rescheduling appointment <strong>{{ pendingAppointment.appointment_code }}</strong>. Reason: {{ pendingAppointment.reschedule_reason }}
+            🔁 You're rescheduling appointment <strong>{{ pendingAppointment.appointment_code }}</strong>, previously set for
+            <strong>{{ formatDate(pendingAppointment.appointment_date) }} · {{ pendingAppointment.start_time }}–{{ pendingAppointment.end_time }}</strong>.
+            Reason: {{ pendingAppointment.reschedule_reason }}
           </div>
           <div style="font-size:13px;color:var(--stone);display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px">
             <span>Appointments are available <strong>Monday to Friday, 8:00 AM to 4:00 PM</strong>.</span>
             <span style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px">
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--mist);border:1px solid var(--mint);display:inline-block"></span> Available</span>
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--red-lt);border:1px solid #f0a8a8;display:inline-block"></span> Full</span>
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:var(--cloud);border:1px solid var(--silver);display:inline-block"></span> Closed</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:#22c55e;border:1px solid #16a34a;display:inline-block"></span> Available</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:#ef4444;border:1px solid #dc2626;display:inline-block"></span> Full</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;border-radius:3px;background:#9ca3af;border:1px solid #6b7280;display:inline-block"></span> Closed</span>
             </span>
           </div>
 
@@ -94,15 +96,17 @@
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
-              <label class="ifl">Start Time</label>
-              <input v-model="scheduleForm.start_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
+              <label class="ifl">Preferred Start Time</label>
+              <input v-model="scheduleForm.start_time" type="time" class="ifi" min="08:00" max="16:00" @change="onTimeChange" />
             </div>
             <div>
-              <label class="ifl">End Time</label>
-              <input v-model="scheduleForm.end_time" type="time" class="ifi" min="08:00" max="16:00" @change="checkAvailability" />
+              <label class="ifl">Preferred End Time</label>
+              <input v-model="scheduleForm.end_time" type="time" class="ifi" min="08:00" max="16:00" @change="onTimeChange" />
             </div>
+            <div v-if="timeRangeError" style="grid-column:1 / -1;font-size:11px;color:var(--red)">{{ timeRangeError }}</div>
           </div>
           <div v-if="timeOrderError" style="font-size:11px;color:var(--red)">End time must be later than start time.</div>
+          <div v-if="sameAsOriginalError" style="font-size:11px;color:var(--red)">Please select a different date or time than your original appointment.</div>
           <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
           <div v-else-if="availabilityChecked && !isAvailable" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ This time slot is already taken. Please choose another.</div>
           <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
@@ -140,6 +144,10 @@ const availabilityChecked = ref(false);
 const isAvailable = ref(false);
 const submitting = ref(false);
 const scheduleError = ref('');
+const timeRangeError = ref('');
+
+const OFFICE_START = '08:00';
+const OFFICE_END   = '16:00';
 
 const today = new Date();
 const calYear  = ref(today.getFullYear());
@@ -154,10 +162,10 @@ function calStatusLabel(status) {
 }
 
 function calDayStyle(day) {
-  if (day.status === 'available') return 'cursor:pointer;background:var(--mist);color:var(--moss);font-weight:600';
-  if (day.status === 'full') return 'cursor:not-allowed;background:var(--red-lt);color:var(--red)';
+  if (day.status === 'available') return 'cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600';
+  if (day.status === 'full') return 'cursor:not-allowed;background:#fee2e2;color:#b91c1c';
   if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
-  return 'cursor:not-allowed;background:var(--cloud);color:var(--fog)';
+  return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280';
 }
 
 function selectCalendarDate(dateStr) {
@@ -188,10 +196,39 @@ function nextCalMonth() {
   fetchMonthAvailability();
 }
 
+// Only meaningful when this is an actual reschedule (reschedule_reason present) -
+// the pending appointment's own date/time still hold the ORIGINAL slot until a
+// new one is actually submitted, so this compares against the slot being replaced.
+const sameAsOriginalError = computed(() => {
+  const appt = pendingAppointment.value;
+  if (!appt?.reschedule_reason) return false;
+  const origDate = appt.appointment_date?.split('T')[0];
+  return (
+    scheduleForm.value.appointment_date &&
+    scheduleForm.value.start_time &&
+    scheduleForm.value.end_time &&
+    scheduleForm.value.appointment_date === origDate &&
+    scheduleForm.value.start_time === appt.start_time &&
+    scheduleForm.value.end_time === appt.end_time
+  );
+});
+
 const canSubmit = computed(() => {
   return scheduleForm.value.appointment_date && scheduleForm.value.start_time && scheduleForm.value.end_time &&
-         !dayWarning.value && !timeOrderError.value && availabilityChecked.value && isAvailable.value;
+         !dayWarning.value && !timeOrderError.value && !timeRangeError.value && !sameAsOriginalError.value &&
+         availabilityChecked.value && isAvailable.value;
 });
+
+function onTimeChange() {
+  timeRangeError.value = '';
+  const { start_time, end_time } = scheduleForm.value;
+  if (start_time && (start_time < OFFICE_START || start_time > OFFICE_END)) {
+    timeRangeError.value = 'Please select a time between 8:00 AM and 4:00 PM.';
+  } else if (end_time && (end_time < OFFICE_START || end_time > OFFICE_END)) {
+    timeRangeError.value = 'Please select a time between 8:00 AM and 4:00 PM.';
+  }
+  checkAvailability();
+}
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };

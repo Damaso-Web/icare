@@ -58,8 +58,8 @@ class AppointmentController extends Controller
             'date',
             'after_or_equal:today',
             function ($attribute, $value, $fail) {
-                if (\Carbon\Carbon::parse($value)->isSunday()) {
-                    $fail('Appointments cannot be scheduled on a Sunday.');
+                if (\Carbon\Carbon::parse($value)->isWeekend()) {
+                    $fail('Appointments can only be scheduled Monday through Friday.');
                 }
             },
         ],

@@ -68,6 +68,9 @@
             <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
               ✓ Existing student found
             </div>
+            <div v-else-if="studentSearchQuery.length >= 2 && studentSuggestions.length === 0 && !studentSearchLoading" style="font-size:11px;color:var(--red);margin-top:4px">
+              No matching student found. Double-check the Student ID or name, or fill in the fields below to refer a new student.
+            </div>
           </div>
 
           <div style="margin-bottom:14px">
@@ -112,7 +115,7 @@
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
               <select v-model="form.sex" class="ifse" :disabled="studentFound" required>
-                <option value="">Select...</option>
+                <option value="" disabled hidden>Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
               </select>
@@ -123,14 +126,14 @@
             <div>
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
               <select v-model="form.college" class="ifse" :disabled="studentFound" @change="form.program = ''" required>
-                <option value="">Select college...</option>
+                <option value="" disabled hidden>Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Program <span style="color:var(--red)">*</span></label>
               <select v-model="form.program" class="ifse" :disabled="studentFound || !form.college" required>
-                <option value="">Select program...</option>
+                <option value="" disabled hidden>Select program...</option>
                 <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
                 <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
               </select>
@@ -138,7 +141,7 @@
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
               <select v-model="form.year_level" class="ifse" :disabled="studentFound" required>
-                <option value="">Select year level...</option>
+                <option value="" disabled hidden>Select year level...</option>
                 <option>1st Year</option>
                 <option>2nd Year</option>
                 <option>3rd Year</option>
@@ -189,7 +192,7 @@
             <div>
               <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
               <select v-model="form.referral_type" class="ifse" required @change="onServiceChange">
-                <option value="">Select service...</option>
+                <option value="" disabled hidden>Select service...</option>
                 <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
                 <option value="counseling">Counseling</option>
                 <option value="academic_deficiency">Academic Deficiency</option>
@@ -216,7 +219,7 @@
           <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
             <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
             <select v-model="form.violation_type" class="ifse" :required="form.referral_type === 'disciplinary'">
-              <option value="">Select act of misconduct...</option>
+              <option value="" disabled hidden>Select act of misconduct...</option>
               <option>Intellectual Dishonesty</option>
               <option>Fraud</option>
               <option>Harm to Persons</option>
@@ -270,7 +273,7 @@
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ loading ? 'Submitting...' : 'Refer Student' }}
             </button>
-            <button type="button" class="ibtn ibtn-o" @click="handleClearForm">Clear Form</button>
+            <button type="button" class="ibtn ibtn-o" :disabled="isCreateFormEmpty" @click="handleClearForm">Clear Form</button>
             <button type="button" class="ibtn ibtn-g" @click="goBack">Cancel</button>
           </div>
 
@@ -333,6 +336,7 @@ const studentFound  = ref(false);
 const studentSearchQuery   = ref('');
 const studentSuggestions   = ref([]);
 const showStudentDropdown  = ref(false);
+const studentSearchLoading = ref(false);
 let studentSearchTimeout = null;
 
 const isFacultyOrDean = computed(() =>
@@ -340,6 +344,16 @@ const isFacultyOrDean = computed(() =>
 );
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[form.value.college] || []);
+
+const isCreateFormEmpty = computed(() =>
+  !studentSearchQuery.value &&
+  !form.value.student_id_input &&
+  !form.value.last_name &&
+  !form.value.first_name &&
+  !form.value.middle_name &&
+  !form.value.referral_type &&
+  !form.value.nature_of_concern
+);
 
 const form = ref({
   student_id_input:      '',
@@ -372,11 +386,20 @@ function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
-  if (!studentSearchQuery.value || studentSearchQuery.value.length < 2) {
+  if (!studentSearchQuery.value) {
+    // Search field was fully cleared - wipe any previously auto-filled
+    // student info so stale data isn't left sitting in the form.
+    clearStudentFields();
     studentSuggestions.value = [];
     showStudentDropdown.value = false;
     return;
   }
+  if (studentSearchQuery.value.length < 2) {
+    studentSuggestions.value = [];
+    showStudentDropdown.value = false;
+    return;
+  }
+  studentSearchLoading.value = true;
   studentSearchTimeout = setTimeout(async () => {
     try {
       const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1 });
@@ -384,8 +407,23 @@ function onStudentSearch() {
       showStudentDropdown.value = studentSuggestions.value.length > 0;
     } catch (e) {
       studentSuggestions.value = [];
+    } finally {
+      studentSearchLoading.value = false;
     }
   }, 350);
+}
+
+function clearStudentFields() {
+  form.value.student_id_input = '';
+  form.value.last_name   = '';
+  form.value.first_name  = '';
+  form.value.middle_name = '';
+  form.value.suffix      = '';
+  form.value.sex         = '';
+  form.value.college     = '';
+  form.value.program     = '';
+  form.value.year_level  = '';
+  form.value.section     = '';
 }
 
 async function selectStudent(s) {

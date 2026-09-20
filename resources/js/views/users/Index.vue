@@ -13,14 +13,14 @@
         :style="!showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
         @click="switchStatusTab(false)"
       >
-        Active
+        {{ isFacultyView ? 'Active Faculty' : 'Active' }}
       </button>
       <button
         class="ibtn ibtn-sm"
         :style="showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
         @click="switchStatusTab(true)"
       >
-        Inactive
+        {{ isFacultyView ? 'Inactive Faculty' : 'Inactive' }}
       </button>
     </div>
 
@@ -32,7 +32,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
-          placeholder="Search name or email..."
+          placeholder="Search name, email, or employee ID..."
           style="width:220px"
           @keypress="blockSpecialKeypress"
           @input="onSearchLetters"
@@ -60,12 +60,12 @@
         <option value="last_name:asc">Name: A-Z</option>
         <option value="last_name:desc">Name: Z-A</option>
       </select>
-      <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+      <button v-if="auth.isAdmin && !showInactive" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
       <button
-        v-if="auth.isAdmin"
+        v-if="auth.isAdmin && !showInactive"
         class="ibtn ibtn-p ibtn-sm"
         style="margin-left:auto"
         @click="openCreate"
@@ -133,7 +133,7 @@
 
     <!-- View Employee Profile Modal -->
     <div v-if="showViewModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showViewModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
           <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px;font-family:var(--serif)">
             {{ initials(viewedUser.first_name, viewedUser.last_name) }}
@@ -176,7 +176,12 @@
           <div v-if="auth.isAdmin && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
-              <button type="button" @click="toggleTempPasswordVisible" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
+              <button
+                type="button"
+                @click="toggleTempPasswordVisible"
+                :disabled="!viewedUser.is_active"
+                :style="{ background:'none', border:'none', cursor: viewedUser.is_active ? 'pointer' : 'not-allowed', color:'var(--fog)', padding:'2px', display:'flex', alignItems:'center', opacity: viewedUser.is_active ? 1 : .5 }"
+              >
                 <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
                   <circle cx="12" cy="12" r="3"/>
@@ -199,10 +204,22 @@
           </div>
 
           <div style="display:flex;gap:8px;margin-top:8px">
-            <button v-if="auth.isAdmin" class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openEditFromView">Edit</button>
+            <button
+              v-if="auth.isAdmin"
+              class="ibtn ibtn-p"
+              :disabled="!viewedUser.is_active"
+              :style="{ flex:1, justifyContent:'center', opacity: viewedUser.is_active ? 1 : .5, cursor: viewedUser.is_active ? 'pointer' : 'not-allowed' }"
+              @click="openEditFromView"
+            >Edit</button>
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
-          <button v-if="auth.isAdmin" class="ibtn ibtn-sm" style="width:100%;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="resetPassword(viewedUser)">Reset Password</button>
+          <button
+            v-if="auth.isAdmin"
+            class="ibtn ibtn-sm"
+            :disabled="!viewedUser.is_active"
+            :style="{ width:'100%', justifyContent:'center', background:'var(--amber-lt)', color:'var(--amber)', border:'1.5px solid var(--amber)', opacity: viewedUser.is_active ? 1 : .5, cursor: viewedUser.is_active ? 'pointer' : 'not-allowed' }"
+            @click="resetPassword(viewedUser)"
+          >Reset Password</button>
         </div>
       </div>
     </div>
@@ -211,8 +228,7 @@
     <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? (isFacultyView ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showModal = false">✕</button>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? ((isFacultyView || userForm.role === 'faculty') ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
@@ -243,17 +259,25 @@
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="userForm.suffix" class="ifi" placeholder="Jr., III" @input="userForm.suffix = onlyLettersStrict(userForm.suffix)" />
+              <select v-model="userForm.suffix" class="ifse">
+                <option value="">None</option>
+                <option value="Jr.">Jr.</option>
+                <option value="Sr.">Sr.</option>
+                <option value="II">II</option>
+                <option value="III">III</option>
+                <option value="IV">IV</option>
+                <option value="V">V</option>
+              </select>
             </div>
           </div>
           <div>
-            <label class="ifl">Email <span style="color:var(--red)">*</span></label>
+            <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
             <input v-model="userForm.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" />
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.role" class="ifse" :disabled="isFacultyView">
-              <option value="">Select role...</option>
+              <option value="" disabled hidden>Select role...</option>
               <option value="admin">Admin / GCU Head</option>
               <option value="gcu_staff">GCU Staff</option>
               <option value="sdu_head">SDU Head</option>
@@ -265,19 +289,19 @@
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.college" class="ifse" @change="userForm.department = ''">
-              <option value="">Select college...</option>
+              <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">Department <span style="color:var(--red)">*</span></label>
             <select v-model="userForm.department" class="ifse" :disabled="!userForm.college">
-              <option value="">Select department...</option>
+              <option value="" disabled hidden>Select department...</option>
               <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
             </select>
           </div>
           <div>
-            <label class="ifl">Contact Number</label>
+            <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
             <input
               v-model="userForm.contact_number"
               class="ifi"
@@ -299,11 +323,17 @@
             {{ formError }}
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
-            <button class="ibtn ibtn-p" @click="saveUser">
+            <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="saveUser">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
             </button>
-            <button v-if="!isEditing" class="ibtn ibtn-o" @click="openCreate">Clear Form</button>
+            <button
+              v-if="!isEditing"
+              class="ibtn ibtn-o"
+              :disabled="isAddFormEmpty"
+              :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
+              @click="handleClearForm"
+            >Clear Form</button>
             <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
         </div>
@@ -356,7 +386,7 @@ import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { COLLEGES } from '../../constants/colleges';
 import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 function titleCase(str) {
   return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -387,6 +417,7 @@ const formError  = ref('');
 const resetPasswordResult = ref('');
 const showTempPassword = ref(false);
 const tempPasswordValue = ref('');
+const userFormSnapshot = ref('');
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
@@ -396,6 +427,22 @@ const userForm = ref({
   college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
 });
+
+const isUserFormUnchanged = computed(() =>
+  isEditing.value && JSON.stringify(userForm.value) === userFormSnapshot.value
+);
+
+const isAddFormEmpty = computed(() =>
+  !userForm.value.first_name &&
+  !userForm.value.last_name &&
+  !userForm.value.middle_name &&
+  !userForm.value.suffix &&
+  !userForm.value.email &&
+  !userForm.value.employee_id &&
+  !userForm.value.contact_number &&
+  !userForm.value.college &&
+  !userForm.value.department
+);
 
 const showImportModal = ref(false);
 const importFile      = ref(null);
@@ -443,12 +490,21 @@ function generatePassword() {
   userForm.value.password_confirmation = userForm.value.password;
 }
 
-function openView(u) {
-  viewedUser.value = u;
+// Re-fetches the individual record so Last Login (and any other field
+// updated after the list was loaded) is always current when opened, rather
+// than reusing the possibly-stale row object from the last table fetch.
+async function openView(u) {
   resetPasswordResult.value = '';
   showTempPassword.value = false;
   tempPasswordValue.value = '';
+  viewedUser.value = u;
   showViewModal.value = true;
+  try {
+    const res = await userAPI.show(u.id);
+    viewedUser.value = res.data;
+  } catch (e) {
+    // Non-fatal - falls back to the row data already shown.
+  }
 }
 
 function openEditFromView() {
@@ -458,6 +514,7 @@ function openEditFromView() {
 
 async function resetPassword(u) {
   if (!auth.isAdmin) return;
+  if (!confirm(`Reset password for ${u.first_name} ${u.last_name}? A new temporary password will be generated.`)) return;
   try {
     const res = await userAPI.resetPassword(u.id, {});
     resetPasswordResult.value = res.data.temp_password;
@@ -482,18 +539,28 @@ async function toggleTempPasswordVisible() {
   }
 }
 
-function openCreate() {
-  if (!auth.isAdmin) return;
-  isEditing.value = false;
-  formError.value = '';
-  userForm.value  = {
+function resetUserForm() {
+  userForm.value = {
     first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
     college: '', department: '', contact_number: '',
     password: '', password_confirmation: '',
   };
-  showModal.value = true;
   generatePassword();
+}
+
+function openCreate() {
+  if (!auth.isAdmin) return;
+  isEditing.value = false;
+  formError.value = '';
+  resetUserForm();
+  showModal.value = true;
+}
+
+function handleClearForm() {
+  if (isAddFormEmpty.value) return;
+  if (!confirm('Clear all fields in this form?')) return;
+  resetUserForm();
 }
 
 function openEdit(u) {
@@ -501,6 +568,7 @@ function openEdit(u) {
   isEditing.value = true;
   formError.value = '';
   userForm.value  = { ...u, password: '', password_confirmation: '' };
+  userFormSnapshot.value = JSON.stringify(userForm.value);
   showModal.value = true;
 }
 
@@ -510,18 +578,28 @@ async function saveUser() {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-  if (!isEditing.value && (!userForm.value.first_name || !userForm.value.last_name || !userForm.value.email || !userForm.value.role || !userForm.value.employee_id)) {
-    formError.value = 'Please fill in all required fields.';
+
+  const missing = [];
+  if (!isEditing.value) {
+    if (!userForm.value.employee_id) missing.push('Employee ID');
+    if (!userForm.value.last_name) missing.push('Last Name');
+    if (!userForm.value.first_name) missing.push('First Name');
+    if (!userForm.value.email) missing.push('Email Address');
+    if (!userForm.value.role) missing.push('Role');
+  } else {
+    if (!userForm.value.employee_id) missing.push('Employee ID');
+    if (!userForm.value.email) missing.push('Email Address');
+  }
+  if (!userForm.value.contact_number) missing.push('Contact Number');
+  if (['faculty', 'dean_secretary'].includes(userForm.value.role)) {
+    if (!userForm.value.college) missing.push('College');
+    if (!userForm.value.department) missing.push('Department');
+  }
+  if (missing.length) {
+    formError.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
-  if (isEditing.value && (!userForm.value.email || !userForm.value.employee_id)) {
-    formError.value = 'Please fill in all required fields.';
-    return;
-  }
-  if (['faculty', 'dean_secretary'].includes(userForm.value.role) && (!userForm.value.college || !userForm.value.department)) {
-    formError.value = 'College and Department are required for this role.';
-    return;
-  }
+
   if (userForm.value.email && !isValidEmail(userForm.value.email)) {
     formError.value = 'Please enter a valid email address.';
     return;
@@ -552,6 +630,8 @@ async function toggleActive(u) {
     toast?.error('Please fill in all required fields.');
     return;
   }
+  const action = u.is_active ? 'deactivate' : 'activate';
+  if (!confirm(`Are you sure you want to ${action} this account?`)) return;
   try {
     await userAPI.toggleActive(u.id);
     toast?.success(`Employee ${u.is_active ? 'deactivated' : 'activated'}.`);
@@ -626,7 +706,8 @@ function formatDate(date) {
 onMounted(() => fetchUsers());
 
 watch(() => route.name, () => {
-  filters.value = { search: '', role: '' };
+  filters.value = { search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  sortOption.value = 'created_at:desc';
   showInactive.value = false;
   fetchUsers();
 });

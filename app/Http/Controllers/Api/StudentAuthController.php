@@ -20,8 +20,12 @@ class StudentAuthController extends Controller
             ->where('is_active', true)
             ->first();
 
-        if (!$student || !$student->password || !Hash::check($request->password, $student->password)) {
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+        if (!$student) {
+            return response()->json(['message' => 'No active student account was found with that Student ID.'], 401);
+        }
+
+        if (!$student->password || !Hash::check($request->password, $student->password)) {
+            return response()->json(['message' => 'Incorrect password.'], 401);
         }
 
         $student->update(['last_login_at' => now()]);
@@ -30,8 +34,8 @@ class StudentAuthController extends Controller
         return response()->json([
             'token'   => $token,
             'student' => $student->only([
-                'id', 'student_id', 'first_name', 'middle_name', 'last_name',
-                'email', 'college', 'program', 'year_level', 'must_change_password'
+                'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'suffix',
+                'email', 'contact_number', 'college', 'program', 'year_level', 'must_change_password'
             ]),
         ]);
     }
@@ -96,6 +100,7 @@ public function updateProfile(Request $request)
         'first_name'     => 'sometimes|string|max:255',
         'last_name'      => 'sometimes|string|max:255',
         'middle_name'    => 'nullable|string|max:255',
+        'suffix'         => 'nullable|string|max:20',
         'email'          => 'nullable|email',
         'contact_number' => 'nullable|string|max:11',
     ]);
@@ -103,7 +108,7 @@ public function updateProfile(Request $request)
     $student->update($validated);
 
     return response()->json($student->only([
-        'id', 'student_id', 'first_name', 'middle_name', 'last_name',
+        'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'suffix',
         'email', 'contact_number', 'college', 'program', 'year_level', 'must_change_password'
     ]));
 }
