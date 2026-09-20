@@ -16,7 +16,7 @@
         <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}</div>
         <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.</div>
       </div>
-      <router-link :to="{ name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
+            <router-link :to="scheduleReferralId ? { name: 'student-referral-show', params: { id: scheduleReferralId } } : { name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
     </div>
   </div>
 
@@ -54,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -64,6 +64,11 @@ const loading = ref(true);
 const appointments = ref([]);
 const referrals = ref([]);
 const pendingAppointments = ref([]);
+
+const scheduleReferralId = computed(() => {
+  const appt = pendingAppointments.value[0];
+  return appt?.referral?.id || appt?.case?.latest_referral?.id || null;
+});
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };

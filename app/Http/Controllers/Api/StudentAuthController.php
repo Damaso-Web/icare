@@ -73,11 +73,12 @@ class StudentAuthController extends Controller
 {
     $student = $request->user('student');
 
-    $pendingAppointments = $student->appointments()
-        ->where('request_status', 'awaiting_student')
-        ->whereNotIn('status', ['cancelled'])
-        ->latest()
-        ->get();
+        $pendingAppointments = $student->appointments()
+            ->with(['referral', 'case.latestReferral'])
+            ->where('request_status', 'awaiting_student')
+            ->whereNotIn('status', ['cancelled'])
+            ->latest()
+            ->get();
 
     return response()->json([
         'appointments'          => $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->latest()->get(),
@@ -111,7 +112,23 @@ public function showReferral(Request $request, $id)
 {
     $student = $request->user('student');
     $referral = $student->referrals()->with('case')->findOrFail($id);
-    return response()->json($referral);
+
+    $pendingAppointment = $student->appointments()
+        ->where('request_status', 'awaiting_student')
+        ->whereNotIn('status', ['cancelled'])
+        ->where(function ($q) use ($referral) {
+            $q->where('referral_id', $referral->id);
+            if ($referral->case_id) {
+                $q->orWhere('case_id', $referral->case_id);
+            }
+        })
+        ->latest()
+        ->first();
+
+    $data = $referral->toArray();
+    $data['pending_appointment'] = $pendingAppointment;
+
+    return response()->json($data);
 }
 
 public function showAppointment(Request $request, $id)
