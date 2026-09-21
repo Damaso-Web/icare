@@ -62,6 +62,34 @@
             </span>
           </div>
 
+          <!-- Confirm Appointment Request Modal -->
+<div v-if="showConfirmModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showConfirmModal = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Appointment Request</div>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--slate);line-height:1.6">
+        Please review your preferred schedule before submitting:
+      </div>
+      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+        <div><strong>Date:</strong> {{ formatDate(scheduleForm.appointment_date) }}</div>
+        <div><strong>Time:</strong> {{ scheduleForm.start_time }} - {{ scheduleForm.end_time }}</div>
+      </div>
+      <div style="font-size:12px;color:var(--stone)">
+        Your request will be sent to the Office of Student Services for confirmation.
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="doConfirmedSubmit" :disabled="submitting">
+          <span v-if="submitting" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+          {{ submitting ? 'Submitting...' : 'Yes, Submit Request' }}
+        </button>
+        <button class="ibtn ibtn-o" @click="showConfirmModal = false">Go Back &amp; Edit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
           <!-- Availability Calendar -->
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:16px;max-width:400px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
@@ -113,8 +141,8 @@
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitSchedule" :disabled="!canSubmit || submitting">
-              {{ submitting ? 'Submitting...' : 'Confirm Request' }}
-            </button>
+            {{ submitting ? 'Submitting...' : 'Confirm Appointment Request' }}
+          </button>
           </div>
         </div>
       </div>
@@ -145,6 +173,8 @@ const isAvailable = ref(false);
 const submitting = ref(false);
 const scheduleError = ref('');
 const timeRangeError = ref('');
+
+const showConfirmModal = ref(false);
 
 const OFFICE_START = '08:00';
 const OFFICE_END   = '16:00';
@@ -278,8 +308,13 @@ async function checkAvailability() {
   }
 }
 
-async function submitSchedule() {
+function submitSchedule() {
   scheduleError.value = '';
+  showConfirmModal.value = true;
+}
+
+async function doConfirmedSubmit() {
+  showConfirmModal.value = false;
   submitting.value = true;
   try {
     await axios.post(

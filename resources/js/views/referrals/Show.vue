@@ -853,6 +853,74 @@
         </div>
       </div>
 
+      <!-- Edit Referral Confirmation -->
+<div v-if="showEditConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditConfirm = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showEditConfirm = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--stone)">
+        You are about to save <strong>{{ editChanges.length }}</strong> change{{ editChanges.length === 1 ? '' : 's' }} to this referral:
+      </div>
+      <div style="border:1px solid var(--cloud);border-radius:var(--r-sm);overflow:hidden">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          <thead>
+            <tr style="background:var(--snow)">
+              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Field</th>
+              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Before</th>
+              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">After</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in editChanges" :key="c.label" style="border-top:1px solid var(--cloud)">
+              <td style="padding:8px 12px;color:var(--slate)">{{ c.label }}</td>
+              <td style="padding:8px 12px;color:var(--red);text-decoration:line-through">{{ c.before }}</td>
+              <td style="padding:8px 12px;color:var(--moss);font-weight:600">{{ c.after }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="doConfirmedEditSave">Confirm &amp; Save</button>
+        <button class="ibtn ibtn-o" @click="showEditConfirm = false">Go Back &amp; Edit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Archive/Restore Confirmation -->
+<div v-if="showArchiveConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showArchiveConfirm = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">
+        {{ referral?.is_archived ? 'Restore Referral?' : 'Archive Referral?' }}
+      </div>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--slate);line-height:1.6">
+        <template v-if="referral?.is_archived">
+          Restore <strong>{{ referral?.referral_code }}</strong> from the archive? It will become visible in the active referrals list again.
+        </template>
+        <template v-else>
+          Archive <strong>{{ referral?.referral_code }}</strong>? It will be hidden from the active list but can be restored later.
+        </template>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button
+          class="ibtn"
+          :style="referral?.is_archived
+            ? 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'
+            : 'background:var(--cloud);color:var(--stone);border:1.5px solid var(--silver)'"
+          @click="doConfirmedArchive"
+        >{{ referral?.is_archived ? 'Yes, Restore' : 'Yes, Archive' }}</button>
+        <button class="ibtn ibtn-o" @click="showArchiveConfirm = false">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
       <!-- Edit Referral Modal -->
       <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -992,16 +1060,33 @@ function openEditModal() {
   showEditModal.value = true;
 }
 
-async function submitEdit() {
-  const before = JSON.parse(editFormSnapshot.value);
-  const changeLines = Object.keys(EDIT_FIELD_LABELS)
-    .filter(key => before[key] !== editForm.value[key])
-    .map(key => `${EDIT_FIELD_LABELS[key]}:\n  Before: ${before[key] || '(blank)'}\n  After: ${editForm.value[key] || '(blank)'}`);
+const showEditConfirm = ref(false);
 
-  if (changeLines.length && !confirm(`Confirm the following changes?\n\n${changeLines.join('\n\n')}`)) {
-    return;
+const editChanges = computed(() => {
+  try {
+    const before = JSON.parse(editFormSnapshot.value || '{}');
+    const after  = editForm.value || {};
+    const out = [];
+    for (const key of Object.keys(EDIT_FIELD_LABELS)) {
+      const a = before[key] ?? '';
+      const b = after[key]  ?? '';
+      if (String(a) !== String(b)) {
+        out.push({ label: EDIT_FIELD_LABELS[key], before: a || '—', after: b || '—' });
+      }
+    }
+    return out;
+  } catch {
+    return [];
   }
+});
 
+function openEditConfirm() {
+  if (!editChanges.value.length) return;
+  showEditConfirm.value = true;
+}
+
+async function doConfirmedEditSave() {
+  showEditConfirm.value = false;
   try {
     const res = await referralAPI.update(referral.value.id, editForm.value);
     referral.value = { ...referral.value, ...res.data };
@@ -1012,10 +1097,15 @@ async function submitEdit() {
   }
 }
 
-async function toggleArchive() {
+const showArchiveConfirm = ref(false);
+
+function openArchiveConfirm() {
   if (!referral.value.is_archived && !isArchivable.value) return;
-  const action = referral.value.is_archived ? 'restore this referral from the archive' : 'archive this referral';
-  if (!confirm(`Are you sure you want to ${action}?`)) return;
+  showArchiveConfirm.value = true;
+}
+
+async function doConfirmedArchive() {
+  showArchiveConfirm.value = false;
   try {
     const res = referral.value.is_archived
       ? await referralAPI.unarchive(referral.value.id)
@@ -1025,6 +1115,14 @@ async function toggleArchive() {
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to update archive status.');
   }
+}
+
+function submitEdit() {
+  openEditConfirm();
+}
+
+function toggleArchive() {
+  openArchiveConfirm();
 }
 
 function viewIntervention(item) {

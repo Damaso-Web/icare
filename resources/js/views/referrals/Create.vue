@@ -80,8 +80,8 @@
               class="ifi"
               placeholder="e.g. 2302021"
               :readonly="studentFound"
-              :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''"
-              @input="form.student_id_input = onlyDigits(form.student_id_input)"
+              :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('student_id_input')"
+              @input="form.student_id_input = onlyDigits(form.student_id_input); clearFieldError('student_id_input')"
               required
             />
           </div>
@@ -90,17 +90,33 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr 100px 110px;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.last_name" class="ifi" placeholder="e.g. Dela Cruz" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.last_name = onlyLetters(form.last_name)" required />
+              <input
+                v-model="form.last_name"
+                class="ifi"
+                placeholder="e.g. Dela Cruz"
+                :readonly="studentFound"
+                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('last_name')"
+                @input="form.last_name = onlyLetters(form.last_name); clearFieldError('last_name')"
+                required
+              />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="form.first_name" class="ifi" placeholder="e.g. Juan" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.first_name = onlyLetters(form.first_name)" required />
+              <input
+                v-model="form.first_name"
+                class="ifi"
+                placeholder="e.g. Juan"
+                :readonly="studentFound"
+                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('first_name')"
+                @input="form.first_name = onlyLetters(form.first_name); clearFieldError('first_name')"
+                required
+              />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
               <input v-model="form.middle_name" class="ifi" placeholder="e.g. Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
             </div>
-                        <div>
+            <div>
               <label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse" :disabled="studentFound">
                 <option value="">None</option>
@@ -114,7 +130,14 @@
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
-              <select v-model="form.sex" class="ifse" :disabled="studentFound" required>
+              <select
+                v-model="form.sex"
+                class="ifse"
+                :disabled="studentFound"
+                :style="errorStyle('sex')"
+                @change="clearFieldError('sex')"
+                required
+              >
                 <option value="" disabled hidden>Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -125,30 +148,56 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="form.college" class="ifse" :disabled="studentFound" @change="form.program = ''" required>
+              <select
+                v-model="form.college"
+                class="ifse"
+                :disabled="studentFound"
+                :style="errorStyle('college')"
+                @change="form.program = ''; clearFieldError('college')"
+                required
+              >
                 <option value="" disabled hidden>Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-              <select v-model="form.program" class="ifse" :disabled="studentFound || !form.college" required>
+              <select
+                v-model="form.program"
+                class="ifse"
+                :disabled="studentFound || !form.college"
+                :style="errorStyle('program')"
+                @change="clearFieldError('program')"
+                required
+              >
                 <option value="" disabled hidden>Select program...</option>
                 <option v-if="form.program && !availablePrograms.includes(form.program)" :value="form.program">{{ form.program }}</option>
                 <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
               </select>
             </div>
             <div>
-              <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
-              <select v-model="form.year_level" class="ifse" :disabled="studentFound" required>
-                <option value="" disabled hidden>Select year level...</option>
-                <option>1st Year</option>
-                <option>2nd Year</option>
-                <option>3rd Year</option>
-                <option>4th Year</option>
-                <option>5th Year</option>
-              </select>
-            </div>
+            <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
+            <select
+              v-model="form.year_level"
+              class="ifse"
+              :disabled="studentFound"
+              :style="errorStyle('year_level')"
+              @change="clearFieldError('year_level')"
+              required
+            >
+              <option value="" disabled hidden>Select year level...</option>
+              <option>1st Year</option>
+              <option>2nd Year</option>
+              <option>3rd Year</option>
+              <option>4th Year</option>
+              <option>5th Year</option>
+              <option>6th Year</option>
+              <option>7th Year</option>
+              <option>8th Year</option>
+              <option>9th Year</option>
+              <option>10th Year</option>
+            </select>
+          </div>
             <div>
               <label class="ifl">Section</label>
               <input
@@ -191,7 +240,13 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
             <div>
               <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
-              <select v-model="form.referral_type" class="ifse" required @change="onServiceChange">
+              <select
+                v-model="form.referral_type"
+                class="ifse"
+                :style="errorStyle('referral_type')"
+                @change="onServiceChange(); clearFieldError('referral_type')"
+                required
+              >
                 <option value="" disabled hidden>Select service...</option>
                 <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
                 <option value="counseling">Counseling</option>
@@ -218,7 +273,13 @@
 
           <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
             <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
-            <select v-model="form.violation_type" class="ifse" :required="form.referral_type === 'disciplinary'">
+            <select
+              v-model="form.violation_type"
+              class="ifse"
+              :style="errorStyle('violation_type')"
+              :required="form.referral_type === 'disciplinary'"
+              @change="clearFieldError('violation_type')"
+            >
               <option value="" disabled hidden>Select act of misconduct...</option>
               <option>Intellectual Dishonesty</option>
               <option>Fraud</option>
@@ -254,7 +315,14 @@
 
           <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
             <label class="ifl">Date of Incident <span style="color:var(--red)">*</span></label>
-            <input v-model="form.incident_date" type="date" class="ifi" :required="form.referral_type === 'disciplinary'" />
+            <input
+              v-model="form.incident_date"
+              type="date"
+              class="ifi"
+              :style="errorStyle('incident_date')"
+              :required="form.referral_type === 'disciplinary'"
+              @input="clearFieldError('incident_date')"
+            />
           </div>
 
           <div style="margin-bottom:14px">
@@ -263,6 +331,8 @@
               v-model="form.nature_of_concern"
               class="ifta"
               :placeholder="form.referral_type === 'disciplinary' ? 'Describe the incident in detail, including date, time, location, and persons involved...' : 'Describe the student\'s concern in detail...'"
+              :style="errorStyle('nature_of_concern')"
+              @input="clearFieldError('nature_of_concern')"
               required
             ></textarea>
           </div>
@@ -310,6 +380,24 @@
       </div>
     </div>
 
+    <!-- Clear Form Confirmation -->
+    <div v-if="showClearConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showClearConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Clear Form?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            All entered information will be cleared. This cannot be undone.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="doConfirmedClear">Yes, Clear Form</button>
+            <button class="ibtn ibtn-o" @click="showClearConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -327,11 +415,39 @@ const toast    = inject('toast');
 const auth     = useAuthStore();
 const colleges = COLLEGES;
 
+const fieldErrors = ref({});
+
+function clearFieldError(field) {
+  if (fieldErrors.value[field]) {
+    fieldErrors.value = { ...fieldErrors.value, [field]: false };
+  }
+}
+
+function errorStyle(field) {
+  return fieldErrors.value[field]
+    ? 'border-color:var(--red);border-width:1.5px'
+    : '';
+}
+
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
 const showPreview = ref(false);
 const studentFound  = ref(false);
+
+const showClearConfirm = ref(false);
+
+function openClearConfirm() {
+  const hasData = form.value.student_id_input || form.value.last_name || form.value.first_name ||
+                  form.value.nature_of_concern || form.value.referral_type;
+  if (!hasData) return;
+  showClearConfirm.value = true;
+}
+
+function doConfirmedClear() {
+  showClearConfirm.value = false;
+  clearForm();
+}
 
 const studentSearchQuery   = ref('');
 const studentSuggestions   = ref([]);
@@ -387,8 +503,6 @@ function onStudentSearch() {
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
   if (!studentSearchQuery.value) {
-    // Search field was fully cleared - wipe any previously auto-filled
-    // student info so stale data isn't left sitting in the form.
     clearStudentFields();
     studentSuggestions.value = [];
     showStudentDropdown.value = false;
@@ -455,16 +569,27 @@ function goBack() {
 
 function handleSubmit() {
   error.value = '';
+  const errs = {};
+  const missing = [];
 
-  if (!form.value.student_id_input) {
-    error.value = 'Please fill in all required fields.';
-    return;
+  if (!form.value.student_id_input) { errs.student_id_input = true; missing.push('Student ID'); }
+  if (!form.value.last_name)        { errs.last_name = true;        missing.push('Last Name'); }
+  if (!form.value.first_name)       { errs.first_name = true;       missing.push('First Name'); }
+  if (!form.value.sex)              { errs.sex = true;              missing.push('Sex'); }
+  if (!form.value.college)          { errs.college = true;          missing.push('College'); }
+  if (!form.value.program)          { errs.program = true;          missing.push('Program'); }
+  if (!form.value.year_level)       { errs.year_level = true;       missing.push('Year Level'); }
+  if (!form.value.referral_type)    { errs.referral_type = true;    missing.push('Service Requested'); }
+  if (!form.value.nature_of_concern){ errs.nature_of_concern = true;missing.push('Concern / Reason'); }
+  if (form.value.referral_type === 'disciplinary') {
+    if (!form.value.violation_type) { errs.violation_type = true; missing.push('Specific Act of Misconduct'); }
+    if (!form.value.incident_date)  { errs.incident_date = true;  missing.push('Date of Incident'); }
   }
 
-  if (!form.value.last_name || !form.value.first_name || !form.value.sex ||
-      !form.value.college || !form.value.referral_type ||
-      !form.value.nature_of_concern) {
-    error.value = 'Please fill in all required fields.';
+  fieldErrors.value = errs;
+
+  if (missing.length) {
+    error.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
 
@@ -545,16 +670,12 @@ function clearForm() {
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
     violation_type: '', incident_date: '',
   };
+  fieldErrors.value = {};
 }
 
 
 function handleClearForm() {
-  const hasData = form.value.student_id_input || form.value.last_name || form.value.first_name ||
-                  form.value.nature_of_concern || form.value.referral_type;
-  if (hasData && !confirm('Clear all entered information? This cannot be undone.')) {
-    return;
-  }
-  clearForm();
+  openClearConfirm();
 }
 
 onMounted(() => {

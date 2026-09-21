@@ -244,80 +244,130 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div>
-              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" @input="editForm.last_name = titleCase(onlyLetters(editForm.last_name))" />
-            </div>
-            <div>
-              <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.first_name" class="ifi" placeholder="First Name" @input="editForm.first_name = titleCase(onlyLetters(editForm.first_name))" />
-            </div>
-            <div>
-              <label class="ifl">Middle Name</label>
-              <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
-            </div>
-            <div>
-              <label class="ifl">Suffix</label>
-              <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
-            </div>
-            <div>
-              <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
-              <select v-model="editForm.sex" class="ifse">
-                <option value="" disabled hidden>Select...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
-            </div>
-            <div>
-              <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
-              <select v-model="editForm.year_level" class="ifse">
-                <option value="" disabled hidden>Select...</option>
-                <option v-for="yl in editYearLevelOptions" :key="yl" :value="yl">{{ yl }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="editForm.college" class="ifse" @change="editForm.program = ''; editForm.year_level = ''">
-                <option value="" disabled hidden>Select college...</option>
-                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-              <select v-model="editForm.program" class="ifse" :disabled="!editForm.college" @change="onEditProgramChange">
-                <option value="" disabled hidden>Select program...</option>
-                <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
-                <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Section <span style="color:var(--red)">*</span></label>
-              <input
-                v-model="editForm.section"
-                class="ifi"
-                placeholder="e.g. A"
-                maxlength="1"
-                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
-              />
-            </div>
-            <div>
-              <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
-            </div>
-            <div>
-              <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
-              <input
-                  v-model="editForm.contact_number"
-                  class="ifi"
-                  placeholder="09XXXXXXXXX"
-                  @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number)"
-                />
-            </div>
-          </div>
+  <div>
+    <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.student_id"
+      class="ifi"
+      placeholder="e.g. 2302021"
+      :style="editErrorStyle('student_id')"
+      @input="editForm.student_id = onlyDigits(editForm.student_id); clearEditFieldError('student_id')"
+    />
+  </div>
+  <div>
+    <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
+    <select
+      v-model="editForm.sex"
+      class="ifse"
+      :style="editErrorStyle('sex')"
+      @change="clearEditFieldError('sex')"
+    >
+      <option value="" disabled hidden>Select...</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+    </select>
+  </div>
+  <div>
+    <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.last_name"
+      class="ifi"
+      placeholder="Last Name"
+      :style="editErrorStyle('last_name')"
+      @input="editForm.last_name = titleCase(onlyLetters(editForm.last_name)); clearEditFieldError('last_name')"
+    />
+  </div>
+  <div>
+    <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.first_name"
+      class="ifi"
+      placeholder="First Name"
+      :style="editErrorStyle('first_name')"
+      @input="editForm.first_name = titleCase(onlyLetters(editForm.first_name)); clearEditFieldError('first_name')"
+    />
+  </div>
+  <div>
+    <label class="ifl">Middle Name</label>
+    <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
+  </div>
+  <div>
+    <label class="ifl">Suffix</label>
+    <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+  </div>
+  <div>
+    <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
+    <select
+      v-model="editForm.year_level"
+      class="ifse"
+      :style="editErrorStyle('year_level')"
+      @change="clearEditFieldError('year_level')"
+    >
+      <option value="" disabled hidden>Select...</option>
+      <option v-if="editForm.year_level && !editYearLevelOptions.includes(editForm.year_level)" :value="editForm.year_level">{{ editForm.year_level }}</option>
+      <option v-for="yl in editYearLevelOptions" :key="yl" :value="yl">{{ yl }}</option>
+    </select>
+  </div>
+  <div>
+    <label class="ifl">College <span style="color:var(--red)">*</span></label>
+    <select
+      v-model="editForm.college"
+      class="ifse"
+      :style="editErrorStyle('college')"
+      @change="editForm.program = ''; editForm.year_level = ''; clearEditFieldError('college')"
+    >
+      <option value="" disabled hidden>Select college...</option>
+      <option v-if="editForm.college && !colleges.includes(editForm.college)" :value="editForm.college">{{ editForm.college }} (unrecognized)</option>
+      <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+    </select>
+  </div>
+  <div>
+    <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+    <select
+      v-model="editForm.program"
+      class="ifse"
+      :disabled="!editForm.college"
+      :style="editErrorStyle('program')"
+      @change="clearEditFieldError('program')"
+    >
+      <option value="" disabled hidden>Select program...</option>
+      <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
+      <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
+    </select>
+  </div>
+  <div>
+    <label class="ifl">Section <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.section"
+      class="ifi"
+      placeholder="e.g. A"
+      maxlength="1"
+      :style="editErrorStyle('section')"
+      @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase(); clearEditFieldError('section')"
+    />
+  </div>
+  <div>
+    <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.email"
+      class="ifi"
+      placeholder="student@bsu.edu.ph"
+      :style="editErrorStyle('email')"
+      @input="clearEditFieldError('email')"
+    />
+  </div>
+  <div>
+    <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
+    <input
+      v-model="editForm.contact_number"
+      class="ifi"
+      placeholder="09XXXXXXXXX"
+      maxlength="11"
+      :style="editErrorStyle('contact_number')"
+      @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number); clearEditFieldError('contact_number')"
+    />
+  </div>
+</div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
             Guardian Information
@@ -327,11 +377,23 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="editForm.guardian_last_name = titleCase(onlyLetters(editForm.guardian_last_name))" />
+              <input
+                v-model="editForm.guardian_last_name"
+                class="ifi"
+                placeholder="Dela Cruz"
+                :style="editErrorStyle('guardian_last_name')"
+                @input="editForm.guardian_last_name = titleCase(onlyLetters(editForm.guardian_last_name)); clearEditFieldError('guardian_last_name')"
+              />
             </div>
             <div>
               <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="editForm.guardian_first_name" class="ifi" placeholder="Juan" @input="editForm.guardian_first_name = titleCase(onlyLetters(editForm.guardian_first_name))" />
+              <input
+                v-model="editForm.guardian_first_name"
+                class="ifi"
+                placeholder="Juan"
+                :style="editErrorStyle('guardian_first_name')"
+                @input="editForm.guardian_first_name = titleCase(onlyLetters(editForm.guardian_first_name)); clearEditFieldError('guardian_first_name')"
+              />
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
@@ -343,12 +405,18 @@
                 v-model="editForm.guardian_contact"
                 class="ifi"
                 placeholder="09XXXXXXXXX"
-                @input="editForm.guardian_contact = contactNumberBlockingNonZero(editForm.guardian_contact)"
-              />            
+                :style="editErrorStyle('guardian_contact')"
+                @input="editForm.guardian_contact = contactNumberBlockingNonZero(editForm.guardian_contact); clearEditFieldError('guardian_contact')"
+              />
             </div>
             <div>
               <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>
-              <select v-model="editForm.guardian_relationship" class="ifse">
+              <select
+                v-model="editForm.guardian_relationship"
+                class="ifse"
+                :style="editErrorStyle('guardian_relationship')"
+                @change="clearEditFieldError('guardian_relationship')"
+              >
                 <option value="" disabled hidden>Select...</option>
                 <option>Mother</option>
                 <option>Father</option>
@@ -376,46 +444,46 @@
     </div>
 
     <!-- Edit Student Confirmation Modal -->
-<div v-if="showEditConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditConfirm = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showEditConfirm = false">✕</button>
-    </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--stone)">
-        You are about to save <strong>{{ editChanges.length }}</strong> change{{ editChanges.length === 1 ? '' : 's' }} to this student profile:
-      </div>
+    <div v-if="showEditConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showEditConfirm = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">
+            You are about to save <strong>{{ editChanges.length }}</strong> change{{ editChanges.length === 1 ? '' : 's' }} to this student profile:
+          </div>
 
-      <div style="border:1px solid var(--cloud);border-radius:var(--r-sm);overflow:hidden">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          <thead>
-            <tr style="background:var(--snow)">
-              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Field</th>
-              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Before</th>
-              <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">After</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in editChanges" :key="c.label" style="border-top:1px solid var(--cloud)">
-              <td style="padding:8px 12px;color:var(--slate)">{{ c.label }}</td>
-              <td style="padding:8px 12px;color:var(--red);text-decoration:line-through">{{ c.before }}</td>
-              <td style="padding:8px 12px;color:var(--moss);font-weight:600">{{ c.after }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+          <div style="border:1px solid var(--cloud);border-radius:var(--r-sm);overflow:hidden">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+              <thead>
+                <tr style="background:var(--snow)">
+                  <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Field</th>
+                  <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">Before</th>
+                  <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;letter-spacing:.5px;text-transform:uppercase">After</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in editChanges" :key="c.label" style="border-top:1px solid var(--cloud)">
+                  <td style="padding:8px 12px;color:var(--slate)">{{ c.label }}</td>
+                  <td style="padding:8px 12px;color:var(--red);text-decoration:line-through">{{ c.before }}</td>
+                  <td style="padding:8px 12px;color:var(--moss);font-weight:600">{{ c.after }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="doConfirmedEditSave" :disabled="editSaving">
-          <span v-if="editSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-          {{ editSaving ? 'Saving...' : 'Confirm & Save' }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showEditConfirm = false">Go Back &amp; Edit</button>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="doConfirmedEditSave" :disabled="editSaving">
+              <span v-if="editSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ editSaving ? 'Saving...' : 'Confirm & Save' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showEditConfirm = false">Go Back &amp; Edit</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
 
     <!-- Add Student Modal -->
     <div v-if="showAddModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddModal = false">
@@ -436,12 +504,18 @@
                 class="ifi"
                 maxlength="15"
                 placeholder="e.g. 2302021"
-                @input="addForm.student_id = onlyDigits(addForm.student_id)"
+                :style="errorStyle('student_id')"
+                @input="addForm.student_id = onlyDigits(addForm.student_id); clearFieldError('student_id')"
               />
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
-              <select v-model="addForm.sex" class="ifse">
+              <select
+                v-model="addForm.sex"
+                class="ifse"
+                :style="errorStyle('sex')"
+                @change="clearFieldError('sex')"
+              >
                 <option value="" disabled hidden>Select...</option>
                 <option value="Male">Male</option>
                 <option value="Female">Female</option>
@@ -449,11 +523,25 @@
             </div>
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.last_name" class="ifi" maxlength="20" placeholder="Dela Cruz" @input="addForm.last_name = titleCase(onlyLetters(addForm.last_name))" />
+              <input
+                v-model="addForm.last_name"
+                class="ifi"
+                maxlength="20"
+                placeholder="Dela Cruz"
+                :style="errorStyle('last_name')"
+                @input="addForm.last_name = titleCase(onlyLetters(addForm.last_name)); clearFieldError('last_name')"
+              />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.first_name" class="ifi" maxlength="20" placeholder="Juan" @input="addForm.first_name = titleCase(onlyLetters(addForm.first_name))" />
+              <input
+                v-model="addForm.first_name"
+                class="ifi"
+                maxlength="20"
+                placeholder="Juan"
+                :style="errorStyle('first_name')"
+                @input="addForm.first_name = titleCase(onlyLetters(addForm.first_name)); clearFieldError('first_name')"
+              />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
@@ -465,21 +553,37 @@
             </div>
             <div>
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
-              <select v-model="addForm.college" class="ifse" @change="addForm.program = ''; addForm.year_level = ''">
+              <select
+                v-model="addForm.college"
+                class="ifse"
+                :style="errorStyle('college')"
+                @change="addForm.program = ''; addForm.year_level = ''; clearFieldError('college')"
+              >
                 <option value="" disabled hidden>Select college...</option>
                 <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-              <select v-model="addForm.program" class="ifse" :disabled="!addForm.college" @change="onAddProgramChange">
+              <select
+                v-model="addForm.program"
+                class="ifse"
+                :disabled="!addForm.college"
+                :style="errorStyle('program')"
+                @change="clearFieldError('program')"
+              >
                 <option value="" disabled hidden>Select program...</option>
                 <option v-for="p in availablePrograms" :key="p" :value="p">{{ p }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
-              <select v-model="addForm.year_level" class="ifse">
+              <select
+                v-model="addForm.year_level"
+                class="ifse"
+                :style="errorStyle('year_level')"
+                @change="clearFieldError('year_level')"
+              >
                 <option value="" disabled hidden>Select...</option>
                 <option v-for="yl in addYearLevelOptions" :key="yl" :value="yl">{{ yl }}</option>
               </select>
@@ -491,28 +595,36 @@
                 class="ifi"
                 placeholder="e.g. A"
                 maxlength="1"
-                @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                :style="errorStyle('section')"
+                @input="addForm.section = addForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase(); clearFieldError('section')"
               />
             </div>
             <div>
               <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.email" class="ifi" placeholder="student@email.com" />
+              <input
+                v-model="addForm.email"
+                class="ifi"
+                placeholder="student@email.com"
+                :style="errorStyle('email')"
+                @input="clearFieldError('email')"
+              />
               <div v-if="addErrors.email" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ addErrors.email }}
               </div>
             </div>
             <div>
-            <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
-            <input
+              <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
+              <input
                 v-model="addForm.contact_number"
                 class="ifi"
                 placeholder="09XXXXXXXXX"
-                @input="addForm.contact_number = contactNumberBlockingNonZero(addForm.contact_number)"
+                :style="errorStyle('contact_number')"
+                @input="addForm.contact_number = contactNumberBlockingNonZero(addForm.contact_number); clearFieldError('contact_number')"
               />
-            <div v-if="addErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
-              {{ addErrors.contact_number }}
+              <div v-if="addErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
+                {{ addErrors.contact_number }}
+              </div>
             </div>
-          </div>
           </div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
@@ -523,11 +635,25 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.guardian_last_name" class="ifi" placeholder="Santos" @input="addForm.guardian_last_name = titleCase(onlyLetters(addForm.guardian_last_name))" />
+              <input
+                v-model="addForm.guardian_last_name"
+                class="ifi"
+                maxlength="20"
+                placeholder="Santos"
+                :style="errorStyle('guardian_last_name')"
+                @input="addForm.guardian_last_name = titleCase(onlyLetters(addForm.guardian_last_name)); clearFieldError('guardian_last_name')"
+              />
             </div>
             <div>
               <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="addForm.guardian_first_name" class="ifi" placeholder="Maria" @input="addForm.guardian_first_name = titleCase(onlyLetters(addForm.guardian_first_name))" />
+              <input
+                v-model="addForm.guardian_first_name"
+                class="ifi"
+                maxlength="20"
+                placeholder="Maria"
+                :style="errorStyle('guardian_first_name')"
+                @input="addForm.guardian_first_name = titleCase(onlyLetters(addForm.guardian_first_name)); clearFieldError('guardian_first_name')"
+              />
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
@@ -536,18 +662,24 @@
             <div>
               <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
               <input
-                  v-model="addForm.guardian_contact"
-                  class="ifi"
-                  placeholder="09XXXXXXXXX"
-                  @input="addForm.guardian_contact = contactNumberBlockingNonZero(addForm.guardian_contact)"
-                />
+                v-model="addForm.guardian_contact"
+                class="ifi"
+                placeholder="09XXXXXXXXX"
+                :style="errorStyle('guardian_contact')"
+                @input="addForm.guardian_contact = contactNumberBlockingNonZero(addForm.guardian_contact); clearFieldError('guardian_contact')"
+              />
               <div v-if="addErrors.guardian_contact" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ addErrors.guardian_contact }}
               </div>
             </div>
             <div>
               <label class="ifl">Guardian Relationship <span style="color:var(--red)">*</span></label>
-              <select v-model="addForm.guardian_relationship" class="ifse">
+              <select
+                v-model="addForm.guardian_relationship"
+                class="ifse"
+                :style="errorStyle('guardian_relationship')"
+                @change="clearFieldError('guardian_relationship')"
+              >
                 <option value="" disabled hidden>Select...</option>
                 <option>Mother</option>
                 <option>Father</option>
@@ -567,10 +699,10 @@
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="goToPreview" :disabled="saving">
-            <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-            {{ saving ? 'Saving...' : 'Add Student' }}
-          </button>
+              <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ saving ? 'Saving...' : 'Add Student' }}
+            </button>
             <button
               class="ibtn"
               type="button"
@@ -585,53 +717,105 @@
     </div>
 
     <!-- Add Student Confirmation Preview Modal -->
-<div v-if="showAddPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddPreview = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Student Details</div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showAddPreview = false">✕</button>
+    <div v-if="showAddPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddPreview = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Student Details</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showAddPreview = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">Please review the information below before adding this student:</div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
+            Student Information
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div><strong>Student ID:</strong> {{ addForm.student_id }}</div>
+            <div><strong>Name:</strong> {{ addForm.last_name }}, {{ addForm.first_name }} {{ addForm.middle_name }} {{ addForm.suffix }}</div>
+            <div><strong>Sex:</strong> {{ addForm.sex }}</div>
+            <div><strong>College:</strong> {{ addForm.college }}</div>
+            <div><strong>Program:</strong> {{ addForm.program }}</div>
+            <div><strong>Year Level:</strong> {{ addForm.year_level }}</div>
+            <div><strong>Section:</strong> {{ addForm.section }}</div>
+            <div><strong>Email:</strong> {{ addForm.email }}</div>
+            <div><strong>Contact Number:</strong> {{ addForm.contact_number }}</div>
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
+            Guardian Information
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div><strong>Name:</strong> {{ addForm.guardian_last_name }}, {{ addForm.guardian_first_name }} {{ addForm.guardian_middle_name }}</div>
+            <div><strong>Contact Number:</strong> {{ addForm.guardian_contact }}</div>
+            <div><strong>Relationship:</strong> {{ addForm.guardian_relationship }}</div>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="confirmAddSubmit" :disabled="saving">
+              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ saving ? 'Adding...' : 'Confirm & Add Student' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showAddPreview = false">Go Back &amp; Edit</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--stone)">Please review the information below before adding this student:</div>
 
-      <!-- Student Information -->
-      <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
-        Student Information
-        <div style="flex:1;height:1px;background:var(--cloud)"></div>
-      </div>
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-        <div><strong>Student ID:</strong> {{ addForm.student_id }}</div>
-        <div><strong>Name:</strong> {{ addForm.last_name }}, {{ addForm.first_name }} {{ addForm.middle_name }} {{ addForm.suffix }}</div>
-        <div><strong>Sex:</strong> {{ addForm.sex }}</div>
-        <div><strong>College:</strong> {{ addForm.college }}</div>
-        <div><strong>Program:</strong> {{ addForm.program }}</div>
-        <div><strong>Year Level:</strong> {{ addForm.year_level }}</div>
-        <div><strong>Section:</strong> {{ addForm.section }}</div>
-        <div><strong>Email:</strong> {{ addForm.email }}</div>
-        <div><strong>Contact Number:</strong> {{ addForm.contact_number }}</div>
-      </div>
-
-      <!-- Guardian Information -->
-      <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
-        Guardian Information
-        <div style="flex:1;height:1px;background:var(--cloud)"></div>
-      </div>
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-        <div><strong>Name:</strong> {{ addForm.guardian_last_name }}, {{ addForm.guardian_first_name }} {{ addForm.guardian_middle_name }}</div>
-        <div><strong>Contact Number:</strong> {{ addForm.guardian_contact }}</div>
-        <div><strong>Relationship:</strong> {{ addForm.guardian_relationship }}</div>
-      </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="confirmAddSubmit" :disabled="saving">
-          <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-          {{ saving ? 'Adding...' : 'Confirm & Add Student' }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showAddPreview = false">Go Back &amp; Edit</button>
+    <!-- Clear Form Confirmation -->
+    <div v-if="showClearConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showClearConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Clear Form?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            All entered information will be cleared. This cannot be undone.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="doConfirmedClear">Yes, Clear Form</button>
+            <button class="ibtn ibtn-o" @click="showClearConfirm = false">Cancel</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
+
+    <!-- Activate Confirmation -->
+    <div v-if="showActivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showActivateConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Activate Student Account?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Reactivate <strong>{{ studentToActivate?.first_name }} {{ studentToActivate?.last_name }}</strong>'s account? They will be able to log in again.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="doConfirmedActivate">Yes, Activate</button>
+            <button class="ibtn ibtn-o" @click="showActivateConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reset Password Confirmation -->
+    <div v-if="showResetPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showResetPwConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reset Student Password?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            A new temporary password will be generated for <strong>{{ viewedStudent?.first_name }} {{ viewedStudent?.last_name }}</strong>. They'll be required to change it on next login.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="doConfirmedResetPw">Yes, Reset Password</button>
+            <button class="ibtn ibtn-o" @click="showResetPwConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Import Modal -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
@@ -720,46 +904,46 @@
     </div>
 
     <!-- Import Confirmation Modal -->
-<div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Masterlist Upload</div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
-    </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--stone)">Please review the summary below before uploading:</div>
+    <div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Masterlist Upload</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">Please review the summary below before uploading:</div>
 
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-        <div v-if="pendingImportChoice === 'create'">
-          <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
-        </div>
-        <div v-else-if="pendingImportChoice === 'update'">
-          <strong>{{ importSummary.duplicates }}</strong> duplicate{{ importSummary.duplicates === 1 ? '' : 's' }} will be <strong>updated</strong>,
-          and <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
-        </div>
-        <div v-else-if="pendingImportChoice === 'skip'">
-          <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
-          Existing duplicate{{ importSummary.duplicates === 1 ? '' : 's' }}
-          (<strong>{{ importSummary.duplicates }}</strong>) will be kept as-is.
-        </div>
-        <div v-if="importSummary.invalid > 0" style="color:var(--red)">
-          <strong>{{ importSummary.invalid }}</strong> invalid row{{ importSummary.invalid === 1 ? '' : 's' }} will be skipped.
-        </div>
-        <div style="font-size:11px;color:var(--fog);margin-top:4px">
-          Total: {{ previewData.total }} row(s) detected.
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div v-if="pendingImportChoice === 'create'">
+              <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+            </div>
+            <div v-else-if="pendingImportChoice === 'update'">
+              <strong>{{ importSummary.duplicates }}</strong> duplicate{{ importSummary.duplicates === 1 ? '' : 's' }} will be <strong>updated</strong>,
+              and <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+            </div>
+            <div v-else-if="pendingImportChoice === 'skip'">
+              <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+              Existing duplicate{{ importSummary.duplicates === 1 ? '' : 's' }}
+              (<strong>{{ importSummary.duplicates }}</strong>) will be kept as-is.
+            </div>
+            <div v-if="importSummary.invalid > 0" style="color:var(--red)">
+              <strong>{{ importSummary.invalid }}</strong> invalid row{{ importSummary.invalid === 1 ? '' : 's' }} will be skipped.
+            </div>
+            <div style="font-size:11px;color:var(--fog);margin-top:4px">
+              Total: {{ previewData.total }} row(s) detected.
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
+              <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showImportConfirm = false">Go Back</button>
+          </div>
         </div>
       </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
-          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-          {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showImportConfirm = false">Go Back</button>
-      </div>
     </div>
-  </div>
-</div>
 
     <!-- Duplicate Name Warning Modal -->
     <div v-if="showDuplicateNameModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px">
@@ -779,34 +963,85 @@
       </div>
     </div>
 
+    <!-- Deactivate Student Modal -->
+    <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate Student Account?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Deactivating preserves the student's records, which can be reactivated later if needed.
+          </div>
+          <div style="position:relative">
+            <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>
+            <input
+              v-model="reasonSearchQuery"
+              class="ifi"
+              placeholder="Search or select a reason..."
+              @focus="showReasonDropdown = true"
+              @input="showReasonDropdown = true; graduateReason = ''"
+              autocomplete="off"
+            />
+            <div
+              v-if="showReasonDropdown && filteredReasons.length > 0"
+              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:180px;overflow-y:auto;margin-top:4px"
+            >
+              <div
+                v-for="r in filteredReasons"
+                :key="r.value"
+                style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--cloud)"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='#fff'"
+                @click="selectReason(r)"
+              >{{ r.label }}</div>
+            </div>
+          </div>
+          <div v-if="graduateReason === 'other'">
+            <label class="ifl">Please specify</label>
+            <input v-model="graduateNotes" class="ifi" placeholder="Reason details" />
+          </div>
+          <div style="display:flex;gap:8px">
+            <button
+              class="ibtn"
+              :style="canDeactivate ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--cloud);color:var(--fog);border:1.5px solid var(--cloud);cursor:not-allowed;opacity:.6'"
+              :disabled="!canDeactivate"
+              @click="openDeactivateConfirm"
+            >Deactivate Account</button>
+            <button class="ibtn ibtn-o" @click="showGraduateModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Deactivate Confirmation Modal -->
-<div v-if="showDeactivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDeactivateConfirm = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Deactivation</div>
+    <div v-if="showDeactivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDeactivateConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Deactivation</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            You are about to deactivate <strong>{{ studentToGraduate?.first_name }} {{ studentToGraduate?.last_name }}</strong>'s account.
+          </div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
+            <div><strong>Reason:</strong> {{ reasonSearchQuery || '—' }}</div>
+            <div v-if="graduateReason === 'other' && graduateNotes" style="margin-top:4px"><strong>Details:</strong> {{ graduateNotes }}</div>
+          </div>
+          <div style="font-size:12px;color:var(--stone)">
+            This can be reversed later by reactivating the account.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button
+              class="ibtn"
+              style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
+              @click="confirmDeactivate"
+            >Yes, Deactivate</button>
+            <button class="ibtn ibtn-o" @click="showDeactivateConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--slate);line-height:1.6">
-        You are about to deactivate <strong>{{ studentToGraduate?.first_name }} {{ studentToGraduate?.last_name }}</strong>'s account.
-      </div>
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
-        <div><strong>Reason:</strong> {{ reasonSearchQuery || '—' }}</div>
-        <div v-if="graduateReason === 'other' && graduateNotes" style="margin-top:4px"><strong>Details:</strong> {{ graduateNotes }}</div>
-      </div>
-      <div style="font-size:12px;color:var(--stone)">
-        This can be reversed later by reactivating the account.
-      </div>
-      <div style="display:flex;gap:8px">
-        <button
-          class="ibtn"
-          style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
-          @click="confirmDeactivate"
-        >Yes, Deactivate</button>
-        <button class="ibtn ibtn-o" @click="showDeactivateConfirm = false">Cancel</button>
-      </div>
-    </div>
-  </div>
-</div>
 
   </div>
 </template>
@@ -820,33 +1055,8 @@ import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValid
 
 const toast   = inject('toast');
 const colleges = COLLEGES;
-const showDeactivateConfirm = ref(false);
 
-const YEAR_LEVEL_LABELS = ['1st Year','2nd Year','3rd Year','4th Year','5th Year','6th Year','7th Year'];
-const MAX_YEAR_LEVEL = {
-  'Bachelor of Science in Civil Engineering': 5,
-  'Bachelor of Science in Electrical Engineering': 5,
-  'Bachelor of Science in Agricultural and Biosystems Engineering': 5,
-  'Bachelor of Science in Industrial Engineering': 5,
-  'Doctor of Veterinary Medicine': 6,
-};
-const DEFAULT_MAX_YEAR = 4;
-
-function yearLevelOptionsFor(program) {
-  const max = MAX_YEAR_LEVEL[program] || DEFAULT_MAX_YEAR;
-  return YEAR_LEVEL_LABELS.slice(0, max);
-}
-
-function openDeactivateConfirm() {
-  if (!canDeactivate.value) return;
-  showDeactivateConfirm.value = true;
-}
-
-async function confirmDeactivate() {
-  showDeactivateConfirm.value = false;
-  await doGraduate();
-  showGraduateModal.value = false;
-}
+const YEAR_LEVEL_LABELS = ['1st Year','2nd Year','3rd Year','4th Year','5th Year','6th Year','7th Year', '8th Year', '9th Year', '10th Year'];
 
 const students   = ref([]);
 const loading    = ref(false);
@@ -900,6 +1110,25 @@ const resetPasswordResult = ref('');
 
 const showEditModal = ref(false);
 const editForm      = ref({});
+const editFormSnapshot = ref('{}');
+const editError      = ref('');
+const editSaving     = ref(false);
+const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
+const editYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
+const isEditFormUnchanged = computed(() => JSON.stringify(editForm.value) === editFormSnapshot.value);
+
+// Red border for Edit modal — one entry per required field
+const editFieldErrors = ref({});
+function clearEditFieldError(field) {
+  if (editFieldErrors.value[field]) {
+    editFieldErrors.value = { ...editFieldErrors.value, [field]: false };
+  }
+}
+function editErrorStyle(field) {
+  return editFieldErrors.value[field]
+    ? 'border-color:var(--red);border-width:1.5px'
+    : '';
+}
 
 const showEditConfirm = ref(false);
 
@@ -950,19 +1179,6 @@ async function doConfirmedEditSave() {
   await saveEditedStudent();
 }
 
-const editFormSnapshot = ref('{}');
-const editError      = ref('');
-const editSaving     = ref(false);
-const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
-const editYearLevelOptions = computed(() => yearLevelOptionsFor(editForm.value.program));
-const isEditFormUnchanged = computed(() => JSON.stringify(editForm.value) === editFormSnapshot.value);
-
-function onEditProgramChange() {
-  if (!editYearLevelOptions.value.includes(editForm.value.year_level)) {
-    editForm.value.year_level = '';
-  }
-}
-
 const showDuplicateNameModal = ref(false);
 const duplicateStudent = ref(null);
 
@@ -974,13 +1190,7 @@ const addForm = ref({
 });
 
 const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
-const addYearLevelOptions = computed(() => yearLevelOptionsFor(addForm.value.program));
-
-function onAddProgramChange() {
-  if (!addYearLevelOptions.value.includes(addForm.value.year_level)) {
-    addForm.value.year_level = '';
-  }
-}
+const addYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 
 function titleCase(str) {
   return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -988,7 +1198,7 @@ function titleCase(str) {
 
 function contactNumberBlockingNonZero(value) {
   if (!value) return '';
-  if (!value.startsWith('0')) return '';   // reject the whole thing → field stays blank
+  if (!value.startsWith('0')) return '';
   return contactNumberInput(value);
 }
 
@@ -1023,14 +1233,19 @@ const addErrors = computed(() => {
   return errs;
 });
 
-function handleClearAddForm() {
-  if (isAddFormEmpty.value) return;
-  if (confirm('Clear all entered information? This cannot be undone.')) {
-    clearAddForm();
+const fieldErrors = ref({});
+
+function clearFieldError(field) {
+  if (fieldErrors.value[field]) {
+    fieldErrors.value = { ...fieldErrors.value, [field]: false };
   }
 }
 
-const showAddPreview = ref(false);
+function errorStyle(field) {
+  return fieldErrors.value[field]
+    ? 'border-color:var(--red);border-width:1.5px'
+    : '';
+}
 
 function validateAddForm() {
   const requiredFields = [
@@ -1049,9 +1264,23 @@ function validateAddForm() {
     ['guardian_contact', 'Guardian Contact'],
     ['guardian_relationship', 'Guardian Relationship'],
   ];
+
+  const errs = {};
+  for (const [key] of requiredFields) {
+    if (!addForm.value[key]) errs[key] = true;
+  }
+  if (addForm.value.email && !isValidEmail(addForm.value.email)) errs.email = true;
+  if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) errs.contact_number = true;
+  if (addForm.value.guardian_contact && !isValidPHContact(addForm.value.guardian_contact)) errs.guardian_contact = true;
+  if (addForm.value.contact_number && addForm.value.guardian_contact &&
+      addForm.value.contact_number === addForm.value.guardian_contact) {
+    errs.guardian_contact = true;
+  }
+
+  fieldErrors.value = errs;
+
   const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
   if (missing.length) return `Please fill in: ${missing.join(', ')}.`;
-
   if (!isValidEmail(addForm.value.email)) return 'Please enter a valid email address.';
   if (!isValidPHContact(addForm.value.contact_number)) return 'Contact number must start with 09 and be 11 digits long.';
   if (!isValidPHContact(addForm.value.guardian_contact)) return 'Guardian contact number must start with 09 and be 11 digits long.';
@@ -1061,8 +1290,82 @@ function validateAddForm() {
   return null;
 }
 
+// Deactivate flow — confirmation step
+const showDeactivateConfirm = ref(false);
+
+function openDeactivateConfirm() {
+  if (!canDeactivate.value) return;
+  showDeactivateConfirm.value = true;
+}
+
+async function confirmDeactivate() {
+  showDeactivateConfirm.value = false;
+  await doGraduate();
+  showGraduateModal.value = false;
+}
+
+// Activate flow
+const showActivateConfirm = ref(false);
+const studentToActivate = ref(null);
+
+function openActivateConfirm(s) {
+  studentToActivate.value = s;
+  showActivateConfirm.value = true;
+}
+
+async function doConfirmedActivate() {
+  const s = studentToActivate.value;
+  showActivateConfirm.value = false;
+  if (!s) return;
+  try {
+    await studentAPI.toggleActive(s.id);
+    toast?.success('Student account activated.');
+    fetchStudents();
+  } catch (e) {
+    toast?.error('Please try again.');
+  }
+}
+
+// Reset password flow
+const showResetPwConfirm = ref(false);
+
+const doConfirmedResetPw = async () => {
+  showResetPwConfirm.value = false;
+  try {
+    const res = await studentAPI.resetPassword(viewedStudent.value.id);
+    resetPasswordResult.value = res.data.temp_password;
+    tempPasswordValue.value = res.data.temp_password;
+    showTempPassword.value = true;
+    viewedStudent.value.must_change_password = true;
+    toast?.success('Password reset successfully.');
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
+};
+
+// Clear form flow
+const showClearConfirm = ref(false);
+
+function openClearConfirm() {
+  if (isAddFormEmpty.value) return;
+  showClearConfirm.value = true;
+}
+
+function doConfirmedClear() {
+  showClearConfirm.value = false;
+  fieldErrors.value = {};
+  clearAddForm();
+}
+
+function handleClearAddForm() {
+  openClearConfirm();
+}
+
+const showAddPreview = ref(false);
+
 function goToPreview() {
   addError.value = '';
+  fieldErrors.value = {};
   const err = validateAddForm();
   if (err) { addError.value = err; return; }
   showAddPreview.value = true;
@@ -1073,6 +1376,7 @@ async function confirmAddSubmit() {
   await saveStudent();
 }
 
+// Import flow
 const showImportModal  = ref(false);
 const loadingPreview   = ref(false);
 const previewError     = ref('');
@@ -1080,7 +1384,7 @@ const previewData      = ref({ preview: [], total: 0, duplicates: 0, token: '' }
 const importing        = ref(false);
 
 const showImportConfirm = ref(false);
-const pendingImportChoice = ref('');  // 'update' | 'skip' | 'create'
+const pendingImportChoice = ref('');
 
 const importSummary = computed(() => {
   const items = previewData.value.preview || [];
@@ -1152,6 +1456,7 @@ function clearAddForm() {
     guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '',
     guardian_contact: '', guardian_relationship: '',
   };
+  fieldErrors.value = {};
   addError.value = '';
 }
 
@@ -1283,15 +1588,8 @@ function confirmGraduate(s) {
   showGraduateModal.value = true;
 }
 
-async function toggleActive(s) {
-  if (!confirm(`Activate ${s.first_name} ${s.last_name}'s account?`)) return;
-  try {
-    await studentAPI.toggleActive(s.id);
-    toast?.success('Student account activated.');
-    fetchStudents();
-  } catch (e) {
-    toast?.error('Please fill in all required fields.');
-  }
+function toggleActive(s) {
+  openActivateConfirm(s);
 }
 
 function initials(first, last) {
@@ -1309,8 +1607,20 @@ function openView(s) {
 function openEditFromView() {
   showViewModal.value = false;
   editForm.value = { ...viewedStudent.value };
+
+  // Salvage legacy imported contacts missing the leading 0
+  const cn = editForm.value.contact_number || '';
+  if (cn && !cn.startsWith('0') && /^\d+$/.test(cn)) {
+    editForm.value.contact_number = '0' + cn;
+  }
+  const gc = editForm.value.guardian_contact || '';
+  if (gc && !gc.startsWith('0') && /^\d+$/.test(gc)) {
+    editForm.value.guardian_contact = '0' + gc;
+  }
+
   editFormSnapshot.value = JSON.stringify(editForm.value);
   editError.value = '';
+  editFieldErrors.value = {};
   showEditModal.value = true;
 }
 
@@ -1321,7 +1631,19 @@ async function saveEditedStudent() {
     ['student_id', 'Student ID'], ['last_name', 'Last Name'], ['first_name', 'First Name'],
     ['sex', 'Sex'], ['college', 'College'], ['program', 'Program'], ['year_level', 'Year Level'],
     ['section', 'Section'], ['email', 'Email Address'], ['contact_number', 'Contact Number'],
+    ['guardian_first_name', 'Guardian First Name'], ['guardian_last_name', 'Guardian Last Name'],
+    ['guardian_contact', 'Guardian Contact'], ['guardian_relationship', 'Guardian Relationship'],
   ];
+
+  const errs = {};
+  for (const [key] of requiredFields) {
+    if (!editForm.value[key]) errs[key] = true;
+  }
+  if (editForm.value.email && !isValidEmail(editForm.value.email)) errs.email = true;
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) errs.contact_number = true;
+  if (editForm.value.guardian_contact && !isValidPHContact(editForm.value.guardian_contact)) errs.guardian_contact = true;
+  editFieldErrors.value = errs;
+
   const missing = requiredFields.filter(([key]) => !editForm.value[key]).map(([, label]) => label);
   if (missing.length) {
     editError.value = `Please fill in: ${missing.join(', ')}.`;
@@ -1335,12 +1657,6 @@ async function saveEditedStudent() {
 
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
     editError.value = 'Contact number must start with 09 and be 11 digits long.';
-    return;
-  }
-
-  if (!editForm.value.guardian_first_name || !editForm.value.guardian_last_name ||
-      !editForm.value.guardian_contact || !editForm.value.guardian_relationship) {
-    editError.value = 'Please fill in all required guardian fields.';
     return;
   }
 
@@ -1364,18 +1680,8 @@ async function saveEditedStudent() {
   }
 }
 
-async function resetStudentPassword() {
-  if (!confirm('Are you sure you want to reset this student\'s password?')) return;
-  try {
-    const res = await studentAPI.resetPassword(viewedStudent.value.id);
-    resetPasswordResult.value = res.data.temp_password;
-    tempPasswordValue.value = res.data.temp_password;
-    showTempPassword.value = true;
-    viewedStudent.value.must_change_password = true;
-    toast?.success('Password reset successfully.');
-  } catch (e) {
-    toast?.error('Failed to reset password.');
-  }
+function resetStudentPassword() {
+  showResetPwConfirm.value = true;
 }
 
 async function toggleTempPasswordVisible() {

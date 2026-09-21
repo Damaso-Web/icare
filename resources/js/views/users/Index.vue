@@ -32,6 +32,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
+           maxlength="15"
           placeholder="Search name, email, or employee ID..."
           style="width:220px"
           @keypress="blockSpecialKeypress"
@@ -234,28 +235,49 @@
           <div>
             <label class="ifl">Employee ID <span style="color:var(--red)">*</span></label>
             <input
-              v-model="userForm.employee_id"
-              class="ifi"
-              placeholder="e.g. 12345"
-              :readonly="isEditing"
-              :style="isEditing ? 'background:var(--snow);color:var(--stone)' : ''"
-              @input="userForm.employee_id = onlyDigits(userForm.employee_id)"
-            />
+            v-model="userForm.employee_id"
+            class="ifi"
+             maxlength="15"
+            placeholder="e.g. 12345"
+            :readonly="isEditing"
+            :style="(isEditing ? 'background:var(--snow);color:var(--stone);' : '') + errorStyle('employee_id')"
+            @input="userForm.employee_id = onlyDigits(userForm.employee_id); clearFieldError('employee_id')"
+          />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-              <input v-model="userForm.last_name" class="ifi" placeholder="Reyes" @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name))" />
+              <input
+                v-model="userForm.last_name"
+                class="ifi"
+                 maxlength="20"
+                placeholder="Reyes"
+                :style="errorStyle('last_name')"
+                @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name)); clearFieldError('last_name')"
+              />
             </div>
             <div>
               <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-              <input v-model="userForm.first_name" class="ifi" placeholder="Maria" @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name))" />
+              <input
+                v-model="userForm.first_name"
+                class="ifi"
+                 maxlength="20"
+                placeholder="Maria"
+                :style="errorStyle('first_name')"
+                @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name)); clearFieldError('first_name')"
+              />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="userForm.middle_name" class="ifi" placeholder="Santos" @input="userForm.middle_name = titleCase(onlyLetters(userForm.middle_name))" />
+              <input
+                v-model="userForm.middle_name"
+                class="ifi"
+                placeholder="Santos"
+                maxlength="20"
+                @input="userForm.middle_name = titleCase(onlyLetters(userForm.middle_name)).slice(0, 20)"
+              />
             </div>
             <div>
               <label class="ifl">Suffix</label>
@@ -272,11 +294,24 @@
           </div>
           <div>
             <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
-            <input v-model="userForm.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" />
+            <input
+              v-model="userForm.email"
+              type="email"
+              class="ifi"
+              placeholder="name@bsu.edu.ph"
+              :style="errorStyle('email')"
+              @input="clearFieldError('email')"
+            />
           </div>
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
-            <select v-model="userForm.role" class="ifse" :disabled="isFacultyView">
+            <select
+              v-model="userForm.role"
+              class="ifse"
+              :disabled="isFacultyView"
+              :style="errorStyle('role')"
+              @change="clearFieldError('role')"
+            >
               <option value="" disabled hidden>Select role...</option>
               <option value="admin">Admin / GCU Head</option>
               <option value="gcu_staff">GCU Staff</option>
@@ -288,14 +323,25 @@
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
-            <select v-model="userForm.college" class="ifse" @change="userForm.department = ''">
+            <select
+              v-model="userForm.college"
+              class="ifse"
+              :style="errorStyle('college')"
+              @change="userForm.department = ''; clearFieldError('college')"
+            >
               <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">Department <span style="color:var(--red)">*</span></label>
-            <select v-model="userForm.department" class="ifse" :disabled="!userForm.college">
+            <select
+              v-model="userForm.department"
+              class="ifse"
+              :disabled="!userForm.college"
+              :style="errorStyle('department')"
+              @change="clearFieldError('department')"
+            >
               <option value="" disabled hidden>Select department...</option>
               <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
             </select>
@@ -305,8 +351,10 @@
             <input
               v-model="userForm.contact_number"
               class="ifi"
-              placeholder="e.g. 09171234567"
-              @input="userForm.contact_number = contactNumberInput(userForm.contact_number)"
+              placeholder="09171234567"
+              maxlength="11"
+              :style="errorStyle('contact_number')"
+              @input="userForm.contact_number = contactNumberBlockingNonZero(userForm.contact_number); clearFieldError('contact_number')"
             />
           </div>
           <div v-if="!isEditing">
@@ -323,22 +371,61 @@
             {{ formError }}
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
-            <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="saveUser">
-              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
-            </button>
-            <button
-              v-if="!isEditing"
-              class="ibtn ibtn-o"
-              :disabled="isAddFormEmpty"
-              :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
-              @click="handleClearForm"
-            >Clear Form</button>
-            <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
+            <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="goToUserPreview">
+            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
+          </button>
+          <button
+            v-if="!isEditing"
+            class="ibtn ibtn-o"
+            :disabled="isAddFormEmpty"
+            :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
+            @click="handleClearForm"
+          >Clear Form</button>
+          <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- Add/Edit Confirmation Preview Modal -->
+<div v-if="showUserPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUserPreview = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">
+        {{ isEditing ? 'Confirm Changes' : (isFacultyView ? 'Confirm New Faculty' : 'Confirm New Employee') }}
+      </div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showUserPreview = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--stone)">
+        Please review the information below before {{ isEditing ? 'saving' : 'adding' }}:
+      </div>
+
+      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+        <div><strong>Employee ID:</strong> {{ userForm.employee_id }}</div>
+        <div><strong>Name:</strong> {{ userForm.last_name }}, {{ userForm.first_name }} {{ userForm.middle_name }} {{ userForm.suffix }}</div>
+        <div><strong>Email:</strong> {{ userForm.email }}</div>
+        <div><strong>Role:</strong> {{ roleLabel(userForm.role) }}</div>
+        <div v-if="userForm.college"><strong>College:</strong> {{ userForm.college }}</div>
+        <div v-if="userForm.department"><strong>Department:</strong> {{ userForm.department }}</div>
+        <div><strong>Contact Number:</strong> {{ userForm.contact_number }}</div>
+        <div v-if="!isEditing && userForm.password" style="padding-top:4px;border-top:1px dashed var(--cloud);margin-top:4px">
+          <strong>Temporary Password:</strong>
+          <span style="font-family:var(--mono);color:var(--forest)">{{ userForm.password }}</span>
+          <div style="font-size:11px;color:var(--stone);margin-top:2px">Share this with the {{ isFacultyView ? 'faculty member' : 'employee' }}.</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="confirmUserSubmit">
+          {{ isEditing ? 'Confirm & Save' : (isFacultyView ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
+        </button>
+        <button class="ibtn ibtn-o" @click="showUserPreview = false">Go Back &amp; Edit</button>
+      </div>
+    </div>
+  </div>
+</div>
 
     <!-- Import Modal -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
@@ -377,31 +464,85 @@
     </div>
 
     <!-- Import Confirmation Modal -->
-<div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Upload</div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
+    <div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Upload</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">Please confirm you want to upload this file:</div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;font-size:13px">
+            <div><strong>Type:</strong> {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
+            <div style="margin-top:6px"><strong>File:</strong> {{ importFile?.name }}</div>
+          </div>
+          <div style="font-size:12px;color:var(--stone)">
+            Once uploaded, new records will be added and duplicates handled by the backend.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
+              <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showImportConfirm = false">Go Back</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--stone)">Please confirm you want to upload this file:</div>
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;font-size:13px">
-        <div><strong>Type:</strong> {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
-        <div style="margin-top:6px"><strong>File:</strong> {{ importFile?.name }}</div>
-      </div>
-      <div style="font-size:12px;color:var(--stone)">
-        Once uploaded, new records will be added and duplicates handled by the backend.
-      </div>
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
-          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-          {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showImportConfirm = false">Go Back</button>
+
+    <!-- Clear Form Confirmation -->
+    <div v-if="showClearConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showClearConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Clear Form?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            All fields in this form will be cleared. This cannot be undone.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="doConfirmedClear">Yes, Clear Form</button>
+            <button class="ibtn ibtn-o" @click="showClearConfirm = false">Cancel</button>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
+
+    <!-- Reset Password Confirmation -->
+    <div v-if="showResetPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showResetPwConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reset Password?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Reset password for <strong>{{ userToReset?.first_name }} {{ userToReset?.last_name }}</strong>? A new temporary password will be generated.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="doConfirmedResetPw">Yes, Reset Password</button>
+            <button class="ibtn ibtn-o" @click="showResetPwConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toggle Active Confirmation -->
+    <div v-if="showToggleConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showToggleConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);text-transform:capitalize">{{ toggleAction }} Account?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Are you sure you want to {{ toggleAction }} <strong>{{ userToToggle?.first_name }} {{ userToToggle?.last_name }}</strong>'s account?
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="doConfirmedToggle" style="text-transform:capitalize">Yes, {{ toggleAction }}</button>
+            <button class="ibtn ibtn-o" @click="showToggleConfirm = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </div>
 </template>
@@ -419,6 +560,20 @@ function titleCase(str) {
   return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 }
 
+const fieldErrors = ref({});
+
+function clearFieldError(field) {
+  if (fieldErrors.value[field]) {
+    fieldErrors.value = { ...fieldErrors.value, [field]: false };
+  }
+}
+
+function errorStyle(field) {
+  return fieldErrors.value[field]
+    ? 'border-color:var(--red);border-width:1.5px'
+    : '';
+}
+
 const route      = useRoute();
 const toast      = inject('toast');
 const auth       = useAuthStore();
@@ -431,6 +586,67 @@ const pagination = ref({});
 const filters    = ref({ search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
 const sortOption = ref('created_at:desc');
 const showInactive = ref(false);
+
+const showClearConfirm = ref(false);
+const showUserPreview = ref(false);
+
+const showResetPwConfirm = ref(false);
+const userToReset = ref(null);
+
+function openResetPwConfirm(u) {
+  userToReset.value = u;
+  showResetPwConfirm.value = true;
+}
+
+async function doConfirmedResetPw() {
+  const u = userToReset.value;
+  showResetPwConfirm.value = false;
+  if (!u) return;
+  try {
+    const res = await userAPI.resetPassword(u.id);
+    if (res.data?.temp_password) {
+      toast?.success(`Password reset. New temporary password: ${res.data.temp_password}`);
+    } else {
+      toast?.success('Password reset successfully.');
+    }
+    fetchUsers?.();
+  } catch (e) {
+    toast?.error('Failed to reset password.');
+  }
+}
+
+const showToggleConfirm = ref(false);
+const userToToggle = ref(null);
+const toggleAction = ref('');
+
+function openToggleConfirm(u, action) {
+  userToToggle.value = u;
+  toggleAction.value = action;
+  showToggleConfirm.value = true;
+}
+
+async function doConfirmedToggle() {
+  const u = userToToggle.value;
+  showToggleConfirm.value = false;
+  if (!u) return;
+  try {
+    await userAPI.toggleActive(u.id);
+    toast?.success(`Account ${toggleAction.value}d successfully.`);
+    fetchUsers();
+  } catch (e) {
+    toast?.error('Please try again.');
+  }
+}
+
+function openClearConfirm() {
+  if (isAddFormEmpty.value) return;
+  showClearConfirm.value = true;
+}
+
+function doConfirmedClear() {
+  showClearConfirm.value = false;
+  resetUserForm();
+}
 
 function applySort() {
   const [sortBy, sortDir] = sortOption.value.split(':');
@@ -448,6 +664,8 @@ const userFormSnapshot = ref('');
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
 const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
+
+
 
 const userForm = ref({
   first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '', role: '',
@@ -518,9 +736,6 @@ function generatePassword() {
   userForm.value.password_confirmation = userForm.value.password;
 }
 
-// Re-fetches the individual record so Last Login (and any other field
-// updated after the list was loaded) is always current when opened, rather
-// than reusing the possibly-stale row object from the last table fetch.
 async function openView(u) {
   resetPasswordResult.value = '';
   showTempPassword.value = false;
@@ -540,19 +755,8 @@ function openEditFromView() {
   openEdit(viewedUser.value);
 }
 
-async function resetPassword(u) {
-  if (!auth.isAdmin) return;
-  if (!confirm(`Reset password for ${u.first_name} ${u.last_name}? A new temporary password will be generated.`)) return;
-  try {
-    const res = await userAPI.resetPassword(u.id, {});
-    resetPasswordResult.value = res.data.temp_password;
-    tempPasswordValue.value = res.data.temp_password;
-    showTempPassword.value = true;
-    viewedUser.value.must_change_password = true;
-    toast?.success('Password reset successfully.');
-  } catch (e) {
-    toast?.error('Failed to reset password.');
-  }
+function resetPassword(u) {
+  openResetPwConfirm(u);
 }
 
 async function toggleTempPasswordVisible() {
@@ -574,6 +778,7 @@ function resetUserForm() {
     college: '', department: '', contact_number: '',
     password: '', password_confirmation: '',
   };
+  fieldErrors.value = {};
   generatePassword();
 }
 
@@ -581,53 +786,65 @@ function openCreate() {
   if (!auth.isAdmin) return;
   isEditing.value = false;
   formError.value = '';
+  fieldErrors.value = {};
+  showUserPreview.value = false;
   resetUserForm();
   showModal.value = true;
 }
 
 function handleClearForm() {
-  if (isAddFormEmpty.value) return;
-  if (!confirm('Clear all fields in this form?')) return;
-  resetUserForm();
+  openClearConfirm();
 }
 
 function openEdit(u) {
   if (!auth.isAdmin) return;
   isEditing.value = true;
   formError.value = '';
+  fieldErrors.value = {};
+  showUserPreview.value = false;
   userForm.value  = { ...u, password: '', password_confirmation: '' };
   userFormSnapshot.value = JSON.stringify(userForm.value);
   showModal.value = true;
 }
 
-async function saveUser() {
+function validateUserForm() {
+  const errs = {};
+  const missing = [];
+  const req = (key, label, condition = true) => {
+    if (condition && !userForm.value[key]) { errs[key] = true; missing.push(label); }
+  };
+  if (!isEditing.value) {
+    req('employee_id', 'Employee ID');
+    req('last_name', 'Last Name');
+    req('first_name', 'First Name');
+    req('email', 'Email Address');
+    req('role', 'Role');
+  } else {
+    req('employee_id', 'Employee ID');
+    req('email', 'Email Address');
+  }
+  req('contact_number', 'Contact Number');
+  req('college', 'College', ['faculty', 'dean_secretary'].includes(userForm.value.role));
+  req('department', 'Department', ['faculty', 'dean_secretary'].includes(userForm.value.role));
+
+  if (userForm.value.email && !isValidEmail(userForm.value.email)) errs.email = true;
+  if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) errs.contact_number = true;
+
+  fieldErrors.value = errs;
+  return missing;
+}
+
+function goToUserPreview() {
   formError.value = '';
   if (!auth.isAdmin) {
     formError.value = 'Please fill in all required fields.';
     return;
   }
-
-  const missing = [];
-  if (!isEditing.value) {
-    if (!userForm.value.employee_id) missing.push('Employee ID');
-    if (!userForm.value.last_name) missing.push('Last Name');
-    if (!userForm.value.first_name) missing.push('First Name');
-    if (!userForm.value.email) missing.push('Email Address');
-    if (!userForm.value.role) missing.push('Role');
-  } else {
-    if (!userForm.value.employee_id) missing.push('Employee ID');
-    if (!userForm.value.email) missing.push('Email Address');
-  }
-  if (!userForm.value.contact_number) missing.push('Contact Number');
-  if (['faculty', 'dean_secretary'].includes(userForm.value.role)) {
-    if (!userForm.value.college) missing.push('College');
-    if (!userForm.value.department) missing.push('Department');
-  }
+  const missing = validateUserForm();
   if (missing.length) {
     formError.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
-
   if (userForm.value.email && !isValidEmail(userForm.value.email)) {
     formError.value = 'Please enter a valid email address.';
     return;
@@ -636,6 +853,11 @@ async function saveUser() {
     formError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
+  showUserPreview.value = true;
+}
+
+async function confirmUserSubmit() {
+  showUserPreview.value = false;
   try {
     if (isEditing.value) {
       const { password, password_confirmation, ...updateData } = userForm.value;
@@ -653,20 +875,15 @@ async function saveUser() {
   }
 }
 
-async function toggleActive(u) {
-  if (!auth.isAdmin) {
-    toast?.error('Please fill in all required fields.');
-    return;
-  }
+function toggleActive(u) {
   const action = u.is_active ? 'deactivate' : 'activate';
-  if (!confirm(`Are you sure you want to ${action} this account?`)) return;
-  try {
-    await userAPI.toggleActive(u.id);
-    toast?.success(`Employee ${u.is_active ? 'deactivated' : 'activated'}.`);
-    fetchUsers();
-  } catch (e) {
-    toast?.error('Please fill in all required fields.');
-  }
+  openToggleConfirm(u, action);
+}
+
+function contactNumberBlockingNonZero(value) {
+  if (!value) return '';
+  if (!value.startsWith('0')) return '';
+  return contactNumberInput(value);
 }
 
 function handleImportFileSelect(e) {

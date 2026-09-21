@@ -31,6 +31,7 @@
                 inputmode="numeric"
                 maxlength="10"
                 pattern="[0-9]*"
+                :style="error ? 'border-color:var(--red);border-width:1.5px' : ''"
                 @input="onStudentIdInput"
               />
             </div>
@@ -43,7 +44,7 @@
                     class="ifi"
                     placeholder="Enter Password"
                     required
-                    style="padding-right:40px"
+                    :style="`padding-right:40px;${error ? 'border-color:var(--red);border-width:1.5px' : ''}`"
                     @keyup="checkCapsLock"
                     @input="onFieldEdit"
                   />

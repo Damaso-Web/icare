@@ -42,7 +42,14 @@
           </div>
           <div>
             <label class="ifl">Contact Number</label>
-            <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+            <input
+            v-model="profileForm.contact_number"
+            class="ifi"
+            placeholder="09XXXXXXXXX"
+            maxlength="11"
+            :style="profileError ? 'border-color:var(--red);border-width:1.5px' : ''"
+            @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11); profileError = ''"
+          />
           </div>
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged" @click="saveProfile">Save Changes</button>
         </div>
@@ -116,8 +123,8 @@ async function changePassword() {
     localStorage.setItem('student', JSON.stringify(student.value));
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
   } catch (e) {
-  profileError.value = 'Please fill in all required fields.';
-}
+    pwError.value = e.response?.data?.message || 'Failed to change password.';
+  }
 }
 
 onMounted(() => {
