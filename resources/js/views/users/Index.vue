@@ -366,7 +366,7 @@
             </div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="uploadImportFile" :disabled="!importFile || importing">
+            <button class="ibtn ibtn-p" @click="openImportConfirm" :disabled="!importFile || importing">
               <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ importing ? 'Uploading...' : 'Upload' }}
             </button>
@@ -375,6 +375,33 @@
         </div>
       </div>
     </div>
+
+    <!-- Import Confirmation Modal -->
+<div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Upload</div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div style="font-size:13px;color:var(--stone)">Please confirm you want to upload this file:</div>
+      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;font-size:13px">
+        <div><strong>Type:</strong> {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
+        <div style="margin-top:6px"><strong>File:</strong> {{ importFile?.name }}</div>
+      </div>
+      <div style="font-size:12px;color:var(--stone)">
+        Once uploaded, new records will be added and duplicates handled by the backend.
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
+          <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+          {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
+        </button>
+        <button class="ibtn ibtn-o" @click="showImportConfirm = false">Go Back</button>
+      </div>
+    </div>
+  </div>
+</div>
 
   </div>
 </template>
@@ -448,6 +475,7 @@ const showImportModal = ref(false);
 const importFile      = ref(null);
 const importing       = ref(false);
 const importResult    = ref(null);
+const showImportConfirm = ref(false);
 
 function switchStatusTab(inactive) {
   showInactive.value = inactive;
@@ -661,6 +689,16 @@ async function uploadImportFile() {
   } finally {
     importing.value = false;
   }
+}
+
+function openImportConfirm() {
+  if (!importFile.value) return;
+  showImportConfirm.value = true;
+}
+
+async function doConfirmedImport() {
+  showImportConfirm.value = false;
+  await uploadImportFile();
 }
 
 function changePage(page) { fetchUsers(page); }
