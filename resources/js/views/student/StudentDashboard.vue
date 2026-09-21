@@ -17,11 +17,11 @@
         <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.</div>
       </div>
           <router-link
-        :to="scheduleReferralId
-          ? { name: 'student-referral-show', params: { id: scheduleReferralId } }
-          : { name: 'student-schedule-new' }"
-        class="ibtn ibtn-p"
-      >Schedule Now</router-link>
+  :to="scheduleAppointmentId
+    ? { name: 'student-appointment-show', params: { id: scheduleAppointmentId } }
+    : { name: 'student-schedule-new' }"
+  class="ibtn ibtn-p"
+>Schedule Now</router-link>
     </div>
   </div>
 
@@ -70,10 +70,7 @@ const appointments = ref([]);
 const referrals = ref([]);
 const pendingAppointments = ref([]);
 
-const scheduleReferralId = computed(() => {
-  const appt = pendingAppointments.value[0];
-  return appt?.referral?.id || appt?.case?.latest_referral?.id || null;
-});
+const scheduleAppointmentId = computed(() => pendingAppointments.value[0]?.id || null);
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };

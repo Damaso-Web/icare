@@ -32,7 +32,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
-           maxlength="15"
+          maxlength="15"
           placeholder="Search name, email, or employee ID..."
           style="width:220px"
           @keypress="blockSpecialKeypress"
@@ -235,14 +235,14 @@
           <div>
             <label class="ifl">Employee ID <span style="color:var(--red)">*</span></label>
             <input
-            v-model="userForm.employee_id"
-            class="ifi"
-             maxlength="15"
-            placeholder="e.g. 12345"
-            :readonly="isEditing"
-            :style="(isEditing ? 'background:var(--snow);color:var(--stone);' : '') + errorStyle('employee_id')"
-            @input="userForm.employee_id = onlyDigits(userForm.employee_id); clearFieldError('employee_id')"
-          />
+              v-model="userForm.employee_id"
+              class="ifi"
+              maxlength="15"
+              placeholder="e.g. 12345"
+              :readonly="isEditing"
+              :style="(isEditing ? 'background:var(--snow);color:var(--stone);' : '') + errorStyle('employee_id')"
+              @input="userForm.employee_id = onlyDigits(userForm.employee_id); clearFieldError('employee_id')"
+            />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
@@ -250,7 +250,7 @@
               <input
                 v-model="userForm.last_name"
                 class="ifi"
-                 maxlength="20"
+                maxlength="20"
                 placeholder="Reyes"
                 :style="errorStyle('last_name')"
                 @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name)); clearFieldError('last_name')"
@@ -261,7 +261,7 @@
               <input
                 v-model="userForm.first_name"
                 class="ifi"
-                 maxlength="20"
+                maxlength="20"
                 placeholder="Maria"
                 :style="errorStyle('first_name')"
                 @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name)); clearFieldError('first_name')"
@@ -292,6 +292,7 @@
               </select>
             </div>
           </div>
+
           <div>
             <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
             <input
@@ -302,7 +303,11 @@
               :style="errorStyle('email')"
               @input="clearFieldError('email')"
             />
+            <div v-if="userErrors.email" style="font-size:11px;color:var(--red);margin-top:4px">
+              {{ userErrors.email }}
+            </div>
           </div>
+
           <div>
             <label class="ifl">Role <span style="color:var(--red)">*</span></label>
             <select
@@ -321,6 +326,7 @@
               <option value="dean_secretary">Dean's Secretary</option>
             </select>
           </div>
+
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
             <select
@@ -333,6 +339,7 @@
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
           </div>
+
           <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
             <label class="ifl">Department <span style="color:var(--red)">*</span></label>
             <select
@@ -346,6 +353,7 @@
               <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
             </select>
           </div>
+
           <div>
             <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
             <input
@@ -356,7 +364,11 @@
               :style="errorStyle('contact_number')"
               @input="userForm.contact_number = contactNumberBlockingNonZero(userForm.contact_number); clearFieldError('contact_number')"
             />
+            <div v-if="userErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
+              {{ userErrors.contact_number }}
+            </div>
           </div>
+
           <div v-if="!isEditing">
             <label class="ifl">Temporary Password</label>
             <div style="display:flex;gap:8px;align-items:center">
@@ -372,60 +384,60 @@
           </div>
           <div style="display:flex;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="goToUserPreview">
-            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-            {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
-          </button>
-          <button
-            v-if="!isEditing"
-            class="ibtn ibtn-o"
-            :disabled="isAddFormEmpty"
-            :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
-            @click="handleClearForm"
-          >Clear Form</button>
-          <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
+            </button>
+            <button
+              v-if="!isEditing"
+              class="ibtn ibtn-o"
+              :disabled="isAddFormEmpty"
+              :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
+              @click="handleClearForm"
+            >Clear Form</button>
+            <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Add/Edit Confirmation Preview Modal -->
-<div v-if="showUserPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUserPreview = false">
-  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-      <div style="font-size:15px;font-weight:600;color:var(--ink)">
-        {{ isEditing ? 'Confirm Changes' : (isFacultyView ? 'Confirm New Faculty' : 'Confirm New Employee') }}
-      </div>
-      <button class="ibtn ibtn-g ibtn-sm" @click="showUserPreview = false">✕</button>
-    </div>
-    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-      <div style="font-size:13px;color:var(--stone)">
-        Please review the information below before {{ isEditing ? 'saving' : 'adding' }}:
-      </div>
+    <div v-if="showUserPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUserPreview = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">
+            {{ isEditing ? 'Confirm Changes' : (isFacultyView ? 'Confirm New Faculty' : 'Confirm New Employee') }}
+          </div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showUserPreview = false">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--stone)">
+            Please review the information below before {{ isEditing ? 'saving' : 'adding' }}:
+          </div>
 
-      <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-        <div><strong>Employee ID:</strong> {{ userForm.employee_id }}</div>
-        <div><strong>Name:</strong> {{ userForm.last_name }}, {{ userForm.first_name }} {{ userForm.middle_name }} {{ userForm.suffix }}</div>
-        <div><strong>Email:</strong> {{ userForm.email }}</div>
-        <div><strong>Role:</strong> {{ roleLabel(userForm.role) }}</div>
-        <div v-if="userForm.college"><strong>College:</strong> {{ userForm.college }}</div>
-        <div v-if="userForm.department"><strong>Department:</strong> {{ userForm.department }}</div>
-        <div><strong>Contact Number:</strong> {{ userForm.contact_number }}</div>
-        <div v-if="!isEditing && userForm.password" style="padding-top:4px;border-top:1px dashed var(--cloud);margin-top:4px">
-          <strong>Temporary Password:</strong>
-          <span style="font-family:var(--mono);color:var(--forest)">{{ userForm.password }}</span>
-          <div style="font-size:11px;color:var(--stone);margin-top:2px">Share this with the {{ isFacultyView ? 'faculty member' : 'employee' }}.</div>
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div><strong>Employee ID:</strong> {{ userForm.employee_id }}</div>
+            <div><strong>Name:</strong> {{ userForm.last_name }}, {{ userForm.first_name }} {{ userForm.middle_name }} {{ userForm.suffix }}</div>
+            <div><strong>Email:</strong> {{ userForm.email }}</div>
+            <div><strong>Role:</strong> {{ roleLabel(userForm.role) }}</div>
+            <div v-if="userForm.college"><strong>College:</strong> {{ userForm.college }}</div>
+            <div v-if="userForm.department"><strong>Department:</strong> {{ userForm.department }}</div>
+            <div><strong>Contact Number:</strong> {{ userForm.contact_number }}</div>
+            <div v-if="!isEditing && userForm.password" style="padding-top:4px;border-top:1px dashed var(--cloud);margin-top:4px">
+              <strong>Temporary Password:</strong>
+              <span style="font-family:var(--mono);color:var(--forest)">{{ userForm.password }}</span>
+              <div style="font-size:11px;color:var(--stone);margin-top:2px">Share this with the {{ isFacultyView ? 'faculty member' : 'employee' }}.</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="confirmUserSubmit">
+              {{ isEditing ? 'Confirm & Save' : (isFacultyView ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showUserPreview = false">Go Back &amp; Edit</button>
+          </div>
         </div>
       </div>
-
-      <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-p" @click="confirmUserSubmit">
-          {{ isEditing ? 'Confirm & Save' : (isFacultyView ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
-        </button>
-        <button class="ibtn ibtn-o" @click="showUserPreview = false">Go Back &amp; Edit</button>
-      </div>
     </div>
-  </div>
-</div>
 
     <!-- Import Modal -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
@@ -654,6 +666,7 @@ function applySort() {
   filters.value.sort_dir = sortDir;
   fetchUsers();
 }
+
 const colleges   = COLLEGES;
 const viewedUser = ref({});
 const formError  = ref('');
@@ -662,15 +675,32 @@ const showTempPassword = ref(false);
 const tempPasswordValue = ref('');
 const userFormSnapshot = ref('');
 
-const isFacultyView = computed(() => route.name === 'faculty-directory');
-const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
-
-
-
 const userForm = ref({
   first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '', role: '',
   college: '', department: '', contact_number: '',
   password: '', password_confirmation: '',
+});
+
+const isFacultyView = computed(() => route.name === 'faculty-directory');
+const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
+
+const userErrors = computed(() => {
+  const f = userForm.value;
+  const errs = {};
+
+  if (f.email && !isValidEmail(f.email)) {
+    errs.email = 'Please enter a valid email address.';
+  }
+
+  if (f.contact_number) {
+    if (!f.contact_number.startsWith('0')) {
+      errs.contact_number = 'Contact number must start with 0.';
+    } else if (!isValidPHContact(f.contact_number)) {
+      errs.contact_number = 'Must be 11 digits starting with 09.';
+    }
+  }
+
+  return errs;
 });
 
 const isUserFormUnchanged = computed(() =>

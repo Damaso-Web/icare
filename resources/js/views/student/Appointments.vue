@@ -13,7 +13,7 @@
             You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}
           </div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">
-            Please choose your preferred date and time on the related referral{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.
+            Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.
           </div>
         </div>
         <button class="ibtn ibtn-p" @click="goToSchedule(pendingAppointments[0])">Schedule Now</button>
@@ -76,12 +76,8 @@ function formatDate(date) {
 }
 
 function goToSchedule(appt) {
-  const referralId = appt?.referral?.id || appt?.case?.latest_referral?.id;
-  if (referralId) {
-    router.push({ name: 'student-referral-show', params: { id: referralId } });
-  } else {
-    router.push({ name: 'student-appointments' });
-  }
+  if (!appt?.id) return;
+  router.push({ name: 'student-appointment-show', params: { id: appt.id } });
 }
 
 async function fetchData() {

@@ -249,6 +249,7 @@
               <input
                 v-model="editForm.student_id"
                 class="ifi"
+                maxlength="15"
                 placeholder="e.g. 2302021"
                 :style="editErrorStyle('student_id')"
                 @input="editForm.student_id = onlyDigits(editForm.student_id); clearEditFieldError('student_id')"
@@ -272,6 +273,7 @@
               <input
                 v-model="editForm.last_name"
                 class="ifi"
+                maxlength="20"
                 placeholder="Last Name"
                 :style="editErrorStyle('last_name')"
                 @input="editForm.last_name = titleCase(onlyLetters(editForm.last_name)); clearEditFieldError('last_name')"
@@ -282,6 +284,7 @@
               <input
                 v-model="editForm.first_name"
                 class="ifi"
+                maxlength="20"
                 placeholder="First Name"
                 :style="editErrorStyle('first_name')"
                 @input="editForm.first_name = titleCase(onlyLetters(editForm.first_name)); clearEditFieldError('first_name')"
@@ -289,11 +292,11 @@
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
+              <input v-model="editForm.middle_name" class="ifi" maxlength="20" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+              <input v-model="editForm.suffix" class="ifi" maxlength="20" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
             </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
@@ -386,6 +389,7 @@
               <input
                 v-model="editForm.guardian_last_name"
                 class="ifi"
+                maxlength="20"
                 placeholder="Dela Cruz"
                 :style="editErrorStyle('guardian_last_name')"
                 @input="editForm.guardian_last_name = titleCase(onlyLetters(editForm.guardian_last_name)); clearEditFieldError('guardian_last_name')"
@@ -396,6 +400,7 @@
               <input
                 v-model="editForm.guardian_first_name"
                 class="ifi"
+                maxlength="20"
                 placeholder="Juan"
                 :style="editErrorStyle('guardian_first_name')"
                 @input="editForm.guardian_first_name = titleCase(onlyLetters(editForm.guardian_first_name)); clearEditFieldError('guardian_first_name')"
@@ -403,7 +408,7 @@
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
-              <input v-model="editForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="editForm.guardian_middle_name = titleCase(onlyLetters(editForm.guardian_middle_name))" />
+              <input v-model="editForm.guardian_middle_name" class="ifi" maxlength="20" placeholder="Santos" @input="editForm.guardian_middle_name = titleCase(onlyLetters(editForm.guardian_middle_name))" />
             </div>
             <div>
               <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
@@ -668,7 +673,7 @@
             </div>
             <div>
               <label class="ifl">Guardian Middle Name</label>
-              <input v-model="addForm.guardian_middle_name" class="ifi" placeholder="Reyes" @input="addForm.guardian_middle_name = titleCase(onlyLetters(addForm.guardian_middle_name))" />
+              <input v-model="addForm.guardian_middle_name" class="ifi" maxlength="20" placeholder="Reyes" @input="addForm.guardian_middle_name = titleCase(onlyLetters(addForm.guardian_middle_name))" />
             </div>
             <div>
               <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
