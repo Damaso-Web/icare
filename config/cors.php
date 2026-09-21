@@ -19,7 +19,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*'],
+    'allowed_origins' => [
+    'https://iwillcare.netlify.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+],
 
     'allowed_origins_patterns' => [],
 

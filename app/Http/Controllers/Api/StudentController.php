@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Student;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class StudentController extends Controller
 {
@@ -33,44 +36,44 @@ class StudentController extends Controller
     }
 
     public function store(Request $request)
-{
-    $validated = $request->validate([
-        'student_id'             => 'required|string|unique:students,student_id',
-        'first_name'             => 'required|string|max:255',
-        'last_name'              => 'required|string|max:255',
-        'middle_name'            => 'nullable|string|max:255',
-        'suffix'                 => 'nullable|string|max:20',
-        'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
-        'email'                  => 'nullable|email',
-        'contact_number'         => 'nullable|string|max:11',
-        'college'                => 'nullable|string',
-        'program'                => 'nullable|string',
-        'year_level'             => 'nullable|string',
-        'section'                => 'nullable|string|max:1',
-        'guardian_first_name'    => 'nullable|string|max:255',
-        'guardian_middle_name'   => 'nullable|string|max:255',
-        'guardian_last_name'     => 'nullable|string|max:255',
-        'guardian_contact'       => 'nullable|string|max:11',
-        'guardian_relationship'  => 'nullable|string',
-    ]);
+    {
+        $validated = $request->validate([
+            'student_id'             => 'required|string|unique:students,student_id',
+            'first_name'             => 'required|string|max:255',
+            'last_name'              => 'required|string|max:255',
+            'middle_name'            => 'nullable|string|max:255',
+            'suffix'                 => 'nullable|string|max:20',
+            'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
+            'email'                  => 'nullable|email',
+            'contact_number'         => 'nullable|string|max:11',
+            'college'                => 'nullable|string',
+            'program'                => 'nullable|string',
+            'year_level'             => 'nullable|string',
+            'section'                => 'nullable|string|max:1',
+            'guardian_first_name'    => 'nullable|string|max:255',
+            'guardian_middle_name'   => 'nullable|string|max:255',
+            'guardian_last_name'     => 'nullable|string|max:255',
+            'guardian_contact'       => 'nullable|string|max:11',
+            'guardian_relationship'  => 'nullable|string',
+        ]);
 
-    $tempPassword = \Illuminate\Support\Str::random(10);
+        $tempPassword = Str::random(10);
 
-    $student = Student::create([
-        ...$validated,
-        'password'              => \Illuminate\Support\Facades\Hash::make($tempPassword),
-        'temp_password'         => $tempPassword,
-        'must_change_password'  => true,
-        'is_active'              => true,
-    ]);
+        $student = Student::create([
+            ...$validated,
+            'password'              => Hash::make($tempPassword),
+            'temp_password'         => $tempPassword,
+            'must_change_password'  => true,
+            'is_active'             => true,
+        ]);
 
-    AuditLog::record('created', "Added student profile for {$student->first_name} {$student->last_name}.", $student);
+        AuditLog::record('created', "Added student profile for {$student->first_name} {$student->last_name}.", $student);
 
-    return response()->json([
-        ...$student->toArray(),
-        'temp_password' => $tempPassword,
-    ], 201);
-}
+        return response()->json([
+            ...$student->toArray(),
+            'temp_password' => $tempPassword,
+        ], 201);
+    }
 
     public function show(Student $student)
     {
@@ -78,52 +81,49 @@ class StudentController extends Controller
     }
 
     public function update(Request $request, Student $student)
-{
-    $validated = $request->validate([
-    'student_id'             => 'sometimes|required|string|unique:students,student_id,' . $student->id,
-    'first_name'             => 'sometimes|required|string|max:255',
-    'last_name'              => 'sometimes|required|string|max:255',
-    'middle_name'            => 'nullable|string|max:255',
-    'suffix'                 => 'nullable|string|max:20',
-    'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
-    'email'                  => 'nullable|email',
-    'contact_number'         => 'nullable|string|max:11',
-    'college'                => 'sometimes|required|string',
-    'program'                => 'nullable|string',
-    'year_level'             => 'sometimes|required|string',
-    'section'                => 'nullable|string|max:1',
-    'guardian_first_name'    => 'nullable|string|max:255',
-    'guardian_middle_name'   => 'nullable|string|max:255',
-    'guardian_last_name'     => 'nullable|string|max:255',
-    'guardian_contact'       => 'nullable|string|max:11',
-    'guardian_relationship'  => 'nullable|string',
-]);
+    {
+        $validated = $request->validate([
+            'student_id'             => 'sometimes|required|string|unique:students,student_id,' . $student->id,
+            'first_name'             => 'sometimes|required|string|max:255',
+            'last_name'              => 'sometimes|required|string|max:255',
+            'middle_name'            => 'nullable|string|max:255',
+            'suffix'                 => 'nullable|string|max:20',
+            'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
+            'email'                  => 'nullable|email',
+            'contact_number'         => 'nullable|string|max:11',
+            'college'                => 'sometimes|required|string',
+            'program'                => 'nullable|string',
+            'year_level'             => 'sometimes|required|string',
+            'section'                => 'nullable|string|max:1',
+            'guardian_first_name'    => 'nullable|string|max:255',
+            'guardian_middle_name'   => 'nullable|string|max:255',
+            'guardian_last_name'     => 'nullable|string|max:255',
+            'guardian_contact'       => 'nullable|string|max:11',
+            'guardian_relationship'  => 'nullable|string',
+        ]);
 
-    // Nullable fields only ever mean "leave as-is" when submitted blank - an
-    // edit form re-sends the whole record, so an empty value here is never a
-    // deliberate clear, just a field the admin didn't touch.
-    foreach ([
-        'middle_name', 'suffix', 'sex', 'email', 'contact_number',
-        'college', 'program', 'year_level', 'section',
-        'guardian_first_name', 'guardian_middle_name', 'guardian_last_name',
-        'guardian_contact', 'guardian_relationship',
-    ] as $optionalField) {
-        if (array_key_exists($optionalField, $validated) && $validated[$optionalField] === '') {
-            unset($validated[$optionalField]);
+        // Nullable fields only ever mean "leave as-is" when submitted blank - an
+        // edit form re-sends the whole record, so an empty value here is never a
+        // deliberate clear, just a field the admin didn't touch.
+        foreach ([
+            'middle_name', 'suffix', 'sex', 'email', 'contact_number',
+            'college', 'program', 'year_level', 'section',
+            'guardian_first_name', 'guardian_middle_name', 'guardian_last_name',
+            'guardian_contact', 'guardian_relationship',
+        ] as $optionalField) {
+            if (array_key_exists($optionalField, $validated) && $validated[$optionalField] === '') {
+                unset($validated[$optionalField]);
+            }
         }
+
+        $old = $student->toArray();
+        $student->update($validated);
+
+        AuditLog::record('updated', "Updated student profile for {$student->first_name} {$student->last_name}.", $student, $old, $student->toArray());
+
+        return response()->json($student);
     }
 
-    $old = $student->toArray();
-    $student->update($validated);
-
-    AuditLog::record('updated', "Updated student profile for {$student->first_name} {$student->last_name}.", $student, $old, $student->toArray());
-
-    return response()->json($student);
-}
-
-
-
-    
     public function destroy(Student $student)
     {
         $student->delete();
@@ -139,26 +139,26 @@ class StudentController extends Controller
     }
 
     public function graduate(Request $request, Student $student)
-{
-    $validated = $request->validate([
-        'deactivation_reason' => 'required|in:no_longer_enrolled,leave_of_absence,disciplinary_suspension,other',
-        'deactivation_notes'  => 'nullable|string|required_if:deactivation_reason,other',
-    ]);
+    {
+        $validated = $request->validate([
+            'deactivation_reason' => 'required|in:no_longer_enrolled,leave_of_absence,disciplinary_suspension,other',
+            'deactivation_notes'  => 'nullable|string|required_if:deactivation_reason,other',
+        ]);
 
-    $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
-    if ($openCases > 0) {
-        return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
+        $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
+        if ($openCases > 0) {
+            return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
+        }
+
+        $student->update([
+            'is_active'            => false,
+            'deactivation_reason'  => $validated['deactivation_reason'],
+            'deactivation_notes'   => $validated['deactivation_notes'] ?? null,
+        ]);
+
+        AuditLog::record('graduated', "Deactivated student {$student->student_id}. Reason: {$validated['deactivation_reason']}.", $student);
+        return response()->json($student);
     }
-
-    $student->update([
-        'is_active'            => false,
-        'deactivation_reason'  => $validated['deactivation_reason'],
-        'deactivation_notes'   => $validated['deactivation_notes'] ?? null,
-    ]);
-
-    \App\Models\AuditLog::record('graduated', "Deactivated student {$student->student_id}. Reason: {$validated['deactivation_reason']}.", $student);
-    return response()->json($student);
-}
 
     public function history(Student $student)
     {
@@ -181,9 +181,9 @@ class StudentController extends Controller
 
     public function resetPassword(Request $request, Student $student)
     {
-        $newPassword = \Illuminate\Support\Str::random(10);
+        $newPassword = Str::random(10);
         $student->update([
-            'password'              => \Illuminate\Support\Facades\Hash::make($newPassword),
+            'password'              => Hash::make($newPassword),
             'temp_password'         => $newPassword,
             'must_change_password'  => true,
         ]);
@@ -274,14 +274,47 @@ class StudentController extends Controller
         $headerMap = $this->studentHeaderMap();
         $rows = $this->parseFile($file, $ext, $headerMap);
 
+        $colleges = [
+            'College of Agriculture (CA)',
+            'College of Arts and Humanities (CAH)',
+            'College of Engineering (CE)',
+            'College of Forestry (CF)',
+            'College of Human Ecology (CHE)',
+            'College of Human Kinetics (CHK)',
+            'College of Information Sciences (CIS)',
+            'College of Medicine (CM)',
+            'College of Natural Sciences (CNS)',
+            'College of Numeracy and Applied Sciences (CNAS)',
+            'College of Nursing (CN)',
+            'College of Public Administration and Governance (CPAG)',
+            'College of Social Sciences (CSS)',
+            'College of Teacher Education (CTE)',
+            'College of Veterinary Medicine (CVM)',
+        ];
+
+        // ONE query: fetch every existing student_id that appears in the file
+        $existingIds = collect($rows)
+            ->pluck('student_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $existingSet = empty($existingIds)
+            ? collect()
+            : Student::whereIn('student_id', $existingIds)->pluck('student_id')->flip();
+
         $preview = [];
         foreach ($rows as $i => $rowData) {
-            $isDuplicate = !empty($rowData['student_id']) && Student::where('student_id', $rowData['student_id'])->exists();
+            $isDuplicate = !empty($rowData['student_id']) && $existingSet->has($rowData['student_id']);
+            $reasons = $this->validateImportRow($rowData, $colleges);
+
             $preview[] = [
                 'row'          => $i + 2,
                 'student_id'   => $rowData['student_id'] ?? null,
                 'is_duplicate' => $isDuplicate,
-                'valid'        => !empty($rowData['student_id']) && !empty($rowData['first_name']) && !empty($rowData['last_name']),
+                'valid'        => empty($reasons),
+                'reasons'      => $reasons,
             ];
         }
 
@@ -296,6 +329,78 @@ class StudentController extends Controller
         ]);
     }
 
+    private function validateImportRow(array $row, array $colleges): array
+    {
+        $reasons = [];
+        $val = fn($k) => trim((string) ($row[$k] ?? ''));
+
+        // Student ID
+        $sid = $val('student_id');
+        if ($sid === '') {
+            $reasons[] = 'Student ID is required';
+        } elseif (!ctype_digit($sid)) {
+            $reasons[] = 'Student ID must contain only numbers';
+        } elseif (strlen($sid) > 15) {
+            $reasons[] = 'Student ID is too long (max 15 digits)';
+        }
+
+        // Names
+        if ($val('first_name') === '') $reasons[] = 'First Name is required';
+        if ($val('last_name')  === '') $reasons[] = 'Last Name is required';
+
+        // Sex
+        $sex = $val('sex');
+        if ($sex === '') {
+            $reasons[] = 'Sex is required';
+        } elseif (!in_array($sex, ['Male', 'Female'], true)) {
+            $reasons[] = 'Sex must be Male or Female';
+        }
+
+        // Email
+        $email = $val('email');
+        if ($email === '') {
+            $reasons[] = 'Email Address is required';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $reasons[] = 'Email Address is not valid';
+        }
+
+        // Contact Number
+        $contact = $val('contact_number');
+        if ($contact === '') {
+            $reasons[] = 'Contact Number is required';
+        } elseif (!preg_match('/^09\d{9}$/', $contact)) {
+            $reasons[] = 'Contact Number must start with 09 and be 11 digits';
+        }
+
+        // College
+        $college = $val('college');
+        if ($college === '') {
+            $reasons[] = 'College is required';
+        } elseif (!in_array($college, $colleges, true)) {
+            $reasons[] = 'College name does not match any in the system';
+        }
+
+        // Year Level
+        $year = $val('year_level');
+        if ($year === '') {
+            $reasons[] = 'Year Level is required';
+        } elseif (!in_array($year, ['1','2','3','4','5','6','7','8','9','10'], true)) {
+            $reasons[] = 'Year Level must be a number from 1 to 10';
+        }
+
+        // Guardian Contact
+        $gcontact = $val('guardian_contact');
+        if ($gcontact === '') {
+            $reasons[] = 'Guardian Contact is required';
+        } elseif (!preg_match('/^09\d{9}$/', $gcontact)) {
+            $reasons[] = 'Guardian Contact must start with 09 and be 11 digits';
+        } elseif ($gcontact === $contact) {
+            $reasons[] = "Guardian Contact can't be the same as the student's contact";
+        }
+
+        return $reasons;
+    }
+
     public function importConfirm(Request $request)
     {
         $request->validate([
@@ -308,10 +413,24 @@ class StudentController extends Controller
             return response()->json(['message' => 'Import session expired. Please re-upload the file.'], 422);
         }
 
+        // ONE query: fetch every existing student matching any ID in the file
+        $existingIds = collect($rows)
+            ->pluck('student_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $existing = empty($existingIds)
+            ? collect()
+            : Student::whereIn('student_id', $existingIds)->get()->keyBy('student_id');
+
         $created = 0;
         $updated = 0;
         $skipped = 0;
         $errors  = [];
+        $inserts = [];
+        $now     = now();
 
         foreach ($rows as $i => $rowData) {
             $decision = $request->decisions[$i] ?? 'create';
@@ -327,40 +446,7 @@ class StudentController extends Controller
                 continue;
             }
 
-            $existing = Student::where('student_id', $rowData['student_id'])->first();
-
-            if ($existing && $decision === 'update') {
-                $existing->update([
-                    'first_name'             => $rowData['first_name'],
-                    'last_name'              => $rowData['last_name'],
-                    'middle_name'            => $rowData['middle_name'] ?? $existing->middle_name,
-                    'suffix'                 => $rowData['suffix'] ?? $existing->suffix,
-                    'sex'                    => $rowData['sex'] ?? $existing->sex,
-                    'email'                  => $rowData['email'] ?? $existing->email,
-                    'contact_number'         => $rowData['contact_number'] ?? $existing->contact_number,
-                    'college'                => $rowData['college'] ?? $existing->college,
-                    'program'                => $rowData['program'] ?? $existing->program,
-                    'year_level'             => $rowData['year_level'] ?? $existing->year_level,
-                    'section'                => $rowData['section'] ?? $existing->section,
-                    'guardian_first_name'    => $rowData['guardian_first_name'] ?? $existing->guardian_first_name,
-                    'guardian_middle_name'   => $rowData['guardian_middle_name'] ?? $existing->guardian_middle_name,
-                    'guardian_last_name'     => $rowData['guardian_last_name'] ?? $existing->guardian_last_name,
-                    'guardian_contact'       => $rowData['guardian_contact'] ?? $existing->guardian_contact,
-                    'guardian_relationship'  => $rowData['guardian_relationship'] ?? $existing->guardian_relationship,
-                ]);
-                $updated++;
-                continue;
-            }
-
-            if ($existing) {
-                $skipped++;
-                continue;
-            }
-
-            $tempPassword = $rowData['student_id'];
-
-            Student::create([
-                'student_id'             => $rowData['student_id'],
+            $payload = [
                 'first_name'             => $rowData['first_name'],
                 'last_name'              => $rowData['last_name'],
                 'middle_name'            => $rowData['middle_name'] ?? null,
@@ -377,12 +463,47 @@ class StudentController extends Controller
                 'guardian_last_name'     => $rowData['guardian_last_name'] ?? null,
                 'guardian_contact'       => $rowData['guardian_contact'] ?? null,
                 'guardian_relationship'  => $rowData['guardian_relationship'] ?? null,
-                'password'               => \Illuminate\Support\Facades\Hash::make($tempPassword),
-                'temp_password'          => $tempPassword,
-                'must_change_password'   => true,
-                'is_active'              => true,
+                'updated_at'             => $now,
+            ];
+
+            // Duplicate → update (or skip) using the pre-fetched collection
+            if ($existing->has($rowData['student_id'])) {
+                if ($decision === 'update') {
+                    $existingStudent = $existing->get($rowData['student_id']);
+                    $updatePayload = $payload;
+                    foreach ($updatePayload as $key => $value) {
+                        if ($value === null) {
+                            unset($updatePayload[$key]);
+                        }
+                    }
+                    $existingStudent->update($updatePayload);
+                    $updated++;
+                } else {
+                    $skipped++;
+                }
+                continue;
+            }
+
+            // New row — build the insert payload
+            // Password uses student_id as the temp; hash at cost 4 for bulk speed
+            $inserts[] = array_merge($payload, [
+                'student_id'            => $rowData['student_id'],
+                'password'              => Hash::make((string) $rowData['student_id'], ['rounds' => 4]),
+                'temp_password'         => (string) $rowData['student_id'],
+                'must_change_password'  => true,
+                'is_active'             => true,
+                'created_at'            => $now,
             ]);
             $created++;
+        }
+
+        // Bulk insert — one query per 500 rows
+        if (!empty($inserts)) {
+            DB::transaction(function () use ($inserts) {
+                foreach (array_chunk($inserts, 500) as $chunk) {
+                    Student::insert($chunk);
+                }
+            });
         }
 
         cache()->forget("import_preview_{$request->token}");
@@ -454,21 +575,22 @@ class StudentController extends Controller
 
         return $rows;
     }
+
     public function checkDuplicateName(Request $request)
-{
-    $request->validate([
-        'first_name' => 'required|string',
-        'last_name'  => 'required|string',
-    ]);
+    {
+        $request->validate([
+            'first_name' => 'required|string',
+            'last_name'  => 'required|string',
+        ]);
 
-    $existing = Student::where('first_name', $request->first_name)
-        ->where('last_name', $request->last_name)
-        ->when($request->middle_name, fn($q) => $q->where('middle_name', $request->middle_name))
-        ->first();
+        $existing = Student::where('first_name', $request->first_name)
+            ->where('last_name', $request->last_name)
+            ->when($request->middle_name, fn($q) => $q->where('middle_name', $request->middle_name))
+            ->first();
 
-    return response()->json([
-        'duplicate_found' => (bool) $existing,
-        'existing_student' => $existing,
-    ]);
-}
+        return response()->json([
+            'duplicate_found' => (bool) $existing,
+            'existing_student' => $existing,
+        ]);
+    }
 }

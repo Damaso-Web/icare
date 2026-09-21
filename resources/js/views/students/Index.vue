@@ -232,7 +232,7 @@
 
     <!-- Edit Student Profile Modal -->
     <div v-if="showEditModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:720px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Student Profile</div>
         </div>
@@ -874,28 +874,36 @@
               ⚠ Some Student IDs already exist. Choose how to handle all duplicates below.
             </div>
 
-            <div style="max-height:280px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
-              <table class="itable">
-                <thead>
-                  <tr>
-                    <th>Row</th>
-                    <th>Student ID</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="item in previewData.preview" :key="item.row">
-                    <td style="font-size:12px">{{ item.row }}</td>
-                    <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '-' }}</td>
-                    <td>
-                      <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
-                      <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
-                      <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <table class="itable">
+              <thead>
+                <tr>
+                  <th style="width:50px">Row</th>
+                  <th style="width:110px">Student ID</th>
+                  <th style="width:100px">Status</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in previewData.preview" :key="item.row">
+                  <td style="font-size:12px">{{ item.row }}</td>
+                  <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '-' }}</td>
+                  <td>
+                    <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
+                    <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                    <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
+                  </td>
+                  <td style="font-size:11px;line-height:1.5;vertical-align:top">
+                    <template v-if="item.reasons && item.reasons.length">
+                      <div v-for="(r, i) in item.reasons" :key="i" style="color:var(--red)">• {{ r }}</div>
+                    </template>
+                    <span v-else-if="item.is_duplicate" style="color:var(--amber)">Student ID already exists</span>
+                    <span v-else style="color:var(--fog)">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
 
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
