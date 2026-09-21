@@ -5,31 +5,8 @@
       <p>Choose your concern and preferred schedule.</p>
     </div>
 
-    <!-- Loading existing appointments -->
-    <div v-if="loadingActive" style="text-align:center;padding:44px">
-      <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
-    </div>
-
-    <!-- Guard: 2 active appointments already -->
-    <div v-else-if="activeAppointments.length >= 2" class="icard" style="padding:32px;text-align:center;max-width:520px;margin:0 auto">
-      <svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--amber);fill:none;stroke-width:2;margin:0 auto 16px;display:block">
-        <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
-      </svg>
-      <div style="font-size:16px;font-weight:600;color:var(--ink);margin-bottom:8px">
-        You already have 2 active appointments
-      </div>
-      <div style="font-size:13px;color:var(--stone);line-height:1.6">
-        Please complete or cancel one of your existing appointments before booking a new one.
-      </div>
-      <router-link :to="{ name: 'student-appointments' }" class="ibtn ibtn-p" style="margin-top:16px;display:inline-flex">
-        View My Appointments
-      </router-link>
-    </div>
-
     <!-- Success -->
-    <div v-else-if="submitted" class="icard" style="padding:32px;text-align:center;max-width:520px;margin:0 auto">
+    <div v-if="submitted" class="icard" style="padding:32px;text-align:center;max-width:520px;margin:0 auto">
       <svg viewBox="0 0 24 24" style="width:48px;height:48px;stroke:var(--moss);fill:none;stroke-width:2;margin:0 auto 16px;display:block">
         <polyline points="20 6 9 17 4 12"/>
       </svg>
@@ -112,9 +89,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { studentAppointmentAPI } from '../../api/index';
-
 
 const CONCERNS = [
   { value: 'academic',     label: 'Academic concerns' },
@@ -126,8 +102,6 @@ const CONCERNS = [
   { value: 'other',        label: 'Other' },
 ];
 
-const loadingActive      = ref(true);
-const activeAppointments = ref([]);
 const submitted          = ref(false);
 const submitting         = ref(false);
 const submitError        = ref('');
@@ -216,18 +190,4 @@ async function submitSchedule() {
     submitting.value = false;
   }
 }
-
-onMounted(async () => {
-  try {
-    const res = await studentAppointmentAPI.index();
-    const list = res.data.data || [];
-    activeAppointments.value = list.filter(a =>
-      ['pending', 'confirmed'].includes(a.status)
-    );
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loadingActive.value = false;
-  }
-});
 </script>

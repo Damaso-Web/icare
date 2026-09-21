@@ -303,15 +303,6 @@ public function storeByStudent(Request $request)
 {
     $student = $request->user('student');
 
-    $activeCount = $student->appointments()
-        ->whereIn('status', ['pending', 'confirmed'])
-        ->count();
-
-    if ($activeCount >= 2) {
-        return response()->json([
-            'message' => 'You already have 2 active appointments. Please complete or cancel one before booking a new one.',
-        ], 422);
-    }
 
     $validated = $request->validate([
         'concern'          => 'required|string|max:255',
