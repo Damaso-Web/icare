@@ -798,13 +798,12 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Reassign Counselor</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showAssignModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
               <select v-model="assignForm.to_user_id" class="ifse">
-                <option value="">Select staff member...</option>
+                <option value="" disabled>Select staff member...</option>
                 <option v-for="u in unitStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
@@ -827,14 +826,14 @@
             <div>
               <label class="ifl">Target Unit <span style="color:var(--red)">*</span></label>
               <select v-model="transferForm.to_unit" class="ifse" @change="loadUnitStaff(transferForm.to_unit)">
-                <option value="">Select unit...</option>
+                <option value="" disabled>Select unit...</option>
                 <option v-for="u in ['GCU', 'SDU', 'TMDU'].filter(u => u !== referral.case?.current_unit)" :key="u" :value="u">{{ u }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
               <select v-model="transferForm.to_user_id" class="ifse" :disabled="!transferForm.to_unit">
-                <option value="">Select staff member...</option>
+                <option value="" disabled>Select staff member...</option>
                 <option v-for="u in unitStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
@@ -1392,10 +1391,13 @@ async function loadUnitStaff(unit) {
   }
 }
 
-function openAssignModal() {
+async function openAssignModal() {
   assignForm.value = { to_user_id: '' };
   showAssignModal.value = true;
-  loadUnitStaff(referral.value.case?.current_unit);
+  await loadUnitStaff(referral.value.case?.current_unit);
+  if (unitStaffList.value.length > 0) {
+    assignForm.value.to_user_id = unitStaffList.value[0].id;
+  }
 }
 
 function openTransferModal() {

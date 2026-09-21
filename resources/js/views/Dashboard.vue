@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Good {{ timeOfDay }}, {{ firstName }}</h1>
+      <h1>Welcome back, {{ firstName }}!</h1>
       <p>Here's what needs your attention today.</p>
     </div>
 
@@ -213,12 +213,6 @@ function goToReferral(c) {
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 
-const timeOfDay = computed(() => {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
-});
 
 const isEmpty = computed(() => {
   const d = dashboard.value;

@@ -236,7 +236,7 @@
           <div v-if="modalError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px">{{ modalError }}</div>
           <div style="font-size:13px;color:var(--slate);line-height:1.6">This cannot be undone. If you still need help, you'll need to submit a new request.</div>
           <div>
-            <label class="ifl">Reason for cancelling</label>
+            <label class="ifl">Reason for cancelling <span style="color:var(--red)">*</span></label>
             <textarea v-model="cancelReason" class="ifi" rows="3" placeholder="Let us know why you're cancelling..."></textarea>
           </div>
           <div style="display:flex;gap:8px">
