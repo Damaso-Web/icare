@@ -1,6 +1,8 @@
+
+Mainlayout · VUE
 <template>
   <div style="display:flex;height:100vh;overflow:hidden">
-
+ 
     <!-- Sidebar -->
     <div class="sidebar">
       <div class="sb-head">
@@ -10,7 +12,7 @@
           <div class="sb-sub">BSU · OSS</div>
         </div>
       </div>
-
+ 
       <div class="sb-nav">
         <template v-for="item in menuItems" :key="item.name || item.section">
           <div class="sb-sec" v-if="item.section">{{ item.section }}</div>
@@ -25,7 +27,7 @@
           </router-link>
         </template>
       </div>
-
+ 
       <div class="sb-foot">
         <div v-if="isTester" style="padding:0 2px 10px">
           <div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px">Switch Test Role</div>
@@ -60,16 +62,16 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Main -->
     <div style="flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0">
-
+ 
       <!-- Topbar -->
       <div class="topbar" style="position:relative">
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
           <span style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
-
+ 
           <!-- Notification Bell -->
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
             <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block">
@@ -78,7 +80,7 @@
             </svg>
             <span v-if="unreadCount > 0" style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff"></span>
           </button>
-
+ 
           <!-- Notification Dropdown -->
           <div v-if="showNotifs" style="position:absolute;top:58px;right:16px;width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);border:1px solid var(--cloud);z-index:100;overflow:hidden">
             <div style="padding:12px 16px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
@@ -106,34 +108,34 @@
               </div>
             </div>
           </div>
-
+ 
         </div>
       </div>
-
+ 
       <!-- Content -->
       <div class="content-area" @click="showNotifs = false">
         <router-view />
       </div>
-
+ 
     </div>
-
+ 
   </div>
 </template>
-
+ 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { notificationAPI, devAPI } from '../api/index';
-
+ 
 const router = useRouter();
 const route  = useRoute();
 const auth   = useAuthStore();
-
+ 
 const isTester = computed(() => auth.user?.email?.toLowerCase() === 'genrytester@bsu.edu.ph');
 const devRole  = ref(auth.user?.role || 'admin');
 const switching = ref(false);
-
+ 
 async function handleDevSwitch() {
   switching.value = true;
   try {
@@ -153,12 +155,12 @@ async function handleDevSwitch() {
     switching.value = false;
   }
 }
-
+ 
 const showNotifs = ref(false);
 const notifications = ref([]);
-
+ 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
-
+ 
 async function fetchNotifications() {
   try {
     const res = await notificationAPI.index();
@@ -167,7 +169,7 @@ async function fetchNotifications() {
     console.error(e);
   }
 }
-
+ 
 async function markRead(n) {
   if (n.read_at) return;
   try {
@@ -177,7 +179,7 @@ async function markRead(n) {
     // Non-fatal - badge just stays until next fetch.
   }
 }
-
+ 
 async function markAllRead() {
   try {
     await notificationAPI.markAllRead();
@@ -186,7 +188,7 @@ async function markAllRead() {
     // Non-fatal.
   }
 }
-
+ 
 function openNotification(n) {
   markRead(n);
   if (n.data?.referral_id) {
@@ -197,7 +199,7 @@ function openNotification(n) {
     showNotifs.value = false;
   }
 }
-
+ 
 function formatNotifTime(date) {
   if (!date) return '';
   const diffMs = Date.now() - new Date(date).getTime();
@@ -210,11 +212,11 @@ function formatNotifTime(date) {
   if (days < 7) return `${days}d ago`;
   return new Date(date).toLocaleDateString();
 }
-
+ 
 const initials = computed(() => {
   return auth.user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'U';
 });
-
+ 
 const roleLabel = computed(() => {
   const labels = {
     admin:          'Admin / GCU Head',
@@ -226,7 +228,7 @@ const roleLabel = computed(() => {
   };
   return labels[auth.user?.role] || auth.user?.role;
 });
-
+ 
 const pageTitle = computed(() => {
   const titles = {
     dashboard:           'Dashboard',
@@ -250,7 +252,7 @@ const pageTitle = computed(() => {
 });
 const menuItems = computed(() => {
   const role = auth.user?.role;
-
+ 
   const items = [
     {
       name:    'dashboard',
@@ -351,12 +353,12 @@ const menuItems = computed(() => {
       section: null,
     },
   ];
-
+ 
   const filtered = items.filter(item => item.roles?.includes(role));
-
+ 
   const result = [];
   const addedSections = new Set();
-
+ 
   filtered.forEach(item => {
     if (item.section && !addedSections.has(item.section)) {
       addedSections.add(item.section);
@@ -364,13 +366,16 @@ const menuItems = computed(() => {
     }
     result.push({ name: item.name, label: item.label, icon: item.icon });
   });
-
+ 
   return result;
 });
 function isActive(name) {
   const routeName = route.name || '';
-  if ((routeName === 'student-show' || routeName === 'referral-show') && route.query.ctx === 'cases') {
-    return name === 'cases';
+  // Student Profile and Referral Details are shared pages. The ?ctx= flag set by
+  // the linking page tells us which module the user is actually browsing in.
+  if (routeName === 'student-show' || routeName === 'referral-show') {
+    if (route.query.ctx === 'cases')    return name === 'cases';
+    if (route.query.ctx === 'students') return name === 'students';
   }
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
   if (name === 'referral-create' && routeName === 'referral-create') return true;
@@ -378,11 +383,11 @@ function isActive(name) {
   if (name === 'students'        && routeName.startsWith('student')) return true;
   return routeName === name;
 }
-
+ 
 async function handleLogout() {
   await auth.logout();
   router.push({ name: 'login' });
 }
-
+ 
 onMounted(() => fetchNotifications());
 </script>

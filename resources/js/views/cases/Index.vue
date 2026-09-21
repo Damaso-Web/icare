@@ -1,3 +1,5 @@
+
+Index · VUE
 <template>
   <div class="fade-up">
     <!-- Page Header -->
@@ -5,7 +7,7 @@
       <h1>Student Case Files</h1>
       <p>Unified case histories, session notes, and intervention records.</p>
     </div>
-
+ 
     <!-- Filter Bar -->
     <div class="filter-bar">
       <div class="sw">
@@ -15,11 +17,8 @@
       <select v-model="filters.status" class="fsm" @change="fetchCases">
         <option value="">All Status</option>
         <option value="open">Open</option>
-        <option value="in_progress">In Progress</option>
-        <option value="awaiting_testing">Awaiting Testing</option>
-        <option value="on_hold">On Hold</option>
+        <option value="on_observation">On Observation</option>
         <option value="resolved">Resolved</option>
-        <option value="closed">Closed</option>
       </select>
       <select v-model="filters.unit" class="fsm" @change="fetchCases">
         <option value="">All Units</option>
@@ -42,7 +41,7 @@
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
-
+ 
     <!-- Cases List -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
@@ -58,7 +57,7 @@
             <tr>
               <th>Case No.</th>
               <th>Student Name</th>
-              <th>Date Opened</th>
+              <th>Date Submitted</th>
               <th></th>
             </tr>
           </thead>
@@ -76,6 +75,9 @@
                   <div style="font-weight:600;color:var(--ink)">{{ c.student?.last_name }}, {{ c.student?.first_name }} {{ c.student?.middle_name }}</div>
                 </div>
               </td>
+              <!-- opened_date is stamped with today() at the moment the founding
+                   referral is submitted (ReferralController@store), so it IS the
+                   case's date submitted - no backend change needed for the rename. -->
               <td style="font-size:12px">{{ formatDate(c.opened_date) }}</td>
               <td>
                 <button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'student-show', params: { id: c.student?.id }, query: { ctx: 'cases' } })">View</button>
@@ -84,7 +86,7 @@
           </tbody>
         </table>
       </div>
-
+ 
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
@@ -98,16 +100,16 @@
     </div>
   </div>
 </template>
-
+ 
 <script setup>
 import { ref, onMounted } from 'vue';
 import { caseAPI } from '../../api/index';
-
+ 
 const cases      = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
 const filters    = ref({ search: '', status: '', unit: '', type: '', requires_follow_up: '' });
-
+ 
 async function fetchCases(page = 1) {
   loading.value = true;
   try {
@@ -120,21 +122,21 @@ async function fetchCases(page = 1) {
     loading.value = false;
   }
 }
-
+ 
 function resetFilters() {
   filters.value = { search: '', status: '', unit: '', type: '', requires_follow_up: '' };
   fetchCases();
 }
-
+ 
 function changePage(page) { fetchCases(page); }
-
+ 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
-
+ 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
-
+ 
 onMounted(() => fetchCases());
 </script>
