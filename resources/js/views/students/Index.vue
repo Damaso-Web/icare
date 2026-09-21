@@ -244,130 +244,136 @@
           </div>
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-  <div>
-    <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.student_id"
-      class="ifi"
-      placeholder="e.g. 2302021"
-      :style="editErrorStyle('student_id')"
-      @input="editForm.student_id = onlyDigits(editForm.student_id); clearEditFieldError('student_id')"
-    />
-  </div>
-  <div>
-    <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
-    <select
-      v-model="editForm.sex"
-      class="ifse"
-      :style="editErrorStyle('sex')"
-      @change="clearEditFieldError('sex')"
-    >
-      <option value="" disabled hidden>Select...</option>
-      <option value="Male">Male</option>
-      <option value="Female">Female</option>
-    </select>
-  </div>
-  <div>
-    <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.last_name"
-      class="ifi"
-      placeholder="Last Name"
-      :style="editErrorStyle('last_name')"
-      @input="editForm.last_name = titleCase(onlyLetters(editForm.last_name)); clearEditFieldError('last_name')"
-    />
-  </div>
-  <div>
-    <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.first_name"
-      class="ifi"
-      placeholder="First Name"
-      :style="editErrorStyle('first_name')"
-      @input="editForm.first_name = titleCase(onlyLetters(editForm.first_name)); clearEditFieldError('first_name')"
-    />
-  </div>
-  <div>
-    <label class="ifl">Middle Name</label>
-    <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
-  </div>
-  <div>
-    <label class="ifl">Suffix</label>
-    <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
-  </div>
-  <div>
-    <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
-    <select
-      v-model="editForm.year_level"
-      class="ifse"
-      :style="editErrorStyle('year_level')"
-      @change="clearEditFieldError('year_level')"
-    >
-      <option value="" disabled hidden>Select...</option>
-      <option v-if="editForm.year_level && !editYearLevelOptions.includes(editForm.year_level)" :value="editForm.year_level">{{ editForm.year_level }}</option>
-      <option v-for="yl in editYearLevelOptions" :key="yl" :value="yl">{{ yl }}</option>
-    </select>
-  </div>
-  <div>
-    <label class="ifl">College <span style="color:var(--red)">*</span></label>
-    <select
-      v-model="editForm.college"
-      class="ifse"
-      :style="editErrorStyle('college')"
-      @change="editForm.program = ''; editForm.year_level = ''; clearEditFieldError('college')"
-    >
-      <option value="" disabled hidden>Select college...</option>
-      <option v-if="editForm.college && !colleges.includes(editForm.college)" :value="editForm.college">{{ editForm.college }} (unrecognized)</option>
-      <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
-    </select>
-  </div>
-  <div>
-    <label class="ifl">Program <span style="color:var(--red)">*</span></label>
-    <select
-      v-model="editForm.program"
-      class="ifse"
-      :disabled="!editForm.college"
-      :style="editErrorStyle('program')"
-      @change="clearEditFieldError('program')"
-    >
-      <option value="" disabled hidden>Select program...</option>
-      <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
-      <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
-    </select>
-  </div>
-  <div>
-    <label class="ifl">Section <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.section"
-      class="ifi"
-      placeholder="e.g. A"
-      maxlength="1"
-      :style="editErrorStyle('section')"
-      @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase(); clearEditFieldError('section')"
-    />
-  </div>
-  <div>
-    <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.email"
-      class="ifi"
-      placeholder="student@bsu.edu.ph"
-      :style="editErrorStyle('email')"
-      @input="clearEditFieldError('email')"
-    />
-  </div>
-  <div>
-    <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
-    <input
-      v-model="editForm.contact_number"
-      class="ifi"
-      placeholder="09XXXXXXXXX"
-      maxlength="11"
-      :style="editErrorStyle('contact_number')"
-      @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number); clearEditFieldError('contact_number')"
-    />
-  </div>
-</div>
+            <div>
+              <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.student_id"
+                class="ifi"
+                placeholder="e.g. 2302021"
+                :style="editErrorStyle('student_id')"
+                @input="editForm.student_id = onlyDigits(editForm.student_id); clearEditFieldError('student_id')"
+              />
+            </div>
+            <div>
+              <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
+              <select
+                v-model="editForm.sex"
+                class="ifse"
+                :style="editErrorStyle('sex')"
+                @change="clearEditFieldError('sex')"
+              >
+                <option value="" disabled hidden>Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.last_name"
+                class="ifi"
+                placeholder="Last Name"
+                :style="editErrorStyle('last_name')"
+                @input="editForm.last_name = titleCase(onlyLetters(editForm.last_name)); clearEditFieldError('last_name')"
+              />
+            </div>
+            <div>
+              <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.first_name"
+                class="ifi"
+                placeholder="First Name"
+                :style="editErrorStyle('first_name')"
+                @input="editForm.first_name = titleCase(onlyLetters(editForm.first_name)); clearEditFieldError('first_name')"
+              />
+            </div>
+            <div>
+              <label class="ifl">Middle Name</label>
+              <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = titleCase(onlyLetters(editForm.middle_name))" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+            </div>
+            <div>
+              <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
+              <select
+                v-model="editForm.year_level"
+                class="ifse"
+                :style="editErrorStyle('year_level')"
+                @change="clearEditFieldError('year_level')"
+              >
+                <option value="" disabled hidden>Select...</option>
+                <option v-if="editForm.year_level && !editYearLevelOptions.includes(editForm.year_level)" :value="editForm.year_level">{{ editForm.year_level }}</option>
+                <option v-for="yl in editYearLevelOptions" :key="yl" :value="yl">{{ yl }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">College <span style="color:var(--red)">*</span></label>
+              <select
+                v-model="editForm.college"
+                class="ifse"
+                :style="editErrorStyle('college')"
+                @change="editForm.program = ''; editForm.year_level = ''; clearEditFieldError('college')"
+              >
+                <option value="" disabled hidden>Select college...</option>
+                <option v-if="editForm.college && !colleges.includes(editForm.college)" :value="editForm.college">{{ editForm.college }} (unrecognized)</option>
+                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+              <select
+                v-model="editForm.program"
+                class="ifse"
+                :disabled="!editForm.college"
+                :style="editErrorStyle('program')"
+                @change="clearEditFieldError('program')"
+              >
+                <option value="" disabled hidden>Select program...</option>
+                <option v-if="editForm.program && !editAvailablePrograms.includes(editForm.program)" :value="editForm.program">{{ editForm.program }}</option>
+                <option v-for="p in editAvailablePrograms" :key="p" :value="p">{{ p }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Section <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.section"
+                class="ifi"
+                placeholder="e.g. A"
+                maxlength="1"
+                :style="editErrorStyle('section')"
+                @input="editForm.section = editForm.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase(); clearEditFieldError('section')"
+              />
+            </div>
+            <div>
+              <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.email"
+                class="ifi"
+                placeholder="student@bsu.edu.ph"
+                :style="editErrorStyle('email')"
+                @input="clearEditFieldError('email')"
+              />
+              <div v-if="editErrors.email" style="font-size:11px;color:var(--red);margin-top:4px">
+                {{ editErrors.email }}
+              </div>
+            </div>
+            <div>
+              <label class="ifl">Contact Number <span style="color:var(--red)">*</span></label>
+              <input
+                v-model="editForm.contact_number"
+                class="ifi"
+                placeholder="09XXXXXXXXX"
+                maxlength="11"
+                :style="editErrorStyle('contact_number')"
+                @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number); clearEditFieldError('contact_number')"
+              />
+              <div v-if="editErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
+                {{ editErrors.contact_number }}
+              </div>
+            </div>
+          </div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
             Guardian Information
@@ -405,9 +411,13 @@
                 v-model="editForm.guardian_contact"
                 class="ifi"
                 placeholder="09XXXXXXXXX"
+                maxlength="11"
                 :style="editErrorStyle('guardian_contact')"
                 @input="editForm.guardian_contact = contactNumberBlockingNonZero(editForm.guardian_contact); clearEditFieldError('guardian_contact')"
               />
+              <div v-if="editErrors.guardian_contact" style="font-size:11px;color:var(--red);margin-top:4px">
+                {{ editErrors.guardian_contact }}
+              </div>
             </div>
             <div>
               <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>
@@ -604,7 +614,7 @@
               <input
                 v-model="addForm.email"
                 class="ifi"
-                placeholder="student@email.com"
+                placeholder="student@bsu.edu.ph"
                 :style="errorStyle('email')"
                 @input="clearFieldError('email')"
               />
@@ -618,6 +628,7 @@
                 v-model="addForm.contact_number"
                 class="ifi"
                 placeholder="09XXXXXXXXX"
+                maxlength="11"
                 :style="errorStyle('contact_number')"
                 @input="addForm.contact_number = contactNumberBlockingNonZero(addForm.contact_number); clearFieldError('contact_number')"
               />
@@ -665,6 +676,7 @@
                 v-model="addForm.guardian_contact"
                 class="ifi"
                 placeholder="09XXXXXXXXX"
+                maxlength="11"
                 :style="errorStyle('guardian_contact')"
                 @input="addForm.guardian_contact = contactNumberBlockingNonZero(addForm.guardian_contact); clearFieldError('guardian_contact')"
               />
@@ -1056,7 +1068,7 @@ import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValid
 const toast   = inject('toast');
 const colleges = COLLEGES;
 
-const YEAR_LEVEL_LABELS = ['1st Year','2nd Year','3rd Year','4th Year','5th Year','6th Year','7th Year', '8th Year', '9th Year', '10th Year'];
+const YEAR_LEVEL_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
 const students   = ref([]);
 const loading    = ref(false);
@@ -1117,7 +1129,7 @@ const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.
 const editYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 const isEditFormUnchanged = computed(() => JSON.stringify(editForm.value) === editFormSnapshot.value);
 
-// Red border for Edit modal — one entry per required field
+// Red border for Edit modal
 const editFieldErrors = ref({});
 function clearEditFieldError(field) {
   if (editFieldErrors.value[field]) {
@@ -1129,6 +1141,35 @@ function editErrorStyle(field) {
     ? 'border-color:var(--red);border-width:1.5px'
     : '';
 }
+
+const editErrors = computed(() => {
+  const f = editForm.value;
+  const errs = {};
+
+  if (f.email && !isValidEmail(f.email)) {
+    errs.email = 'Please enter a valid email address.';
+  }
+
+  if (f.contact_number) {
+    if (!f.contact_number.startsWith('0')) {
+      errs.contact_number = 'Contact number must start with 0.';
+    } else if (!isValidPHContact(f.contact_number)) {
+      errs.contact_number = 'Must be 11 digits starting with 09.';
+    }
+  }
+
+  if (f.guardian_contact) {
+    if (!f.guardian_contact.startsWith('0')) {
+      errs.guardian_contact = 'Guardian contact must start with 0.';
+    } else if (!isValidPHContact(f.guardian_contact)) {
+      errs.guardian_contact = 'Must be 11 digits starting with 09.';
+    } else if (f.contact_number && f.guardian_contact === f.contact_number) {
+      errs.guardian_contact = "Can't be the same as the student's own contact number.";
+    }
+  }
+
+  return errs;
+});
 
 const showEditConfirm = ref(false);
 
@@ -1171,6 +1212,43 @@ const editChanges = computed(() => {
 
 function openEditConfirm() {
   if (isEditFormUnchanged.value) return;
+
+  editError.value = '';
+  const requiredFields = [
+    ['student_id', 'Student ID'], ['last_name', 'Last Name'], ['first_name', 'First Name'],
+    ['sex', 'Sex'], ['college', 'College'], ['program', 'Program'], ['year_level', 'Year Level'],
+    ['section', 'Section'], ['email', 'Email Address'], ['contact_number', 'Contact Number'],
+    ['guardian_first_name', 'Guardian First Name'], ['guardian_last_name', 'Guardian Last Name'],
+    ['guardian_contact', 'Guardian Contact'], ['guardian_relationship', 'Guardian Relationship'],
+  ];
+  const errs = {};
+  const missing = [];
+  for (const [key, label] of requiredFields) {
+    if (!editForm.value[key]) { errs[key] = true; missing.push(label); }
+  }
+  if (editForm.value.email && !isValidEmail(editForm.value.email)) errs.email = true;
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) errs.contact_number = true;
+  if (editForm.value.guardian_contact && !isValidPHContact(editForm.value.guardian_contact)) errs.guardian_contact = true;
+
+  editFieldErrors.value = errs;
+
+  if (missing.length) {
+    editError.value = `Please fill in: ${missing.join(', ')}.`;
+    return;
+  }
+  if (editForm.value.email && !isValidEmail(editForm.value.email)) {
+    editError.value = 'Please enter a valid email address.';
+    return;
+  }
+  if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
+    editError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+  if (!isValidPHContact(editForm.value.guardian_contact)) {
+    editError.value = 'Guardian contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+
   showEditConfirm.value = true;
 }
 
@@ -1290,7 +1368,7 @@ function validateAddForm() {
   return null;
 }
 
-// Deactivate flow — confirmation step
+// Deactivate flow
 const showDeactivateConfirm = ref(false);
 
 function openDeactivateConfirm() {

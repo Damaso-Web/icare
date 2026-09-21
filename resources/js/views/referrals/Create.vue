@@ -185,17 +185,8 @@
               @change="clearFieldError('year_level')"
               required
             >
-              <option value="" disabled hidden>Select year level...</option>
-              <option>1st Year</option>
-              <option>2nd Year</option>
-              <option>3rd Year</option>
-              <option>4th Year</option>
-              <option>5th Year</option>
-              <option>6th Year</option>
-              <option>7th Year</option>
-              <option>8th Year</option>
-              <option>9th Year</option>
-              <option>10th Year</option>
+            <option value="" disabled hidden>Select year level...</option>
+  <option v-for="n in 10" :key="n" :value="String(n)">{{ n }}</option>
             </select>
           </div>
             <div>
