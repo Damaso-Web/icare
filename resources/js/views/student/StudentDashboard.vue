@@ -16,7 +16,7 @@
         <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}</div>
         <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.</div>
       </div>
-            <router-link :to="scheduleReferralId ? { name: 'student-referral-show', params: { id: scheduleReferralId } } : { name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
+          <router-link :to="{ name: 'student-schedule-new' }" class="ibtn ibtn-p">Schedule Now</router-link>
     </div>
   </div>
 

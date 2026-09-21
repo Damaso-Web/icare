@@ -287,6 +287,94 @@ class AppointmentController extends Controller
 
         return response()->json($appointment);
     }
+    public function indexByStudent(Request $request)
+{
+    $student = $request->user('student');
+
+    $appointments = $student->appointments()
+        ->with(['staff', 'referral', 'case.latestReferral'])
+        ->latest()
+        ->get();
+
+    return response()->json(['data' => $appointments]);
+}
+
+public function storeByStudent(Request $request)
+{
+    $student = $request->user('student');
+
+    $activeCount = $student->appointments()
+        ->whereIn('status', ['pending', 'confirmed'])
+        ->count();
+
+    if ($activeCount >= 2) {
+        return response()->json([
+            'message' => 'You already have 2 active appointments. Please complete or cancel one before booking a new one.',
+        ], 422);
+    }
+
+    $validated = $request->validate([
+        'concern'          => 'required|string|max:255',
+        'notes'            => 'nullable|string|max:1000',
+        'appointment_date' => [
+            'required', 'date', 'after_or_equal:today',
+            function ($attr, $value, $fail) {
+                if (\Carbon\Carbon::parse($value)->isWeekend()) {
+                    $fail('Appointments can only be scheduled Monday through Friday.');
+                }
+            },
+        ],
+        'start_time'       => 'required|date_format:H:i',
+        'end_time'         => 'required|date_format:H:i|after:start_time',
+    ]);
+
+    if (Appointment::hasUnitConflict(
+        'GCU',
+        $validated['appointment_date'],
+        $validated['start_time'],
+        $validated['end_time']
+    )) {
+        return response()->json(['message' => 'That time slot is already taken.'], 422);
+    }
+
+    $appointment = Appointment::create([
+        'student_id'         => $student->id,
+        'case_id'            => null,
+        'staff_user_id'      => null,
+        'created_by_user_id' => null,
+        'unit'               => 'GCU',
+        'appointment_type'   => 'initial_counseling',
+        'appointment_date'   => $validated['appointment_date'],
+        'start_time'         => $validated['start_time'],
+        'end_time'           => $validated['end_time'],
+        'duration_minutes'   => $this->calcDuration($validated['start_time'], $validated['end_time']),
+        'notes'              => $validated['notes'] ?? null,
+        'status'             => 'pending',
+        'request_status'     => 'pending_confirmation',
+    ]);
+
+    AuditLog::record('created', "Student self-booked appointment {$appointment->appointment_code}.", $appointment);
+
+    return response()->json($appointment->load('student'), 201);
+}
+
+public function checkConflictByStudent(Request $request)
+{
+    $validated = $request->validate([
+        'appointment_date' => 'required|date',
+        'start_time'       => 'required|date_format:H:i',
+        'end_time'         => 'required|date_format:H:i',
+    ]);
+
+    $hasConflict = Appointment::hasUnitConflict(
+        'GCU',
+        $validated['appointment_date'],
+        $validated['start_time'],
+        $validated['end_time']
+    );
+
+    return response()->json(['has_conflict' => $hasConflict]);
+}
 
     public function checkIn(Request $request, Appointment $appointment)
     {

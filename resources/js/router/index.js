@@ -68,6 +68,11 @@ const routes = [
                 component: () => import('../views/student/Appointments.vue'),
             },
             {
+            path: 'schedule/new',
+            name: 'student-schedule-new',
+            component: () => import('../views/student/ScheduleNew.vue'),
+            },
+            {
                 path: 'appointments/:id',
                 name: 'student-appointment-show',
                 component: () => import('../views/student/AppointmentShow.vue'),

@@ -14,16 +14,19 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="profileForm.last_name" class="ifi" />
+              <input v-model="profileForm.last_name" class="ifi"
+       @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="profileForm.first_name" class="ifi" />
+              <input v-model="profileForm.first_name" class="ifi"
+       @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
           </div>
           <div>
             <label class="ifl">Middle Name</label>
-            <input v-model="profileForm.middle_name" class="ifi" />
+            <input v-model="profileForm.middle_name" class="ifi"
+       @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, '')" />
           </div>
           <div>
             <label class="ifl">Email</label>

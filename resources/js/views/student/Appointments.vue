@@ -16,7 +16,7 @@
             Please choose your preferred date and time on the related referral{{ pendingAppointments.length > 1 ? ' — one at a time' : '' }}.
           </div>
         </div>
-        <button class="ibtn ibtn-p" @click="goToSchedule(pendingAppointments[0])">Schedule Now</button>
+        <router-link :to="{ name: 'student-schedule-new' }" class="ibtn ibtn-p">Schedule Now</router-link>
       </div>
     </div>
 

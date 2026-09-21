@@ -36,7 +36,7 @@ export default api;
 
 // Separate axios instance for student-authenticated requests, so a failed
 // student request never wipes the STAFF token/session or vice versa.
-const studentApi = axios.create({
+export const studentApi = axios.create({
     baseURL: `${API_ROOT}/api`,
     headers: {
         'Accept': 'application/json',
@@ -225,4 +225,11 @@ export const devAPI = {
 export const auditAPI = {
     index: (params) => api.get('/audit-logs', { params }),
     show:  (id)     => api.get(`/audit-logs/${id}`),
+};
+
+export const studentAppointmentAPI = {
+    index:         ()       => studentApi.get('/student/appointments'),
+    store:         (data)   => studentApi.post('/student/appointments', data),
+    show:          (id)     => studentApi.get(`/student/appointments/${id}`),
+    checkConflict: (data)   => studentApi.post('/student/appointments/check-conflict', data),
 };

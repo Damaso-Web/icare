@@ -174,6 +174,9 @@ Route::post('student/login', [StudentAuthController::class, 'login']);
 Route::middleware('auth:student')->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
+    Route::get('student/appointments',                 [AppointmentController::class, 'indexByStudent']);
+    Route::post('student/appointments',                [AppointmentController::class, 'storeByStudent']);
+    Route::post('student/appointments/check-conflict', [AppointmentController::class, 'checkConflictByStudent']);
     Route::post('student/appointments/{appointment}/request-reschedule', [AppointmentController::class, 'requestRescheduleByStudent']);
     Route::post('student/appointments/{appointment}/cancel', [AppointmentController::class, 'cancelByStudent']);
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
