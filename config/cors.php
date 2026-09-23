@@ -20,7 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-    'https://astounding-cucurucho-84052c.netlify.app/',
+    'https://astounding-cucurucho-84052c.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],

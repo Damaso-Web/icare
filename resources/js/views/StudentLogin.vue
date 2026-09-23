@@ -1,178 +1,411 @@
 <template>
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div style="width:100%;max-width:400px">
-      <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back
-      </button>
-
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="width:52px;height:52px;background:var(--forest);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-family:var(--serif);font-style:italic;font-size:24px;color:var(--gold)">i</div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
-        <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
-      </div>
-
-      <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
-      <div v-if="!consentGiven" class="icard">
-        <div style="padding:22px;max-height:60vh;overflow-y:auto">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Confidentiality Notice</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:16px">
-            Pursuant to the Data Privacy Act of 2012 and its Implementing Rules and Regulations (IRR) and the BSU Data Privacy Policy, personnel from the OSS-SDS-Student Discipline Unit (SDU) - La Trinidad Campus are committed to keep with utmost confidentiality all sensitive personal information collected from students. Personal Information are collected, accessed, used, and disclosed on a "need to know basis" and only as reasonably required. Confidential information either within or outside the University will not be communicated except to persons authorized to receive such information. Authorized hardware, software, or other authorized equipment shall be used only in accessing, processing, and transmitting such personal information.
-          </div>
-
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Student's Agreement, Consent and Authorization</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:18px">
-            I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Student Discipline Unit (SDU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Student Discipline Unit (SDU) necessary and relevant data pertaining to my personal data.
-          </div>
-
-          <div style="display:flex;gap:9px">
-            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="acceptConsent">Accept</button>
-            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="declineConsent">Decline</button>
-          </div>
-        </div>
-      </div>
-
-      <div v-else class="icard">
-        <div style="padding:24px">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">Student Login</div>
-
-          <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
-            {{ error }}
-          </div>
-
-          <form @submit.prevent="handleLogin">
-            <div style="margin-bottom:14px">
-              <label class="ifl">Student ID</label>
-              <input
-                v-model="form.student_id"
-                class="ifi"
-                placeholder="e.g. 2302021"
-                required
-                inputmode="numeric"
-                maxlength="10"
-                pattern="[0-9]*"
-                :style="error ? 'border-color:var(--red);border-width:1.5px' : ''"
-                @input="onStudentIdInput"
-              />
-            </div>
-            <div style="margin-bottom:18px">
-            <label class="ifl">Password</label>
-            <div style="position:relative">
-                <input
-                    v-model="form.password"
-                    :type="showPassword ? 'text' : 'password'"
-                    class="ifi"
-                    placeholder="Enter Password"
-                    required
-                    :style="`padding-right:40px;${error ? 'border-color:var(--red);border-width:1.5px' : ''}`"
-                    @keyup="checkCapsLock"
-                    @input="onFieldEdit"
-                  />
-                <button
-                  type="button"
-                  @click="showPassword = !showPassword"
-                  style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);padding:4px;display:flex;align-items:center"
-                >
-                  <svg v-if="!showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                    <circle cx="12" cy="12" r="3"/>
-                  </svg>
-                  <svg v-if="showPassword" viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                    <line x1="1" y1="1" x2="23" y2="23"/>
-                  </svg>
-                </button>
-              </div>
-              <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
-            </div>
-            <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
-              <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ loading ? 'Signing in...' : 'Sign In' }}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
-        Having trouble logging in? Contact the Office of Student Services.
-      </div>
+  <div class="fade-up">
+    <!-- Loading -->
+    <div v-if="loading" style="text-align:center;padding:44px">
+      <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
     </div>
+
+    <template v-else>
+      <!-- Back + Header -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+        <button class="ibtn ibtn-o ibtn-sm" @click="$router.back()">
+          <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <div class="ph" style="margin:0">
+          <h1>{{ referral.referral_code || 'Referral Details' }}</h1>
+          <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
+        </div>
+        <div v-if="isGCU" style="margin-left:auto;display:flex;gap:8px">
+          <button class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            Update Status
+          </button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 340px;gap:16px">
+
+        <!-- Left -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Status Pipeline -->
+          <div class="icard">
+            <div class="icard-header"><span class="icard-title">Referral Status</span></div>
+            <div style="padding:16px 18px">
+              <div style="display:flex;gap:0;overflow-x:auto">
+                <div
+                  v-for="(step, i) in pipeline"
+                  :key="step.key"
+                  style="flex:1;min-width:80px;padding:10px 14px;text-align:center;font-size:11px;font-weight:600;border:1px solid var(--cloud)"
+                  :style="{
+                    background: isStepDone(step.key) ? 'var(--mist)' : isCurrentStep(step.key) ? 'var(--moss)' : '#fff',
+                    color: isStepDone(step.key) ? 'var(--moss)' : isCurrentStep(step.key) ? '#fff' : 'var(--stone)',
+                    borderColor: isStepDone(step.key) ? 'var(--mint)' : isCurrentStep(step.key) ? 'var(--moss)' : 'var(--cloud)',
+                    borderRadius: i === 0 ? 'var(--r-sm) 0 0 var(--r-sm)' : i === pipeline.length - 1 ? '0 var(--r-sm) var(--r-sm) 0' : '0',
+                  }"
+                >
+                  {{ step.label }}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Referral Info -->
+          <div class="icard">
+            <div class="icard-header">
+              <span class="icard-title">Referral Info</span>
+              <button v-if="isAdmin && !editingDoc" class="ibtn ibtn-g ibtn-sm" @click="openDocEdit">
+                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                Edit Header
+              </button>
+            </div>
+
+            <!-- Document Code Header -->
+            <div v-if="!editingDoc" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-OSS-01</div>
+                <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(docSettings.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ docSettings.ctrl_no || '-' }}</div>
+              </div>
+            </div>
+
+            <!-- Document Code Header - Edit Mode (admin only) -->
+            <div v-else style="padding:14px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:11px;color:var(--stone)"><strong>Document Code:</strong> QF-OSS-01 (fixed)</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div>
+                  <label class="ifl">Revision No.</label>
+                  <input v-model="docEditForm.revision_no" class="ifi" placeholder="e.g. 01" />
+                </div>
+                <div>
+                  <label class="ifl">Effectivity Date</label>
+                  <input v-model="docEditForm.effectivity_date" type="date" class="ifi" />
+                </div>
+                <div>
+                  <label class="ifl">Ctrl No. - Year</label>
+                  <input v-model="docEditForm.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" />
+                </div>
+                <div>
+                  <label class="ifl">Ctrl No. - Term</label>
+                  <select v-model="docEditForm.ctrl_no_term" class="ifse">
+                    <option value="1">1 (First Sem)</option>
+                    <option value="2">2 (Second Sem)</option>
+                    <option value="S">S (Summer / Mid-Year)</option>
+                  </select>
+                </div>
+              </div>
+              <div style="font-size:11px;color:var(--fog)">This applies to all referral forms (Create + Show), current and future - not just this one.</div>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn ibtn-p ibtn-sm" @click="saveDocSettings" :disabled="savingDoc">
+                  {{ savingDoc ? 'Saving...' : 'Save' }}
+                </button>
+                <button class="ibtn ibtn-g ibtn-sm" @click="editingDoc = false">Cancel</button>
+              </div>
+            </div>
+
+            <div class="icard-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.referrer_name || '-' }} <span style="color:var(--fog)">({{ toTitleCase(referral.referrer_role) }})</span></div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Client Status</div>
+                  <span class="ibadge" :style="referral.client_status === 'existing' ? 'background:var(--blue-lt);color:var(--blue)' : 'background:var(--mist);color:var(--moss)'">
+                    {{ referral.client_status === 'existing' ? 'Existing Client' : 'New Client' }}
+                  </span>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.created_at) }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(referral.referral_type) || '-' }}</div>
+                </div>
+                <div v-if="referral.acknowledged_at">
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Acknowledged</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.acknowledged_at) }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
+                  <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ referral.referral_code }}</div>
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
+                <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.nature_of_concern }}</div>
+              </div>
+              <div v-if="referral.intake_notes" style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Intake Notes</div>
+                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.intake_notes }}</div>
+              </div>
+              <div v-if="referral.violation_type" style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Violation Type</div>
+                <div style="font-size:13px;color:var(--ink)">{{ referral.violation_type }}</div>
+              </div>
+              <div v-if="referral.incident_date" style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Date of Incident</div>
+                <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.incident_date) }}</div>
+              </div>
+              <div v-if="referral.sanction" style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Sanction / Outcome</div>
+                <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(referral.sanction) }}</div>
+                <div v-if="referral.sanction_notes" style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">{{ referral.sanction_notes }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Feedback Slip - copy sent to the referrer for transparency -->
+          <div class="icard">
+            <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
+            <div class="icard-body">
+              <template v-if="isGCU">
+                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="sendFeedback">
+                  <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                  Send to Referrer
+                </button>
+                <div v-if="referral.feedback_sent_at" style="font-size:11px;color:var(--fog);margin-top:8px">
+                  Last sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}
+                </div>
+              </template>
+              <template v-else>
+                <div v-if="!referral.feedback_notes" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
+                <div v-else>
+                  <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.feedback_notes }}</div>
+                  <div style="font-size:11px;color:var(--fog);margin-top:8px">Sent {{ formatDate(referral.feedback_sent_at) }}</div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Right -->
+        <div style="display:flex;flex-direction:column;gap:16px">
+
+          <!-- Acknowledge - visible to Admin and GCU Staff -->
+          <div class="icard" v-if="referral.status === 'submitted' && isGCU">
+            <div class="icard-body">
+              <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
+                ⚠ This referral has not been acknowledged yet.
+              </div>
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledge" :disabled="acknowledging">
+                <svg v-if="!acknowledging" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                <span v-if="acknowledging" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ acknowledging ? 'Acknowledging...' : 'Acknowledge Referral' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Read-only status for non-GCU roles -->
+          <div class="icard" v-else-if="referral.status === 'submitted'">
+            <div class="icard-body">
+              <div style="font-size:13px;color:var(--stone)">Awaiting acknowledgement from GCU.</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Update Referral Status Modal -->
+      <div v-if="showStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showStatusModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Referral Status</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showStatusModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
+            <select v-model="newStatus" class="ifse">
+              <option
+                v-for="step in pipeline"
+                :key="step.key"
+                :value="step.key"
+                :disabled="!isStatusSelectable(step.key)"
+              >
+                {{ step.label }}{{ statusOrder.indexOf(step.key) < statusOrder.indexOf(referral.status) ? ' (already completed)' : !isStatusSelectable(step.key) ? ' (complete previous step first)' : '' }}
+              </option>
+            </select>
+            <div style="font-size:11px;color:var(--stone)">Steps must be completed in order — you can only move to the next step in the pipeline.</div>
+            <button
+              class="ibtn ibtn-p"
+              style="width:100%;justify-content:center"
+              :style="{ opacity: !isStatusSelectable(newStatus) ? .5 : 1, cursor: !isStatusSelectable(newStatus) ? 'not-allowed' : 'pointer' }"
+              :disabled="!isStatusSelectable(newStatus)"
+              @click="updateStatus"
+            >Save Status</button>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, inject, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
+import { referralAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
+import { toTitleCase } from '../../utils/validators';
 
-const router = useRouter();
-const loading = ref(false);
-const error   = ref('');
-const showPassword = ref(false);
-const capsLockOn = ref(false);
+const route   = useRoute();
+const toast   = inject('toast');
+const auth    = useAuthStore();
+const loading = ref(true);
+const acknowledging = ref(false);
+const referral = ref({});
 
-// Shown fresh every time this page is visited - not remembered across visits.
-const consentGiven = ref(false);
+const showStatusModal = ref(false);
+const newStatus        = ref('');
 
-function acceptConsent() {
-  consentGiven.value = true;
+const feedbackForm = ref({ feedback_notes: '' });
+
+const isGCU   = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
+// Strictly the admin role - the Document Code Header (Revision No. /
+// Effectivity / Ctrl No.) is admin-only, not the looser GCU check.
+const isAdmin = computed(() => auth.user?.role === 'admin');
+
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
 }
-function declineConsent() {
-  router.push({ name: 'login-choice' });
-}
-function goBack() {
-  if (consentGiven.value) {
-    consentGiven.value = false;
-  } else {
-    router.push({ name: 'login-choice' });
+
+const docSettings  = ref({});
+const editingDoc   = ref(false);
+const savingDoc    = ref(false);
+const docEditForm  = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
+
+async function fetchDocSettings() {
+  try {
+    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-01`, authHeaders());
+    docSettings.value = res.data;
+  } catch (e) {
+    console.error(e);
   }
 }
 
-const form = ref({ student_id: '', password: '' });
+function formatDocDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+}
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+function openDocEdit() {
+  docEditForm.value = {
+    revision_no:      docSettings.value.revision_no || '01',
+    effectivity_date: docSettings.value.effectivity_date
+      ? new Date(docSettings.value.effectivity_date).toISOString().slice(0, 10)
+      : '',
+    ctrl_no_year: docSettings.value.ctrl_no_year || '',
+    ctrl_no_term: docSettings.value.ctrl_no_term || '1',
+  };
+  editingDoc.value = true;
+}
 
-async function handleLogin() {
-  error.value = '';
-  loading.value = true;
+async function saveDocSettings() {
+  savingDoc.value = true;
   try {
-    const res = await axios.post(`${API_BASE}/student/login`, { ...form.value, consent_accepted: true });
-    localStorage.setItem('student_token', res.data.token);
-    localStorage.setItem('student', JSON.stringify(res.data.student));
-    router.push({ name: 'student-dashboard' });
+    const res = await axios.put(`${API_BASE}/document-settings/QF-OSS-01`, docEditForm.value, authHeaders());
+    docSettings.value = res.data;
+    editingDoc.value = false;
+    toast?.success('Document header updated.');
   } catch (e) {
-    const data = e.response?.data || {};
-    const code = data.error || data.code;
+    toast?.error(e.response?.data?.message || 'Failed to update document header.');
+  } finally {
+    savingDoc.value = false;
+  }
+}
 
-    const MESSAGES = {
-      invalid_student_id: 'No student account found with that Student ID.',
-      student_not_found:  'No student account found with that Student ID.',
-      invalid_password:   'Incorrect password. Please try again.',
-      wrong_password:     'Incorrect password. Please try again.',
-      account_inactive:   'This account is not yet activated. Please contact the Office of Student Services.',
-      account_locked:     'This account has been locked. Please contact the Office of Student Services.',
-    };
+const pipeline = [
+  { key: 'submitted',    label: 'Submitted' },
+  { key: 'acknowledged', label: 'Acknowledged' },
+  { key: 'in_review',   label: 'In Review' },
+  { key: 'in_progress', label: 'In Progress' },
+  { key: 'completed',   label: 'Completed' },
+];
 
-    error.value = MESSAGES[code]
-      || data.message
-      || 'Invalid Student ID or password.';
+const statusOrder = ['submitted', 'acknowledged', 'in_review', 'in_progress', 'completed', 'closed'];
+
+function isStepDone(key) {
+  const current = statusOrder.indexOf(referral.value.status);
+  const step    = statusOrder.indexOf(key);
+  return step < current;
+}
+
+function isStatusSelectable(key) {
+  const current = statusOrder.indexOf(referral.value.status);
+  const target  = statusOrder.indexOf(key);
+  return target === current || target === current + 1;
+}
+
+function openStatusModal() {
+  const current = statusOrder.indexOf(referral.value.status);
+  const next    = pipeline[current + 1];
+  newStatus.value = next ? next.key : referral.value.status;
+  showStatusModal.value = true;
+}
+
+function isCurrentStep(key) {
+  return referral.value.status === key;
+}
+
+async function acknowledge() {
+  acknowledging.value = true;
+  try {
+    const res = await referralAPI.acknowledge(referral.value.id);
+    referral.value = { ...referral.value, ...res.data.referral };
+    toast?.success('Acknowledged referral.');
+  } catch (e) {
+    toast?.error('Failed to acknowledge referral.');
+  } finally {
+    acknowledging.value = false;
+  }
+}
+
+function formatDate(date) {
+  return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+async function sendFeedback() {
+  if (!feedbackForm.value.feedback_notes) {
+    toast?.error('Please write a feedback summary before sending.');
+    return;
+  }
+  try {
+    const res = await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
+    referral.value = { ...referral.value, ...res.data };
+    toast?.success('Feedback sent to referrer.');
+  } catch (e) {
+    toast?.error('Failed to send feedback.');
+  }
+}
+
+async function updateStatus() {
+  try {
+    const res = await referralAPI.updateStatus(referral.value.id, { status: newStatus.value });
+    referral.value.status = res.data.status;
+    showStatusModal.value = false;
+    toast?.success('Referral status updated.');
+  } catch (e) {
+    toast?.error('Failed to update status.');
+  }
+}
+
+onMounted(async () => {
+  try {
+    const res = await referralAPI.show(route.params.id);
+    referral.value = res.data;
+    feedbackForm.value.feedback_notes = res.data.feedback_notes || '';
+    newStatus.value = res.data.status || '';
+  } catch (e) {
+    console.error(e);
   } finally {
     loading.value = false;
   }
-}
-
-function onStudentIdInput(e) {
-  // strip any non-digit and enforce max length
-  form.value.student_id = e.target.value.replace(/\D/g, '').slice(0, 10);
-  if (error.value) error.value = '';
-}
-
-function onFieldEdit() {
-  if (error.value) error.value = '';
-}
-
-function checkCapsLock(e) {
-  capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
-}
+  fetchDocSettings();
+});
 </script>
