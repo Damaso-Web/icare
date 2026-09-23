@@ -54,55 +54,18 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Referral Info</span>
-              <button v-if="isAdmin && !editingDoc" class="ibtn ibtn-g ibtn-sm" @click="openDocEdit">
-                <svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                Edit Header
-              </button>
             </div>
 
-            <!-- Document Code Header -->
-            <div v-if="!editingDoc" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <!-- Document Code Header - read only. Editing Revision No. / Effectivity /
+                 Ctrl No. now happens in Management, not here. -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-01</div>
-                <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>
+                <div><strong>Revision No.:</strong> {{ referralDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(docSettings.effectivity_date) }}</div>
-                <div><strong>Ctrl No.:</strong> {{ docSettings.ctrl_no || '-' }}</div>
-              </div>
-            </div>
-
-            <!-- Document Code Header - Edit Mode (admin only) -->
-            <div v-else style="padding:14px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);display:flex;flex-direction:column;gap:10px">
-              <div style="font-size:11px;color:var(--stone)"><strong>Document Code:</strong> QF-OSS-01 (fixed)</div>
-              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                <div>
-                  <label class="ifl">Revision No.</label>
-                  <input v-model="docEditForm.revision_no" class="ifi" placeholder="e.g. 01" />
-                </div>
-                <div>
-                  <label class="ifl">Effectivity Date</label>
-                  <input v-model="docEditForm.effectivity_date" type="date" class="ifi" />
-                </div>
-                <div>
-                  <label class="ifl">Ctrl No. - Year</label>
-                  <input v-model="docEditForm.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" />
-                </div>
-                <div>
-                  <label class="ifl">Ctrl No. - Term</label>
-                  <select v-model="docEditForm.ctrl_no_term" class="ifse">
-                    <option value="1">1 (First Sem)</option>
-                    <option value="2">2 (Second Sem)</option>
-                    <option value="S">S (Summer / Mid-Year)</option>
-                  </select>
-                </div>
-              </div>
-              <div style="font-size:11px;color:var(--fog)">This applies to all referral forms (Create + Show), current and future - not just this one.</div>
-              <div style="display:flex;gap:8px">
-                <button class="ibtn ibtn-p ibtn-sm" @click="saveDocSettings" :disabled="savingDoc">
-                  {{ savingDoc ? 'Saving...' : 'Save' }}
-                </button>
-                <button class="ibtn ibtn-g ibtn-sm" @click="editingDoc = false">Cancel</button>
+                <div><strong>Effectivity:</strong> {{ formatDocDate(referralDoc.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ referralDoc.ctrl_no || '-' }}</div>
               </div>
             </div>
 
@@ -162,6 +125,20 @@
           <!-- Feedback Slip - copy sent to the referrer for transparency -->
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
+
+            <!-- Document Code Header for the Feedback Slip (QF-OSS-03) - read only,
+                 edited in Management. -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-OSS-03</div>
+                <div><strong>Revision No.:</strong> {{ feedbackDoc.revision_no || '01' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(feedbackDoc.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ feedbackDoc.ctrl_no || '-' }}</div>
+              </div>
+            </div>
+
             <div class="icard-body">
               <template v-if="isGCU">
                 <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
@@ -265,25 +242,23 @@ const newStatus        = ref('');
 
 const feedbackForm = ref({ feedback_notes: '' });
 
-const isGCU   = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
-// Strictly the admin role - the Document Code Header (Revision No. /
-// Effectivity / Ctrl No.) is admin-only, not the looser GCU check.
-const isAdmin = computed(() => auth.user?.role === 'admin');
+const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
 }
 
-const docSettings  = ref({});
-const editingDoc   = ref(false);
-const savingDoc    = ref(false);
-const docEditForm  = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
+// Document Code Headers - read only here. Revision No. / Effectivity /
+// Ctrl No. for both the Referral Slip (QF-OSS-01) and the Feedback Slip
+// (QF-OSS-03) are edited in Management by admin, not on individual referrals.
+const referralDoc = ref({});
+const feedbackDoc = ref({});
 
-async function fetchDocSettings() {
+async function fetchDocSettings(code, target) {
   try {
-    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-01`, authHeaders());
-    docSettings.value = res.data;
+    const res = await axios.get(`${API_BASE}/document-settings/${code}`, authHeaders());
+    target.value = res.data;
   } catch (e) {
     console.error(e);
   }
@@ -292,32 +267,6 @@ async function fetchDocSettings() {
 function formatDocDate(date) {
   if (!date) return '-';
   return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
-}
-
-function openDocEdit() {
-  docEditForm.value = {
-    revision_no:      docSettings.value.revision_no || '01',
-    effectivity_date: docSettings.value.effectivity_date
-      ? new Date(docSettings.value.effectivity_date).toISOString().slice(0, 10)
-      : '',
-    ctrl_no_year: docSettings.value.ctrl_no_year || '',
-    ctrl_no_term: docSettings.value.ctrl_no_term || '1',
-  };
-  editingDoc.value = true;
-}
-
-async function saveDocSettings() {
-  savingDoc.value = true;
-  try {
-    const res = await axios.put(`${API_BASE}/document-settings/QF-OSS-01`, docEditForm.value, authHeaders());
-    docSettings.value = res.data;
-    editingDoc.value = false;
-    toast?.success('Document header updated.');
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to update document header.');
-  } finally {
-    savingDoc.value = false;
-  }
 }
 
 const pipeline = [
@@ -406,6 +355,7 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-  fetchDocSettings();
+  fetchDocSettings('QF-OSS-01', referralDoc);
+  fetchDocSettings('QF-OSS-03', feedbackDoc);
 });
 </script>

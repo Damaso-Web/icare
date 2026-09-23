@@ -40,7 +40,7 @@
       </select>
       <select v-else-if="filters.unit === 'SDU'" v-model="filters.violation_type" class="fsm" @change="fetchReferrals">
         <option value="">All Acts of Misconduct</option>
-        <option v-for="v in SERVICES_BY_UNIT.SDU" :key="v.violation" :value="v.violation">{{ v.violation }}</option>
+        <option v-for="v in disciplinaryOptions" :key="v.value" :value="v.label">{{ v.label }}</option>
       </select>
       <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
         <option value="desc">Date: Newest First</option>
@@ -112,6 +112,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import axios from 'axios';
 import { referralAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 
@@ -120,56 +121,35 @@ const loading    = ref(true);
 const pagination = ref({});
 const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false });
 
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
 
-const SERVICES_BY_UNIT = {
-  GCU: [
-    { value: 'class_attendance',    label: 'Class Attendance' },
-    { value: 'counseling',          label: 'Counseling' },
-    { value: 'academic_deficiency', label: 'Academic Deficiency' },
-    { value: 'leave_of_absence',    label: 'Leave of Absence' },
-    { value: 'withdrawal',          label: 'Withdrawal' },
-    { value: 'readmission',         label: 'Readmission' },
-    { value: 'shifting',            label: 'Shifting' },
-  ],
-  TMDU: [
-    { value: 'psychological_testing', label: 'Psychological Testing' },
-  ],
-  SDU: [
-    { violation: 'Intellectual Dishonesty' },
-    { violation: 'Fraud' },
-    { violation: 'Harm to Persons' },
-    { violation: 'Damage to Property' },
-    { violation: 'Unauthorized Possession/Use of Dangerous Objects' },
-    { violation: 'Unauthorized Possession/Use of Prohibited Drugs' },
-    { violation: 'Undermining or Obstructing Investigations' },
-    { violation: 'Violation of IT Resources Policies' },
-    { violation: 'Stealing within University Premises' },
-    { violation: 'Preparing or Disseminating Libelous/Subversive Materials' },
-    { violation: 'Committing Sexual Acts within University Premises' },
-    { violation: 'Instigating or Leading Boycotts/Disruption of Classes' },
-    { violation: 'Drinking Alcoholic Beverages or Drunken Behavior' },
-    { violation: 'Smoking' },
-    { violation: 'Gambling within University Premises' },
-    { violation: 'Violation of Municipal/Provincial Ordinance' },
-    { violation: 'Non-wearing of Valid School I.D.' },
-    { violation: 'Unauthorized Use of Borrowed or Stolen I.D.' },
-    { violation: 'Loitering During Curfew Hours' },
-    { violation: 'Failure to Obtain Permit for Facility Use' },
-    { violation: 'Unauthorized Use of University Name' },
-    { violation: 'Unauthorized Posting/Distributing of Notices' },
-    { violation: 'Possessing/Distributing Immoral, Indecent, or Subversive Literature' },
-    { violation: 'Littering' },
-    { violation: 'Spitting' },
-    { violation: 'Violating Legally Posted Instructions or Signage' },
-    { violation: 'Disobeying Lawful Written Orders' },
-    { violation: 'Appropriating Property of Another (Student Organization)' },
-    { violation: 'Other Form of Misconduct' },
-  ],
-};
+// Wellness Services (GCU / TMDU) still come from the referral_type form
+// options; Acts of Misconduct (SDU) now come from Management too instead of
+// being a hardcoded list here.
+const wellnessOptionsRaw = ref([]);
+const disciplinaryOptions = ref([]);
 
+async function fetchFilterOptions() {
+  try {
+    const [typeRes, miscRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_type' } }),
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'act_of_misconduct' } }),
+    ]);
+    wellnessOptionsRaw.value = typeRes.data;
+    disciplinaryOptions.value = miscRes.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// GCU vs TMDU is now a real tag set per-service in Management, not guessed.
 const availableServices = computed(() => {
-  if (filters.value.unit === 'GCU') return SERVICES_BY_UNIT.GCU;
-  if (filters.value.unit === 'TMDU') return SERVICES_BY_UNIT.TMDU;
+  if (filters.value.unit === 'GCU' || filters.value.unit === 'TMDU') {
+    return wellnessOptionsRaw.value.filter(o => o.unit === filters.value.unit);
+  }
   return [];
 });
 
@@ -212,5 +192,8 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-onMounted(() => fetchReferrals());
+onMounted(() => {
+  fetchReferrals();
+  fetchFilterOptions();
+});
 </script>

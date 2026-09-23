@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class ReferralFormOption extends Model
 {
-    protected $fillable = ['category', 'value', 'label', 'sort_order'];
+    protected $fillable = ['category', 'value', 'label', 'unit', 'sort_order'];
 }
