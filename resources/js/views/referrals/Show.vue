@@ -76,8 +76,9 @@
         </div>
       </div>
 
-      <!-- Case Summary -->
-      <div class="icard" v-if="referral.case" style="margin-bottom:16px">
+      <!-- Case Summary - Student Information Files only; the Referral Queue
+           only displays the referral's own details. -->
+      <div class="icard" v-if="referral.case && fromCases" style="margin-bottom:16px">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px;padding:16px">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">{{ fromCases ? 'Referral Number' : 'Case Number' }}</div>
@@ -237,8 +238,9 @@
           </div>
 
 
-          <!-- Previous Interventions - case-level, append-only log. For Class Attendance referrals, this doubles as the admission slip: an Unexcused mark locks the referral. -->
-          <div class="icard" v-if="referral.case">
+          <!-- Previous Interventions - case-level, append-only log. For Class Attendance referrals, this doubles as the admission slip: an Unexcused mark locks the referral.
+               Student Information Files only. -->
+          <div class="icard" v-if="referral.case && fromCases">
             <div class="icard-header"><span class="icard-title">Previous Interventions</span></div>
             <div class="icard-body">
               <div style="font-size:11px;color:var(--stone);margin-bottom:10px;font-style:italic">For OSS Personnel</div>
@@ -381,8 +383,8 @@
             </div>
           </div>
 
-          <!-- Session Notes - staff only -->
-          <div class="icard" v-if="isGCU">
+          <!-- Session Notes - staff only, Student Information Files only -->
+          <div class="icard" v-if="isGCU && fromCases">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
               <button class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
@@ -416,8 +418,8 @@
             </div>
           </div>
 
-          <!-- Follow-up Session -->
-          <div class="icard">
+          <!-- Follow-up Session - Student Information Files only -->
+          <div class="icard" v-if="fromCases">
             <div class="icard-header">
               <span class="icard-title">Follow-up Session</span>
               <button v-if="isGCU" class="ibtn ibtn-p ibtn-sm" @click="openFollowUpModal">
@@ -509,8 +511,8 @@
             </div>
           </div>
 
-          <!-- Case Action -->
-          <div class="icard" v-if="isGCU && referral.case">
+          <!-- Case Action - Student Information Files only -->
+          <div class="icard" v-if="isGCU && referral.case && fromCases">
             <div class="icard-header"><span class="icard-title">Case Action</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <router-link
@@ -579,8 +581,8 @@
             </div>
           </div>
 
-          <!-- Appointments (scoped to this referral only) -->
-          <div class="icard" v-if="referral.case">
+          <!-- Appointments (scoped to this referral only) - Student Information Files only -->
+          <div class="icard" v-if="referral.case && fromCases">
             <div class="icard-header"><span class="icard-title">Appointments</span></div>
             <div v-if="!referralAppointments.length" class="empty-state">
               <h3>No appointments yet</h3>
@@ -606,7 +608,7 @@
       </div>
 
       <!-- Add Session Notes Modal -->
-      <div v-if="showSessionModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showSessionModal = false">
+      <div v-if="showSessionModal && isGCU && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showSessionModal = false">
         <div style="width:100%;max-width:520px;max-height:90vh;background:#fff;overflow-y:auto;border-radius:var(--r-lg);box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
@@ -647,7 +649,7 @@
       </div>
 
       <!-- Schedule Follow-up Modal -->
-      <div v-if="showFollowUpModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFollowUpModal = false">
+      <div v-if="showFollowUpModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFollowUpModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Schedule Follow-up Session</div>
