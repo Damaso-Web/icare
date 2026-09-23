@@ -1,5 +1,3 @@
-
-Mainlayout · VUE
 <template>
   <div style="display:flex;height:100vh;overflow:hidden">
  
@@ -37,12 +35,13 @@ Mainlayout · VUE
             :disabled="switching"
             style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:var(--r-sm);padding:7px 9px;font-size:12px;font-family:var(--font);cursor:pointer"
           >
-            <option value="admin" style="color:#000">System Administrator</option>
+            <option value="admin" style="color:#000">Admin / GCU Head</option>
             <option value="gcu_staff" style="color:#000">GCU Staff</option>
             <option value="sdu_head" style="color:#000">SDU Head</option>
             <option value="tmdu_staff" style="color:#000">TMDU Staff</option>
             <option value="faculty" style="color:#000">Faculty Member</option>
             <option value="dean_secretary" style="color:#000">Dean's Secretary</option>
+            <option value="system_admin" style="color:#000">System Admin (Management)</option>
             <option value="student" style="color:#000">Student (Portal)</option>
           </select>
         </div>
@@ -225,6 +224,7 @@ const roleLabel = computed(() => {
     tmdu_staff:     'TMDU Staff',
     faculty:        'Faculty',
     dean_secretary: "Dean's Secretary",
+    system_admin:   'System Admin',
   };
   return labels[auth.user?.role] || auth.user?.role;
 });
@@ -233,11 +233,14 @@ const pageTitle = computed(() => {
   const titles = {
     dashboard:           'Dashboard',
     students:            'Students',
-    'student-show':      'Student Profile',
+    'student-show':      'Case Details',
     referrals:           'Referral Queue',
-    'referral-create':   'Refer Student',
+    'referral-create':      'Refer Student',
+    'referral-create-form': 'Refer a Student',
+    'complaint-create':     'File a Complaint',
+    complaints:             'Complaints',
     'referral-show':     'Referral Details',
-    cases:               'Case Management',
+    cases:               'Student Information Files',
     appointments:        'Appointment Calendar',
     testing:             'Testing Records',
     reports:             'Reports & Analytics',
@@ -247,6 +250,7 @@ const pageTitle = computed(() => {
     audit:               'Audit Logs',
     'call-slips':        'Call Slips',
     backup:              'Backup & Recovery',
+    management:          'Management',
   };
   return titles[route.name] || 'iCARE';
 });
@@ -263,7 +267,7 @@ const menuItems = computed(() => {
     },
     {
       name:    'students',
-      label:   'Student/Client',
+      label:   'Students',
       icon:    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'],
       section: null,
@@ -290,6 +294,13 @@ const menuItems = computed(() => {
       section: null,
     },
     {
+      name:    'complaints',
+      label:   'Complaints',
+      icon:    '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+      roles:   ['sdu_head'],
+      section: null,
+    },
+    {
       name:    'appointments',
       label:   'Appointment',
       icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -298,7 +309,7 @@ const menuItems = computed(() => {
     },
     {
       name:    'cases',
-      label:   'Case Files',
+      label:   'Student Information Files',
       icon:    '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'],
       section: null,
@@ -352,6 +363,13 @@ const menuItems = computed(() => {
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
       section: null,
     },
+    {
+      name:    'management',
+      label:   'Management',
+      icon:    '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
+      roles:   ['system_admin'],
+      section: 'System',
+    },
   ];
  
   const filtered = items.filter(item => item.roles?.includes(role));
@@ -378,7 +396,7 @@ function isActive(name) {
     if (route.query.ctx === 'students') return name === 'students';
   }
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
-  if (name === 'referral-create' && routeName === 'referral-create') return true;
+  if (name === 'referral-create' && ['referral-create', 'referral-create-form', 'complaint-create'].includes(routeName)) return true;
   if (name === 'cases'           && routeName.startsWith('case'))    return true;
   if (name === 'students'        && routeName.startsWith('student')) return true;
   return routeName === name;

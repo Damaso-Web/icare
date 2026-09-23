@@ -22,6 +22,7 @@ class DevController extends Controller
         'tmdu_staff'     => ['unit' => 'TMDU', 'college' => null,  'department' => null],
         'faculty'        => ['unit' => null,   'college' => 'CIT', 'department' => 'Information Technology'],
         'dean_secretary' => ['unit' => null,   'college' => 'CIT', 'department' => null],
+        'system_admin'   => ['unit' => null,   'college' => null,  'department' => null],
     ];
 
     private function authorizeTester(Request $request): void

@@ -44,6 +44,10 @@ class CaseController extends Controller
 
         $query = CaseFile::with(['student', 'counselor', 'latestReferral'])
             ->whereHas('student', fn($s) => $s->where('is_active', true))
+            // A case only belongs in Student Information Files once GCU has
+            // acknowledged at least one of its referrals - an unacknowledged
+            // referral's placeholder case shouldn't show up here yet.
+            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
             ->when($request->type,   fn($q) => $q->where('case_type', $request->type))

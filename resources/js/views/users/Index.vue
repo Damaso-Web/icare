@@ -562,11 +562,15 @@
 <script setup>
 import { ref, onMounted, watch, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import axios from 'axios';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { COLLEGES } from '../../constants/colleges';
-import { DEPARTMENTS_BY_COLLEGE } from '../../constants/departments';
 import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
 
 function titleCase(str) {
   return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
@@ -667,7 +671,35 @@ function applySort() {
   fetchUsers();
 }
 
-const colleges   = COLLEGES;
+// Colleges/Departments now come live from the Management API instead of
+// the old static constants files. Stored values stay the same NAME strings.
+const colleges = ref([]);
+const departmentsByCollege = ref({});
+
+async function fetchManagementData() {
+  try {
+    const [collegeRes, departmentRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/colleges`, authHeaders()),
+      axios.get(`${API_BASE}/management/departments`, authHeaders()),
+    ]);
+    colleges.value = collegeRes.data.map(c => c.name);
+
+    const collegeNameById = {};
+    collegeRes.data.forEach(c => { collegeNameById[c.id] = c.name; });
+
+    const grouped = {};
+    departmentRes.data.forEach(d => {
+      const collegeName = collegeNameById[d.college_id];
+      if (!collegeName) return;
+      if (!grouped[collegeName]) grouped[collegeName] = [];
+      grouped[collegeName].push(d.name);
+    });
+    departmentsByCollege.value = grouped;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
 const viewedUser = ref({});
 const formError  = ref('');
 const resetPasswordResult = ref('');
@@ -682,7 +714,7 @@ const userForm = ref({
 });
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
-const availableDepartments = computed(() => DEPARTMENTS_BY_COLLEGE[userForm.value.college] || []);
+const availableDepartments = computed(() => departmentsByCollege.value[userForm.value.college] || []);
 
 const userErrors = computed(() => {
   const f = userForm.value;
@@ -988,7 +1020,10 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-onMounted(() => fetchUsers());
+onMounted(() => {
+  fetchUsers();
+  fetchManagementData();
+});
 
 watch(() => route.name, () => {
   filters.value = { search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };

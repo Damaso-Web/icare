@@ -22,6 +22,11 @@ use App\Http\Controllers\Api\CallSlipController;
 use App\Http\Controllers\Api\BackupController;
 use App\Http\Controllers\Api\DevController;
 use App\Http\Controllers\Api\CronController;
+use App\Http\Controllers\Api\ManagementCollegeController;
+use App\Http\Controllers\Api\ManagementProgramController;
+use App\Http\Controllers\Api\ManagementDepartmentController;
+use App\Http\Controllers\Api\ManagementFormOptionController;
+use App\Http\Controllers\Api\ComplaintController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -63,7 +68,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
-    
+
 
     // Referrals
     Route::apiResource('referrals', ReferralController::class);
@@ -78,6 +83,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
     Route::get('referrals/{referral}/session-notes',    [SessionNoteController::class, 'indexByReferral']);
     Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral']);
+
+    // Complaints (SDU Incident Reports) - separate from Referrals.
+    // Filing is open to anyone who can access "Refer Student" (same as
+    // referrals); reviewing/updating status is SDU Head only, below.
+    Route::post('complaints', [ComplaintController::class, 'store']);
 
     // Cases
     Route::apiResource('cases', CaseController::class);
@@ -150,6 +160,14 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('dashboard',    [ReportController::class, 'dashboardStats']);
     });
 
+    // Management reference data (Colleges, Programs, Departments, Referral Form Options)
+    // - read access: any authenticated staff, since these are consumed by ordinary forms
+    // - write access: System Admin only (see role:system_admin group below)
+    Route::get('management/colleges',     [ManagementCollegeController::class, 'index']);
+    Route::get('management/programs',     [ManagementProgramController::class, 'index']);
+    Route::get('management/departments',  [ManagementDepartmentController::class, 'index']);
+    Route::get('management/form-options', [ManagementFormOptionController::class, 'index']);
+
        // Admin only
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('users', UserController::class);
@@ -165,6 +183,34 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('backups/run',           [BackupController::class, 'store']);
         Route::post('backups/restore-data',  [BackupController::class, 'restoreData']);
         Route::post('backups/restore-config',[BackupController::class, 'restoreConfig']);
+    });
+
+    // System Admin only - Management page write access (Colleges, Programs,
+    // Departments, Referral Form Options). Deliberately separate from role:admin -
+    // System Admin cannot touch students, referrals, cases, or User Management.
+    Route::middleware('role:system_admin')->group(function () {
+        Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
+        Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
+        Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);
+
+        Route::post('management/programs',              [ManagementProgramController::class, 'store']);
+        Route::put('management/programs/{program}',      [ManagementProgramController::class, 'update']);
+        Route::delete('management/programs/{program}',   [ManagementProgramController::class, 'destroy']);
+
+        Route::post('management/departments',               [ManagementDepartmentController::class, 'store']);
+        Route::put('management/departments/{department}',    [ManagementDepartmentController::class, 'update']);
+        Route::delete('management/departments/{department}', [ManagementDepartmentController::class, 'destroy']);
+
+        Route::post('management/form-options',                  [ManagementFormOptionController::class, 'store']);
+        Route::put('management/form-options/{formOption}',       [ManagementFormOptionController::class, 'update']);
+        Route::delete('management/form-options/{formOption}',    [ManagementFormOptionController::class, 'destroy']);
+    });
+
+    // SDU Head only - reviewing/actioning filed complaints
+    Route::middleware('role:sdu_head')->group(function () {
+        Route::get('complaints',                      [ComplaintController::class, 'index']);
+        Route::get('complaints/{complaint}',          [ComplaintController::class, 'show']);
+        Route::patch('complaints/{complaint}/status', [ComplaintController::class, 'updateStatus']);
     });
 });
 

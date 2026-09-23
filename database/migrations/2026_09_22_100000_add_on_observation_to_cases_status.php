@@ -1,9 +1,8 @@
-2026 09 22 100000 add on observation to cases status · PHP
 <?php
- 
+
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
- 
+
 return new class extends Migration
 {
     /**
@@ -32,13 +31,13 @@ return new class extends Migration
             ) NOT NULL DEFAULT 'open'
         ");
     }
- 
+
     public function down(): void
     {
         // Park anything still on the new value back on 'open' so the narrowed
         // enum below cannot silently blank those rows.
         DB::table('cases')->where('status', 'on_observation')->update(['status' => 'open']);
- 
+
         DB::statement("
             ALTER TABLE `cases`
             MODIFY COLUMN `status` ENUM(
@@ -53,4 +52,3 @@ return new class extends Migration
         ");
     }
 };
- 

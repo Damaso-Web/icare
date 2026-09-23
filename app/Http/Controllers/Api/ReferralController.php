@@ -91,7 +91,7 @@ class ReferralController extends Controller
         ]);
 
         $user = $request->user();
-                $student = Student::findOrFail($validated['student_id']);
+        $student = Student::findOrFail($validated['student_id']);
 
         if (!$student->is_active) {
             return response()->json(['message' => 'This student account is deactivated and cannot be referred. Please reactivate the student first.'], 422);
@@ -360,11 +360,17 @@ class ReferralController extends Controller
         }
 
         $validated = $request->validate([
-            'feedback_notes' => 'required|string',
+            'feedback_notes'               => 'required|string',
+            'feedback_checklist'           => 'nullable|array',
+            'feedback_checklist.*'         => 'string|in:interview,counseling,psychological_testing,referred_scholarship,referred_other,others',
+            'feedback_referred_other_text' => 'nullable|string|max:255',
+            'feedback_others_text'         => 'nullable|string|max:255',
+            'feedback_ctrl_no'             => 'nullable|string|max:50',
         ]);
 
         $referral->update([
-            'feedback_notes'           => $validated['feedback_notes'],
+            ...$validated,
+            // Attending OSS Personnel on the printed slip is always whoever sent it.
             'feedback_sent_at'         => now(),
             'feedback_sent_by_user_id' => $user->id,
         ]);

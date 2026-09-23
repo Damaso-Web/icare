@@ -9,8 +9,11 @@ import Dashboard from '../views/Dashboard.vue';
 import Students from '../views/students/Index.vue';
 import StudentShow from '../views/students/Show.vue';
 import Referrals from '../views/referrals/Index.vue';
+import ReferChoice from '../views/referrals/ReferChoice.vue';
 import ReferralCreate from '../views/referrals/Create.vue';
 import ReferralShow from '../views/referrals/Show.vue';
+import ComplaintCreate from '../views/complaints/Create.vue';
+import Complaints from '../views/complaints/Index.vue';
 import Cases from '../views/cases/Index.vue';
 import Appointments from '../views/appointments/Index.vue';
 import TestingRecords from '../views/testing/Index.vue';
@@ -19,12 +22,14 @@ import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
 import CallSlips from '../views/callslips/Index.vue';
+import Management from '../views/management/Index.vue';
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
 const STAFF_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
 const GCU_ROLES = ['admin', 'gcu_staff'];
 const ADMIN_ONLY = ['admin'];
+const SYSTEM_ADMIN_ONLY = ['system_admin'];
 const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_secretary'];
 
 const routes = [
@@ -126,8 +131,26 @@ const routes = [
             {
                 path: 'referrals/create',
                 name: 'referral-create',
+                component: ReferChoice,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'referrals/create/student',
+                name: 'referral-create-form',
                 component: ReferralCreate,
                 meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'referrals/create/complaint',
+                name: 'complaint-create',
+                component: ComplaintCreate,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'complaints',
+                name: 'complaints',
+                component: Complaints,
+                meta: { roles: ['sdu_head'] },
             },
             {
                 path: 'referrals/:id',
@@ -195,6 +218,12 @@ const routes = [
                 component: () => import('../views/backup/Index.vue'),
                 meta: { roles: ADMIN_ONLY },
             },
+            {
+                path: 'management',
+                name: 'management',
+                component: Management,
+                meta: { roles: SYSTEM_ADMIN_ONLY },
+            },
         ],
     },
     {
@@ -253,6 +282,13 @@ router.beforeEach((to, from, next) => {
     // Auth required
     if (to.meta.requiresAuth || to.meta.roles) {
         if (!token) return next({ name: 'login-choice' });
+
+        // System Admin has no Dashboard (it's student/referral/case data, which
+        // System Admin is not permitted to view) - land them on Management instead
+        // of falling through to the default 'dashboard' redirect.
+        if (role === 'system_admin' && to.name === 'dashboard') {
+            return next({ name: 'management' });
+        }
 
         // Check role access
         if (to.meta.roles && !to.meta.roles.includes(role)) {

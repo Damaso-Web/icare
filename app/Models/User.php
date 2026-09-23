@@ -53,6 +53,7 @@ class User extends Authenticatable
     }
 
     // Role helpers
+    public function isSystemAdmin(): bool  { return $this->role === 'system_admin'; }
     public function isAdmin(): bool        { return $this->role === 'admin'; }
     public function isGCUStaff(): bool     { return $this->role === 'gcu_staff'; }
     public function isSDUHead(): bool      { return $this->role === 'sdu_head'; }

@@ -37,6 +37,10 @@ class Referral extends Model
         'has_attachments',
         'intake_notes',
         'feedback_notes',
+        'feedback_checklist',
+        'feedback_referred_other_text',
+        'feedback_others_text',
+        'feedback_ctrl_no',
         'feedback_sent_at',
         'feedback_sent_by_user_id',
         'admission_date',
@@ -55,6 +59,7 @@ class Referral extends Model
         'acknowledged_at'  => 'datetime',
         'incident_date'    => 'date',
         'feedback_sent_at'  => 'datetime',
+        'feedback_checklist' => 'array',
         'admission_date'    => 'date',
         'admission_issued_at' => 'datetime',
     ];

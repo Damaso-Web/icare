@@ -164,7 +164,7 @@ class StudentController extends Controller
     {
         return response()->json([
             'cases'        => $student->cases()->with('counselor')->latest()->get(),
-            'referrals'    => $student->referrals()->latest()->get(),
+            'referrals'    => $student->referrals()->with('case:id,status')->latest()->get(),
             'appointments' => $student->appointments()->with('staff')->latest()->get(),
         ]);
     }

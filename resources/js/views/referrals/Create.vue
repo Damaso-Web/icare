@@ -235,93 +235,27 @@
                 v-model="form.referral_type"
                 class="ifse"
                 :style="errorStyle('referral_type')"
-                @change="onServiceChange(); clearFieldError('referral_type')"
+                @change="clearFieldError('referral_type')"
                 required
               >
                 <option value="" disabled hidden>Select service...</option>
-                <option value="class_attendance">Class Attendance (Absences/Tardiness)</option>
-                <option value="counseling">Counseling</option>
-                <option value="academic_deficiency">Academic Deficiency</option>
-                <option value="leave_of_absence">Leave of Absence</option>
-                <option value="withdrawal">Withdrawal</option>
-                <option value="readmission">Readmission</option>
-                <option value="shifting">Shifting</option>
-                <option value="psychological_testing">Psychological Testing</option>
-                <option value="disciplinary">Acts of Misconduct</option>
+                <option v-for="opt in referralTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
             <div>
               <label class="ifl">Referral Source</label>
               <select v-model="form.referral_source" class="ifse">
-                <option value="faculty">Faculty Referral</option>
-                <option value="sdu">SDU Referral</option>
-                <option value="self">Self-Referral</option>
-                <option value="dean">Dean's Office</option>
-                <option value="parent">Parent / Guardian</option>
+                <option v-for="opt in referralSourceOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
               </select>
             </div>
           </div>
 
-          <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
-            <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
-            <select
-              v-model="form.violation_type"
-              class="ifse"
-              :style="errorStyle('violation_type')"
-              :required="form.referral_type === 'disciplinary'"
-              @change="clearFieldError('violation_type')"
-            >
-              <option value="" disabled hidden>Select act of misconduct...</option>
-              <option>Intellectual Dishonesty</option>
-              <option>Fraud</option>
-              <option>Harm to Persons</option>
-              <option>Damage to Property</option>
-              <option>Unauthorized Possession/Use of Dangerous Objects</option>
-              <option>Unauthorized Possession/Use of Prohibited Drugs</option>
-              <option>Undermining or Obstructing Investigations</option>
-              <option>Violation of IT Resources Policies</option>
-              <option>Stealing within University Premises</option>
-              <option>Preparing or Disseminating Libelous/Subversive Materials</option>
-              <option>Committing Sexual Acts within University Premises</option>
-              <option>Instigating or Leading Boycotts/Disruption of Classes</option>
-              <option>Drinking Alcoholic Beverages or Drunken Behavior</option>
-              <option>Smoking</option>
-              <option>Gambling within University Premises</option>
-              <option>Violation of Municipal/Provincial Ordinance</option>
-              <option>Non-wearing of Valid School I.D.</option>
-              <option>Unauthorized Use of Borrowed or Stolen I.D.</option>
-              <option>Loitering During Curfew Hours</option>
-              <option>Failure to Obtain Permit for Facility Use</option>
-              <option>Unauthorized Use of University Name</option>
-              <option>Unauthorized Posting/Distributing of Notices</option>
-              <option>Possessing/Distributing Immoral, Indecent, or Subversive Literature</option>
-              <option>Littering</option>
-              <option>Spitting</option>
-              <option>Violating Legally Posted Instructions or Signage</option>
-              <option>Disobeying Lawful Written Orders</option>
-              <option>Appropriating Property of Another (Student Organization)</option>
-              <option>Other Form of Misconduct</option>
-            </select>
-          </div>
-
-          <div v-if="form.referral_type === 'disciplinary'" style="margin-bottom:14px">
-            <label class="ifl">Date of Incident <span style="color:var(--red)">*</span></label>
-            <input
-              v-model="form.incident_date"
-              type="date"
-              class="ifi"
-              :style="errorStyle('incident_date')"
-              :required="form.referral_type === 'disciplinary'"
-              @input="clearFieldError('incident_date')"
-            />
-          </div>
-
           <div style="margin-bottom:14px">
-            <label class="ifl">{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern / Reason for Referral' }} <span style="color:var(--red)">*</span></label>
+            <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span></label>
             <textarea
               v-model="form.nature_of_concern"
               class="ifta"
-              :placeholder="form.referral_type === 'disciplinary' ? 'Describe the incident in detail, including date, time, location, and persons involved...' : 'Describe the student\'s concern in detail...'"
+              placeholder="Describe the student's concern in detail..."
               :style="errorStyle('nature_of_concern')"
               @input="clearFieldError('nature_of_concern')"
               required
@@ -357,9 +291,7 @@
             <div><strong>Program:</strong> {{ form.program }}</div>
             <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
             <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
-            <div v-if="form.violation_type"><strong>Act of Misconduct:</strong> {{ form.violation_type }}</div>
-            <div v-if="form.incident_date"><strong>Date of Incident:</strong> {{ form.incident_date }}</div>
-            <div><strong>{{ form.referral_type === 'disciplinary' ? 'Incident Report' : 'Concern' }}:</strong> {{ form.nature_of_concern }}</div>
+            <div><strong>Concern:</strong> {{ form.nature_of_concern }}</div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="confirmSubmit" :disabled="loading">
@@ -395,16 +327,72 @@
 <script setup>
 import { ref, inject, computed, nextTick, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import axios from 'axios';
 import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { COLLEGES } from '../../constants/colleges';
-import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
 import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
 const auth     = useAuthStore();
-const colleges = COLLEGES;
+
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
+
+// Colleges/Programs and the referral-form dropdowns now come live from the
+// Management API instead of static constants / hardcoded <option> lists.
+// Stored values stay the same short codes / name strings.
+const colleges = ref([]);
+const programsByCollege = ref({});
+const referralTypeOptionsRaw = ref([]);
+const referralSourceOptions  = ref([]);
+
+// Acts of Misconduct is filed as its own "Complaint" now (see the SDU
+// incident report flow), so it's deliberately excluded here even though the
+// Management page may still list "disciplinary" as a referral_type option
+// for other purposes / historical records.
+const referralTypeOptions = computed(() =>
+  referralTypeOptionsRaw.value.filter(opt => opt.value !== 'disciplinary')
+);
+
+async function fetchManagementData() {
+  try {
+    const [collegeRes, programRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/colleges`, authHeaders()),
+      axios.get(`${API_BASE}/management/programs`, authHeaders()),
+    ]);
+    colleges.value = collegeRes.data.map(c => c.name);
+
+    const collegeNameById = {};
+    collegeRes.data.forEach(c => { collegeNameById[c.id] = c.name; });
+
+    const grouped = {};
+    programRes.data.forEach(p => {
+      const collegeName = collegeNameById[p.college_id];
+      if (!collegeName) return;
+      if (!grouped[collegeName]) grouped[collegeName] = [];
+      grouped[collegeName].push(p.name);
+    });
+    programsByCollege.value = grouped;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function fetchFormOptions() {
+  try {
+    const [typeRes, sourceRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_type' } }),
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_source' } }),
+    ]);
+    referralTypeOptionsRaw.value = typeRes.data;
+    referralSourceOptions.value  = sourceRes.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 const fieldErrors = ref({});
 
@@ -450,7 +438,7 @@ const isFacultyOrDean = computed(() =>
   auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary'
 );
 
-const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[form.value.college] || []);
+const availablePrograms = computed(() => programsByCollege.value[form.value.college] || []);
 
 const isCreateFormEmpty = computed(() =>
   !studentSearchQuery.value &&
@@ -479,15 +467,7 @@ const form = ref({
   referral_type:         '',
   referral_source:       'faculty',
   nature_of_concern:     '',
-  violation_type:        '',
-  incident_date:         '',
 });
-
-function onServiceChange() {
-  if (form.value.referral_type !== 'disciplinary') {
-    form.value.violation_type = '';
-  }
-}
 
 function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
@@ -572,10 +552,6 @@ function handleSubmit() {
   if (!form.value.year_level)       { errs.year_level = true;       missing.push('Year Level'); }
   if (!form.value.referral_type)    { errs.referral_type = true;    missing.push('Service Requested'); }
   if (!form.value.nature_of_concern){ errs.nature_of_concern = true;missing.push('Concern / Reason'); }
-  if (form.value.referral_type === 'disciplinary') {
-    if (!form.value.violation_type) { errs.violation_type = true; missing.push('Specific Act of Misconduct'); }
-    if (!form.value.incident_date)  { errs.incident_date = true;  missing.push('Date of Incident'); }
-  }
 
   fieldErrors.value = errs;
 
@@ -620,9 +596,6 @@ async function confirmSubmit() {
       urgency_level:     'medium',
       is_self_referred:  form.value.referral_source === 'self',
       referrer_source:   form.value.referral_source,
-      violation_type:    form.value.violation_type || null,
-      incident_date:     form.value.referral_type === 'disciplinary' ? (form.value.incident_date || null) : null,
-      incident_description: form.value.referral_type === 'disciplinary' ? form.value.nature_of_concern : null,
     });
 
     showPreview.value = false;
@@ -659,7 +632,6 @@ function clearForm() {
     referrer_first_name:  auth.user?.first_name || '',
     referrer_middle_name: auth.user?.middle_name || '',
     referral_type: '', referral_source: 'faculty', nature_of_concern: '',
-    violation_type: '', incident_date: '',
   };
   fieldErrors.value = {};
 }
@@ -673,5 +645,7 @@ onMounted(() => {
   form.value.referrer_last_name   = auth.user?.last_name || '';
   form.value.referrer_first_name  = auth.user?.first_name || '';
   form.value.referrer_middle_name = auth.user?.middle_name || '';
+  fetchManagementData();
+  fetchFormOptions();
 });
 </script>

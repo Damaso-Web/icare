@@ -1,18 +1,24 @@
-
-Index · VUE
 <template>
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Student Case Files</h1>
-      <p>Unified case histories, session notes, and intervention records.</p>
+      <h1>Student Information Files</h1>
+      <p>Each student's complete record in one place.</p>
     </div>
- 
+
     <!-- Filter Bar -->
     <div class="filter-bar">
       <div class="sw">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input v-model="filters.search" type="text" class="sin" placeholder="Search student name or case number..." style="width:240px" @input="fetchCases"/>
+        <input
+          v-model="filters.search"
+          type="text"
+          class="sin"
+          placeholder="Search student name or case number..."
+          style="width:240px"
+          @keypress="blockSpecialKeypress"
+          @input="onSearchInput"
+        />
       </div>
       <select v-model="filters.status" class="fsm" @change="fetchCases">
         <option value="">All Status</option>
@@ -41,7 +47,7 @@ Index · VUE
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
- 
+
     <!-- Cases List -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
@@ -86,7 +92,7 @@ Index · VUE
           </tbody>
         </table>
       </div>
- 
+
       <!-- Pagination -->
       <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
         <span style="font-size:12px;color:var(--stone)">
@@ -100,16 +106,17 @@ Index · VUE
     </div>
   </div>
 </template>
- 
+
 <script setup>
 import { ref, onMounted } from 'vue';
 import { caseAPI } from '../../api/index';
- 
+import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+
 const cases      = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
 const filters    = ref({ search: '', status: '', unit: '', type: '', requires_follow_up: '' });
- 
+
 async function fetchCases(page = 1) {
   loading.value = true;
   try {
@@ -122,21 +129,26 @@ async function fetchCases(page = 1) {
     loading.value = false;
   }
 }
- 
+
+function onSearchInput() {
+  filters.value.search = safeSearchInput(filters.value.search);
+  fetchCases();
+}
+
 function resetFilters() {
   filters.value = { search: '', status: '', unit: '', type: '', requires_follow_up: '' };
   fetchCases();
 }
- 
+
 function changePage(page) { fetchCases(page); }
- 
+
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
- 
+
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
- 
+
 onMounted(() => fetchCases());
 </script>

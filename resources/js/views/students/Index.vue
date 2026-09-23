@@ -6,24 +6,6 @@
       <p>Browse or search student records.</p>
     </div>
 
-    <!-- Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button
-        class="ibtn ibtn-sm"
-        :style="!showArchived ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-        @click="switchTab(false)"
-      >
-        Active Students
-      </button>
-      <button
-        class="ibtn ibtn-sm"
-        :style="showArchived ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-        @click="switchTab(true)"
-      >
-        Inactive Students
-      </button>
-    </div>
-
     <!-- Search Bar -->
     <div class="filter-bar">
       <div class="sw" style="flex:1;max-width:400px">
@@ -38,6 +20,11 @@
           @input="onSearchInput"
         />
       </div>
+      <select v-model="filters.status" class="fsm" @change="fetchStudents">
+        <option value="">All Status</option>
+        <option value="1">Active</option>
+        <option value="0">Inactive</option>
+      </select>
       <select v-model="filters.college" class="fsm" @change="fetchStudents">
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
@@ -51,11 +38,11 @@
         <option value="last_name:desc">Name: Z-A</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
-      <button v-if="!showArchived" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
+      <button class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
-      <button v-if="!showArchived" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" type="button" @click="openAddModal">
+      <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" type="button" @click="openAddModal">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         Add Student
       </button>
@@ -75,6 +62,7 @@
           <thead>
             <tr>
               <th>Student ID</th>
+              <th>Full Name</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -83,6 +71,9 @@
             <tr v-for="s in students" :key="s.id" :style="!s.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(s)">
                 {{ s.student_id }}
+              </td>
+              <td style="cursor:pointer" @click="openView(s)">
+                {{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }} {{ s.suffix }}
               </td>
               <td>
                 <span class="ibadge" :style="s.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
@@ -1073,13 +1064,47 @@
 
 <script setup>
 import { ref, computed, inject, onMounted } from 'vue';
+import axios from 'axios';
 import { studentAPI } from '../../api/index';
-import { COLLEGES } from '../../constants/colleges';
-import { PROGRAMS_BY_COLLEGE } from '../../constants/programs';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const toast   = inject('toast');
-const colleges = COLLEGES;
+
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
+
+// Colleges/Programs now come live from the Management API instead of the
+// old static constants files, so System Admins can add/edit them without
+// a code change. The stored value on a student record is still just the
+// college/program NAME string, exactly like before.
+const colleges = ref([]);
+const programsByCollege = ref({});
+
+async function fetchManagementData() {
+  try {
+    const [collegeRes, programRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/colleges`, authHeaders()),
+      axios.get(`${API_BASE}/management/programs`, authHeaders()),
+    ]);
+    colleges.value = collegeRes.data.map(c => c.name);
+
+    const collegeNameById = {};
+    collegeRes.data.forEach(c => { collegeNameById[c.id] = c.name; });
+
+    const grouped = {};
+    programRes.data.forEach(p => {
+      const collegeName = collegeNameById[p.college_id];
+      if (!collegeName) return;
+      if (!grouped[collegeName]) grouped[collegeName] = [];
+      grouped[collegeName].push(p.name);
+    });
+    programsByCollege.value = grouped;
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 const YEAR_LEVEL_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
@@ -1087,7 +1112,7 @@ const students   = ref([]);
 const loading    = ref(false);
 const saving     = ref(false);
 const pagination = ref({});
-const filters    = ref({ search: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
+const filters    = ref({ search: '', status: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
 const sortOption = ref('created_at:desc');
 
 function applySort() {
@@ -1096,7 +1121,6 @@ function applySort() {
   filters.value.sort_dir = sortDir;
   fetchStudents();
 }
-const showArchived = ref(false);
 const showAddModal    = ref(false);
 const showGraduateModal = ref(false);
 const studentToGraduate = ref(null);
@@ -1138,7 +1162,7 @@ const editForm      = ref({});
 const editFormSnapshot = ref('{}');
 const editError      = ref('');
 const editSaving     = ref(false);
-const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
+const editAvailablePrograms = computed(() => programsByCollege.value[editForm.value.college] || []);
 const editYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 const isEditFormUnchanged = computed(() => JSON.stringify(editForm.value) === editFormSnapshot.value);
 
@@ -1280,7 +1304,7 @@ const addForm = ref({
   guardian_contact: '', guardian_relationship: '',
 });
 
-const availablePrograms = computed(() => PROGRAMS_BY_COLLEGE[addForm.value.college] || []);
+const availablePrograms = computed(() => programsByCollege.value[addForm.value.college] || []);
 const addYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 
 function titleCase(str) {
@@ -1499,12 +1523,6 @@ async function doConfirmedImport() {
 
 let searchTimeout = null;
 
-function switchTab(archived) {
-  showArchived.value = archived;
-  filters.value.search = '';
-  fetchStudents();
-}
-
 function onSearchInput() {
   filters.value.search = safeSearchInput(filters.value.search);
   clearTimeout(searchTimeout);
@@ -1515,7 +1533,9 @@ async function fetchStudents(page = 1) {
   loading.value = true;
   try {
     const params = { ...filters.value, page };
-    params.is_active = showArchived.value ? 0 : 1;
+    if (params.status === '') delete params.status;
+    else params.is_active = params.status;
+    delete params.status;
     const res = await studentAPI.index(params);
     students.value   = res.data.data;
     pagination.value = res.data;
@@ -1527,7 +1547,7 @@ async function fetchStudents(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  filters.value = { search: '', status: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
   sortOption.value = 'created_at:desc';
   fetchStudents();
 }
@@ -1855,5 +1875,8 @@ async function confirmImport(globalChoice) {
   }
 }
 
-onMounted(() => fetchStudents());
+onMounted(() => {
+  fetchStudents();
+  fetchManagementData();
+});
 </script>
