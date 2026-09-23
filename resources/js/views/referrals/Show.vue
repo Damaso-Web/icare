@@ -9,12 +9,19 @@
     1. Header now shows the Case Number when fromCases, the Referral Code
        otherwise (see the "headerTitle" computed).
     2. Update Status / Update Case Status buttons hidden.
-    3. Flag Follow-up button hidden.
-    4. Edit / Archive buttons on the Referral Info panel hidden.
-    5. Service Slips panel hidden.
-    6. Summary strip's first cell now swaps label+value: "Referral Number"
+    3. Edit / Archive buttons on the Referral Info panel hidden.
+    4. Service Slips panel hidden.
+    5. Summary strip's first cell now swaps label+value: "Referral Number"
        / REF-code when fromCases, "Case Number" / CASE-number otherwise.
-    7. Added "On Observation" to the Update Case Status dropdown.
+    6. Added "On Observation" to the Update Case Status dropdown.
+
+  Follow-up Session (SIF only):
+    "Flag Follow-up" (the case-level purple flag) has been removed entirely.
+    Each scheduled follow-up in the Follow-up Session card is now clickable,
+    opening a detail modal where GCU staff can view, add, and edit that
+    follow-up's notes (saveFollowUpNotes -> appointmentAPI.update), the
+    same way Previous Interventions/Session Notes work as click-to-view
+    entries. Scheduling still uses the existing "Schedule Follow-up" button.
 -->
 <template>
   <div class="fade-up">
@@ -43,7 +50,7 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
-          <button v-if="isGCU && !fromCases" class="ibtn ibtn-o ibtn-sm" @click="showCaseStatusModal = true">
+          <button v-if="isGCU && fromCases" class="ibtn ibtn-o ibtn-sm" @click="showCaseStatusModal = true">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Case Status
           </button>
@@ -54,15 +61,6 @@
           >
             <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
             Transfer Unit
-          </button>
-          <button
-            v-if="isGCU && fromCases && !referral.case.requires_follow_up"
-            class="ibtn ibtn-sm"
-            style="background:var(--purple-lt);color:var(--purple);border:1.5px solid var(--purple)"
-            @click="showFollowUpFlagModal = true"
-          >
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M4 22V4a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
-            Flag Follow-up
           </button>
           <button
             v-if="isGCU && fromCases && !referral.case.student_unreachable"
@@ -106,14 +104,6 @@
       <div v-if="referral.case?.student_unreachable" class="icard" style="margin-bottom:16px;background:var(--amber-lt);border:1px solid var(--amber);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         Student flagged as unreachable. Dean's Secretary has been notified.
-      </div>
-
-      <div v-if="referral.case?.requires_follow_up" class="icard" style="margin-bottom:16px;background:var(--purple-lt);border:1px solid var(--purple);padding:10px 14px;font-size:13px;color:var(--purple);display:flex;align-items:center;justify-content:space-between;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px">
-          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><path d="M4 22V4a2 2 0 0 1 2-2h9l5 5v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/></svg>
-          <span>Case flagged for further attention<span v-if="referral.case.follow_up_notes"> - {{ referral.case.follow_up_notes }}</span></span>
-        </div>
-        <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="resolveFollowUpFlag">Resolve</button>
       </div>
 
       <!-- Status Pipeline - full width, not confined to the left column -->
@@ -432,11 +422,19 @@
               <p>Schedule a follow-up session to keep tracking this referral.</p>
             </div>
             <div v-else>
-              <div v-for="fu in followUps" :key="fu.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+              <div
+                v-for="fu in followUps"
+                :key="fu.id"
+                style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;cursor:pointer;transition:background .1s"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='transparent'"
+                @click="viewFollowUp(fu)"
+              >
                 <div>
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(fu.appointment_date) }} · {{ fu.start_time }}-{{ fu.end_time }}</div>
                   <div style="font-size:12px;color:var(--stone);margin-top:2px">With {{ fu.staff?.name || 'TBA' }}</div>
                   <div v-if="fu.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ fu.notes }}</div>
+                  <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">No notes yet - click to add</div>
                 </div>
                 <span class="ibadge" :class="'ibadge-' + fu.status">{{ toTitleCase(fu.status) }}</span>
               </div>
@@ -726,7 +724,7 @@
       </div>
 
       <!-- Update Case Status Modal -->
-      <div v-if="showCaseStatusModal && !fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseStatusModal = false">
+      <div v-if="showCaseStatusModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseStatusModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Case Status</div>
@@ -826,26 +824,42 @@
         </div>
       </div>
 
-      <!-- Flag Follow-up Modal -->
-      <div v-if="showFollowUpFlagModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFollowUpFlagModal = false">
+      <!-- View / Edit Follow-up Notes Modal -->
+      <div v-if="selectedFollowUp" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeFollowUpDetail">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Flag Case for Follow-up</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showFollowUpFlagModal = false">✕</button>
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Follow-up Session</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedFollowUp.appointment_date) }} · {{ selectedFollowUp.start_time }}-{{ selectedFollowUp.end_time }}</div>
+            </div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="closeFollowUpDetail">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div style="background:var(--purple-lt);border:1px solid var(--purple);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--purple)">
-              This marks the case as requiring further attention so it stands out in the case list.
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Staff</div>
+                <div style="font-size:13px;color:var(--ink)">{{ selectedFollowUp.staff?.name || 'TBA' }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+                <span class="ibadge" :class="'ibadge-' + selectedFollowUp.status">{{ toTitleCase(selectedFollowUp.status) }}</span>
+              </div>
             </div>
-            <div>
-              <label class="ifl">Notes / Reason</label>
-              <textarea v-model="followUpFlagNotes" class="ifta" placeholder="Why does this case need further attention?"></textarea>
+            <div v-if="isGCU">
+              <label class="ifl">Notes</label>
+              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" placeholder="Add or update notes for this follow-up session..."></textarea>
             </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn" style="background:var(--purple-lt);color:var(--purple);border:1.5px solid var(--purple)" @click="flagFollowUp">
-                Flag for Follow-up
+            <div v-else>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Notes</div>
+              <div v-if="selectedFollowUp.notes" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedFollowUp.notes }}</div>
+              <div v-else style="font-size:13px;color:var(--stone)">No notes recorded yet.</div>
+            </div>
+            <div v-if="isGCU" style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="saveFollowUpNotes">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                Save Notes
               </button>
-              <button class="ibtn ibtn-o" @click="showFollowUpFlagModal = false">Cancel</button>
+              <button class="ibtn ibtn-o" @click="closeFollowUpDetail">Cancel</button>
             </div>
           </div>
         </div>
@@ -918,14 +932,15 @@ const followUpError      = ref('');
 const showStatusModal      = ref(false);
 const showCaseStatusModal  = ref(false);
 const showUnreachableModal = ref(false);
-const showFollowUpFlagModal = ref(false);
 const showTransferModal    = ref(false);
 const newStatus             = ref('');
 const newCaseStatus         = ref('');
 const unreachableNotes      = ref('');
-const followUpFlagNotes     = ref('');
 const unitStaffList         = ref([]);
 const transferError         = ref('');
+
+const selectedFollowUp  = ref(null);
+const followUpNotesForm = ref('');
 
 const transferForm = ref({ to_unit: '', to_user_id: '', reason: '' });
 const interventionForm = ref({ text: '', excused: '', type: 'previous_intervention' });
@@ -1300,25 +1315,29 @@ async function markCaseAppointmentNoShow(a) {
   }
 }
 
-async function flagFollowUp() {
-  try {
-    await caseAPI.flagFollowUp(referral.value.case.id, { notes: followUpFlagNotes.value });
-    referral.value.case.requires_follow_up = true;
-    referral.value.case.follow_up_notes    = followUpFlagNotes.value;
-    showFollowUpFlagModal.value            = false;
-    toast?.success('Case flagged for follow-up.');
-  } catch (e) {
-    toast?.error('Failed to flag case for follow-up.');
-  }
+function viewFollowUp(fu) {
+  selectedFollowUp.value  = fu;
+  followUpNotesForm.value = fu.notes || '';
 }
 
-async function resolveFollowUpFlag() {
+function closeFollowUpDetail() {
+  selectedFollowUp.value  = null;
+  followUpNotesForm.value = '';
+}
+
+async function saveFollowUpNotes() {
+  const fu = selectedFollowUp.value;
+  if (!fu) return;
   try {
-    await caseAPI.resolveFollowUp(referral.value.case.id);
-    referral.value.case.requires_follow_up = false;
-    toast?.success('Follow-up flag cleared.');
+    const res = await appointmentAPI.update(fu.id, { notes: followUpNotesForm.value });
+    const updated = res?.data || { ...fu, notes: followUpNotesForm.value };
+    Object.assign(fu, updated);
+    const idx = followUps.value.findIndex(f => f.id === fu.id);
+    if (idx !== -1) followUps.value[idx] = { ...followUps.value[idx], ...updated };
+    toast?.success('Follow-up notes saved.');
+    closeFollowUpDetail();
   } catch (e) {
-    toast?.error('Failed to clear follow-up flag.');
+    toast?.error('Failed to save follow-up notes.');
   }
 }
 
