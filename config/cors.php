@@ -20,7 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-    'https://iwillcare.netlify.app',
+    'https://bsu-oss.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],
