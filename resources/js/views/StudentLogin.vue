@@ -1,7 +1,7 @@
 <template>
   <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div style="width:100%;max-width:400px">
-      <button @click="router.push({ name: 'login-choice' })" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
+      <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         Back
       </button>
@@ -12,7 +12,27 @@
         <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
       </div>
 
-      <div class="icard">
+      <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
+      <div v-if="!consentGiven" class="icard">
+        <div style="padding:22px;max-height:60vh;overflow-y:auto">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Confidentiality Notice</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:16px">
+            Pursuant to the Data Privacy Act of 2012 and its Implementing Rules and Regulations (IRR) and the BSU Data Privacy Policy, personnel from the OSS-SDS-Student Discipline Unit (SDU) - La Trinidad Campus are committed to keep with utmost confidentiality all sensitive personal information collected from students. Personal Information are collected, accessed, used, and disclosed on a "need to know basis" and only as reasonably required. Confidential information either within or outside the University will not be communicated except to persons authorized to receive such information. Authorized hardware, software, or other authorized equipment shall be used only in accessing, processing, and transmitting such personal information.
+          </div>
+
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Student's Agreement, Consent and Authorization</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:18px">
+            I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Student Discipline Unit (SDU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Student Discipline Unit (SDU) necessary and relevant data pertaining to my personal data.
+          </div>
+
+          <div style="display:flex;gap:9px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="acceptConsent">Accept</button>
+            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="declineConsent">Decline</button>
+          </div>
+        </div>
+      </div>
+
+      <div v-else class="icard">
         <div style="padding:24px">
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">Student Login</div>
 
@@ -92,6 +112,23 @@ const error   = ref('');
 const showPassword = ref(false);
 const capsLockOn = ref(false);
 
+// Shown fresh every time this page is visited - not remembered across visits.
+const consentGiven = ref(false);
+
+function acceptConsent() {
+  consentGiven.value = true;
+}
+function declineConsent() {
+  router.push({ name: 'login-choice' });
+}
+function goBack() {
+  if (consentGiven.value) {
+    consentGiven.value = false;
+  } else {
+    router.push({ name: 'login-choice' });
+  }
+}
+
 const form = ref({ student_id: '', password: '' });
 
 const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
@@ -100,7 +137,7 @@ async function handleLogin() {
   error.value = '';
   loading.value = true;
   try {
-    const res = await axios.post(`${API_BASE}/student/login`, form.value);
+    const res = await axios.post(`${API_BASE}/student/login`, { ...form.value, consent_accepted: true });
     localStorage.setItem('student_token', res.data.token);
     localStorage.setItem('student', JSON.stringify(res.data.student));
     router.push({ name: 'student-dashboard' });

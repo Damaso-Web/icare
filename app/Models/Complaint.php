@@ -2,17 +2,34 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Complaint extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
+        'complaint_code',
+        'complainant_name',
+        'complainant_address',
         'complainee_student_id',
+        'complainee_position',
+        'complainee_college',
+        'complainee_department',
+        'complainee_office',
+        'complainee_address',
         'violation_type',
-        'description',
+        'description', // used as "Narration of Facts" (what/when/where/how)
         'incident_date',
         'filed_by_user_id',
         'status',
+        'certification_agreed',
+    ];
+
+    protected $casts = [
+        'incident_date'         => 'date',
+        'certification_agreed'  => 'boolean',
     ];
 
     protected static function boot()
@@ -20,10 +37,9 @@ class Complaint extends Model
         parent::boot();
 
         static::creating(function (Complaint $complaint) {
-            if (!$complaint->complaint_code) {
-                $next = (self::max('id') ?? 0) + 1;
-                $complaint->complaint_code = 'CMP-' . date('Y') . '-' . str_pad($next, 5, '0', STR_PAD_LEFT);
-            }
+            $year = now()->year;
+            $count = static::whereYear('created_at', $year)->count() + 1;
+            $complaint->complaint_code = sprintf('CMP-%d-%05d', $year, $count);
         });
     }
 
@@ -35,5 +51,10 @@ class Complaint extends Model
     public function filedBy()
     {
         return $this->belongsTo(User::class, 'filed_by_user_id');
+    }
+
+    public function attachments()
+    {
+        return $this->hasMany(ComplaintAttachment::class);
     }
 }

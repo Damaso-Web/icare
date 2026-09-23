@@ -6,9 +6,39 @@
     </div>
 
     <div class="icard" style="max-width:680px">
-      <form @submit.prevent="handleSubmit" style="padding:22px">
+      <form @submit.prevent="openCertificationModal" style="padding:22px">
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
+          Complainant
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Name <span style="color:var(--red)">*</span></label>
+          <input
+            v-model="form.complainant_name"
+            type="text"
+            class="ifi"
+            :style="errorStyle('complainant_name')"
+            @input="clearFieldError('complainant_name')"
+            required
+          />
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Address <span style="color:var(--red)">*</span></label>
+          <input
+            v-model="form.complainant_address"
+            type="text"
+            class="ifi"
+            placeholder="Your current address..."
+            :style="errorStyle('complainant_address')"
+            @input="clearFieldError('complainant_address')"
+            required
+          />
+        </div>
+
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
           Complainee
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
@@ -20,7 +50,7 @@
             type="text"
             class="ifi"
             :style="errorStyle('complainee_student_id')"
-            placeholder="Search by name or student ID..."
+            placeholder="Search by student name..."
             @keypress="blockSpecialKeypress"
             @input="onStudentSearch"
             @focus="showStudentDropdown = studentSuggestions.length > 0"
@@ -34,14 +64,38 @@
               @click="selectStudent(s)"
             >
               <div style="font-weight:600;font-size:13px">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
-              <div style="font-size:11px;color:var(--stone)">{{ s.student_id }} &middot; {{ s.college }}</div>
+              <div style="font-size:11px;color:var(--stone)">{{ s.college }}</div>
             </div>
           </div>
         </div>
 
         <div v-if="studentFound" style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;font-size:13px">
           <div><strong>{{ selectedStudent.last_name }}, {{ selectedStudent.first_name }} {{ selectedStudent.middle_name }}</strong></div>
-          <div style="color:var(--stone)">{{ selectedStudent.student_id }} &middot; {{ selectedStudent.college }} &middot; {{ selectedStudent.program }}</div>
+          <div style="color:var(--stone)">{{ selectedStudent.college }} &middot; {{ selectedStudent.program }}</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>
+            <label class="ifl">Position</label>
+            <input v-model="form.complainee_position" type="text" class="ifi" placeholder="e.g. Org Officer, if applicable" />
+          </div>
+          <div>
+            <label class="ifl">College</label>
+            <input v-model="form.complainee_college" type="text" class="ifi" />
+          </div>
+          <div>
+            <label class="ifl">Department</label>
+            <input v-model="form.complainee_department" type="text" class="ifi" />
+          </div>
+          <div>
+            <label class="ifl">Office</label>
+            <input v-model="form.complainee_office" type="text" class="ifi" />
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Address</label>
+          <input v-model="form.complainee_address" type="text" class="ifi" />
         </div>
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
@@ -76,15 +130,28 @@
         </div>
 
         <div style="margin-bottom:14px">
-          <label class="ifl">Incident Report <span style="color:var(--red)">*</span></label>
+          <label class="ifl">Narration of Relevant and Material Facts <span style="color:var(--red)">*</span></label>
           <textarea
             v-model="form.description"
             class="ifta"
-            placeholder="Describe the incident in detail, including date, time, location, and persons involved..."
+            style="min-height:120px"
+            placeholder="Describe what happened, when, where, and how, in as much detail as possible..."
             :style="errorStyle('description')"
             @input="clearFieldError('description')"
             required
           ></textarea>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Evidence (optional)</label>
+          <input type="file" multiple class="ifi" @change="onFilesSelected($event, 'evidence')" />
+          <div v-if="evidenceFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidenceFiles.length }} file(s) selected</div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Affidavit of Witness (optional)</label>
+          <input type="file" multiple class="ifi" @change="onFilesSelected($event, 'affidavit')" />
+          <div v-if="affidavitFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavitFiles.length }} file(s) selected</div>
         </div>
 
         <div v-if="error" style="background:var(--red-lt);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:13px;margin-bottom:14px">
@@ -102,6 +169,31 @@
 
       </form>
     </div>
+
+    <!-- Certification Modal - shown only at submit time, not persisted on the page -->
+    <div v-if="showCertModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCertModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Certification / Statement of Non-Forum Shopping</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:12px 14px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">
+            I hereby certify that I have not commenced any other action or proceeding involving the same issues in any other court, tribunal, or administrative agency; that to the best of my knowledge, no such action or proceeding is pending in any court, tribunal, or administrative agency; and that if I should thereafter learn that a similar action or proceeding has been filed or is pending, I shall report that fact within five (5) days to the office where this complaint was filed.
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
+            <input type="checkbox" v-model="certificationChecked" style="width:15px;height:15px;accent-color:var(--moss);margin-top:2px" />
+            I have read and agree to the certification above.
+          </label>
+          <div v-if="error" style="background:var(--red-lt);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:13px">{{ error }}</div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" :disabled="!certificationChecked || loading" @click="handleSubmit">
+              {{ loading ? 'Submitting...' : 'Confirm & Submit' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showCertModal = false" :disabled="loading">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -110,18 +202,18 @@ import { ref, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const router = useRouter();
 const toast  = inject('toast');
+const auth   = useAuthStore();
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
 }
 
-// The Act of Misconduct list is the same Management-driven reference data
-// that used to live inline in the Refer Student form.
 const violationTypeOptions = ref([]);
 async function fetchFormOptions() {
   try {
@@ -160,11 +252,29 @@ const selectedStudent      = ref(null);
 let studentSearchTimeout = null;
 
 const form = ref({
+  complainant_name: auth.user?.name || '',
+  complainant_address: '',
   complainee_student_id: null,
+  complainee_position: '',
+  complainee_college: '',
+  complainee_department: '',
+  complainee_office: '',
+  complainee_address: '',
   violation_type: '',
   incident_date: '',
   description: '',
 });
+
+const evidenceFiles  = ref([]);
+const affidavitFiles = ref([]);
+function onFilesSelected(event, category) {
+  const files = Array.from(event.target.files || []);
+  if (category === 'evidence') evidenceFiles.value = files;
+  else affidavitFiles.value = files;
+}
+
+const showCertModal        = ref(false);
+const certificationChecked = ref(false);
 
 function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
@@ -181,7 +291,7 @@ function onStudentSearch() {
   studentSearchLoading.value = true;
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1 });
+      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1, name_only: 1 });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
     } catch (e) {
@@ -199,21 +309,27 @@ function selectStudent(s) {
   showStudentDropdown.value = false;
   studentFound.value = true;
   clearFieldError('complainee_student_id');
+
+  // Prefill from the student's record where we have it; still editable.
+  form.value.complainee_college = s.college || '';
+  form.value.complainee_address = s.address || '';
 }
 
 function goBack() {
   router.push({ name: 'referral-create' });
 }
 
-async function handleSubmit() {
+function openCertificationModal() {
   error.value = '';
   const errs = {};
   const missing = [];
 
+  if (!form.value.complainant_name)      { errs.complainant_name = true;      missing.push('Complainant Name'); }
+  if (!form.value.complainant_address)   { errs.complainant_address = true;   missing.push('Complainant Address'); }
   if (!form.value.complainee_student_id) { errs.complainee_student_id = true; missing.push('Complainee'); }
   if (!form.value.violation_type)        { errs.violation_type = true;        missing.push('Specific Act of Misconduct'); }
   if (!form.value.incident_date)         { errs.incident_date = true;         missing.push('Date of Incident'); }
-  if (!form.value.description)           { errs.description = true;          missing.push('Incident Report'); }
+  if (!form.value.description)           { errs.description = true;          missing.push('Narration of Facts'); }
 
   fieldErrors.value = errs;
   if (missing.length) {
@@ -221,9 +337,27 @@ async function handleSubmit() {
     return;
   }
 
+  certificationChecked.value = false;
+  showCertModal.value = true;
+}
+
+async function handleSubmit() {
+  if (!certificationChecked.value) return;
+  error.value = '';
   loading.value = true;
   try {
-    await axios.post(`${API_BASE}/complaints`, form.value, authHeaders());
+    const payload = new FormData();
+    Object.entries(form.value).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) payload.append(key, value);
+    });
+    payload.append('certification_agreed', '1');
+    evidenceFiles.value.forEach(f => payload.append('evidence[]', f));
+    affidavitFiles.value.forEach(f => payload.append('affidavit[]', f));
+
+    await axios.post(`${API_BASE}/complaints`, payload, {
+      ...authHeaders(),
+      headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' },
+    });
     toast?.success('Complaint filed.');
     router.push({ name: 'referral-create' });
   } catch (e) {

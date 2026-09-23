@@ -36,6 +36,7 @@ class Student extends Authenticatable
         'medical_notes',
         'is_active',
         'last_login_at',
+        'consent_accepted_at',
         'must_change_password',
         'temp_password',
         'deactivation_reason',
@@ -53,6 +54,7 @@ class Student extends Authenticatable
         'is_active'             => 'boolean',
         'must_change_password'  => 'boolean',
         'last_login_at'         => 'datetime',
+        'consent_accepted_at'   => 'datetime',
         'email_verified_at'     => 'datetime',
     ];
 

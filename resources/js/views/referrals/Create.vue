@@ -12,11 +12,11 @@
       <div style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
         <div style="font-size:11px;color:var(--stone)">
           <div><strong>Document Code:</strong> QF-OSS-01</div>
-          <div><strong>Revision No.:</strong> 01</div>
+          <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>
         </div>
         <div style="font-size:11px;color:var(--stone);text-align:right">
-          <div><strong>Effectivity:</strong> 07/04/23</div>
-          <div><strong>Ctrl No.:</strong> 25-2</div>
+          <div><strong>Effectivity:</strong> {{ formatDocDate(docSettings.effectivity_date) }}</div>
+          <div><strong>Ctrl No.:</strong> {{ docSettings.ctrl_no || '-' }}</div>
         </div>
       </div>
 
@@ -349,6 +349,24 @@ const programsByCollege = ref({});
 const referralTypeOptionsRaw = ref([]);
 const referralSourceOptions  = ref([]);
 
+// Document Code Header (Revision No. / Effectivity / Ctrl No.) - shared/global
+// value managed by admin on the referral form (QF-OSS-01), read-only here.
+const docSettings = ref({});
+
+async function fetchDocSettings() {
+  try {
+    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-01`, authHeaders());
+    docSettings.value = res.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function formatDocDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+}
+
 // Acts of Misconduct is filed as its own "Complaint" now (see the SDU
 // incident report flow), so it's deliberately excluded here even though the
 // Management page may still list "disciplinary" as a referral_type option
@@ -450,6 +468,8 @@ const isCreateFormEmpty = computed(() =>
   !form.value.nature_of_concern
 );
 
+// Referral Source used to default to a hardcoded 'faculty'. It now defaults
+// to the submitting user's own role, since we already know who's referring.
 const form = ref({
   student_id_input:      '',
   last_name:             '',
@@ -465,7 +485,7 @@ const form = ref({
   referrer_first_name:   '',
   referrer_middle_name:  '',
   referral_type:         '',
-  referral_source:       'faculty',
+  referral_source:       auth.user?.role || 'faculty',
   nature_of_concern:     '',
 });
 
@@ -631,7 +651,7 @@ function clearForm() {
     referrer_last_name:   auth.user?.last_name || '',
     referrer_first_name:  auth.user?.first_name || '',
     referrer_middle_name: auth.user?.middle_name || '',
-    referral_type: '', referral_source: 'faculty', nature_of_concern: '',
+    referral_type: '', referral_source: auth.user?.role || 'faculty', nature_of_concern: '',
   };
   fieldErrors.value = {};
 }
@@ -645,7 +665,9 @@ onMounted(() => {
   form.value.referrer_last_name   = auth.user?.last_name || '';
   form.value.referrer_first_name  = auth.user?.first_name || '';
   form.value.referrer_middle_name = auth.user?.middle_name || '';
+  form.value.referral_source      = auth.user?.role || 'faculty';
   fetchManagementData();
   fetchFormOptions();
+  fetchDocSettings();
 });
 </script>

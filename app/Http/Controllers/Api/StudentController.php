@@ -14,11 +14,17 @@ class StudentController extends Controller
 {
     public function index(Request $request)
     {
+        // "name_only" is opt-in: the Complaint form's complainee search passes
+        // this so staff can't look a student up (or see anyone else's match)
+        // by student ID there. Every other caller (Students list, Referral
+        // Create, etc.) is unaffected and still searches by ID too.
+        $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+
         $query = Student::query()
             ->when($request->search, fn($q) => $q->where(fn($sq) =>
                 $sq->where('first_name', 'like', "%{$request->search}%")
                    ->orWhere('last_name', 'like', "%{$request->search}%")
-                   ->orWhere('student_id', 'like', "%{$request->search}%")
+                   ->when(!$nameOnly, fn($iq) => $iq->orWhere('student_id', 'like', "%{$request->search}%"))
             ))
             ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
@@ -32,7 +38,13 @@ class StudentController extends Controller
             $query->orderBy($sortBy, $sortDir);
         }
 
-        return response()->json($query->paginate($request->per_page ?? 10));
+        $results = $query->paginate($request->per_page ?? 10);
+
+        if ($nameOnly) {
+            $results->getCollection()->transform(fn($s) => collect($s->toArray())->except('student_id')->all());
+        }
+
+        return response()->json($results);
     }
 
     public function store(Request $request)

@@ -12,7 +12,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
-          placeholder="Search complainee name or student ID..."
+          placeholder="Search complainee name..."
           style="width:100%"
           @keypress="blockSpecialKeypress"
           @input="onSearchInput"
@@ -69,18 +69,60 @@
 
     <!-- Detail / Status Modal -->
     <div v-if="showDetail" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDetail = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ activeComplaint?.complaint_code }}</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showDetail = false">&#10005;</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px" v-if="activeComplaint">
+
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainant</div>
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
+              <div><strong>{{ activeComplaint.complainant_name }}</strong></div>
+              <div style="color:var(--stone)">{{ activeComplaint.complainant_address }}</div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainee</div>
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:4px">
+              <div><strong>{{ activeComplaint.complainee?.last_name }}, {{ activeComplaint.complainee?.first_name }}</strong></div>
+              <div v-if="activeComplaint.complainee_position">Position: {{ activeComplaint.complainee_position }}</div>
+              <div v-if="activeComplaint.complainee_college">College: {{ activeComplaint.complainee_college }}</div>
+              <div v-if="activeComplaint.complainee_department">Department: {{ activeComplaint.complainee_department }}</div>
+              <div v-if="activeComplaint.complainee_office">Office: {{ activeComplaint.complainee_office }}</div>
+              <div v-if="activeComplaint.complainee_address">Address: {{ activeComplaint.complainee_address }}</div>
+            </div>
+          </div>
+
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-            <div><strong>Complainee:</strong> {{ activeComplaint.complainee?.last_name }}, {{ activeComplaint.complainee?.first_name }} ({{ activeComplaint.complainee?.student_id }})</div>
             <div><strong>Act of Misconduct:</strong> {{ activeComplaint.violation_type }}</div>
             <div><strong>Date of Incident:</strong> {{ activeComplaint.incident_date }}</div>
             <div><strong>Filed By:</strong> {{ activeComplaint.filed_by?.name || activeComplaint.filed_by?.first_name }}</div>
-            <div><strong>Report:</strong> {{ activeComplaint.description }}</div>
+            <div>
+              <strong>Narration of Facts:</strong>
+              <div style="margin-top:4px;line-height:1.6">{{ activeComplaint.description }}</div>
+            </div>
+          </div>
+
+          <div v-if="activeComplaint.attachments?.length">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Attachments</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <a
+                v-for="att in activeComplaint.attachments"
+                :key="att.id"
+                :href="att.url"
+                target="_blank"
+                style="font-size:12.5px;color:var(--blue);text-decoration:underline"
+              >
+                {{ att.category === 'evidence' ? 'Evidence' : 'Affidavit' }}: {{ att.original_filename }}
+              </a>
+            </div>
+          </div>
+
+          <div style="font-size:11px;color:var(--fog)">
+            ✓ Certification / Statement of Non-Forum Shopping was agreed to at submission.
           </div>
 
           <div>

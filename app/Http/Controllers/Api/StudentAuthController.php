@@ -12,8 +12,11 @@ class StudentAuthController extends Controller
     public function login(Request $request)
     {
         $request->validate([
-            'student_id' => 'required|string',
-            'password'   => 'required|string',
+            'student_id'        => 'required|string',
+            'password'          => 'required|string',
+            // Enforced server-side too, not just gated by the frontend UI -
+            // a login request without this can't proceed.
+            'consent_accepted'  => 'required|accepted',
         ]);
 
         $student = Student::where('student_id', $request->student_id)
@@ -28,7 +31,13 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Incorrect password.'], 401);
         }
 
-        $student->update(['last_login_at' => now()]);
+        // The consent notice is shown every time on the login page (not just
+        // once), so we simply stamp the latest acceptance on every successful
+        // login rather than checking whether it was accepted before.
+        $student->update([
+            'last_login_at'         => now(),
+            'consent_accepted_at'   => now(),
+        ]);
         $token = $student->createToken('student-token', ['student'])->plainTextToken;
 
         return response()->json([

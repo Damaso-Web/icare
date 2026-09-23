@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\ManagementProgramController;
 use App\Http\Controllers\Api\ManagementDepartmentController;
 use App\Http\Controllers\Api\ManagementFormOptionController;
 use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\DocumentSettingController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login']);
@@ -162,11 +163,16 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Management reference data (Colleges, Programs, Departments, Referral Form Options)
     // - read access: any authenticated staff, since these are consumed by ordinary forms
-    // - write access: System Admin only (see role:system_admin group below)
+    // - write access: Admin and System Admin (see role groups below)
     Route::get('management/colleges',     [ManagementCollegeController::class, 'index']);
     Route::get('management/programs',     [ManagementProgramController::class, 'index']);
     Route::get('management/departments',  [ManagementDepartmentController::class, 'index']);
     Route::get('management/form-options', [ManagementFormOptionController::class, 'index']);
+
+    // Document Settings (Revision No. / Effectivity / Ctrl No. shown on the
+    // referral form header) - read access: any authenticated staff, since
+    // both Refer a Student and the Referral Details page display it.
+    Route::get('document-settings/{code}', [DocumentSettingController::class, 'show']);
 
        // Admin only
     Route::middleware('role:admin')->group(function () {
@@ -183,12 +189,16 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('backups/run',           [BackupController::class, 'store']);
         Route::post('backups/restore-data',  [BackupController::class, 'restoreData']);
         Route::post('backups/restore-config',[BackupController::class, 'restoreConfig']);
+
+        // Referral form header - Revision No. / Effectivity / Ctrl No.
+        Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
     });
 
-    // System Admin only - Management page write access (Colleges, Programs,
-    // Departments, Referral Form Options). Deliberately separate from role:admin -
-    // System Admin cannot touch students, referrals, cases, or User Management.
-    Route::middleware('role:system_admin')->group(function () {
+    // Admin and System Admin - Management page write access (Colleges,
+    // Programs, Departments, Referral Form Options). System Admin still
+    // cannot touch students, referrals, cases, or User Management - only
+    // Admin has both this and those.
+    Route::middleware('role:admin,system_admin')->group(function () {
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
         Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);

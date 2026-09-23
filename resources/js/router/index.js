@@ -30,6 +30,10 @@ const STAFF_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
 const GCU_ROLES = ['admin', 'gcu_staff'];
 const ADMIN_ONLY = ['admin'];
 const SYSTEM_ADMIN_ONLY = ['system_admin'];
+// Management page: Admin and System Admin both get write access (Colleges,
+// Programs, Departments, Referral Form Options). System Admin still has no
+// access to students/referrals/cases/Users - only Admin has both.
+const MANAGEMENT_ROLES = ['admin', 'system_admin'];
 const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_secretary'];
 
 const routes = [
@@ -222,7 +226,7 @@ const routes = [
                 path: 'management',
                 name: 'management',
                 component: Management,
-                meta: { roles: SYSTEM_ADMIN_ONLY },
+                meta: { roles: MANAGEMENT_ROLES },
             },
         ],
     },
