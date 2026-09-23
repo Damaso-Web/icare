@@ -95,18 +95,24 @@
           <div class="icard" v-if="caseFile.latest_referral">
             <div class="icard-header">
               <span class="icard-title">Referral Form</span>
-              <span class="ibadge" :class="'ibadge-' + caseFile.latest_referral?.status">{{ toTitleCase(caseFile.latest_referral?.status) }}</span>
+              <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+                <span class="ibadge" :class="'ibadge-' + caseFile.latest_referral?.status">{{ toTitleCase(caseFile.latest_referral?.status) }}</span>
+                <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openReferralStatusModal">
+                  <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                  Update Status
+                </button>
+              </div>
             </div>
 
             <!-- Document Code Header -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-01</div>
-                <div><strong>Revision No.:</strong> 01</div>
+                <div><strong>Revision No.:</strong> {{ referralDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> 07/04/23</div>
-                <div><strong>Ctrl No.:</strong> 25-2</div>
+                <div><strong>Effectivity:</strong> {{ formatDocDate(referralDoc.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ referralDoc.ctrl_no || '-' }}</div>
               </div>
             </div>
 
@@ -529,6 +535,34 @@
             </div>
           </div>
 
+          <!-- Update Referral Status (moved here from the Referral Queue) -->
+          <div class="icard" v-if="showReferralStatusModal">
+            <div class="icard-header">
+              <span class="icard-title">Update Referral Status</span>
+              <button class="ibtn ibtn-g ibtn-sm" @click="showReferralStatusModal = false">✕</button>
+            </div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <select v-model="newReferralStatus" class="ifse">
+                <option
+                  v-for="step in referralPipeline"
+                  :key="step.key"
+                  :value="step.key"
+                  :disabled="!isReferralStatusSelectable(step.key)"
+                >
+                  {{ step.label }}{{ referralStatusOrder.indexOf(step.key) < referralStatusOrder.indexOf(caseFile.latest_referral?.status) ? ' (already completed)' : !isReferralStatusSelectable(step.key) ? ' (complete previous step first)' : '' }}
+                </option>
+              </select>
+              <div style="font-size:11px;color:var(--stone)">Steps must be completed in order — you can only move to the next step in the pipeline.</div>
+              <button
+                class="ibtn ibtn-p"
+                style="width:100%;justify-content:center"
+                :style="{ opacity: !isReferralStatusSelectable(newReferralStatus) ? .5 : 1, cursor: !isReferralStatusSelectable(newReferralStatus) ? 'not-allowed' : 'pointer' }"
+                :disabled="!isReferralStatusSelectable(newReferralStatus)"
+                @click="updateReferralStatus"
+              >Save Status</button>
+            </div>
+          </div>
+
           <!-- Student Info -->
           <div class="icard">
             <div class="icard-header">
@@ -709,7 +743,8 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import { toTitleCase } from '../../utils/validators';
 import { useRoute } from 'vue-router';
-import { caseAPI, sessionNoteAPI, appointmentAPI, caseHandoffAPI, userAPI, caseInterventionAPI } from '../../api/index';
+import axios from 'axios';
+import { caseAPI, sessionNoteAPI, appointmentAPI, caseHandoffAPI, userAPI, caseInterventionAPI, referralAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 
 const route  = useRoute();
@@ -829,6 +864,67 @@ async function updateStatus() {
   } catch (e) {
     toast?.error('Failed to update status.');
   }
+}
+
+// Update Referral Status — moved here from the Referral Queue page, since
+// this is where day-to-day case work happens. Kept separate from the case's
+// own status (above) so the two don't collide.
+const showReferralStatusModal = ref(false);
+const newReferralStatus       = ref('');
+
+const referralPipeline = [
+  { key: 'submitted',    label: 'Submitted' },
+  { key: 'acknowledged', label: 'Acknowledged' },
+  { key: 'in_review',    label: 'In Review' },
+  { key: 'in_progress',  label: 'In Progress' },
+  { key: 'completed',    label: 'Completed' },
+];
+
+const referralStatusOrder = ['submitted', 'acknowledged', 'in_review', 'in_progress', 'completed', 'closed'];
+
+function isReferralStatusSelectable(key) {
+  const current = referralStatusOrder.indexOf(caseFile.value.latest_referral?.status);
+  const target  = referralStatusOrder.indexOf(key);
+  return target === current || target === current + 1;
+}
+
+function openReferralStatusModal() {
+  const current = referralStatusOrder.indexOf(caseFile.value.latest_referral?.status);
+  const next    = referralPipeline[current + 1];
+  newReferralStatus.value = next ? next.key : caseFile.value.latest_referral?.status;
+  showReferralStatusModal.value = true;
+}
+
+async function updateReferralStatus() {
+  try {
+    const res = await referralAPI.updateStatus(caseFile.value.latest_referral.id, { status: newReferralStatus.value });
+    caseFile.value.latest_referral.status = res.data.status;
+    showReferralStatusModal.value = false;
+    toast?.success('Referral status updated.');
+  } catch (e) {
+    toast?.error('Failed to update referral status.');
+  }
+}
+
+// Document Code Header for the Referral Form card (QF-OSS-01) — read only
+// here. Revision No. / Effectivity / Ctrl No. are edited in Management by
+// admin, same as on the Referral Queue's detail page.
+const referralDoc = ref({});
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
+async function fetchReferralDoc() {
+  try {
+    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-01`, authHeaders());
+    referralDoc.value = res.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+function formatDocDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
 }
 
 function confirmCloseCase() {
@@ -970,5 +1066,6 @@ async function fetchCase() {
 
 onMounted(() => {
   fetchCase();
+  fetchReferralDoc();
 });
 </script>

@@ -239,7 +239,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all referral forms, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.referral" @click="saveDocSettings('QF-OSS-01', referralDoc, 'referral')">
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.referral" @click="saveReferralDoc">
             {{ savingDoc.referral ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -273,7 +273,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all feedback slips, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.feedback" @click="saveDocSettings('QF-OSS-03', feedbackDoc, 'feedback')">
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.feedback" @click="saveFeedbackDoc">
             {{ savingDoc.feedback ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -725,6 +725,11 @@ async function saveDocSettings(code, form, key) {
     savingDoc.value[key] = false;
   }
 }
+
+// Called from the template - wrapped so the ref itself (not its auto-unwrapped
+// value) reaches saveDocSettings, which needs the ref to read form.value.
+function saveReferralDoc() { return saveDocSettings('QF-OSS-01', referralDoc, 'referral'); }
+function saveFeedbackDoc() { return saveDocSettings('QF-OSS-03', feedbackDoc, 'feedback'); }
 
 // FormOptionTable - small local render-function component to avoid repeating
 // the same table markup three times (Wellness / Disciplinary / Sources).

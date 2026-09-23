@@ -15,12 +15,6 @@
           <h1>{{ referral.referral_code || 'Referral Details' }}</h1>
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
-        <div v-if="isGCU" style="margin-left:auto;display:flex;gap:8px">
-          <button class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-            Update Status
-          </button>
-        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 340px;gap:16px">
@@ -122,44 +116,6 @@
             </div>
           </div>
 
-          <!-- Feedback Slip - copy sent to the referrer for transparency -->
-          <div class="icard">
-            <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
-
-            <!-- Document Code Header for the Feedback Slip (QF-OSS-03) - read only,
-                 edited in Management. -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
-              <div style="font-size:11px;color:var(--stone)">
-                <div><strong>Document Code:</strong> QF-OSS-03</div>
-                <div><strong>Revision No.:</strong> {{ feedbackDoc.revision_no || '01' }}</div>
-              </div>
-              <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(feedbackDoc.effectivity_date) }}</div>
-                <div><strong>Ctrl No.:</strong> {{ feedbackDoc.ctrl_no || '-' }}</div>
-              </div>
-            </div>
-
-            <div class="icard-body">
-              <template v-if="isGCU">
-                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="sendFeedback">
-                  <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send to Referrer
-                </button>
-                <div v-if="referral.feedback_sent_at" style="font-size:11px;color:var(--fog);margin-top:8px">
-                  Last sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}
-                </div>
-              </template>
-              <template v-else>
-                <div v-if="!referral.feedback_notes" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
-                <div v-else>
-                  <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.feedback_notes }}</div>
-                  <div style="font-size:11px;color:var(--fog);margin-top:8px">Sent {{ formatDate(referral.feedback_sent_at) }}</div>
-                </div>
-              </template>
-            </div>
-          </div>
-
         </div>
 
         <!-- Right -->
@@ -188,36 +144,6 @@
 
         </div>
       </div>
-
-      <!-- Update Referral Status Modal -->
-      <div v-if="showStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showStatusModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Referral Status</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showStatusModal = false">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
-            <select v-model="newStatus" class="ifse">
-              <option
-                v-for="step in pipeline"
-                :key="step.key"
-                :value="step.key"
-                :disabled="!isStatusSelectable(step.key)"
-              >
-                {{ step.label }}{{ statusOrder.indexOf(step.key) < statusOrder.indexOf(referral.status) ? ' (already completed)' : !isStatusSelectable(step.key) ? ' (complete previous step first)' : '' }}
-              </option>
-            </select>
-            <div style="font-size:11px;color:var(--stone)">Steps must be completed in order — you can only move to the next step in the pipeline.</div>
-            <button
-              class="ibtn ibtn-p"
-              style="width:100%;justify-content:center"
-              :style="{ opacity: !isStatusSelectable(newStatus) ? .5 : 1, cursor: !isStatusSelectable(newStatus) ? 'not-allowed' : 'pointer' }"
-              :disabled="!isStatusSelectable(newStatus)"
-              @click="updateStatus"
-            >Save Status</button>
-          </div>
-        </div>
-      </div>
     </template>
   </div>
 </template>
@@ -237,11 +163,6 @@ const loading = ref(true);
 const acknowledging = ref(false);
 const referral = ref({});
 
-const showStatusModal = ref(false);
-const newStatus        = ref('');
-
-const feedbackForm = ref({ feedback_notes: '' });
-
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -249,11 +170,10 @@ function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
 }
 
-// Document Code Headers - read only here. Revision No. / Effectivity /
-// Ctrl No. for both the Referral Slip (QF-OSS-01) and the Feedback Slip
-// (QF-OSS-03) are edited in Management by admin, not on individual referrals.
+// Document Code Header - read only here. Revision No. / Effectivity /
+// Ctrl No. for the Referral Slip (QF-OSS-01) is edited in Management by
+// admin, not on individual referrals.
 const referralDoc = ref({});
-const feedbackDoc = ref({});
 
 async function fetchDocSettings(code, target) {
   try {
@@ -285,19 +205,6 @@ function isStepDone(key) {
   return step < current;
 }
 
-function isStatusSelectable(key) {
-  const current = statusOrder.indexOf(referral.value.status);
-  const target  = statusOrder.indexOf(key);
-  return target === current || target === current + 1;
-}
-
-function openStatusModal() {
-  const current = statusOrder.indexOf(referral.value.status);
-  const next    = pipeline[current + 1];
-  newStatus.value = next ? next.key : referral.value.status;
-  showStatusModal.value = true;
-}
-
 function isCurrentStep(key) {
   return referral.value.status === key;
 }
@@ -319,43 +226,15 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-async function sendFeedback() {
-  if (!feedbackForm.value.feedback_notes) {
-    toast?.error('Please write a feedback summary before sending.');
-    return;
-  }
-  try {
-    const res = await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
-    referral.value = { ...referral.value, ...res.data };
-    toast?.success('Feedback sent to referrer.');
-  } catch (e) {
-    toast?.error('Failed to send feedback.');
-  }
-}
-
-async function updateStatus() {
-  try {
-    const res = await referralAPI.updateStatus(referral.value.id, { status: newStatus.value });
-    referral.value.status = res.data.status;
-    showStatusModal.value = false;
-    toast?.success('Referral status updated.');
-  } catch (e) {
-    toast?.error('Failed to update status.');
-  }
-}
-
 onMounted(async () => {
   try {
     const res = await referralAPI.show(route.params.id);
     referral.value = res.data;
-    feedbackForm.value.feedback_notes = res.data.feedback_notes || '';
-    newStatus.value = res.data.status || '';
   } catch (e) {
     console.error(e);
   } finally {
     loading.value = false;
   }
   fetchDocSettings('QF-OSS-01', referralDoc);
-  fetchDocSettings('QF-OSS-03', feedbackDoc);
 });
 </script>
