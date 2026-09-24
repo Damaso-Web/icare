@@ -10,10 +10,12 @@
        otherwise (see the "headerTitle" computed).
     2. Update Status / Update Case Status buttons hidden.
     3. Edit / Archive buttons on the Referral Info panel hidden.
-    4. Service Slips panel hidden.
+    4. Service Slips panel removed entirely.
     5. Summary strip's first cell now swaps label+value: "Referral Number"
        / REF-code when fromCases, "Case Number" / CASE-number otherwise.
     6. Added "On Observation" to the Update Case Status dropdown.
+    7. Session Notes entries now show the session date in the header
+       instead of the session type (e.g. "Session #1 - Sep 24, 2026").
 
   Follow-up Session (SIF only):
     "Flag Follow-up" (the case-level purple flag) has been removed entirely.
@@ -21,7 +23,12 @@
     opening a detail modal where GCU staff can view, add, and edit that
     follow-up's notes (saveFollowUpNotes -> appointmentAPI.update), the
     same way Previous Interventions/Session Notes work as click-to-view
-    entries. Scheduling still uses the existing "Schedule Follow-up" button.
+    entries. "Schedule Follow-up" still opens its own in-page modal (not
+    a link elsewhere) - it books through appointmentAPI.store with
+    appointment_type: 'follow_up_session', so it lands in the student's
+    appointments correctly labeled "Follow Up Session", and the modal now
+    shows the Referral code (referral.referral_code) in its header so
+    staff can see which referral the follow-up is tied to while booking.
 -->
 <template>
   <div class="fade-up">
@@ -390,9 +397,8 @@
               <div v-for="note in sessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">
-                    Session #{{ note.session_number }} - {{ toTitleCase(note.session_type) }}
+                    Session #{{ note.session_number }} - {{ formatDate(note.session_date) }}
                   </div>
-                  <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
                 </div>
                 <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
                   {{ note.session_start_time }} - {{ note.session_end_time }}
@@ -551,33 +557,6 @@
             </div>
           </div>
 
-          <!-- Service Slips - now a Student Information Files action, like the
-               other case actions; the Referral Queue only displays details. -->
-          <div class="icard" v-if="isGCU && fromCases">
-            <div class="icard-header"><span class="icard-title">Service Slips</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('admission')">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Admission Slip
-              </button>
-              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('call')">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Call Slip
-              </button>
-              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('feedback')">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Feedback Slip
-              </button>
-              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('followup')">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Follow Up Slip
-              </button>
-              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('parent')">
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Parent Conference Slip
-              </button>
-            </div>
-          </div>
 
           <!-- Appointments (scoped to this referral only) - Student Information Files only -->
           <div class="icard" v-if="referral.case && fromCases">
@@ -650,7 +629,10 @@
       <div v-if="showFollowUpModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFollowUpModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Schedule Follow-up Session</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Schedule Follow-up Session</div>
+              <div style="font-size:12px;color:var(--stone)">Referral {{ referral.referral_code }}</div>
+            </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showFollowUpModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -1094,10 +1076,6 @@ async function acknowledge() {
   } finally {
     acknowledging.value = false;
   }
-}
-
-function printSlip(type) {
-  toast?.success(`Generating ${type} slip... (coming soon)`);
 }
 
 function formatDate(date) {

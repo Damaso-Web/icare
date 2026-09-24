@@ -42,14 +42,22 @@
             <span class="ibadge" :class="'unit-' + appointment.unit?.toLowerCase()">{{ appointment.unit }}</span>
           </div>
           <div v-if="referralSource">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">For Referral</div>
+            <div style="font-size:13px;color:var(--ink)">{{ referralSource.referral_code }} · {{ toTitleCase(referralSource.referral_type) }}</div>
+          </div>
+          <div v-if="referralSource?.referrer_name">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
+            <div style="font-size:13px;color:var(--ink)">{{ referralSource.referrer_name }}<span v-if="referralSource.referrer_role"> ({{ toTitleCase(referralSource.referrer_role) }})</span></div>
+          </div>
+          <div v-if="referralSource?.created_at">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Referred</div>
+            <div style="font-size:13px;color:var(--ink)">{{ formatDate(referralSource.created_at) }}</div>
+          </div>
+          <div v-if="referralSource">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Reason for Referral / Concern</div>
             <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm)">
               {{ referralSource.nature_of_concern || '-' }}
             </div>
-          </div>
-          <div v-if="referralSource">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">For Referral</div>
-            <div style="font-size:13px;color:var(--ink)">{{ referralSource.referral_code }} · {{ toTitleCase(referralSource.referral_type) }}</div>
           </div>
           <div v-if="appointment.staff">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Assigned Staff</div>

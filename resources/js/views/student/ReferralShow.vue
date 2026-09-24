@@ -29,6 +29,10 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
             <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.created_at) }}</div>
           </div>
+          <div v-if="referral.referrer_name">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
+            <div style="font-size:13px;color:var(--ink)">{{ referral.referrer_name }}<span v-if="referral.referrer_role"> ({{ toTitleCase(referral.referrer_role) }})</span></div>
+          </div>
           <div v-if="referral.nature_of_concern">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Concern</div>
             <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm)">{{ referral.nature_of_concern }}</div>
