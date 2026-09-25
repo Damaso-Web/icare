@@ -11,9 +11,13 @@
       <select v-model="filterStatus" class="fsm" @change="fetchRecords">
         <option value="">All Status</option>
         <option value="pending">Pending</option>
+        <option value="fee_form_pending">Fee Form Pending</option>
+        <option value="or_submitted">OR Submitted</option>
         <option value="scheduled">Scheduled</option>
         <option value="in_progress">In Progress</option>
         <option value="completed">Completed</option>
+        <option value="par_scheduled">PAR Scheduled</option>
+        <option value="report_sent">Report Sent</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
@@ -99,10 +103,49 @@
             <label class="ifl">Status</label>
             <select v-model="selectedRecord.status" class="ifse">
               <option value="pending">Pending</option>
+              <option value="fee_form_pending">Fee Form Pending</option>
+              <option value="or_submitted">OR Submitted</option>
               <option value="scheduled">Scheduled</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
+              <option value="par_scheduled">PAR Scheduled</option>
+              <option value="report_sent">Report Sent</option>
             </select>
+          </div>
+
+          <!-- OR Photo (uploaded by the student when requesting their testing schedule) -->
+          <div v-if="selectedRecord.or_photo_path" style="background:var(--foam);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss);margin-bottom:6px">OR Submitted by Student</div>
+            <div style="font-size:12px;color:var(--stone);margin-bottom:8px">{{ selectedRecord.or_photo_original_name || 'or-photo' }} · {{ formatDate(selectedRecord.or_uploaded_at) }}</div>
+            <button class="ibtn ibtn-o ibtn-sm" @click="viewOrPhoto" :disabled="loadingOrPhoto">
+              {{ loadingOrPhoto ? 'Loading...' : 'View OR Photo' }}
+            </button>
+          </div>
+
+          <!-- Schedule Testing (once the student has submitted their OR) -->
+          <div v-if="selectedRecord.status === 'or_submitted'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule Testing Appointment</div>
+            <input v-model="testingForm.appointment_date" type="date" class="ifi" />
+            <div style="display:flex;gap:8px">
+              <input v-model="testingForm.start_time" type="time" class="ifi" style="flex:1" />
+              <input v-model="testingForm.end_time" type="time" class="ifi" style="flex:1" />
+            </div>
+            <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving">
+              {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
+            </button>
+          </div>
+
+          <!-- Schedule PAR release (once testing is completed) -->
+          <div v-if="selectedRecord.status === 'completed'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule PAR Release</div>
+            <input v-model="parForm.appointment_date" type="date" class="ifi" />
+            <div style="display:flex;gap:8px">
+              <input v-model="parForm.start_time" type="time" class="ifi" style="flex:1" />
+              <input v-model="parForm.end_time" type="time" class="ifi" style="flex:1" />
+            </div>
+            <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving">
+              {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
+            </button>
           </div>
 
           <!-- Test Administered By -->
@@ -137,12 +180,12 @@
             </div>
           </div>
 
-          <!-- Attach File -->
+          <!-- Attach File (sent to GCU together with the PAR report below) -->
           <div>
-            <label class="ifl">Attach Result / Report</label>
+            <label class="ifl">Attach PAR / Result File</label>
             <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" @change="handleFileUpload" />
             <div v-if="selectedRecord.attached_file" style="font-size:12px;color:var(--moss);margin-top:4px">
-              ✓ File attached: {{ selectedRecord.attached_file }}
+              ✓ File ready to send: {{ selectedRecord.attached_file }}
             </div>
           </div>
 
@@ -183,7 +226,7 @@
             <button
               class="ibtn ibtn-blue"
               @click="sendToGcu"
-              v-if="selectedRecord.status === 'completed'"
+              v-if="selectedRecord.status === 'completed' || selectedRecord.status === 'par_scheduled'"
               :disabled="saving"
             >
               Send Report to GCU
@@ -208,7 +251,12 @@ const filterStatus = ref('');
 const selectedRecord = ref(null);
 const loading      = ref(true);
 const saving       = ref(false);
+const loadingOrPhoto = ref(false);
 const records      = ref([]);
+const selectedFile = ref(null);
+
+const testingForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+const parForm      = ref({ appointment_date: '', start_time: '', end_time: '' });
 
 // Psychological tests only
 const availableTests = [
@@ -225,18 +273,21 @@ const availableTests = [
 const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
 
 const stats = computed(() => [
-  { label: 'Pending',     value: records.value.filter(r => r.status === 'pending').length,     iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label: 'In Progress', value: records.value.filter(r => r.status === 'in_progress').length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { label: 'Completed',   value: records.value.filter(r => r.status === 'completed').length,   iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Pending',     value: records.value.filter(r => r.status === 'pending' || r.status === 'fee_form_pending' || r.status === 'or_submitted').length, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+  { label: 'In Progress', value: records.value.filter(r => r.status === 'scheduled' || r.status === 'in_progress').length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { label: 'Completed',   value: records.value.filter(r => ['completed', 'par_scheduled', 'report_sent'].includes(r.status)).length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
 ]);
 
 function statusBadge(status) {
   return {
-    pending:     'ibadge-pending',
-    scheduled:   'ibadge-scheduled',
-    in_progress: 'ibadge-in_progress',
-    completed:   'ibadge-completed',
-    report_sent: 'ibadge-closed',
+    pending:           'ibadge-pending',
+    fee_form_pending:  'ibadge-pending',
+    or_submitted:      'ibadge-scheduled',
+    scheduled:         'ibadge-scheduled',
+    in_progress:       'ibadge-in_progress',
+    completed:         'ibadge-completed',
+    par_scheduled:     'ibadge-scheduled',
+    report_sent:       'ibadge-closed',
   }[status] || 'ibadge-pending';
 }
 
@@ -258,6 +309,9 @@ function openRecord(t) {
     tests_administered: [...(t.tests_administered || [])],
     tester_name: t.tester?.name || '',
   };
+  selectedFile.value = null;
+  testingForm.value = { appointment_date: '', start_time: '', end_time: '' };
+  parForm.value = { appointment_date: '', start_time: '', end_time: '' };
 }
 
 function toggleTest(test) {
@@ -270,7 +324,57 @@ function toggleTest(test) {
 function handleFileUpload(event) {
   const file = event.target.files[0];
   if (file) {
+    selectedFile.value = file;
     selectedRecord.value.attached_file = file.name;
+  }
+}
+
+async function viewOrPhoto() {
+  loadingOrPhoto.value = true;
+  try {
+    const res = await testingAPI.orPhoto(selectedRecord.value.id);
+    const url = URL.createObjectURL(res.data);
+    window.open(url, '_blank');
+  } catch (e) {
+    toast?.error('Failed to load OR photo.');
+  } finally {
+    loadingOrPhoto.value = false;
+  }
+}
+
+async function confirmScheduleTesting() {
+  if (!testingForm.value.appointment_date || !testingForm.value.start_time || !testingForm.value.end_time) {
+    toast?.error('Please fill in the date and time.');
+    return;
+  }
+  saving.value = true;
+  try {
+    await testingAPI.scheduleTesting(selectedRecord.value.id, testingForm.value);
+    toast?.success('Testing appointment scheduled. Student has been notified.');
+    selectedRecord.value = null;
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to schedule testing appointment.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function confirmSchedulePar() {
+  if (!parForm.value.appointment_date || !parForm.value.start_time || !parForm.value.end_time) {
+    toast?.error('Please fill in the date and time.');
+    return;
+  }
+  saving.value = true;
+  try {
+    await testingAPI.schedulePar(selectedRecord.value.id, parForm.value);
+    toast?.success('PAR release appointment scheduled. Student has been notified.');
+    selectedRecord.value = null;
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to schedule PAR release.');
+  } finally {
+    saving.value = false;
   }
 }
 
@@ -320,11 +424,15 @@ async function acknowledgeReferral() {
 async function sendToGcu() {
   saving.value = true;
   try {
-    await testingAPI.sendToGcu(selectedRecord.value.id, {
-      assessment_summary: selectedRecord.value.assessment_summary,
-      findings:           selectedRecord.value.findings,
-      recommendations:    selectedRecord.value.recommendations,
-    });
+    const formData = new FormData();
+    formData.append('assessment_summary', selectedRecord.value.assessment_summary || '');
+    formData.append('findings', selectedRecord.value.findings || '');
+    formData.append('recommendations', selectedRecord.value.recommendations || '');
+    if (selectedFile.value) {
+      formData.append('report_file', selectedFile.value);
+    }
+
+    await testingAPI.sendToGcu(selectedRecord.value.id, formData);
     selectedRecord.value = null;
     toast?.success('Report sent to GCU successfully.');
     await fetchRecords();

@@ -58,7 +58,7 @@
             </svg>
             <span v-if="unreadCount > 0" style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff"></span>
           </button>
-          <span style="font-size:13px;color:var(--stone)">{{ student.email }}</span>
+          <span style="font-size:13px;color:var(--stone)">{{ student.student_id }}</span>
         </div>
 
         <div v-if="showNotifs" style="position:absolute;top:52px;right:24px;width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);border:1px solid var(--cloud);z-index:100;overflow:hidden">
@@ -158,6 +158,7 @@ const menuItems = [
   { name: 'student-dashboard', label: 'Dashboard', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
   { name: 'student-appointments', label: 'My Appointments', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
   { name: 'student-referrals', label: 'My Referrals', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { name: 'student-testing', label: 'My Testing', icon: '<path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/>' },
   { name: 'student-account', label: 'My Account', icon: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>' },
 ];
 
@@ -166,6 +167,7 @@ const pageTitle = computed(() => {
     'student-dashboard':    'Dashboard',
     'student-appointments': 'My Appointments',
     'student-referrals':    'My Referrals',
+    'student-testing':      'My Testing',
     'student-account':      'My Account',
   };
   return titles[route.name] || 'iCARE';

@@ -158,12 +158,15 @@ export const appointmentAPI = {
 };
 
 export const testingAPI = {
-    index:        (params)   => api.get('/testing-records', { params }),
-    show:         (id)       => api.get(`/testing-records/${id}`),
-    update:       (id, data) => api.put(`/testing-records/${id}`, data),
-    updateStatus: (id, data) => api.patch(`/testing-records/${id}/status`, data),
-    sendToGcu:    (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data),
-    acknowledge:  (id)       => api.post(`/testing-records/${id}/acknowledge`),
+    index:          (params)   => api.get('/testing-records', { params }),
+    show:           (id)       => api.get(`/testing-records/${id}`),
+    update:         (id, data) => api.put(`/testing-records/${id}`, data),
+    updateStatus:   (id, data) => api.patch(`/testing-records/${id}/status`, data),
+    sendToGcu:      (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
+    acknowledge:    (id)       => api.post(`/testing-records/${id}/acknowledge`),
+    scheduleTesting:(id, data) => api.post(`/testing-records/${id}/schedule-testing`, data),
+    schedulePar:    (id, data) => api.post(`/testing-records/${id}/schedule-par`, data),
+    orPhoto:        (id)       => api.get(`/testing-records/${id}/or-photo`, { responseType: 'blob' }),
 };
 
 export const reportAPI = {
@@ -232,4 +235,12 @@ export const studentAppointmentAPI = {
     store:         (data)   => studentApi.post('/student/appointments', data),
     show:          (id)     => studentApi.get(`/student/appointments/${id}`),
     checkConflict: (data)   => studentApi.post('/student/appointments/check-conflict', data),
+};
+
+// Testing (TMDU) - student side: view own testing record(s) and submit the
+// OR photo to request a testing schedule.
+export const studentTestingAPI = {
+    index:          ()       => studentApi.get('/student/testing-records'),
+    show:           (id)     => studentApi.get(`/student/testing-records/${id}`),
+    requestTesting: (id, formData) => studentApi.post(`/student/testing-records/${id}/request-testing`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };

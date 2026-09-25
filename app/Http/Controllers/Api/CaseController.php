@@ -12,6 +12,7 @@ use App\Notifications\CaseHandoffNotification;
 use App\Notifications\HandoffAcknowledgedNotification;
 use App\Notifications\UnreachableStudentNotification;
 use App\Notifications\TestingReferralNotification;
+use App\Notifications\ReferredToTmduNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 
@@ -52,11 +53,22 @@ class CaseController extends Controller
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
             ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
             ->when($request->filled('requires_follow_up'), fn($q) => $q->where('requires_follow_up', $request->boolean('requires_follow_up')))
-            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-                $s->where('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('student_id', 'like', "%{$request->search}%")
-            ));
+            // Previously this only matched against the student's name/ID, never
+            // the case number itself - so typing a case number (e.g. "001")
+            // silently fell through to a student_id substring match instead,
+            // surfacing unrelated cases. Search both, grouped so it still ANDs
+            // correctly with the other filters above.
+            ->when($request->search, function ($q) use ($request) {
+                $search = $request->search;
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('case_number', 'like', "%{$search}%")
+                       ->orWhereHas('student', fn($s) =>
+                            $s->where('first_name', 'like', "%{$search}%")
+                              ->orWhere('last_name', 'like', "%{$search}%")
+                              ->orWhere('student_id', 'like', "%{$search}%")
+                        );
+                });
+            });
 
         if ($user->isTMDUStaff()) {
             $query->where('current_unit', 'TMDU');
@@ -199,6 +211,12 @@ class CaseController extends Controller
 
         $tmduStaff = User::where('role', 'tmdu_staff')->where('is_active', true)->get();
         Notification::send($tmduStaff, new TestingReferralNotification($case));
+
+        // Let the student know they've been referred to TMDU for testing -
+        // separate from the TMDU-staff notification above.
+        if ($case->student) {
+            Notification::send($case->student, new ReferredToTmduNotification($case));
+        }
 
         return response()->json(['case' => $case, 'testing_record' => $testing]);
     }

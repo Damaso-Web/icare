@@ -261,6 +261,14 @@ class AppointmentController extends Controller
         'cancelled_by_user_id' => $request->user()->id,
     ]);
 
+        // The linked referral was moved to 'scheduled'/'in_progress' when this
+        // appointment was booked/confirmed (see PublicSchedulingController::submit
+        // and self::confirm). Cancelling the appointment has to undo that, or the
+        // referral is left showing a stage it's no longer actually in.
+        if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
+            $appointment->case->latestReferral->update(['status' => 'pending']);
+        }
+
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
         return response()->json($appointment);
     }
@@ -282,6 +290,10 @@ class AppointmentController extends Controller
             'cancellation_reason' => $request->cancellation_reason,
             'cancelled_at'        => now(),
         ]);
+
+        if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
+            $appointment->case->latestReferral->update(['status' => 'pending']);
+        }
 
         AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->cancellation_reason}", $appointment);
 

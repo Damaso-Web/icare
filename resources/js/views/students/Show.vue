@@ -392,15 +392,14 @@
       <!-- Reassign Counselor Modal -->
       <div v-if="showAssignModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAssignModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Reassign Counselor</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showAssignModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
               <select v-model="assignForm.to_user_id" class="ifse">
-                <option value="">Select staff member...</option>
+                <option value="" disabled>Select staff member...</option>
                 <option v-for="u in assignStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>

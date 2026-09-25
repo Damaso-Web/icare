@@ -136,9 +136,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Testing Records
     Route::apiResource('testing-records', TestingRecordController::class);
-    Route::patch('testing-records/{testingRecord}/status',      [TestingRecordController::class, 'updateStatus']);
-    Route::post('testing-records/{testingRecord}/send-to-gcu',  [TestingRecordController::class, 'sendToGcu']);
-    Route::post('testing-records/{testingRecord}/acknowledge',  [TestingRecordController::class, 'acknowledge']);
+    Route::patch('testing-records/{testingRecord}/status',           [TestingRecordController::class, 'updateStatus']);
+    Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);
+    Route::post('testing-records/{testingRecord}/acknowledge',       [TestingRecordController::class, 'acknowledge']);
+    Route::post('testing-records/{testingRecord}/schedule-testing',  [TestingRecordController::class, 'scheduleTesting']);
+    Route::post('testing-records/{testingRecord}/schedule-par',      [TestingRecordController::class, 'schedulePar']);
+    Route::get('testing-records/{testingRecord}/or-photo',           [TestingRecordController::class, 'orPhoto']);
 
     // Documents
     Route::post('documents/upload',                [DocumentController::class, 'upload']);
@@ -243,4 +246,9 @@ Route::middleware('auth:student')->group(function () {
     Route::get('student/notifications', [NotificationController::class, 'index']);
     Route::post('student/notifications/{id}/read', [NotificationController::class, 'markRead']);
     Route::post('student/notifications/read-all', [NotificationController::class, 'markAllRead']);
+
+    // Testing (TMDU) - student side
+    Route::get('student/testing-records',      [StudentAuthController::class, 'testingRecords']);
+    Route::get('student/testing-records/{id}', [StudentAuthController::class, 'showTestingRecord']);
+    Route::post('student/testing-records/{testingRecord}/request-testing', [TestingRecordController::class, 'requestTestingByStudent']);
 });

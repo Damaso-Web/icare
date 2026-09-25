@@ -24,6 +24,9 @@ class TestingRecord extends Model
         'recommendations',
         'report_sent_to_gcu',
         'report_sent_at',
+        'or_photo_path',
+        'or_photo_original_name',
+        'or_uploaded_at',
     ];
 
     protected $casts = [
@@ -32,6 +35,7 @@ class TestingRecord extends Model
         'report_date'        => 'date',
         'report_sent_to_gcu' => 'boolean',
         'report_sent_at'     => 'datetime',
+        'or_uploaded_at'     => 'datetime',
     ];
 
     // Relationships
@@ -40,4 +44,9 @@ class TestingRecord extends Model
     public function referredBy() { return $this->belongsTo(User::class, 'referred_by_user_id'); }
     public function tester()     { return $this->belongsTo(User::class, 'assigned_tester_user_id'); }
     public function documents()  { return $this->morphMany(Document::class, 'documentable'); }
+
+    // Appointments aren't owned by a specific TestingRecord directly (no FK
+    // column for it), but every testing-workflow appointment shares this
+    // record's case_id - same pattern CaseFile::appointments() already uses.
+    public function appointments() { return $this->hasMany(Appointment::class, 'case_id', 'case_id'); }
 }

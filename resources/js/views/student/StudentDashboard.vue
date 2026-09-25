@@ -91,7 +91,10 @@ async function fetchData() {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     referrals.value = res.data.referrals || [];
-    pendingAppointments.value = res.data.pending_appointments || [];
+    // Matches the same fallback used in the student Appointments list - if the
+    // API ever sends the singular `pending_appointment` instead of the plural
+    // array, this banner shouldn't just silently disappear.
+    pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
   } catch (e) {
     console.error(e);
   } finally {

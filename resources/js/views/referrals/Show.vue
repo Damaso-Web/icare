@@ -678,8 +678,10 @@
               {{ followUpError }}
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="saveFollowUp">Schedule Follow-up</button>
-              <button class="ibtn ibtn-o" @click="showFollowUpModal = false">Cancel</button>
+              <button class="ibtn ibtn-p" @click="saveFollowUp" :disabled="schedulingFollowUp">
+                {{ schedulingFollowUp ? 'Scheduling...' : 'Schedule Follow-up' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="showFollowUpModal = false" :disabled="schedulingFollowUp">Cancel</button>
             </div>
           </div>
         </div>
@@ -910,6 +912,7 @@ const followUps          = ref([]);
 const staffList          = ref([]);
 const showFollowUpModal  = ref(false);
 const followUpError      = ref('');
+const schedulingFollowUp = ref(false);
 
 const showStatusModal      = ref(false);
 const showCaseStatusModal  = ref(false);
@@ -1326,11 +1329,13 @@ function openFollowUpModal() {
 }
 
 async function saveFollowUp() {
+  if (schedulingFollowUp.value) return; // guard against double-click / double-submit
   followUpError.value = '';
   if (!followUpForm.value.appointment_date || !followUpForm.value.start_time || !followUpForm.value.end_time) {
     followUpError.value = 'Please fill in the date and time.';
     return;
   }
+  schedulingFollowUp.value = true;
   try {
     const res = await appointmentAPI.store({
       case_id:           referral.value.case.id,
@@ -1344,11 +1349,17 @@ async function saveFollowUp() {
       end_time:          followUpForm.value.end_time,
       notes:             followUpForm.value.notes,
     });
-    followUps.value.push(res.data);
+    // Guard against the same follow-up landing in the list twice (e.g. if a
+    // slow request resolves after a retry already added it).
+    if (!followUps.value.some(f => f.id === res.data.id)) {
+      followUps.value.push(res.data);
+    }
     showFollowUpModal.value = false;
     toast?.success('Follow-up session scheduled.');
   } catch (e) {
     followUpError.value = e.response?.data?.message || 'Failed to schedule follow-up.';
+  } finally {
+    schedulingFollowUp.value = false;
   }
 }
 

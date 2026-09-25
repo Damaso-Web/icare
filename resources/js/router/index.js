@@ -97,6 +97,11 @@ const routes = [
                 component: () => import('../views/student/ReferralShow.vue'),
             },
             {
+                path: 'testing',
+                name: 'student-testing',
+                component: () => import('../views/student/Testing.vue'),
+            },
+            {
                 path: 'account',
                 name: 'student-account',
                 component: () => import('../views/student/Account.vue'),

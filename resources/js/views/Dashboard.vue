@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Welcome back, {{ firstName }}!</h1>
+      <h1>{{ greeting }}, {{ firstName }}!</h1>
       <p>Here's what needs your attention today.</p>
     </div>
 
@@ -191,7 +191,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
@@ -213,6 +213,13 @@ function goToReferral(c) {
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 
+const greeting = computed(() => {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+});
+
 
 const isEmpty = computed(() => {
   const d = dashboard.value;
@@ -226,7 +233,7 @@ const stats = computed(() => {
   const s = dashboard.value.stats || {};
   if (auth.isAdmin || auth.isGCUStaff) {
     return [
-      { label: 'Open Cases',         value: s.open_cases         ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases' },
+      { label: 'Open Cases',         value: s.open_cases         ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases', status: 'open' },
       { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', route: 'referrals' },
       { label: 'High Priority',      value: s.high_priority      ?? 0, period: 'Urgent',  iconBg: 'var(--red-lt)',    iconColor: 'var(--red)',    icon: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>', route: 'referrals' },
       { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'appointments' },
@@ -234,7 +241,7 @@ const stats = computed(() => {
   }
   if (auth.isSDUHead) {
     return [
-      { label: 'Active Cases',       value: s.active_cases       ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases' },
+      { label: 'Active Cases',       value: s.active_cases       ?? 0, period: 'Active',  iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>', route: 'cases', status: 'open' },
       { label: 'Pending Referrals',  value: s.pending_referrals  ?? 0, period: 'Inbox',   iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>', route: 'referrals' },
       { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'appointments' },
     ];
@@ -257,7 +264,7 @@ const stats = computed(() => {
 
 function goToStat(stat) {
   if (!stat.route) return;
-  router.push({ name: stat.route });
+  router.push({ name: stat.route, query: stat.status ? { status: stat.status } : {} });
 }
 
 function initials(first, last) {
@@ -272,14 +279,29 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-onMounted(async () => {
+// Re-fetches in the background on an interval so the stat cards stay live
+// without the person needing to leave and come back to the page. `loading`
+// is only touched on the very first load, so refreshes don't flash the
+// spinner over the whole page.
+let refreshTimer = null;
+
+async function fetchDashboard(isInitial = false) {
   try {
     const res = await api.get('/dashboard');
     dashboard.value = res.data;
   } catch (e) {
     console.error(e);
   } finally {
-    loading.value = false;
+    if (isInitial) loading.value = false;
   }
+}
+
+onMounted(() => {
+  fetchDashboard(true);
+  refreshTimer = setInterval(() => fetchDashboard(false), 30000);
+});
+
+onUnmounted(() => {
+  if (refreshTimer) clearInterval(refreshTimer);
 });
 </script>

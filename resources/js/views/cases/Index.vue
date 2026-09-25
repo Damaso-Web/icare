@@ -109,8 +109,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { caseAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+
+const route = useRoute();
 
 const cases      = ref([]);
 const loading    = ref(true);
@@ -150,5 +153,13 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-onMounted(() => fetchCases());
+onMounted(() => {
+  // Arriving from a Dashboard stat card (?status=open) pre-filters the list
+  // to match what the card said, instead of dumping the user on an
+  // unfiltered "All Status" view.
+  if (route.query.status && typeof route.query.status === 'string') {
+    filters.value.status = route.query.status;
+  }
+  fetchCases();
+});
 </script>

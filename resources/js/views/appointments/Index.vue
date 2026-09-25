@@ -579,8 +579,8 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { unit: '', status: 'pending', date: '' };
-  showClosed.value = false;
+  filters.value = { unit: '', status: showClosed.value ? 'completed,cancelled' : 'pending,confirmed,no_show', date: '' };
+  previewDate.value = null;
   fetchAppointments();
 }
 

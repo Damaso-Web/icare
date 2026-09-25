@@ -17,12 +17,21 @@ class AuthController extends Controller
             'password' => 'required|string',
         ]);
 
-        $user = User::where('email', $request->email)
-            ->where('is_active', true)
-            ->first();
+        // Split into distinct checks so the person actually knows what to fix,
+        // instead of a single blanket "Invalid credentials." for three very
+        // different situations.
+        $user = User::where('email', $request->email)->first();
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
-            return response()->json(['message' => 'Invalid credentials.'], 401);
+        if (!$user) {
+            return response()->json(['message' => 'No BSU Personnel account was found with that email address.'], 401);
+        }
+
+        if (!$user->is_active) {
+            return response()->json(['message' => 'This account has been deactivated. Please contact the OSS administrator.'], 401);
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Incorrect password. Please try again.'], 401);
         }
 
         $user->update(['last_login_at' => now()]);

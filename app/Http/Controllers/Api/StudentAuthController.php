@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Student;
+use App\Models\TestingRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -150,6 +151,32 @@ public function showAppointment(Request $request, $id)
     $student = $request->user('student');
     $appointment = $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->findOrFail($id);
     return response()->json($appointment);
+}
+
+// Powers the new "My Testing" student page - lists every TMDU testing
+// record tied to this student (GCU->TMDU referral, fee form pickup, OR
+// submission, testing schedule, PAR), newest first.
+public function testingRecords(Request $request)
+{
+    $student = $request->user('student');
+
+    $records = TestingRecord::where('student_id', $student->id)
+        ->with(['case', 'tester'])
+        ->latest()
+        ->get();
+
+    return response()->json($records);
+}
+
+public function showTestingRecord(Request $request, $id)
+{
+    $student = $request->user('student');
+
+    $record = TestingRecord::where('student_id', $student->id)
+        ->with(['case.latestReferral', 'tester', 'documents'])
+        ->findOrFail($id);
+
+    return response()->json($record);
 }
 
 }
