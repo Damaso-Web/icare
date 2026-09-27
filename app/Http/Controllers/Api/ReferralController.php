@@ -162,6 +162,11 @@ class ReferralController extends Controller
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
             'case.counselor', 'case.referrals', 'case.appointments.staff',
+            // For a disciplinary referral filed together with a Complaint
+            // ("Incident Report"), pull in the full complaint + its evidence
+            // so referrals/Show.vue can render it in place of the normal
+            // Referral Info panel once acknowledged.
+            'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
         ]);
 
         $relatedConcerns = $referral->case

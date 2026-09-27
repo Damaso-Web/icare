@@ -57,4 +57,11 @@ class Complaint extends Model
     {
         return $this->hasMany(ComplaintAttachment::class);
     }
+
+    // The disciplinary Referral this Complaint was filed together with
+    // (ComplaintController::store() creates both in one request).
+    public function referral()
+    {
+        return $this->hasOne(Referral::class);
+    }
 }

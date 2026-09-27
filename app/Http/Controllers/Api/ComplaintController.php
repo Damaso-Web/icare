@@ -104,6 +104,7 @@ class ComplaintController extends Controller
         $referral = Referral::create([
             'student_id'           => $student->id,
             'case_id'              => $case->id,
+            'complaint_id'         => $complaint->id,
             'referral_type'        => 'disciplinary',
             'nature_of_concern'    => $validated['description'],
             'urgency_level'        => 'medium',

@@ -20,7 +20,7 @@ class CaseInterventionController extends Controller
 
         $validated = $request->validate([
             'referral_id' => 'nullable|exists:referrals,id',
-            'type'        => 'required|in:previous_intervention,follow_up,parent_conference,home_visit,referral_external,other',
+            'type'        => 'required|in:previous_intervention,follow_up,parent_conference,home_visit,referral_external,sanction,detailed_report,other',
             'description' => 'required|string',
             'excused'     => 'nullable|boolean',
         ]);

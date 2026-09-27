@@ -89,7 +89,7 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Current Unit</div>
             <span class="ibadge" :class="'unit-' + referral.case.current_unit?.toLowerCase()">{{ referral.case.current_unit }}</span>
           </div>
-          <div>
+          <div v-if="!isIncidentReport">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Counselor</div>
             <div style="font-size:13px;color:var(--ink)">{{ referral.case.counselor?.name || '-' }}</div>
           </div>
@@ -111,7 +111,7 @@
 
       <!-- Status Pipeline - full width, not confined to the left column -->
       <div class="icard" style="margin-bottom:16px">
-        <div class="icard-header"><span class="icard-title">Referral Status</span></div>
+        <div class="icard-header"><span class="icard-title">{{ isIncidentReport ? 'Incident Report Status' : 'Referral Status' }}</span></div>
         <div style="padding:16px 18px">
           <div style="display:flex;gap:0;overflow-x:auto">
             <div
@@ -136,8 +136,83 @@
         <!-- Left -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
+          <!-- Incident Report - the whole filed Complaint plus its evidence,
+               shown in place of Referral Info once a Complaint-originated
+               referral (disciplinary, filed via ComplaintController::store())
+               has been acknowledged. -->
+          <div class="icard" v-if="isIncidentReport">
+            <div class="icard-header">
+              <span class="icard-title">Incident Report</span>
+            </div>
+            <div class="icard-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainant</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.complaint?.complainant_name || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainant Address</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.complaint?.complainant_address || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainee</div>
+                  <div style="font-size:13px;color:var(--ink)">
+                    {{ referral.complaint?.complainee?.last_name }}, {{ referral.complaint?.complainee?.first_name }}
+                    <span style="color:var(--fog);font-family:var(--mono)">({{ referral.complaint?.complainee?.student_id }})</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainee Position</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.complaint?.complainee_position || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College / Department / Office</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ [referral.complaint?.complainee_college, referral.complaint?.complainee_department, referral.complaint?.complainee_office].filter(Boolean).join(' / ') || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainee Address</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.complaint?.complainee_address || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Violation Type</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.complaint?.violation_type || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date of Incident</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.complaint?.incident_date) }}</div>
+                </div>
+              </div>
+              <div style="margin-bottom:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Narration of Facts</div>
+                <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);white-space:pre-line">{{ referral.complaint?.description || '-' }}</div>
+              </div>
+              <div v-if="referral.complaint?.attachments?.length">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Evidence / Affidavit</div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <a
+                    v-for="att in referral.complaint.attachments"
+                    :key="att.id"
+                    :href="attachmentUrl(att)"
+                    target="_blank"
+                    rel="noopener"
+                    style="font-size:12.5px;color:var(--blue);text-decoration:underline;display:flex;align-items:center;gap:6px"
+                  >
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    {{ att.original_filename }}
+                    <span style="color:var(--fog);text-decoration:none">({{ toTitleCase(att.category) }})</span>
+                  </a>
+                </div>
+              </div>
+              <div v-if="referral.sanction" style="margin-top:14px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Sanction / Outcome</div>
+                <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(referral.sanction) }}</div>
+                <div v-if="referral.sanction_notes" style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">{{ referral.sanction_notes }}</div>
+              </div>
+            </div>
+          </div>
+
           <!-- Referral Info (merged with the former "Referral Details" card) -->
-          <div class="icard">
+          <div class="icard" v-if="!isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">Referral Info</span>
             </div>
@@ -240,8 +315,9 @@
 
 
           <!-- Previous Interventions - case-level, append-only log. For Class Attendance referrals, this doubles as the admission slip: an Unexcused mark locks the referral.
-               Student Information Files only. -->
-          <div class="icard" v-if="referral.case && fromCases">
+               Student Information Files only. Replaced by Sanction/s Given +
+               Detailed Report for an Incident Report. -->
+          <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Previous Interventions</span></div>
             <div class="icard-body">
               <div style="font-size:11px;color:var(--stone);margin-bottom:10px;font-style:italic">For OSS Personnel</div>
@@ -311,10 +387,65 @@
             </div>
           </div>
 
+          <!-- Sanction/s Given - Incident Report only. Case-level, append-only
+               log reusing the CaseIntervention mechanism (type: 'sanction'),
+               same pattern as Previous Interventions but without the
+               excused/unexcused remarks or locking logic. -->
+          <div class="icard" v-if="isIncidentReport && referral.case && fromCases">
+            <div class="icard-header"><span class="icard-title">Sanction/s Given</span></div>
+            <div class="icard-body">
+              <div v-if="canManageIncidentReport" style="margin-bottom:16px">
+                <label class="ifl">Sanction</label>
+                <textarea v-model="sanctionForm.text" class="ifta" style="min-height:70px" placeholder="Describe the sanction given..."></textarea>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px" @click="addSanction">Save Entry</button>
+              </div>
+              <div v-if="!sanctionsForReferral.length" style="font-size:13px;color:var(--stone)">No sanctions recorded yet.</div>
+              <div v-else style="display:flex;flex-direction:column;gap:8px">
+                <div
+                  v-for="item in sanctionsForReferral"
+                  :key="item.id"
+                  style="padding:10px 12px;background:var(--snow);border-radius:var(--r-sm);border-left:2px solid var(--silver)"
+                >
+                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+                    <div style="font-size:13px;color:var(--ink)">{{ item.description }}</div>
+                    <div style="font-size:11px;color:var(--fog);flex-shrink:0">{{ formatDate(item.created_at) }}</div>
+                  </div>
+                  <div style="font-size:10.5px;color:var(--fog);margin-top:3px">By {{ item.recorded_by?.name || item.person_in_charge?.name || '-' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detailed Report - Incident Report only. Same append-only log
+               pattern as Session Notes, typed as 'detailed_report'. -->
+          <div class="icard" v-if="isIncidentReport && referral.case && fromCases">
+            <div class="icard-header"><span class="icard-title">Detailed Report</span></div>
+            <div class="icard-body">
+              <div v-if="canManageIncidentReport" style="margin-bottom:16px">
+                <label class="ifl">Report Entry</label>
+                <textarea v-model="detailedReportForm.text" class="ifta" style="min-height:80px" placeholder="Write a detailed report entry..."></textarea>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px" @click="addDetailedReport">Save Entry</button>
+              </div>
+              <div v-if="!detailedReportsForReferral.length" style="font-size:13px;color:var(--stone)">No detailed report entries yet.</div>
+              <div v-else style="display:flex;flex-direction:column;gap:8px">
+                <div
+                  v-for="item in detailedReportsForReferral"
+                  :key="item.id"
+                  style="padding:12px 14px;background:var(--snow);border-radius:var(--r-sm);border-left:2px solid var(--silver)"
+                >
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">{{ formatDate(item.created_at) }}</div>
+                  <div style="font-size:13px;color:var(--slate);line-height:1.6;white-space:pre-line;margin-top:4px">{{ item.description }}</div>
+                  <div style="font-size:10.5px;color:var(--fog);margin-top:6px">By {{ item.recorded_by?.name || item.person_in_charge?.name || '-' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Feedback Slip - copy sent to the referrer for transparency.
                Removed from the Referral Queue's own page (it only displays
-               details); still available from Student Information Files. -->
-          <div class="icard" v-if="fromCases">
+               details); still available from Student Information Files.
+               Removed entirely for an Incident Report. -->
+          <div class="icard" v-if="fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
@@ -384,8 +515,9 @@
             </div>
           </div>
 
-          <!-- Session Notes - staff only, Student Information Files only -->
-          <div class="icard" v-if="isGCU && fromCases">
+          <!-- Session Notes - staff only, Student Information Files only.
+               Replaced by Detailed Report for an Incident Report. -->
+          <div class="icard" v-if="isGCU && fromCases && !isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
               <button class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
@@ -418,8 +550,9 @@
             </div>
           </div>
 
-          <!-- Follow-up Session - Student Information Files only -->
-          <div class="icard" v-if="fromCases">
+          <!-- Follow-up Session - Student Information Files only. Removed
+               entirely for an Incident Report. -->
+          <div class="icard" v-if="fromCases && !isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">Follow-up Session</span>
               <button v-if="isGCU" class="ibtn ibtn-p ibtn-sm" @click="openFollowUpModal">
@@ -526,8 +659,9 @@
             </div>
           </div>
 
-          <!-- Case Action - Student Information Files only -->
-          <div class="icard" v-if="isGCU && referral.case && fromCases">
+          <!-- Case Action - Student Information Files only. Removed entirely
+               for an Incident Report. -->
+          <div class="icard" v-if="isGCU && referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Case Action</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <router-link
@@ -569,8 +703,10 @@
           </div>
 
 
-          <!-- Appointments (scoped to this referral only) - Student Information Files only -->
-          <div class="icard" v-if="referral.case && fromCases">
+          <!-- Appointments (scoped to this referral only) - Student
+               Information Files only. Removed entirely for an Incident
+               Report. -->
+          <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Appointments</span></div>
             <div v-if="!referralAppointments.length" class="empty-state">
               <h3>No appointments yet</h3>
@@ -992,6 +1128,12 @@ const transferForm = ref({ to_unit: '', to_user_id: '', reason: '' });
 const interventionForm = ref({ text: '', excused: '', type: 'previous_intervention' });
 const selectedIntervention = ref(null);
 
+// Incident Report only - "Sanction/s Given" and "Detailed Report" reuse the
+// same case-intervention log as Previous Interventions/Session Notes, just
+// typed differently and without the excused/unexcused remarks.
+const sanctionForm = ref({ text: '' });
+const detailedReportForm = ref({ text: '' });
+
 
 function viewIntervention(item) {
   selectedIntervention.value = item;
@@ -1013,6 +1155,28 @@ const interventionsForReferral = computed(() => {
   const all = referral.value.case?.interventions || [];
   return all.filter(i => i.referral_id === referral.value.id);
 });
+
+// A "Complaint" (Incident Report) is filed together with a disciplinary
+// referral by ComplaintController::store(). Once that referral has been
+// acknowledged, this page swaps its Referral-Info-style panels for the
+// Incident Report ones (see the Sanction/s Given and Detailed Report cards
+// below, and the Incident Report card replacing Referral Info).
+const isIncidentReport = computed(() => !!referral.value.complaint && !!referral.value.acknowledged_at);
+
+// Sanctions/detailed reports are SDU's domain, not GCU's - reuse the SDU
+// Head + admin gate rather than isGCU.
+const canManageIncidentReport = computed(() => isSDUHead.value || auth.user?.role === 'admin');
+
+const sanctionsForReferral = computed(() =>
+  interventionsForReferral.value.filter(i => i.type === 'sanction')
+);
+const detailedReportsForReferral = computed(() =>
+  interventionsForReferral.value.filter(i => i.type === 'detailed_report')
+);
+
+function attachmentUrl(att) {
+  return `${API_BASE.replace(/\/api$/, '')}/storage/${att.file_path}`;
+}
 
 const referralAppointments = computed(() => {
   const all = referral.value.case?.appointments || [];
@@ -1251,6 +1415,46 @@ async function addIntervention() {
     viewIntervention(res.data);
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to save entry.');
+  }
+}
+
+async function addSanction() {
+  if (!sanctionForm.value.text) {
+    toast?.error('Please describe the sanction given.');
+    return;
+  }
+  try {
+    const res = await caseAPI.addIntervention(referral.value.case.id, {
+      referral_id: referral.value.id,
+      type: 'sanction',
+      description: sanctionForm.value.text,
+    });
+    if (!referral.value.case.interventions) referral.value.case.interventions = [];
+    referral.value.case.interventions.unshift(res.data);
+    sanctionForm.value = { text: '' };
+    toast?.success('Sanction recorded.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to save sanction.');
+  }
+}
+
+async function addDetailedReport() {
+  if (!detailedReportForm.value.text) {
+    toast?.error('Please write the report entry.');
+    return;
+  }
+  try {
+    const res = await caseAPI.addIntervention(referral.value.case.id, {
+      referral_id: referral.value.id,
+      type: 'detailed_report',
+      description: detailedReportForm.value.text,
+    });
+    if (!referral.value.case.interventions) referral.value.case.interventions = [];
+    referral.value.case.interventions.unshift(res.data);
+    detailedReportForm.value = { text: '' };
+    toast?.success('Report entry saved.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to save report entry.');
   }
 }
 

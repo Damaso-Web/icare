@@ -14,6 +14,7 @@ class Referral extends Model
         'referral_code',
         'student_id',
         'case_id',
+        'complaint_id',
         'referred_by_user_id',
         'referrer_name',
         'referrer_role',
@@ -84,6 +85,10 @@ class Referral extends Model
     public function assignedTo()     { return $this->belongsTo(User::class, 'assigned_to_user_id'); }
     public function acknowledgedBy() { return $this->belongsTo(User::class, 'acknowledged_by_user_id'); }
     public function case()           { return $this->belongsTo(CaseFile::class, 'case_id'); }
+    // The Complaint ("Incident Report") this referral was filed from, if any
+    // (ComplaintController::store() creates both together). Null for an
+    // ordinary disciplinary referral submitted directly, without a Complaint.
+    public function complaint()      { return $this->belongsTo(Complaint::class); }
     public function documents()      { return $this->morphMany(Document::class, 'documentable'); }
     public function sessionNotes()   { return $this->hasMany(SessionNote::class, 'referral_id')->orderBy('session_date'); }
     public function appointments()   { return $this->hasMany(Appointment::class, 'referral_id')->orderBy('appointment_date'); }
