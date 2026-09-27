@@ -89,6 +89,10 @@ class Referral extends Model
     public function appointments()   { return $this->hasMany(Appointment::class, 'referral_id')->orderBy('appointment_date'); }
     public function feedbackSentBy() { return $this->belongsTo(User::class, 'feedback_sent_by_user_id'); }
     public function admissionIssuedBy() { return $this->belongsTo(User::class, 'admission_issued_by_user_id'); }
+    // The TMDU testing workflow record this referral spawned (only present
+    // for referral_type = 'psychological_testing' referrals created via
+    // CaseController::referToTmdu()).
+    public function testingRecord()  { return $this->hasOne(TestingRecord::class); }
 
     // Helpers
     public function isUrgent(): bool  { return in_array($this->urgency_level, ['high', 'critical']); }

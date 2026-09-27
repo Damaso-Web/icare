@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\CaseHandoff;
+use App\Models\Referral;
 use App\Models\TestingRecord;
 use App\Models\User;
 use App\Notifications\CaseHandoffNotification;
@@ -185,10 +186,32 @@ class CaseController extends Controller
 
         $request->validate(['reason' => 'required|string']);
 
+        $user = $request->user();
+
+        // Per the team's decision: referring a case to TMDU for psychological
+        // testing now also creates a real, shared Referral row (referral_type
+        // psychological_testing) under the same case - not just a
+        // TestingRecord as before. This is what makes the referral itself
+        // (not the whole case) show up as shared between GCU and TMDU, in
+        // the Referral Queue / SIF for both units.
+        $referral = Referral::create([
+            'student_id'          => $case->student_id,
+            'case_id'             => $case->id,
+            'referred_by_user_id' => $user->id,
+            'referrer_name'       => $user->name,
+            'referrer_role'       => $user->role,
+            'referrer_college'    => $user->college,
+            'referral_type'       => 'psychological_testing',
+            'nature_of_concern'   => $request->reason,
+            'status'              => 'submitted',
+        ]);
+
         $testing = TestingRecord::create([
             'case_id'             => $case->id,
+            'referral_id'         => $referral->id,
             'student_id'          => $case->student_id,
-            'referred_by_user_id' => $request->user()->id,
+            'referred_by_user_id' => $user->id,
+            'reason'              => $request->reason,
             'status'              => 'pending',
         ]);
 
@@ -200,14 +223,14 @@ class CaseController extends Controller
 
         CaseHandoff::create([
             'case_id'      => $case->id,
-            'from_user_id' => $request->user()->id,
-            'to_user_id'   => $request->user()->id,
+            'from_user_id' => $user->id,
+            'to_user_id'   => $user->id,
             'from_unit'    => 'GCU',
             'to_unit'      => 'TMDU',
             'reason'       => $request->reason,
         ]);
 
-        AuditLog::record('referred_tmdu', "Case {$case->case_number} referred to TMDU.", $case);
+        AuditLog::record('referred_tmdu', "Case {$case->case_number} referred to TMDU (referral {$referral->referral_code}).", $case);
 
         $tmduStaff = User::where('role', 'tmdu_staff')->where('is_active', true)->get();
         Notification::send($tmduStaff, new TestingReferralNotification($case));
@@ -218,7 +241,7 @@ class CaseController extends Controller
             Notification::send($case->student, new ReferredToTmduNotification($case));
         }
 
-        return response()->json(['case' => $case, 'testing_record' => $testing]);
+        return response()->json(['case' => $case, 'referral' => $referral, 'testing_record' => $testing]);
     }
 
     public function referExternal(Request $request, CaseFile $case)

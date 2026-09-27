@@ -457,10 +457,14 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
-          <!-- Acknowledge - visible to Admin and GCU Staff. Acknowledging is a Referral
-               Queue action; Case Files/Student Information Files opens this page
-               read-only, so the prompt is hidden there. -->
-          <div class="icard" v-if="referral.status === 'submitted' && isGCU && !fromCases">
+          <!-- Acknowledge - visible to Admin and GCU Staff for ordinary
+               referrals; a psychological_testing referral (the shared
+               GCU<->TMDU referral created by "Refer to TMDU") is instead
+               acknowledged by TMDU staff, since it's their side of the
+               workflow. Acknowledging is a Referral Queue action; Case
+               Files/Student Information Files opens this page read-only,
+               so the prompt is hidden there. -->
+          <div class="icard" v-if="referral.status === 'submitted' && canAcknowledge && !fromCases">
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.
@@ -473,10 +477,12 @@
             </div>
           </div>
 
-          <!-- Read-only status for non-GCU roles -->
+          <!-- Read-only status for roles that can't acknowledge this referral -->
           <div class="icard" v-else-if="referral.status === 'submitted' && !fromCases">
             <div class="icard-body">
-              <div style="font-size:13px;color:var(--stone)">Awaiting acknowledgement from GCU.</div>
+              <div style="font-size:13px;color:var(--stone)">
+                Awaiting acknowledgement from {{ referral.referral_type === 'psychological_testing' ? 'TMDU' : 'GCU' }}.
+              </div>
             </div>
           </div>
 
@@ -859,17 +865,34 @@
         </div>
       </div>
 
-      <!-- Refer to TMDU Modal (B255): requires a filled-out reason instead of
-           firing off with a canned string -->
+      <!-- Refer to TMDU Modal: now a proper referral-slip form. Confirming
+           creates a real, shared Referral (psychological_testing) under the
+           same case, linked to a new TestingRecord - see
+           CaseController::referToTmdu(). -->
       <div v-if="showTmduModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTmduModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Refer to TMDU</div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Referral for Psychological Testing</div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showTmduModal = false">✕</button>
           </div>
+
+          <!-- Document Code Header - read only, same pattern as the Referral
+               Slip / Feedback Slip headers above. Revision No. / Effectivity /
+               Ctrl No. are edited in Management by admin. -->
+          <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div style="font-size:11px;color:var(--stone)">
+              <div><strong>Document Code:</strong> QF-OSS-GCU-05</div>
+              <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
+            </div>
+            <div style="font-size:11px;color:var(--stone);text-align:right">
+              <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date) }}</div>
+              <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '-' }}</div>
+            </div>
+          </div>
+
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
-              This creates a testing record for {{ referral.student?.last_name }}, {{ referral.student?.first_name }} and moves the case to TMDU for psychological assessment.
+              This creates a new referral for {{ referral.student?.last_name }}, {{ referral.student?.first_name }} under the same case, and moves it to TMDU for psychological assessment. That referral becomes shared between GCU and TMDU.
             </div>
             <div>
               <label class="ifl">Reason for Referral <span style="color:var(--red)">*</span></label>
@@ -1057,6 +1080,13 @@ watch([() => followUpForm.value.staff_user_id, () => followUpForm.value.appointm
 
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 const isSDUHead = computed(() => auth.user?.role === 'sdu_head');
+const isTMDUStaff = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
+
+// Who can acknowledge THIS referral: GCU for ordinary referrals, TMDU staff
+// for the shared psychological_testing referral created by "Refer to TMDU".
+const canAcknowledge = computed(() =>
+  referral.value.referral_type === 'psychological_testing' ? isTMDUStaff.value : isGCU.value
+);
 
 // Set by whichever module linked here (?ctx=cases from Case Files). This page is
 // shared, so the flag decides whether it behaves as a live referral worksheet
@@ -1125,6 +1155,7 @@ function initials(first, last) {
 // (QF-OSS-03) are edited in Management by admin, not on individual referrals.
 const referralDoc = ref({});
 const feedbackDoc = ref({});
+const tmduDoc      = ref({});
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -1265,12 +1296,13 @@ async function referToTmdu() {
   }
   submittingTmdu.value = true;
   try {
-    await caseAPI.referToTmdu(referral.value.case.id, { reason: tmduForm.value.reason });
+    const res = await caseAPI.referToTmdu(referral.value.case.id, { reason: tmduForm.value.reason });
     referral.value.case.current_unit     = 'TMDU';
     referral.value.case.status           = 'awaiting_testing';
     referral.value.case.referred_to_tmdu = true;
     showTmduModal.value = false;
-    toast?.success('Case referred to TMDU.');
+    const newReferral = res.data?.referral;
+    toast?.success(newReferral ? `Referred to TMDU. New referral ${newReferral.referral_code} created.` : 'Case referred to TMDU.');
   } catch (e) {
     tmduError.value = e.response?.data?.message || 'Failed to refer to TMDU.';
   } finally {
@@ -1471,5 +1503,6 @@ onMounted(async () => {
   }
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
+  fetchDocSettings('QF-OSS-GCU-05', tmduDoc);
 });
 </script>

@@ -278,6 +278,40 @@
           </button>
         </div>
       </div>
+
+      <!-- TMDU Referral Slip (QF-OSS-GCU-05) -->
+      <div class="icard">
+        <div class="icard-header"><span class="icard-title">Referral for Psychological Testing (QF-OSS-GCU-05)</span></div>
+        <div class="icard-body">
+          <div v-if="docError.tmdu" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:12px">{{ docError.tmdu }}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label class="ifl">Revision No.</label>
+              <input v-model="tmduDoc.revision_no" class="ifi" placeholder="e.g. 01" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Effectivity Date</label>
+              <input v-model="tmduDoc.effectivity_date" type="date" class="ifi" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Year</label>
+              <input v-model="tmduDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Term</label>
+              <select v-model="tmduDoc.ctrl_no_term" class="ifse" :disabled="!isAdmin">
+                <option value="1">1 (First Sem)</option>
+                <option value="2">2 (Second Sem)</option>
+                <option value="S">S (Summer / Mid-Year)</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to the GCU&rarr;TMDU referral slip shown when a case is referred for psychological testing, current and future.</div>
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmdu" @click="saveTmduDoc">
+            {{ savingDoc.tmdu ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- ============ College Modal ============ -->
@@ -692,8 +726,9 @@ async function deleteFormOption(o) {
 // ---------- Document Headers (QF-OSS-01 Referral Slip, QF-OSS-03 Feedback Slip) ----------
 const referralDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
 const feedbackDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
-const savingDoc = ref({ referral: false, feedback: false });
-const docError  = ref({ referral: '', feedback: '' });
+const tmduDoc     = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
+const savingDoc = ref({ referral: false, feedback: false, tmdu: false });
+const docError  = ref({ referral: '', feedback: '', tmdu: '' });
 
 function toDateInput(date) {
   return date ? new Date(date).toISOString().slice(0, 10) : '';
@@ -730,6 +765,7 @@ async function saveDocSettings(code, form, key) {
 // value) reaches saveDocSettings, which needs the ref to read form.value.
 function saveReferralDoc() { return saveDocSettings('QF-OSS-01', referralDoc, 'referral'); }
 function saveFeedbackDoc() { return saveDocSettings('QF-OSS-03', feedbackDoc, 'feedback'); }
+function saveTmduDoc()     { return saveDocSettings('QF-OSS-GCU-05', tmduDoc, 'tmdu'); }
 
 // FormOptionTable - small local render-function component to avoid repeating
 // the same table markup three times (Wellness / Disciplinary / Sources).
@@ -793,5 +829,6 @@ onMounted(async () => {
   fetchDepartments();
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
+  fetchDocSettings('QF-OSS-GCU-05', tmduDoc);
 });
 </script>

@@ -12,8 +12,10 @@ class TestingRecord extends Model
 
     protected $fillable = [
         'case_id',
+        'referral_id',
         'student_id',
         'referred_by_user_id',
+        'reason',
         'assigned_tester_user_id',
         'status',
         'tests_administered',
@@ -27,6 +29,8 @@ class TestingRecord extends Model
         'or_photo_path',
         'or_photo_original_name',
         'or_uploaded_at',
+        'or_stamped_at',
+        'or_stamped_by_user_id',
     ];
 
     protected $casts = [
@@ -36,14 +40,19 @@ class TestingRecord extends Model
         'report_sent_to_gcu' => 'boolean',
         'report_sent_at'     => 'datetime',
         'or_uploaded_at'     => 'datetime',
+        'or_stamped_at'      => 'datetime',
     ];
 
     // Relationships
-    public function case()       { return $this->belongsTo(CaseFile::class, 'case_id'); }
-    public function student()    { return $this->belongsTo(Student::class); }
-    public function referredBy() { return $this->belongsTo(User::class, 'referred_by_user_id'); }
-    public function tester()     { return $this->belongsTo(User::class, 'assigned_tester_user_id'); }
-    public function documents()  { return $this->morphMany(Document::class, 'documentable'); }
+    public function case()        { return $this->belongsTo(CaseFile::class, 'case_id'); }
+    // The shared GCU<->TMDU Referral this testing record was created from.
+    // Nullable - records created before this link existed won't have one.
+    public function referral()    { return $this->belongsTo(Referral::class); }
+    public function student()     { return $this->belongsTo(Student::class); }
+    public function referredBy()  { return $this->belongsTo(User::class, 'referred_by_user_id'); }
+    public function tester()      { return $this->belongsTo(User::class, 'assigned_tester_user_id'); }
+    public function orStampedBy() { return $this->belongsTo(User::class, 'or_stamped_by_user_id'); }
+    public function documents()   { return $this->morphMany(Document::class, 'documentable'); }
 
     // Appointments aren't owned by a specific TestingRecord directly (no FK
     // column for it), but every testing-workflow appointment shares this

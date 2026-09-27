@@ -25,11 +25,14 @@ class TestingRecordController extends Controller
     protected const TESTING_REMINDER = "Please bring your Official Receipt (OR), two (2) sharpened pencils with eraser, and arrive at least 15 minutes before your scheduled exam time.";
 
     /**
-     * Step 1: TMDU acknowledges the GCU->TMDU referral (still stored purely on
-     * TestingRecord - no separate Referral row per the team's decision).
-     * This creates a self-schedulable appointment for the student to pick up
-     * the physical "Assessment of Fees" form - NOT the testing appointment
-     * itself, which TMDU sets directly later in scheduleTesting().
+     * Step 1: TMDU acknowledges the GCU->TMDU referral. This is now normally
+     * handled by ReferralController::acknowledge() instead (since referring
+     * to TMDU creates a real, shared Referral row) - this endpoint is kept
+     * as a fallback for TestingRecords that predate that change and have no
+     * referral_id. This creates a self-schedulable appointment for the
+     * student to pick up the physical "Assessment of Fees" form - NOT the
+     * testing appointment itself, which TMDU sets directly later in
+     * scheduleTesting().
      */
     public function acknowledge(Request $request, TestingRecord $testingRecord)
     {
@@ -124,10 +127,11 @@ class TestingRecordController extends Controller
     public function updateStatus(Request $request, TestingRecord $testingRecord)
     {
         $request->validate([
-            // Widened to cover the full TMDU workflow. If the frontend/DB
-            // still only expects the original 5 values anywhere else, that
-            // needs to be updated alongside this.
-            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,completed,par_scheduled,report_sent'
+            // "completed"/"report_sent" were renamed to "test_administered"/
+            // "test_results_issued" to match the team's terminology - the
+            // migration that added referral_id/reason/or_stamped_* also
+            // renamed those two values on the DB enum itself.
+            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,test_administered,par_scheduled,test_results_issued'
         ]);
 
         $old = ['status' => $testingRecord->status];
@@ -179,13 +183,20 @@ class TestingRecordController extends Controller
      * Step 3: TMDU staff sets (and confirms) the actual testing appointment.
      * Unlike the fee-form pickup, the student does not self-schedule this -
      * TMDU picks the date/time directly and it's created already confirmed.
+     *
+     * This is also the moment TMDU confirms (face-to-face, at the same
+     * office visit) that they've physically received and stamped the
+     * student's Official Receipt - the two happen together in person, so
+     * `or_stamped_confirmed` is required here rather than as its own
+     * separate step/endpoint.
      */
     public function scheduleTesting(Request $request, TestingRecord $testingRecord)
     {
         $validated = $request->validate([
-            'appointment_date' => 'required|date',
-            'start_time'       => 'required',
-            'end_time'         => 'required',
+            'appointment_date'     => 'required|date',
+            'start_time'           => 'required',
+            'end_time'             => 'required',
+            'or_stamped_confirmed' => 'required|accepted',
         ]);
 
         $appointment = $testingRecord->case->appointments()
@@ -216,11 +227,16 @@ class TestingRecordController extends Controller
         }
 
         $testingRecord->update([
-            'status'       => 'scheduled',
-            'testing_date' => $validated['appointment_date'],
+            'status'                => 'scheduled',
+            'testing_date'          => $validated['appointment_date'],
+            // Only set once, in case scheduleTesting() is ever called again
+            // to reschedule the same test (shouldn't overwrite who actually
+            // stamped the OR the first time).
+            'or_stamped_at'         => $testingRecord->or_stamped_at ?? now(),
+            'or_stamped_by_user_id' => $testingRecord->or_stamped_by_user_id ?? $request->user()->id,
         ]);
 
-        AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id}.", $testingRecord);
+        AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id} (OR confirmed stamped).", $testingRecord);
 
         if ($testingRecord->student) {
             Notification::send($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment));
@@ -295,17 +311,17 @@ class TestingRecordController extends Controller
 
         $testingRecord->update([
             ...$request->only(['assessment_summary', 'findings', 'recommendations']),
-            'status'             => 'report_sent',
+            'status'             => 'test_results_issued',
             'report_date'        => today(),
             'report_sent_to_gcu' => true,
             'report_sent_at'     => now(),
         ]);
 
         // If a PAR file was attached, store it once and link it to both the
-        // testing record and the case's latest referral, so it shows up
-        // wherever either one is viewed. NOTE: this assumes CaseFile has a
-        // `referrals()` relation and Referral is a valid `documentable` type -
-        // please flag if either name is different in your copy of the models.
+        // testing record and its referral, so it shows up wherever either
+        // one is viewed. Prefer the referral this record was actually
+        // created from (referral_id); fall back to the case's latest
+        // referral for older records that predate that link.
         if ($request->hasFile('report_file')) {
             $file = $request->file('report_file');
             $path = $file->store("testing-reports/{$testingRecord->id}", 'local');
@@ -319,11 +335,11 @@ class TestingRecordController extends Controller
                 'uploaded_by_user_id'  => $request->user()->id,
             ]);
 
-            $latestReferral = $testingRecord->case?->latestReferral;
-            if ($latestReferral) {
+            $linkedReferral = $testingRecord->referral ?? $testingRecord->case?->latestReferral;
+            if ($linkedReferral) {
                 Document::create([
                     'documentable_type'    => \App\Models\Referral::class,
-                    'documentable_id'      => $latestReferral->id,
+                    'documentable_id'      => $linkedReferral->id,
                     'document_type'        => 'psychological_assessment_report',
                     'file_path'            => $path,
                     'original_filename'    => $file->getClientOriginalName(),
@@ -332,7 +348,7 @@ class TestingRecordController extends Controller
             }
         }
 
-        AuditLog::record('report_sent', "Testing report sent to GCU for record #{$testingRecord->id}.", $testingRecord);
+        AuditLog::record('test_results_issued', "Test results issued to GCU for record #{$testingRecord->id}.", $testingRecord);
 
         // Notify the original referring GCU counselor that the PAR is ready.
         if ($testingRecord->referredBy) {

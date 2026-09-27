@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\NewReferralNotification;
 use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
+use App\Notifications\TestingAppointmentReadyNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 
@@ -220,6 +221,14 @@ class ReferralController extends Controller
         'acknowledged_by_user_id' => $request->user()->id,
     ]);
 
+    // A psychological_testing referral is the GCU->TMDU shared referral
+    // created by CaseController::referToTmdu(). It has its own linked
+    // TestingRecord tracking the rest of that workflow (fee form -> OR ->
+    // F2F test -> PAR), so acknowledging it schedules a fee-form-pickup slot
+    // instead of the generic initial-counseling one, and moves that
+    // TestingRecord into its next stage.
+    $isTmduTesting = $referral->referral_type === 'psychological_testing';
+
     $unit = match ($referral->referral_type) {
         'disciplinary'          => 'SDU',
         'psychological_testing' => 'TMDU',
@@ -262,10 +271,14 @@ class ReferralController extends Controller
     // A case can have several referrals, and each one gets acknowledged
     // separately - but they shouldn't each spawn their own generic "Initial
     // Counseling" slot. Reuse whatever's already pending/confirmed for this
-    // case instead of piling up duplicate appointments.
+    // case instead of piling up duplicate appointments. For a TMDU testing
+    // referral this is the self-schedulable "pick up Assessment of Fees
+    // form" slot instead of initial counseling.
+    $appointmentType = $isTmduTesting ? 'fee_form_pickup' : 'initial_counseling';
+
     $appointment = $case->appointments()
-        ->where('appointment_type', 'initial_counseling')
-        ->where('unit', 'GCU')
+        ->where('appointment_type', $appointmentType)
+        ->where('unit', $unit)
         ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
         ->latest()
         ->first();
@@ -291,8 +304,8 @@ class ReferralController extends Controller
             'student_id'          => $case->student_id,
             'staff_user_id'       => $request->user()->id,
             'created_by_user_id'  => $request->user()->id,
-            'appointment_type'    => 'initial_counseling',
-            'unit'                => 'GCU',
+            'appointment_type'    => $appointmentType,
+            'unit'                => $unit,
             'scheduling_token'    => $token,
             'token_expires_at'    => now()->addDays(7),
             'request_status'      => 'awaiting_student',
@@ -304,10 +317,30 @@ class ReferralController extends Controller
         $schedulingLink = url("/schedule/{$token}");
     }
 
+    // Move the linked TestingRecord into its next stage now that TMDU has
+    // acknowledged the referral - mirrors what
+    // TestingRecordController::acknowledge() does for records without a
+    // linked referral (kept for backward compatibility with older data).
+    if ($isTmduTesting && $referral->testingRecord) {
+        $referral->testingRecord->update(['status' => 'fee_form_pending']);
+    }
+
     AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} under case {$case->case_number}.", $referral);
 
-    $notifiables = collect([$referral->student, $referral->referredBy])->filter();
-    Notification::send($notifiables, new ReferralAcknowledgedNotification($referral));
+    if ($isTmduTesting && $referral->testingRecord) {
+        // The testing-specific notification carries the fee-form-pickup
+        // scheduling link/content; the generic one still goes to whoever
+        // referred the case to TMDU.
+        if ($referral->student) {
+            Notification::send($referral->student, new TestingAppointmentReadyNotification($referral->testingRecord));
+        }
+        if ($referral->referredBy) {
+            Notification::send($referral->referredBy, new ReferralAcknowledgedNotification($referral));
+        }
+    } else {
+        $notifiables = collect([$referral->student, $referral->referredBy])->filter();
+        Notification::send($notifiables, new ReferralAcknowledgedNotification($referral));
+    }
 
     return response()->json([
         'referral'          => $referral,

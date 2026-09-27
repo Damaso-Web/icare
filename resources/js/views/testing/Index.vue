@@ -15,9 +15,9 @@
         <option value="or_submitted">OR Submitted</option>
         <option value="scheduled">Scheduled</option>
         <option value="in_progress">In Progress</option>
-        <option value="completed">Completed</option>
+        <option value="test_administered">Test Administered</option>
         <option value="par_scheduled">PAR Scheduled</option>
-        <option value="report_sent">Report Sent</option>
+        <option value="test_results_issued">Test Results Issued</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
@@ -107,9 +107,9 @@
               <option value="or_submitted">OR Submitted</option>
               <option value="scheduled">Scheduled</option>
               <option value="in_progress">In Progress</option>
-              <option value="completed">Completed</option>
+              <option value="test_administered">Test Administered</option>
               <option value="par_scheduled">PAR Scheduled</option>
-              <option value="report_sent">Report Sent</option>
+              <option value="test_results_issued">Test Results Issued</option>
             </select>
           </div>
 
@@ -120,9 +120,14 @@
             <button class="ibtn ibtn-o ibtn-sm" @click="viewOrPhoto" :disabled="loadingOrPhoto">
               {{ loadingOrPhoto ? 'Loading...' : 'View OR Photo' }}
             </button>
+            <div v-if="selectedRecord.or_stamped_at" style="font-size:12px;color:var(--moss);margin-top:8px">
+              ✓ OR confirmed stamped by {{ selectedRecord.or_stamped_by?.name || 'TMDU staff' }} on {{ formatDate(selectedRecord.or_stamped_at) }}
+            </div>
           </div>
 
-          <!-- Schedule Testing (once the student has submitted their OR) -->
+          <!-- Schedule Testing (once the student has submitted their OR). This is
+               also the same in-person visit where the student hands over the
+               physically stamped OR, so confirming that is required here too. -->
           <div v-if="selectedRecord.status === 'or_submitted'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
             <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule Testing Appointment</div>
             <input v-model="testingForm.appointment_date" type="date" class="ifi" />
@@ -130,13 +135,17 @@
               <input v-model="testingForm.start_time" type="time" class="ifi" style="flex:1" />
               <input v-model="testingForm.end_time" type="time" class="ifi" style="flex:1" />
             </div>
-            <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving">
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--slate)">
+              <input type="checkbox" v-model="testingForm.or_stamped_confirmed" style="width:15px;height:15px;accent-color:var(--moss);margin-top:1px" />
+              I confirm the student's Official Receipt has been received and stamped, face-to-face.
+            </label>
+            <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || !testingForm.or_stamped_confirmed">
               {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
             </button>
           </div>
 
-          <!-- Schedule PAR release (once testing is completed) -->
-          <div v-if="selectedRecord.status === 'completed'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+          <!-- Schedule PAR release (once the test has been administered) -->
+          <div v-if="selectedRecord.status === 'test_administered'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
             <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule PAR Release</div>
             <input v-model="parForm.appointment_date" type="date" class="ifi" />
             <div style="display:flex;gap:8px">
@@ -226,10 +235,10 @@
             <button
               class="ibtn ibtn-blue"
               @click="sendToGcu"
-              v-if="selectedRecord.status === 'completed' || selectedRecord.status === 'par_scheduled'"
+              v-if="selectedRecord.status === 'test_administered' || selectedRecord.status === 'par_scheduled'"
               :disabled="saving"
             >
-              Send Report to GCU
+              Issue Test Results to GCU
             </button>
             <button class="ibtn ibtn-o" @click="selectedRecord = null">Cancel</button>
           </div>
@@ -255,7 +264,7 @@ const loadingOrPhoto = ref(false);
 const records      = ref([]);
 const selectedFile = ref(null);
 
-const testingForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+const testingForm = ref({ appointment_date: '', start_time: '', end_time: '', or_stamped_confirmed: false });
 const parForm      = ref({ appointment_date: '', start_time: '', end_time: '' });
 
 // Psychological tests only
@@ -275,7 +284,7 @@ const pendingCount = computed(() => records.value.filter(r => r.status === 'pend
 const stats = computed(() => [
   { label: 'Pending',     value: records.value.filter(r => r.status === 'pending' || r.status === 'fee_form_pending' || r.status === 'or_submitted').length, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'In Progress', value: records.value.filter(r => r.status === 'scheduled' || r.status === 'in_progress').length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { label: 'Completed',   value: records.value.filter(r => ['completed', 'par_scheduled', 'report_sent'].includes(r.status)).length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Completed',   value: records.value.filter(r => ['test_administered', 'par_scheduled', 'test_results_issued'].includes(r.status)).length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
 ]);
 
 function statusBadge(status) {
@@ -283,11 +292,11 @@ function statusBadge(status) {
     pending:           'ibadge-pending',
     fee_form_pending:  'ibadge-pending',
     or_submitted:      'ibadge-scheduled',
-    scheduled:         'ibadge-scheduled',
-    in_progress:       'ibadge-in_progress',
-    completed:         'ibadge-completed',
-    par_scheduled:     'ibadge-scheduled',
-    report_sent:       'ibadge-closed',
+    scheduled:          'ibadge-scheduled',
+    in_progress:        'ibadge-in_progress',
+    test_administered:  'ibadge-completed',
+    par_scheduled:      'ibadge-scheduled',
+    test_results_issued:'ibadge-closed',
   }[status] || 'ibadge-pending';
 }
 
@@ -310,7 +319,7 @@ function openRecord(t) {
     tester_name: t.tester?.name || '',
   };
   selectedFile.value = null;
-  testingForm.value = { appointment_date: '', start_time: '', end_time: '' };
+  testingForm.value = { appointment_date: '', start_time: '', end_time: '', or_stamped_confirmed: false };
   parForm.value = { appointment_date: '', start_time: '', end_time: '' };
 }
 
@@ -345,6 +354,10 @@ async function viewOrPhoto() {
 async function confirmScheduleTesting() {
   if (!testingForm.value.appointment_date || !testingForm.value.start_time || !testingForm.value.end_time) {
     toast?.error('Please fill in the date and time.');
+    return;
+  }
+  if (!testingForm.value.or_stamped_confirmed) {
+    toast?.error("Please confirm the student's OR has been received and stamped.");
     return;
   }
   saving.value = true;

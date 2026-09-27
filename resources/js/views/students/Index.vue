@@ -1032,7 +1032,7 @@
     </div>
 
     <!-- Deactivate Confirmation Modal -->
-    <div v-if="showDeactivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDeactivateConfirm = false">
+    <div v-if="showDeactivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!deactivating && (showDeactivateConfirm = false)">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Deactivation</div>
@@ -1045,16 +1045,21 @@
             <div><strong>Reason:</strong> {{ reasonSearchQuery || '—' }}</div>
             <div v-if="graduateReason === 'other' && graduateNotes" style="margin-top:4px"><strong>Details:</strong> {{ graduateNotes }}</div>
           </div>
-          <div style="font-size:12px;color:var(--stone)">
+          <div v-if="deactivating" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);background:var(--foam);border-radius:var(--r-sm);padding:10px 14px">
+            <span style="width:14px;height:14px;border:2px solid var(--cloud);border-top-color:var(--red);border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>
+            Processing deactivation, please wait...
+          </div>
+          <div v-else style="font-size:12px;color:var(--stone)">
             This can be reversed later by reactivating the account.
           </div>
           <div style="display:flex;gap:8px">
             <button
               class="ibtn"
-              style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
+              :style="deactivating ? 'opacity:.7;cursor:not-allowed;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0;display:flex;align-items:center;justify-content:center;gap:6px' : 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0'"
+              :disabled="deactivating"
               @click="confirmDeactivate"
-            >Yes, Deactivate</button>
-            <button class="ibtn ibtn-o" @click="showDeactivateConfirm = false">Cancel</button>
+            ><span v-if="deactivating" style="width:12px;height:12px;border:2px solid rgba(198,40,40,.25);border-top-color:var(--red);border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>{{ deactivating ? 'Deactivating...' : 'Yes, Deactivate' }}</button>
+            <button class="ibtn ibtn-o" :disabled="deactivating" @click="!deactivating && (showDeactivateConfirm = false)">Cancel</button>
           </div>
         </div>
       </div>
@@ -1408,6 +1413,7 @@ function validateAddForm() {
 
 // Deactivate flow
 const showDeactivateConfirm = ref(false);
+const deactivating = ref(false);
 
 function openDeactivateConfirm() {
   if (!canDeactivate.value) return;
@@ -1415,9 +1421,13 @@ function openDeactivateConfirm() {
 }
 
 async function confirmDeactivate() {
-  showDeactivateConfirm.value = false;
-  await doGraduate();
-  showGraduateModal.value = false;
+  if (deactivating.value) return;
+  deactivating.value = true;
+  const ok = await doGraduate();
+  deactivating.value = false;
+  if (ok) {
+    showDeactivateConfirm.value = false;
+  }
 }
 
 // Activate flow
@@ -1679,7 +1689,7 @@ async function updateExistingAndProceed() {
 }
 
 async function doGraduate() {
-  if (!studentToGraduate.value || !canDeactivate.value) return;
+  if (!studentToGraduate.value || !canDeactivate.value) return false;
   try {
     await studentAPI.graduate(studentToGraduate.value.id, {
       deactivation_reason: graduateReason.value,
@@ -1688,8 +1698,10 @@ async function doGraduate() {
     showGraduateModal.value = false;
     toast?.success('Deactivated Student Account.');
     fetchStudents();
+    return true;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Please fill in all required fields.');
+    return false;
   }
 }
 

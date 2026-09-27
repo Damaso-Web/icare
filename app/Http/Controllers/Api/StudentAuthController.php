@@ -161,7 +161,7 @@ public function testingRecords(Request $request)
     $student = $request->user('student');
 
     $records = TestingRecord::where('student_id', $student->id)
-        ->with(['case', 'tester'])
+        ->with(['case', 'tester', 'referral'])
         ->latest()
         ->get();
 
@@ -173,7 +173,7 @@ public function showTestingRecord(Request $request, $id)
     $student = $request->user('student');
 
     $record = TestingRecord::where('student_id', $student->id)
-        ->with(['case.latestReferral', 'tester', 'documents'])
+        ->with(['case.latestReferral', 'tester', 'documents', 'referral'])
         ->findOrFail($id);
 
     return response()->json($record);

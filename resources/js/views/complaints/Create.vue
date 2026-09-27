@@ -202,6 +202,10 @@
             I hereby confirm that the details here are true and correct to the best of my knowledge, and that typing my name below serves in place of my physical signature.
           </div>
           <div>
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;color:var(--slate);margin-bottom:8px">
+              <input type="checkbox" v-model="sigUseComplainantName" style="width:15px;height:15px;accent-color:var(--moss);margin-top:2px" @change="onSigUseComplainantNameChange" />
+              Use my Complainant Name above as my signature.
+            </label>
             <label class="ifl">Type your full name to confirm (in place of a signature)</label>
             <input
               v-model="pkiSignature"
@@ -209,6 +213,8 @@
               class="ifi"
               placeholder="Type your full name exactly as entered above..."
               maxlength="255"
+              :readonly="sigUseComplainantName"
+              :style="sigUseComplainantName ? 'background:var(--snow);color:var(--stone);cursor:not-allowed' : ''"
             />
           </div>
 
@@ -341,6 +347,12 @@ function onFilesSelected(event, category) {
 const showCertModal        = ref(false);
 const certificationChecked = ref(false);
 const pkiSignature         = ref('');
+const sigUseComplainantName = ref(true);
+function onSigUseComplainantNameChange() {
+  if (sigUseComplainantName.value) {
+    pkiSignature.value = form.value.complainant_name;
+  }
+}
 
 function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
@@ -410,7 +422,8 @@ function openCertificationModal() {
   }
 
   certificationChecked.value = false;
-  pkiSignature.value = '';
+  sigUseComplainantName.value = true;
+  pkiSignature.value = form.value.complainant_name;
   showCertModal.value = true;
 }
 
