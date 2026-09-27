@@ -97,7 +97,9 @@ class Appointment extends Model
 {
     return static::where('staff_user_id', $staffId)
         ->where('appointment_date', $date)
-        ->whereNotIn('status', ['cancelled'])
+        // A superseded appointment (B234: replaced by a new linked row on
+        // reschedule) no longer holds its old slot, same as a cancelled one.
+        ->whereNotIn('status', ['cancelled', 'rescheduled'])
         ->where('request_status', '!=', 'awaiting_student')
         ->where('start_time', '<', $end)
         ->where('end_time', '>', $start)
@@ -109,7 +111,7 @@ public static function hasUnitConflict(string $unit, string $date, string $start
 {
     return static::where('unit', $unit)
         ->where('appointment_date', $date)
-        ->whereNotIn('status', ['cancelled'])
+        ->whereNotIn('status', ['cancelled', 'rescheduled'])
         ->where('request_status', '!=', 'awaiting_student')
         ->where('start_time', '<', $end)
         ->where('end_time', '>', $start)

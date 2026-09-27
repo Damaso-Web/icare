@@ -6,24 +6,6 @@
       <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
     </div>
 
-    <!-- Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:16px">
-      <button
-        class="ibtn ibtn-sm"
-        :style="!showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-        @click="switchStatusTab(false)"
-      >
-        {{ isFacultyView ? 'Active Faculty' : 'Active' }}
-      </button>
-      <button
-        class="ibtn ibtn-sm"
-        :style="showInactive ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-        @click="switchStatusTab(true)"
-      >
-        {{ isFacultyView ? 'Inactive Faculty' : 'Inactive' }}
-      </button>
-    </div>
-
     <!-- Filter Bar -->
     <div class="filter-bar">
       <div class="sw">
@@ -39,7 +21,11 @@
           @input="onSearchLetters"
         />
       </div>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <select v-model="filters.status" class="fsm" @change="fetchUsers">
+        <option value="">Sort by Status</option>
+        <option value="1">Active</option>
+        <option value="0">Inactive</option>
+      </select>
       <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
         <option value="admin">Admin / GCU Head</option>
@@ -61,12 +47,13 @@
         <option value="last_name:asc">Name: A-Z</option>
         <option value="last_name:desc">Name: Z-A</option>
       </select>
-      <button v-if="auth.isAdmin && !showInactive" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
       <button
-        v-if="auth.isAdmin && !showInactive"
+        v-if="auth.isAdmin"
         class="ibtn ibtn-p ibtn-sm"
         style="margin-left:auto"
         @click="openCreate"
@@ -599,9 +586,8 @@ const showViewModal = ref(false);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
+const filters    = ref({ search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
 const sortOption = ref('created_at:desc');
-const showInactive = ref(false);
 
 const showClearConfirm = ref(false);
 const showUserPreview = ref(false);
@@ -757,11 +743,6 @@ const importing       = ref(false);
 const importResult    = ref(null);
 const showImportConfirm = ref(false);
 
-function switchStatusTab(inactive) {
-  showInactive.value = inactive;
-  fetchUsers();
-}
-
 function onSearchLetters() {
   filters.value.search = safeSearchInput(filters.value.search);
   fetchUsers();
@@ -772,9 +753,13 @@ async function fetchUsers(page = 1) {
   try {
     const params = { ...filters.value, page };
     if (isFacultyView.value) params.role = 'faculty';
-    params.is_active = showInactive.value ? 0 : 1;
+    if (params.status === '') delete params.status;
+    else params.is_active = params.status;
+    delete params.status;
     const res = await userAPI.index(params);
-    users.value      = res.data.data;
+    // One unified list instead of separate Active/Inactive tabs, matching
+    // Student Profiling: inactive accounts sink to the bottom (B210).
+    users.value      = [...res.data.data].sort((a, b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
     pagination.value = res.data;
   } catch (e) {
     console.error(e);
@@ -983,7 +968,7 @@ async function doConfirmedImport() {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  filters.value = { search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
   sortOption.value = 'created_at:desc';
   fetchUsers();
 }
@@ -1026,9 +1011,8 @@ onMounted(() => {
 });
 
 watch(() => route.name, () => {
-  filters.value = { search: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  filters.value = { search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
   sortOption.value = 'created_at:desc';
-  showInactive.value = false;
   fetchUsers();
 });
 </script>

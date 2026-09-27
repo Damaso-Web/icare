@@ -77,7 +77,7 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px" v-if="activeComplaint">
 
           <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainant</div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainant Information</div>
             <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
               <div><strong>{{ activeComplaint.complainant_name }}</strong></div>
               <div style="color:var(--stone)">{{ activeComplaint.complainant_address }}</div>
@@ -85,7 +85,7 @@
           </div>
 
           <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainee</div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainee Information</div>
             <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:4px">
               <div><strong>{{ activeComplaint.complainee?.last_name }}, {{ activeComplaint.complainee?.first_name }}</strong></div>
               <div v-if="activeComplaint.complainee_position">Position: {{ activeComplaint.complainee_position }}</div>

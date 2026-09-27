@@ -1,32 +1,25 @@
 <template>
   <div class="fade-up">
     <!-- Page Header -->
-    <div class="ph" style="margin-bottom:20px">
-      <h1>Appointment Calendar</h1>
-      <p>Confirm, reschedule, or manage student-requested appointments.</p>
+    <div class="ph" style="margin-bottom:20px;display:flex;align-items:center;gap:10px">
+      <!-- B241: reached from inside a Student Information File (e.g. "Schedule
+           Appointment" on the Referral Details page), this carries a
+           return_to query so staff can get back to exactly where they were,
+           instead of having to re-find the case afterward. -->
+      <button v-if="returnTo" class="ibtn ibtn-o ibtn-sm" @click="$router.push(returnTo)">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Case File
+      </button>
+      <div>
+        <h1>Appointment Calendar</h1>
+        <p>Confirm, reschedule, or manage student-requested appointments.</p>
+      </div>
     </div>
 
     <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
 
       <!-- Left: Appointments List -->
       <div style="display:flex;flex-direction:column;gap:16px">
-
-        <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button
-            class="ibtn ibtn-sm"
-            :style="!showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-            @click="switchTab(false)"
-          >
-            Open
-          </button>
-          <button
-            class="ibtn ibtn-sm"
-            :style="showClosed ? 'background:var(--moss);color:#fff' : 'background:var(--cloud);color:var(--stone)'"
-            @click="switchTab(true)"
-          >
-            Completed / Cancelled
-          </button>
-        </div>
 
         <!-- Filter Bar -->
         <div class="filter-bar">
@@ -36,16 +29,14 @@
             <option value="SDU">SDU</option>
             <option value="TMDU">TMDU</option>
           </select>
-          <select v-if="!showClosed" v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="pending,confirmed,no_show">All</option>
+          <select v-model="filters.status" class="fsm" @change="fetchAppointments">
+            <option value="">All</option>
             <option value="pending">Pending</option>
             <option value="confirmed">Confirmed</option>
             <option value="no_show">No Show</option>
-          </select>
-          <select v-else v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="completed,cancelled">All</option>
-            <option value="completed">Completed</option>
+            <option value="rescheduled">Rescheduled</option>
             <option value="cancelled">Cancelled</option>
+            <option value="completed">Completed</option>
           </select>
           <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
         </div>
@@ -99,7 +90,7 @@
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
                 <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="openConfirm(a)">Confirm</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="markNoShow(a)">No-Show</button>
+                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
                 <button v-if="['pending','confirmed'].includes(a.status) && a.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
                 <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="openCancel(a)">Cancel</button>
               </div>
@@ -161,22 +152,10 @@
           </div>
         </div>
 
-        <!-- Day Preview Panel -->
-        <div v-if="previewDate" class="icard">
-          <div class="icard-header">
-            <span class="icard-title">{{ previewDateLabel }}</span>
-            <button class="ibtn ibtn-g ibtn-sm" @click="clearDateFilter">✕</button>
-          </div>
-          <div v-if="previewAppointments.length === 0" style="padding:16px;font-size:12px;color:var(--stone);text-align:center">
-            No appointments this day.
-          </div>
-          <div v-else>
-            <div v-for="a in previewAppointments" :key="a.id" style="padding:10px 14px;border-bottom:1px solid var(--cloud);font-size:12px;cursor:pointer" @click="openApptDetail(a)">
-              <div style="font-weight:600;color:var(--ink)">{{ a.start_time }} - {{ a.student?.student_id }}</div>
-              <div style="color:var(--stone);font-size:11px;margin-top:1px">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
-              <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block;font-size:10px">{{ toTitleCase(a.status) }}</span>
-            </div>
-          </div>
+        <!-- Date Filter Indicator -->
+        <div v-if="previewDate" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--mist);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--ink)">
+          <span>Filtering: <strong>{{ previewDateLabel }}</strong></span>
+          <button class="ibtn ibtn-g ibtn-sm" @click="clearDateFilter">Clear ✕</button>
         </div>
       </div>
     </div>
@@ -242,7 +221,7 @@
           <div v-if="!['cancelled','completed'].includes(detailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
             <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
             <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
-            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="markNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
+            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
             <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
             <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
           </div>
@@ -259,6 +238,16 @@
           <button class="ibtn ibtn-g ibtn-sm" @click="showConfirmModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:13px;color:var(--ink)">
+              <strong>{{ confirmTarget?.student?.last_name }}, {{ confirmTarget?.student?.first_name }}</strong>
+              <span style="color:var(--stone)"> · {{ confirmTarget?.student?.student_id }}</span>
+            </div>
+            <div v-if="confirmReferral" style="font-size:12px;color:var(--stone)">
+              <div style="font-weight:600;color:var(--fog);text-transform:uppercase;letter-spacing:.5px;font-size:10px;margin-bottom:2px">Reason for Referral / Concern</div>
+              {{ confirmReferral.nature_of_concern || '-' }}
+            </div>
+          </div>
           <div>
             <label class="ifl">Assign Staff</label>
             <select v-model="confirmStaffId" class="ifse">
@@ -313,6 +302,26 @@
       </div>
     </div>
 
+    <!-- No-Show Confirmation Modal -->
+    <div v-if="showNoShowModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showNoShowModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as No-Show?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            This will mark <strong>{{ noShowTarget?.student?.last_name }}, {{ noShowTarget?.student?.first_name }}</strong>'s appointment as a no-show and escalate it to the Dean's Secretary.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow">
+              {{ submittingNoShow ? 'Marking...' : 'Yes, Mark No-Show' }}
+            </button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showNoShowModal = false">Never Mind</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showRescheduleModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showRescheduleModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
@@ -339,12 +348,17 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, inject } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
 const toast  = inject('toast');
 const router = useRouter();
+const route  = useRoute();
+
+// B241 - present only when this page was reached from a Student Information
+// File action (see the return_to query param those links now attach).
+const returnTo = computed(() => (typeof route.query.return_to === 'string' ? route.query.return_to : ''));
 
 const loading    = ref(true);
 const appointments = ref([]);
@@ -383,15 +397,7 @@ const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
-const showClosed = ref(false);
 const previewDate = ref(null);
-
-const previewAppointments = computed(() => {
-  if (!previewDate.value) return [];
-  return allAppointments.value
-    .filter(a => a.appointment_date?.split('T')[0] === previewDate.value && ['pending', 'confirmed'].includes(a.status))
-    .sort((a, b) => a.start_time.localeCompare(b.start_time));
-});
 
 const previewDateLabel = computed(() => {
   if (!previewDate.value) return '';
@@ -438,17 +444,12 @@ async function fetchAllAppointments() {
 }
 
 function goToReferral(a) {
-  if (a.referral_id) {
-    router.push({ name: 'referral-show', params: { id: a.referral_id } });
+  const studentId = a.student_id || a.student?.id;
+  if (studentId) {
+    router.push({ name: 'student-show', params: { id: studentId }, query: { ctx: 'cases' } });
   } else {
-    toast?.error('No linked referral found for this appointment.');
+    toast?.error('No linked student found for this appointment.');
   }
-}
-
-function switchTab(closed) {
-  showClosed.value = closed;
-  filters.value.status = closed ? 'completed,cancelled' : 'pending';
-  fetchAppointments();
 }
 
 async function fetchAppointments(page = 1) {
@@ -476,6 +477,10 @@ function isOverlapping(slot) {
   if (!confirmTarget.value) return false;
   return slot.start_time < confirmTarget.value.end_time && slot.end_time > confirmTarget.value.start_time;
 }
+
+const confirmReferral = computed(() =>
+  confirmTarget.value?.referral || confirmTarget.value?.case?.latest_referral || null
+);
 
 watch(confirmStaffId, async (staffId) => {
   staffAvailability.value = null;
@@ -520,15 +525,29 @@ async function checkIn(a) {
   }
 }
 
-async function markNoShow(a) {
+const showNoShowModal   = ref(false);
+const noShowTarget      = ref(null);
+const submittingNoShow  = ref(false);
+
+function openNoShow(a) {
+  noShowTarget.value = a;
+  showNoShowModal.value = true;
+}
+
+async function submitNoShow() {
+  if (!noShowTarget.value) return;
+  submittingNoShow.value = true;
   try {
-    await appointmentAPI.escalateNoShow(a.id);
-    a.status = 'no_show';
-    a.no_show_escalated = true;
+    await appointmentAPI.escalateNoShow(noShowTarget.value.id);
+    noShowTarget.value.status = 'no_show';
+    noShowTarget.value.no_show_escalated = true;
     toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    showNoShowModal.value = false;
     fetchAllAppointments();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
+  } finally {
+    submittingNoShow.value = false;
   }
 }
 
@@ -579,7 +598,7 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { unit: '', status: showClosed.value ? 'completed,cancelled' : 'pending,confirmed,no_show', date: '' };
+  filters.value = { unit: '', status: 'pending', date: '' };
   previewDate.value = null;
   fetchAppointments();
 }

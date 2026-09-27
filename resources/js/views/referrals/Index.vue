@@ -69,7 +69,6 @@
           v-for="r in referrals"
           :key="r.id"
           class="qr"
-          :class="urgencyRow(r.urgency_level)"
           :style="r.is_archived ? 'cursor:not-allowed;opacity:.6' : ''"
           @click="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
         >
@@ -183,10 +182,6 @@ function resetFilters() {
 }
 
 function changePage(page) { fetchReferrals(page); }
-
-function urgencyRow(level) {
-  return { uh: level === 'high' || level === 'critical', um: level === 'medium', ul: level === 'low' };
-}
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';

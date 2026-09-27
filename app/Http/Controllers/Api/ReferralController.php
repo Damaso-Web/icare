@@ -28,7 +28,6 @@ class ReferralController extends Controller
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])
         ->where('is_archived', $request->boolean('archived'))
         ->when($request->status,          fn($q) => $q->where('status', $request->status))
-        ->when($request->urgency,         fn($q) => $q->where('urgency_level', $request->urgency))
         ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
         ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
         ->when($request->unit && !$request->violation_type, function ($q) use ($request, $sduTypes, $tmduTypes) {
@@ -82,7 +81,6 @@ class ReferralController extends Controller
             'student_id'          => 'required|exists:students,id',
             'referral_type'       => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
             'nature_of_concern'   => 'required|string|min:10',
-            'urgency_level'       => 'required|in:low,medium,high,critical',
             'is_self_referred'    => 'boolean',
             'referrer_source'     => 'nullable|string',
             'violation_type'      => 'nullable|string',
@@ -186,7 +184,6 @@ class ReferralController extends Controller
         $old = $referral->toArray();
         $referral->update($request->only([
             'nature_of_concern',
-            'urgency_level',
             'intake_notes',
             'referral_type',
             'violation_type',

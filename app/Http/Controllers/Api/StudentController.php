@@ -21,11 +21,19 @@ class StudentController extends Controller
         $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
 
         $query = Student::query()
-            ->when($request->search, fn($q) => $q->where(fn($sq) =>
-                $sq->where('first_name', 'like', "%{$request->search}%")
-                   ->orWhere('last_name', 'like', "%{$request->search}%")
-                   ->when(!$nameOnly, fn($iq) => $iq->orWhere('student_id', 'like', "%{$request->search}%"))
-            ))
+            ->when($request->search, function ($q) use ($request, $nameOnly) {
+                $terms = preg_split('/\s+/', trim($request->search), -1, PREG_SPLIT_NO_EMPTY);
+                $q->where(function ($outer) use ($terms, $nameOnly) {
+                    foreach ($terms as $term) {
+                        $outer->where(function ($t) use ($term, $nameOnly) {
+                            $t->where('first_name', 'like', "%{$term}%")
+                              ->orWhere('middle_name', 'like', "%{$term}%")
+                              ->orWhere('last_name', 'like', "%{$term}%")
+                              ->when(!$nameOnly, fn($iq) => $iq->orWhere('student_id', 'like', "%{$term}%"));
+                        });
+                    }
+                });
+            })
             ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
@@ -51,9 +59,9 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'student_id'             => 'required|string|unique:students,student_id',
-            'first_name'             => 'required|string|max:255',
-            'last_name'              => 'required|string|max:255',
-            'middle_name'            => 'nullable|string|max:255',
+            'first_name'             => 'required|string|min:2|max:255',
+            'last_name'              => 'required|string|min:2|max:255',
+            'middle_name'            => 'nullable|string|min:2|max:255',
             'suffix'                 => 'nullable|string|max:20',
             'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
             'email'                  => 'nullable|email',
@@ -62,9 +70,9 @@ class StudentController extends Controller
             'program'                => 'nullable|string',
             'year_level'             => 'nullable|string',
             'section'                => 'nullable|string|max:1',
-            'guardian_first_name'    => 'nullable|string|max:255',
-            'guardian_middle_name'   => 'nullable|string|max:255',
-            'guardian_last_name'     => 'nullable|string|max:255',
+            'guardian_first_name'    => 'nullable|string|min:2|max:255',
+            'guardian_middle_name'   => 'nullable|string|min:2|max:255',
+            'guardian_last_name'     => 'nullable|string|min:2|max:255',
             'guardian_contact'       => 'nullable|string|max:11',
             'guardian_relationship'  => 'nullable|string',
         ]);
@@ -96,9 +104,9 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'student_id'             => 'sometimes|required|string|unique:students,student_id,' . $student->id,
-            'first_name'             => 'sometimes|required|string|max:255',
-            'last_name'              => 'sometimes|required|string|max:255',
-            'middle_name'            => 'nullable|string|max:255',
+            'first_name'             => 'sometimes|required|string|min:2|max:255',
+            'last_name'              => 'sometimes|required|string|min:2|max:255',
+            'middle_name'            => 'nullable|string|min:2|max:255',
             'suffix'                 => 'nullable|string|max:20',
             'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
             'email'                  => 'nullable|email',
@@ -107,9 +115,9 @@ class StudentController extends Controller
             'program'                => 'nullable|string',
             'year_level'             => 'sometimes|required|string',
             'section'                => 'nullable|string|max:1',
-            'guardian_first_name'    => 'nullable|string|max:255',
-            'guardian_middle_name'   => 'nullable|string|max:255',
-            'guardian_last_name'     => 'nullable|string|max:255',
+            'guardian_first_name'    => 'nullable|string|min:2|max:255',
+            'guardian_middle_name'   => 'nullable|string|min:2|max:255',
+            'guardian_last_name'     => 'nullable|string|min:2|max:255',
             'guardian_contact'       => 'nullable|string|max:11',
             'guardian_relationship'  => 'nullable|string',
         ]);

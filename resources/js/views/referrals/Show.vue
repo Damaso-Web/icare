@@ -57,17 +57,13 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
-          <button v-if="isGCU && fromCases" class="ibtn ibtn-o ibtn-sm" @click="showCaseStatusModal = true">
-            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-            Update Case Status
-          </button>
           <button
             v-if="fromCases && (isGCU || (isSDUHead && referral.case.current_unit === 'SDU'))"
             class="ibtn ibtn-o ibtn-sm"
             @click="openTransferModal"
           >
             <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            Transfer Unit
+            Endorse to Unit
           </button>
           <button
             v-if="isGCU && fromCases && !referral.case.student_unreachable"
@@ -183,6 +179,14 @@
                 <div v-if="referral.acknowledged_at">
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Acknowledged</div>
                   <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.acknowledged_at) }}</div>
+                  <button
+                    v-if="!fromCases"
+                    class="ibtn ibtn-o ibtn-sm"
+                    style="margin-top:6px"
+                    @click="goToStudentInformationFile"
+                  >
+                    Go to Student Information File
+                  </button>
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Code</div>
@@ -357,7 +361,7 @@
                   Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
                 </div>
 
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="sendFeedback">
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="openFeedbackConfirm">
                   <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   Send to Referrer
                 </button>
@@ -441,6 +445,7 @@
                   <div style="font-size:12px;color:var(--stone);margin-top:2px">With {{ fu.staff?.name || 'TBA' }}</div>
                   <div v-if="fu.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ fu.notes }}</div>
                   <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">No notes yet - click to add</div>
+                  <div v-if="fu.created_by" style="font-size:10.5px;color:var(--fog);margin-top:4px">Recorded by {{ fu.created_by?.name }}</div>
                 </div>
                 <span class="ibadge" :class="'ibadge-' + fu.status">{{ toTitleCase(fu.status) }}</span>
               </div>
@@ -521,7 +526,7 @@
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <router-link
                 v-if="referral.status !== 'submitted'"
-                :to="{ name: 'appointments' }"
+                :to="{ name: 'appointments', query: { return_to: route.fullPath } }"
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
               >
@@ -536,7 +541,7 @@
                   v-if="!referral.case.referred_to_tmdu"
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
-                  @click="referToTmdu"
+                  @click="openTmduModal"
                 >
                   <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                   Refer to TMDU
@@ -604,15 +609,11 @@
             </div>
             <div>
               <label class="ifl">Interventions Applied</label>
-              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" placeholder="What interventions were applied?"></textarea>
-            </div>
-            <div>
-              <label class="ifl">Student Response</label>
-              <textarea v-model="sessionForm.student_response" class="ifta" style="min-height:60px" placeholder="How did the student respond?"></textarea>
+              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" maxlength="1000" placeholder="What interventions were applied?"></textarea>
             </div>
             <div>
               <label class="ifl">Remarks</label>
-              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" placeholder="Remarks..."></textarea>
+              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" maxlength="1000" placeholder="Remarks..."></textarea>
             </div>
             <div style="display:flex;gap:8px;padding-top:8px">
               <button class="ibtn ibtn-p" @click="logSession">
@@ -638,7 +639,7 @@
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Date <span style="color:var(--red)">*</span></label>
-              <input v-model="followUpForm.appointment_date" type="date" class="ifi" />
+              <input v-model="followUpForm.appointment_date" type="date" class="ifi" :min="todayStr" />
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
@@ -672,17 +673,31 @@
             </div>
             <div>
               <label class="ifl">Notes</label>
-              <textarea v-model="followUpForm.notes" class="ifta" style="min-height:60px" placeholder="What should this follow-up cover?"></textarea>
+              <textarea v-model="followUpForm.notes" class="ifta" style="min-height:60px" maxlength="1000" placeholder="What should this follow-up cover?"></textarea>
             </div>
             <div v-if="followUpError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
               {{ followUpError }}
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="saveFollowUp" :disabled="schedulingFollowUp">
-                {{ schedulingFollowUp ? 'Scheduling...' : 'Schedule Follow-up' }}
-              </button>
-              <button class="ibtn ibtn-o" @click="showFollowUpModal = false" :disabled="schedulingFollowUp">Cancel</button>
+              <button class="ibtn ibtn-p" @click="openFollowUpConfirm">Schedule Follow-up</button>
+              <button class="ibtn ibtn-o" @click="showFollowUpModal = false">Cancel</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Schedule Follow-up Confirmation Modal -->
+      <div v-if="showFollowUpConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;padding:22px;text-align:center">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Schedule this follow-up?</div>
+          <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
+            {{ formatDate(followUpForm.appointment_date) }} · {{ followUpForm.start_time }}–{{ followUpForm.end_time }}
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="schedulingFollowUp" @click="saveFollowUp">
+              {{ schedulingFollowUp ? 'Scheduling...' : 'Yes, Schedule' }}
+            </button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showFollowUpConfirm = false" :disabled="schedulingFollowUp">Cancel</button>
           </div>
         </div>
       </div>
@@ -707,30 +722,23 @@
         </div>
       </div>
 
-      <!-- Update Case Status Modal -->
-      <div v-if="showCaseStatusModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseStatusModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Case Status</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showCaseStatusModal = false">✕</button>
+      <!-- Close Case Modal -->
+
+      <!-- Send Feedback Confirmation Modal -->
+      <div v-if="showFeedbackConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFeedbackConfirm = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;padding:22px;text-align:center">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Send Feedback Slip?</div>
+          <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
+            This will send the feedback slip to the referrer. Please review what you've written before confirming.
           </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
-            <select v-model="newCaseStatus" class="ifse">
-              <option value="open">Open</option>
-              <option value="on_observation">On Observation</option>
-              <option value="in_progress">In Progress</option>
-              <option value="awaiting_testing">Awaiting Testing</option>
-              <option value="on_hold">On Hold</option>
-              <option value="resolved">Resolved</option>
-              <option value="closed">Closed</option>
-            </select>
-            <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateCaseStatus">Save Status</button>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="sendingFeedback" @click="sendFeedback">
+              {{ sendingFeedback ? 'Sending...' : 'Yes, Send' }}
+            </button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showFeedbackConfirm = false" :disabled="sendingFeedback">Cancel</button>
           </div>
         </div>
       </div>
-
-
-      <!-- Close Case Modal -->
 
       <!-- Flag Unreachable Modal -->
       <div v-if="showUnreachableModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUnreachableModal = false">
@@ -802,7 +810,7 @@
 
             <div style="display:flex;gap:8px;justify-content:flex-end">
               <button v-if="isGCU && !selectedIntervention.is_completed" class="ibtn ibtn-p" @click="markInterventionCompleted">Done</button>
-              <button class="ibtn ibtn-o" @click="closeIntervention">Cancel</button>
+              <button class="ibtn ibtn-o" @click="selectedIntervention = null">Close</button>
             </div>
           </div>
         </div>
@@ -831,13 +839,15 @@
             </div>
             <div v-if="isGCU">
               <label class="ifl">Notes</label>
-              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" placeholder="Add or update notes for this follow-up session..."></textarea>
+              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Add or update notes for this follow-up session..."></textarea>
             </div>
             <div v-else>
+              <!-- B254: same presentation as Session Notes' Observations block -->
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Notes</div>
               <div v-if="selectedFollowUp.notes" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedFollowUp.notes }}</div>
               <div v-else style="font-size:13px;color:var(--stone)">No notes recorded yet.</div>
             </div>
+            <div v-if="selectedFollowUp.created_by" style="font-size:11px;color:var(--fog)">Recorded by {{ selectedFollowUp.created_by?.name }}</div>
             <div v-if="isGCU" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" @click="saveFollowUpNotes">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
@@ -849,11 +859,40 @@
         </div>
       </div>
 
+      <!-- Refer to TMDU Modal (B255): requires a filled-out reason instead of
+           firing off with a canned string -->
+      <div v-if="showTmduModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTmduModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Refer to TMDU</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showTmduModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
+              This creates a testing record for {{ referral.student?.last_name }}, {{ referral.student?.first_name }} and moves the case to TMDU for psychological assessment.
+            </div>
+            <div>
+              <label class="ifl">Reason for Referral <span style="color:var(--red)">*</span></label>
+              <textarea v-model="tmduForm.reason" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Why is this student being referred for psychological testing?"></textarea>
+            </div>
+            <div v-if="tmduError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+              {{ tmduError }}
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-blue" :disabled="submittingTmdu" @click="referToTmdu">
+                {{ submittingTmdu ? 'Referring...' : 'Refer to TMDU' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="showTmduModal = false" :disabled="submittingTmdu">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Transfer Unit Modal -->
       <div v-if="showTransferModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTransferModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Transfer Case to Another Unit</div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Endorse Case to Another Unit</div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showTransferModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -879,7 +918,7 @@
               {{ transferError }}
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="transferUnit">Transfer</button>
+              <button class="ibtn ibtn-p" @click="transferUnit">Endorse</button>
               <button class="ibtn ibtn-o" @click="showTransferModal = false">Cancel</button>
             </div>
           </div>
@@ -892,13 +931,14 @@
 
 <script setup>
 import { ref, onMounted, inject, computed, watch } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { toTitleCase } from '../../utils/validators';
 
 const route   = useRoute();
+const router  = useRouter();
 const toast   = inject('toast');
 const auth    = useAuthStore();
 const loading = ref(true);
@@ -915,11 +955,9 @@ const followUpError      = ref('');
 const schedulingFollowUp = ref(false);
 
 const showStatusModal      = ref(false);
-const showCaseStatusModal  = ref(false);
 const showUnreachableModal = ref(false);
 const showTransferModal    = ref(false);
 const newStatus             = ref('');
-const newCaseStatus         = ref('');
 const unreachableNotes      = ref('');
 const unitStaffList         = ref([]);
 const transferError         = ref('');
@@ -948,20 +986,6 @@ async function markInterventionCompleted() {
   }
 }
 
-// Close on this modal drops the entry rather than just dismissing the view.
-async function closeIntervention() {
-  const id = selectedIntervention.value.id;
-  try {
-    await caseAPI.deleteIntervention(id);
-    referral.value.case.interventions = (referral.value.case.interventions || []).filter(i => i.id !== id);
-    toast?.success('Intervention entry removed.');
-  } catch (e) {
-    toast?.error('Failed to remove intervention entry.');
-  } finally {
-    selectedIntervention.value = null;
-  }
-}
-
 const interventionsForReferral = computed(() => {
   const all = referral.value.case?.interventions || [];
   return all.filter(i => i.referral_id === referral.value.id);
@@ -986,7 +1010,7 @@ const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head
 
 const sessionForm = ref({
   session_type: 'follow_up', observations: '', interventions: '',
-  student_response: '', next_steps: '', student_showed_up: true,
+  next_steps: '', student_showed_up: true,
 });
 
 const FEEDBACK_CHECKLIST_ITEMS = [
@@ -1051,12 +1075,13 @@ const headerTitle = computed(() => {
 const pipeline = [
   { key: 'submitted',    label: 'Submitted' },
   { key: 'acknowledged', label: 'Acknowledged' },
+  { key: 'scheduled',   label: 'Scheduled' },
   { key: 'in_review',   label: 'In Review' },
   { key: 'in_progress', label: 'In Progress' },
   { key: 'completed',   label: 'Completed' },
 ];
 
-const statusOrder = ['submitted', 'acknowledged', 'in_review', 'in_progress', 'completed', 'closed'];
+const statusOrder = ['submitted', 'acknowledged', 'scheduled', 'in_review', 'in_progress', 'completed', 'closed'];
 
 function isStepDone(key) {
   const current = statusOrder.indexOf(referral.value.status);
@@ -1066,6 +1091,12 @@ function isStepDone(key) {
 
 function isCurrentStep(key) {
   return referral.value.status === key;
+}
+
+function goToStudentInformationFile() {
+  const studentId = referral.value.student?.id;
+  if (!studentId) return;
+  router.push({ name: 'student-show', params: { id: studentId }, query: { ctx: 'cases' } });
 }
 
 async function acknowledge() {
@@ -1130,24 +1161,41 @@ async function logSession() {
     toast?.success('Session notes saved successfully.');
     sessionForm.value = {
       session_type: 'follow_up', observations: '', interventions: '',
-      student_response: '', next_steps: '', student_showed_up: true,
+      next_steps: '', student_showed_up: true,
     };
   } catch (e) {
     toast?.error('Failed to save session notes.');
   }
 }
 
-async function sendFeedback() {
+// B248: confirm before actually sending, since this notifies the referrer
+// and can't be un-sent.
+const showFeedbackConfirm = ref(false);
+const sendingFeedback     = ref(false);
+
+function openFeedbackConfirm() {
   if (!feedbackForm.value.feedback_notes) {
     toast?.error('Please write a feedback summary before sending.');
     return;
   }
+  showFeedbackConfirm.value = true;
+}
+
+async function sendFeedback() {
+  sendingFeedback.value = true;
   try {
-    const res = await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
-    referral.value = { ...referral.value, ...res.data };
+    await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
+    // B249: re-fetch the referral from the server instead of merging only the
+    // response locally, so the "sent" record is guaranteed to reflect what
+    // was actually persisted rather than an optimistic local update.
+    const fresh = await referralAPI.show(referral.value.id);
+    referral.value = fresh.data;
+    showFeedbackConfirm.value = false;
     toast?.success('Feedback sent to referrer.');
   } catch (e) {
     toast?.error('Failed to send feedback.');
+  } finally {
+    sendingFeedback.value = false;
   }
 }
 
@@ -1186,17 +1234,6 @@ async function updateStatus() {
   }
 }
 
-async function updateCaseStatus() {
-  try {
-    const res = await caseAPI.updateStatus(referral.value.case.id, { status: newCaseStatus.value });
-    referral.value.case.status = res.data.status;
-    showCaseStatusModal.value = false;
-    toast?.success('Case status updated.');
-  } catch (e) {
-    toast?.error('Failed to update case status.');
-  }
-}
-
 async function flagUnreachable() {
   try {
     await caseAPI.flagUnreachable(referral.value.case.id, { notes: unreachableNotes.value });
@@ -1208,15 +1245,36 @@ async function flagUnreachable() {
   }
 }
 
+// B255: Refer to TMDU now requires an actual filled-out reason instead of
+// firing immediately with a hardcoded string.
+const showTmduModal  = ref(false);
+const submittingTmdu = ref(false);
+const tmduError      = ref('');
+const tmduForm       = ref({ reason: '' });
+
+function openTmduModal() {
+  tmduForm.value = { reason: '' };
+  tmduError.value = '';
+  showTmduModal.value = true;
+}
+
 async function referToTmdu() {
+  if (!tmduForm.value.reason.trim()) {
+    tmduError.value = 'Please provide a reason for the referral.';
+    return;
+  }
+  submittingTmdu.value = true;
   try {
-    await caseAPI.referToTmdu(referral.value.case.id, { reason: 'Referred for psychological assessment.' });
+    await caseAPI.referToTmdu(referral.value.case.id, { reason: tmduForm.value.reason });
     referral.value.case.current_unit     = 'TMDU';
     referral.value.case.status           = 'awaiting_testing';
     referral.value.case.referred_to_tmdu = true;
+    showTmduModal.value = false;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
-    toast?.error('Failed to refer to TMDU.');
+    tmduError.value = e.response?.data?.message || 'Failed to refer to TMDU.';
+  } finally {
+    submittingTmdu.value = false;
   }
 }
 
@@ -1322,19 +1380,33 @@ async function saveFollowUpNotes() {
   }
 }
 
+// B252: never allow picking a day that's already gone.
+const todayStr = new Date().toISOString().split('T')[0];
+
+const showFollowUpConfirm = ref(false);
+
 function openFollowUpModal() {
   followUpError.value = '';
   followUpForm.value = { appointment_date: '', start_time: '', end_time: '', staff_user_id: '', notes: '' };
   showFollowUpModal.value = true;
 }
 
-async function saveFollowUp() {
-  if (schedulingFollowUp.value) return; // guard against double-click / double-submit
+// B252: require an explicit confirmation step before actually booking.
+function openFollowUpConfirm() {
   followUpError.value = '';
   if (!followUpForm.value.appointment_date || !followUpForm.value.start_time || !followUpForm.value.end_time) {
     followUpError.value = 'Please fill in the date and time.';
     return;
   }
+  if (followUpForm.value.appointment_date < todayStr) {
+    followUpError.value = 'Follow-up date cannot be in the past.';
+    return;
+  }
+  showFollowUpConfirm.value = true;
+}
+
+async function saveFollowUp() {
+  if (schedulingFollowUp.value) return; // guard against double-click / double-submit
   schedulingFollowUp.value = true;
   try {
     const res = await appointmentAPI.store({
@@ -1354,10 +1426,12 @@ async function saveFollowUp() {
     if (!followUps.value.some(f => f.id === res.data.id)) {
       followUps.value.push(res.data);
     }
+    showFollowUpConfirm.value = false;
     showFollowUpModal.value = false;
     toast?.success('Follow-up session scheduled.');
   } catch (e) {
     followUpError.value = e.response?.data?.message || 'Failed to schedule follow-up.';
+    showFollowUpConfirm.value = false;
   } finally {
     schedulingFollowUp.value = false;
   }
@@ -1374,7 +1448,6 @@ onMounted(async () => {
     feedbackForm.value.feedback_ctrl_no              = res.data.feedback_ctrl_no || '';
 
     newStatus.value = res.data.status || '';
-    newCaseStatus.value = res.data.case?.status || '';
     if (isGCU.value) {
       const notesRes = await sessionNoteAPI.indexByReferral(route.params.id);
       sessionNotes.value = notesRes.data;

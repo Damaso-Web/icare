@@ -41,7 +41,17 @@
           {{ primaryCase.status === 'closed' ? 'Closed Case' : 'Resolved Case' }}
         </span>
         <span v-if="isRecurringStudent" class="ibadge ibadge-in_progress">Recurring</span>
+        <!-- B244: show which staff member is assigned to this case -->
+        <span v-if="primaryCase" style="font-size:12px;color:var(--stone)">
+          Assigned to: <strong style="color:var(--ink)">{{ primaryCase.counselor?.name || 'Unassigned' }}</strong>
+        </span>
         <div style="margin-left:auto;display:flex;gap:8px">
+          <!-- Update Case Status - moved here from Referral Details (B242),
+               since this is the actual Case Details view for the SIF. -->
+          <button v-if="isGCU && fromCases && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="newCaseStatus = primaryCase.status; showCaseStatusModal = true">
+            <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            Update Case Status
+          </button>
           <button v-if="isGCU && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Reassign
@@ -66,7 +76,7 @@
             <div style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
               <div style="position:relative">
                 <svg viewBox="0 0 24 24" style="width:15px;height:15px;position:absolute;left:10px;top:50%;transform:translateY(-50%);stroke:var(--fog);fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input v-model="referralSearch" class="ifi" style="padding-left:32px" placeholder="Search referral no." />
+                <input v-model="referralSearch" class="ifi" style="padding-left:32px" maxlength="50" placeholder="Search referral no." />
               </div>
             </div>
             <div v-if="!history.referrals?.length" class="empty-state">
@@ -110,32 +120,36 @@
             </div>
           </div>
 
-          <!-- Related Concerns Comparison - group referrals by type to spot recurrence/escalation -->
+          <!-- Related Concerns Comparison - group referrals by type to spot recurrence/escalation.
+               Each group is now a collapsible dropdown (B245) so multiple groups
+               don't crowd the screen; the count badge stays visible either way. -->
           <div class="icard" v-if="history.referrals?.length > 1">
             <div class="icard-header"><span class="icard-title">Related Concerns Comparison</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:16px">
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div v-for="group in concernGroups" :key="group.type">
-                <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+                <div
+                  style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
+                  @click="toggleConcernGroup(group.type)"
+                >
+                  <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s" :style="{ transform: expandedConcernGroups[group.type] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
                   <div style="font-size:12.5px;font-weight:700;color:var(--ink)">{{ toTitleCase(group.type) }}</div>
                   <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.referrals.length }}</span>
                   <span v-if="group.referrals.length > 1" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Recurring</span>
                 </div>
-                <div class="ts">
+                <div class="ts" v-if="expandedConcernGroups[group.type]">
                   <table class="itable" style="table-layout:fixed">
                     <colgroup>
-                      <col style="width:15%" />
-                      <col style="width:50%" />
-                      <col style="width:17.5%" />
-                      <col style="width:17.5%" />
+                      <col style="width:20%" />
+                      <col style="width:55%" />
+                      <col style="width:25%" />
                     </colgroup>
                     <thead>
-                      <tr><th>Date</th><th>Concern</th><th>Urgency</th><th>Status</th></tr>
+                      <tr><th>Date</th><th>Concern</th><th>Status</th></tr>
                     </thead>
                     <tbody>
                       <tr v-for="r in group.referrals" :key="r.id" style="cursor:pointer" @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">
                         <td style="font-size:12px;white-space:nowrap">{{ formatDate(r.created_at) }}</td>
                         <td style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.nature_of_concern || '-' }}</td>
-                        <td><span v-if="r.urgency_level" class="ibadge" :class="'ibadge-' + r.urgency_level">{{ toTitleCase(r.urgency_level) }}</span></td>
                         <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                       </tr>
                     </tbody>
@@ -389,6 +403,28 @@
         </div>
       </div>
 
+      <!-- Update Case Status Modal - moved here from Referral Details (B242) -->
+      <div v-if="showCaseStatusModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseStatusModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Update Case Status</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showCaseStatusModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
+            <select v-model="newCaseStatus" class="ifse">
+              <option value="open">Open</option>
+              <option value="on_observation">On Observation</option>
+              <option value="in_progress">In Progress</option>
+              <option value="awaiting_testing">Awaiting Testing</option>
+              <option value="on_hold">On Hold</option>
+              <option value="resolved">Resolved</option>
+              <option value="closed">Closed</option>
+            </select>
+            <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateCaseStatus">Save Status</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Reassign Counselor Modal -->
       <div v-if="showAssignModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAssignModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -438,6 +474,32 @@ const editError = ref('');
 
 const editForm = ref({});
 const referralSearch = ref('');
+
+// Update Case Status - moved here from Referral Details (B242)
+const showCaseStatusModal = ref(false);
+const newCaseStatus       = ref('');
+
+async function updateCaseStatus() {
+  try {
+    const res = await caseAPI.updateStatus(primaryCase.value.id, { status: newCaseStatus.value });
+    primaryCase.value.status = res.data.status;
+    showCaseStatusModal.value = false;
+    toast?.success('Case status updated.');
+  } catch (e) {
+    toast?.error('Failed to update case status.');
+  }
+}
+
+// Related Concerns Comparison - each concern group collapses behind a
+// dropdown toggle (B245) so several groups don't crowd the screen; the
+// count badge on the header stays visible whether expanded or not.
+const expandedConcernGroups = ref({});
+function toggleConcernGroup(type) {
+  expandedConcernGroups.value = {
+    ...expandedConcernGroups.value,
+    [type]: !expandedConcernGroups.value[type],
+  };
+}
 
 // Which sidebar module opened this profile. Case Files links in with ctx=cases;
 // Student/Client links in with no ctx. This page is shared by both, so the
@@ -577,6 +639,7 @@ onMounted(async () => {
     student.value = studentRes.data;
     history.value = historyRes.data;
     editForm.value = { ...studentRes.data };
+    newCaseStatus.value = history.value.cases?.[0]?.status || '';
   } catch (e) {
     console.error(e);
   } finally {

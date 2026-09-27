@@ -9,7 +9,7 @@
       <form @submit.prevent="openCertificationModal" style="padding:22px">
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
-          Complainant
+          Complainant Information
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
 
@@ -19,6 +19,8 @@
             v-model="form.complainant_name"
             type="text"
             class="ifi"
+            placeholder="Your full name..."
+            maxlength="255"
             :style="errorStyle('complainant_name')"
             @input="clearFieldError('complainant_name')"
             required
@@ -32,6 +34,7 @@
             type="text"
             class="ifi"
             placeholder="Your current address..."
+            maxlength="255"
             :style="errorStyle('complainant_address')"
             @input="clearFieldError('complainant_address')"
             required
@@ -39,7 +42,7 @@
         </div>
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
-          Complainee
+          Complainee Information
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
 
@@ -76,26 +79,35 @@
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
-            <label class="ifl">Position</label>
-            <input v-model="form.complainee_position" type="text" class="ifi" placeholder="e.g. Org Officer, if applicable" />
-          </div>
-          <div>
-            <label class="ifl">College</label>
-            <input v-model="form.complainee_college" type="text" class="ifi" />
-          </div>
-          <div>
-            <label class="ifl">Department</label>
-            <input v-model="form.complainee_department" type="text" class="ifi" />
+            <label class="ifl">Position / Role</label>
+            <input v-model="form.complainee_position" type="text" class="ifi" placeholder="e.g. Org Officer, if applicable" maxlength="255" />
           </div>
           <div>
             <label class="ifl">Office</label>
-            <input v-model="form.complainee_office" type="text" class="ifi" />
+            <input v-model="form.complainee_office" type="text" class="ifi" placeholder="e.g. Student Council Office, if applicable" maxlength="255" />
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>
+            <label class="ifl">College</label>
+            <select v-model="selectedCollegeId" class="ifse" @change="onCollegeChange">
+              <option value="" disabled hidden>Select college...</option>
+              <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="ifl">Department</label>
+            <select v-model="form.complainee_department" class="ifse" :disabled="!selectedCollegeId">
+              <option value="" disabled hidden>Select department...</option>
+              <option v-for="d in departments" :key="d.id" :value="d.name">{{ d.name }}</option>
+            </select>
           </div>
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Address</label>
-          <input v-model="form.complainee_address" type="text" class="ifi" />
+          <input v-model="form.complainee_address" type="text" class="ifi" placeholder="Complainee's address, if known..." maxlength="255" />
         </div>
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
@@ -136,6 +148,7 @@
             class="ifta"
             style="min-height:120px"
             placeholder="Describe what happened, when, where, and how, in as much detail as possible..."
+            maxlength="2000"
             :style="errorStyle('description')"
             @input="clearFieldError('description')"
             required
@@ -184,10 +197,25 @@
             <input type="checkbox" v-model="certificationChecked" style="width:15px;height:15px;accent-color:var(--moss);margin-top:2px" />
             I have read and agree to the certification above.
           </label>
+
+          <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:12px 14px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">
+            I hereby confirm that the details here are true and correct to the best of my knowledge, and that typing my name below serves in place of my physical signature.
+          </div>
+          <div>
+            <label class="ifl">Type your full name to confirm (in place of a signature)</label>
+            <input
+              v-model="pkiSignature"
+              type="text"
+              class="ifi"
+              placeholder="Type your full name exactly as entered above..."
+              maxlength="255"
+            />
+          </div>
+
           <div v-if="error" style="background:var(--red-lt);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:13px">{{ error }}</div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!certificationChecked || loading" @click="handleSubmit">
-              {{ loading ? 'Submitting...' : 'Confirm & Submit' }}
+            <button class="ibtn ibtn-p" :disabled="loading" @click="handleSubmit">
+              {{ loading ? 'Filing...' : 'File Complaint' }}
             </button>
             <button class="ibtn ibtn-o" @click="showCertModal = false" :disabled="loading">Cancel</button>
           </div>
@@ -227,6 +255,43 @@ async function fetchFormOptions() {
   }
 }
 fetchFormOptions();
+
+const colleges         = ref([]);
+const departments       = ref([]);
+const selectedCollegeId = ref('');
+
+async function fetchColleges() {
+  try {
+    const res = await axios.get(`${API_BASE}/management/colleges`, authHeaders());
+    colleges.value = res.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+fetchColleges();
+
+async function fetchDepartments(collegeId) {
+  if (!collegeId) {
+    departments.value = [];
+    return;
+  }
+  try {
+    const res = await axios.get(`${API_BASE}/management/departments`, {
+      ...authHeaders(),
+      params: { college_id: collegeId },
+    });
+    departments.value = res.data;
+  } catch (e) {
+    departments.value = [];
+  }
+}
+
+function onCollegeChange() {
+  const college = colleges.value.find(c => c.id === selectedCollegeId.value);
+  form.value.complainee_college = college?.name || '';
+  form.value.complainee_department = '';
+  fetchDepartments(selectedCollegeId.value);
+}
 
 const fieldErrors = ref({});
 function clearFieldError(field) {
@@ -275,6 +340,7 @@ function onFilesSelected(event, category) {
 
 const showCertModal        = ref(false);
 const certificationChecked = ref(false);
+const pkiSignature         = ref('');
 
 function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
@@ -313,6 +379,12 @@ function selectStudent(s) {
   // Prefill from the student's record where we have it; still editable.
   form.value.complainee_college = s.college || '';
   form.value.complainee_address = s.address || '';
+
+  const matchedCollege = colleges.value.find(c => c.name === s.college);
+  if (matchedCollege) {
+    selectedCollegeId.value = matchedCollege.id;
+    fetchDepartments(matchedCollege.id);
+  }
 }
 
 function goBack() {
@@ -338,12 +410,24 @@ function openCertificationModal() {
   }
 
   certificationChecked.value = false;
+  pkiSignature.value = '';
   showCertModal.value = true;
 }
 
 async function handleSubmit() {
-  if (!certificationChecked.value) return;
   error.value = '';
+  if (!certificationChecked.value) {
+    error.value = 'Please tick the certification checkbox before submitting.';
+    return;
+  }
+  if (!pkiSignature.value.trim()) {
+    error.value = 'Please type your full name to confirm, in place of a signature.';
+    return;
+  }
+  if (pkiSignature.value.trim().toLowerCase() !== form.value.complainant_name.trim().toLowerCase()) {
+    error.value = 'The typed name must match the Complainant Name entered above.';
+    return;
+  }
   loading.value = true;
   try {
     const payload = new FormData();

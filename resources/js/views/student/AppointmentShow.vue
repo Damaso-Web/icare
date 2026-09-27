@@ -43,21 +43,13 @@
           </div>
           <div v-if="referralSource">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">For Referral</div>
-            <div style="font-size:13px;color:var(--ink)">{{ referralSource.referral_code }} · {{ toTitleCase(referralSource.referral_type) }}</div>
+            <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm)">
+              {{ referralSource.nature_of_concern || '-' }}
+            </div>
           </div>
           <div v-if="referralSource?.referrer_name">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
             <div style="font-size:13px;color:var(--ink)">{{ referralSource.referrer_name }}<span v-if="referralSource.referrer_role"> ({{ toTitleCase(referralSource.referrer_role) }})</span></div>
-          </div>
-          <div v-if="referralSource?.created_at">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Referred</div>
-            <div style="font-size:13px;color:var(--ink)">{{ formatDate(referralSource.created_at) }}</div>
-          </div>
-          <div v-if="referralSource">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Reason for Referral / Concern</div>
-            <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm)">
-              {{ referralSource.nature_of_concern || '-' }}
-            </div>
           </div>
           <div v-if="appointment.staff">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Assigned Staff</div>
@@ -142,7 +134,7 @@
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitSchedule" :disabled="!canSubmit || submitting">
-              {{ submitting ? 'Submitting...' : 'Confirm Appointment Request' }}
+              {{ submitting ? 'Submitting...' : 'Request Appointment' }}
             </button>
           </div>
         </div>
@@ -221,8 +213,8 @@
           <div v-if="preferredTimeError" style="font-size:11px;color:var(--red)">{{ preferredTimeError }}</div>
           <div>
             <label class="ifl">Reason for Rescheduling</label>
-            <textarea v-model="rescheduleReason" class="ifi" rows="3" placeholder="Please tell us why you need to reschedule..."></textarea>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">This is a preference, not a confirmed booking — staff will confirm the actual new time.</div>
+            <textarea v-model="rescheduleReason" class="ifi" rows="3" maxlength="1000" placeholder="Please tell us why you need to reschedule..."></textarea>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ rescheduleReason.length }}/1000 characters. This is a preference, not a confirmed booking — staff will confirm the actual new time.</div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!canSubmitReschedule" @click="requestReschedule">
@@ -364,6 +356,7 @@ function calStatusLabel(status) {
 }
 
 function calDayStyle(day) {
+  if (day.date === scheduleForm.value.appointment_date) return 'cursor:pointer;background:var(--moss);color:#fff;font-weight:700;box-shadow:0 0 0 2px var(--moss)';
   if (day.status === 'available') return 'cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600';
   if (day.status === 'full') return 'cursor:not-allowed;background:#fee2e2;color:#b91c1c';
   if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
@@ -380,7 +373,13 @@ async function fetchMonthAvailability() {
   const monthStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`;
   try {
     const res = await axios.get(`${API_BASE}/schedule/${appointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
-    calDays.value = res.data.days;
+    // The backend response has been seen marking past dates as still
+    // "available" — this always forces any date before today back to
+    // "past" client-side, regardless of what the API returned (B232).
+    const todayStr = new Date().toISOString().split('T')[0];
+    calDays.value = (res.data.days || []).map(day =>
+      day.date < todayStr ? { ...day, status: 'past' } : day
+    );
   } catch (e) {
     calDays.value = [];
   }

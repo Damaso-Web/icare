@@ -24,11 +24,13 @@ class AppointmentController extends Controller
         $perPage = $request->input('per_page', 20);
 
         return response()->json(
-            Appointment::with(['student', 'staff', 'case'])
+            Appointment::with(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy'])
                 ->when($request->date,        fn($q) => $q->where('appointment_date', $request->date))
                 ->when($request->unit,        fn($q) => $q->where('unit', $request->unit))
                 ->when($request->status, function ($q) use ($request) {
-                    if (str_contains($request->status, ',')) {
+                    if ($request->status === 'rescheduled') {
+                        $q->where('status', 'pending')->where('request_status', 'awaiting_student');
+                    } elseif (str_contains($request->status, ',')) {
                         $q->whereIn('status', explode(',', $request->status));
                     } else {
                         $q->where('status', $request->status);
@@ -38,8 +40,7 @@ class AppointmentController extends Controller
                 ->when($request->appointment_type, fn($q) => $q->where('appointment_type', $request->appointment_type))
                 ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
                 ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
-                ->orderBy('appointment_date')
-                ->orderBy('start_time')
+                ->orderByDesc('created_at')
                 ->paginate($perPage)
         );
     }
@@ -66,7 +67,7 @@ class AppointmentController extends Controller
         'start_time'       => 'required|date_format:H:i',
         'end_time'         => 'required|date_format:H:i|after:start_time',
         'location'         => 'nullable|string',
-        'notes'            => 'nullable|string',
+        'notes'            => 'nullable|string|max:1000',
     ]);
 
         $conflictFound = !empty($validated['staff_user_id'])
@@ -87,7 +88,7 @@ class AppointmentController extends Controller
         ]);
 
         AuditLog::record('created', "Scheduled appointment {$appt->appointment_code}.", $appt);
-        return response()->json($appt->load(['student', 'staff']), 201);
+        return response()->json($appt->load(['student', 'staff', 'createdBy']), 201);
     }
 
     public function show(Appointment $appointment)
@@ -97,10 +98,15 @@ class AppointmentController extends Controller
 
     public function update(Request $request, Appointment $appointment)
     {
+        $validated = $request->validate([
+            'location'         => 'nullable|string',
+            'notes'            => 'nullable|string|max:1000',
+            'appointment_type' => 'nullable|string',
+        ]);
         $old = $appointment->toArray();
-        $appointment->update($request->only(['location', 'notes', 'appointment_type']));
+        $appointment->update($validated);
         AuditLog::record('updated', "Updated appointment {$appointment->appointment_code}.", $appointment, $old, $appointment->toArray());
-        return response()->json($appointment);
+        return response()->json($appointment->load('createdBy'));
     }
 
     public function confirm(Request $request, Appointment $appointment)
@@ -147,6 +153,12 @@ class AppointmentController extends Controller
         return response()->json($appointment);
     }
 
+    // B234: a reschedule no longer mutates the original appointment in
+    // place. It creates a separate, linked Appointment row (via
+    // rescheduled_from_id) for the new slot, and marks the original row
+    // with status 'rescheduled' so it stops appearing as an open/pending
+    // appointment while still being kept around as a record. This lets the
+    // whole chain of an appointment's reschedules be counted and traced.
     public function reschedule(Request $request, Appointment $appointment)
 {
     $request->validate([
@@ -154,48 +166,65 @@ class AppointmentController extends Controller
     ]);
 
     $newToken = \Illuminate\Support\Str::random(48);
-    $newCount = $appointment->reschedule_count + 1;
 
-    $appointment->update([
-        'request_status'    => 'awaiting_student',
-        'status'            => 'pending',
-        'scheduling_token'  => $newToken,
-        'token_expires_at'  => now()->addDays(7),
-        'reschedule_reason' => $request->reschedule_reason,
-        'reschedule_count'  => $newCount,
-        ...($newCount >= self::RESCHEDULE_LIMIT && !$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
+    $newAppointment = Appointment::create([
+        'case_id'             => $appointment->case_id,
+        'referral_id'         => $appointment->referral_id,
+        'student_id'          => $appointment->student_id,
+        'staff_user_id'       => $appointment->staff_user_id,
+        'created_by_user_id'  => $request->user()->id,
+        'unit'                => $appointment->unit,
+        'appointment_type'    => $appointment->appointment_type,
+        'appointment_date'    => $appointment->appointment_date,
+        'start_time'          => $appointment->start_time,
+        'end_time'            => $appointment->end_time,
+        'duration_minutes'    => $appointment->duration_minutes,
+        'location'            => $appointment->location,
+        'notes'               => $appointment->notes,
+        'required_documents'  => $appointment->required_documents,
+        'rescheduled_from_id' => $appointment->id,
+        'request_status'      => 'awaiting_student',
+        'status'              => 'pending',
+        'scheduling_token'    => $newToken,
+        'token_expires_at'    => now()->addDays(7),
+        'reschedule_reason'   => $request->reschedule_reason,
+        'reschedule_count'    => $appointment->reschedule_count,
     ]);
 
-    AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}. Reason: {$request->reschedule_reason}", $appointment);
+    $appointment->update([
+        'status'         => 'rescheduled',
+        'request_status' => 'superseded',
+    ]);
 
-    if ($newCount >= self::RESCHEDULE_LIMIT) {
-        $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
-        AuditLog::record('call_slip_generated', "Appointment {$appointment->appointment_code} reached the reschedule limit; call slip generated.", $appointment);
-    }
+    AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reschedule_reason}", $appointment);
 
     return response()->json([
-        'message'         => 'Reschedule request sent to student.',
-        'appointment'     => $appointment,
-        'scheduling_link' => url("/schedule/{$newToken}"),
+        'message'               => 'Reschedule request sent to student.',
+        'appointment'           => $newAppointment,
+        'previous_appointment'  => $appointment,
+        'scheduling_link'       => url("/schedule/{$newToken}"),
     ]);
 }
 
-    // Student self-service reschedule - same counter/limit as the staff-side
-    // reschedule() above. A student must give a reason each time; the request
-    // that would push the count to the limit is denied outright and escalated
-    // to a no-show/call-slip instead of being granted a new scheduling link,
-    // since there's no staff member in the loop to catch a runaway student.
+    // Student self-service reschedule - this is the only path that tracks
+    // reschedule_count / RESCHEDULE_LIMIT; a staff-initiated reschedule()
+    // above no longer touches that counter, since it isn't the student
+    // repeatedly bailing on their own appointment. A student must give a
+    // reason each time; the request that would push the count to the limit
+    // is denied outright and escalated to a no-show/call-slip instead of
+    // being granted a new scheduling link, since there's no staff member in
+    // the loop to catch a runaway student.
     public function requestRescheduleByStudent(Request $request, Appointment $appointment)
     {
         if ($appointment->student_id !== $request->user('student')->id) {
             abort(403, 'This is not your appointment.');
         }
 
-        if (!in_array($appointment->status, ['pending', 'confirmed'])) {
+        if (!in_array($appointment->status, ['pending', 'confirmed', 'no_show'])) {
             return response()->json(['message' => 'This appointment can no longer be rescheduled.'], 422);
         }
 
-        $request->validate(['reason' => 'required|string']);
+        $request->validate(['reason' => 'required|string|max:1000']);
 
         $newCount = $appointment->reschedule_count + 1;
 
@@ -219,21 +248,46 @@ class AppointmentController extends Controller
 
         $newToken = \Illuminate\Support\Str::random(48);
 
-        $appointment->update([
-            'request_status'    => 'awaiting_student',
-            'status'            => 'pending',
-            'scheduling_token'  => $newToken,
-            'token_expires_at'  => now()->addDays(7),
-            'reschedule_reason' => $request->reason,
-            'reschedule_count'  => $newCount,
+        // Same B234 change as the staff-initiated reschedule() above: create
+        // a new, linked Appointment row for the new slot instead of mutating
+        // this one, and mark this row 'rescheduled' so it's kept as a record
+        // without still counting as an open appointment.
+        $newAppointment = Appointment::create([
+            'case_id'             => $appointment->case_id,
+            'referral_id'         => $appointment->referral_id,
+            'student_id'          => $appointment->student_id,
+            'staff_user_id'       => $appointment->staff_user_id,
+            'created_by_user_id'  => $appointment->created_by_user_id,
+            'unit'                => $appointment->unit,
+            'appointment_type'    => $appointment->appointment_type,
+            'appointment_date'    => $appointment->appointment_date,
+            'start_time'          => $appointment->start_time,
+            'end_time'            => $appointment->end_time,
+            'duration_minutes'    => $appointment->duration_minutes,
+            'location'            => $appointment->location,
+            'notes'               => $appointment->notes,
+            'required_documents'  => $appointment->required_documents,
+            'rescheduled_from_id' => $appointment->id,
+            'request_status'      => 'awaiting_student',
+            'status'              => 'pending',
+            'scheduling_token'    => $newToken,
+            'token_expires_at'    => now()->addDays(7),
+            'reschedule_reason'   => $request->reason,
+            'reschedule_count'    => $newCount,
         ]);
 
-        AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}. Reason: {$request->reason}", $appointment);
+        $appointment->update([
+            'status'         => 'rescheduled',
+            'request_status' => 'superseded',
+        ]);
+
+        AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reason}", $appointment);
 
         return response()->json([
-            'message'         => 'Reschedule requested.',
-            'appointment'     => $appointment,
-            'scheduling_link' => url("/schedule/{$newToken}"),
+            'message'              => 'Reschedule requested.',
+            'appointment'          => $newAppointment,
+            'previous_appointment' => $appointment,
+            'scheduling_link'      => url("/schedule/{$newToken}"),
         ]);
     }
 
@@ -263,10 +317,11 @@ class AppointmentController extends Controller
 
         // The linked referral was moved to 'scheduled'/'in_progress' when this
         // appointment was booked/confirmed (see PublicSchedulingController::submit
-        // and self::confirm). Cancelling the appointment has to undo that, or the
-        // referral is left showing a stage it's no longer actually in.
+        // and self::confirm). Cancelling the appointment has to reflect that on the
+        // referral too, so the Student Profile shows "Cancelled" instead of a stale
+        // "Scheduled" label (B193).
         if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
-            $appointment->case->latestReferral->update(['status' => 'pending']);
+            $appointment->case->latestReferral->update(['status' => 'cancelled']);
         }
 
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
@@ -292,7 +347,7 @@ class AppointmentController extends Controller
         ]);
 
         if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
-            $appointment->case->latestReferral->update(['status' => 'pending']);
+            $appointment->case->latestReferral->update(['status' => 'cancelled']);
         }
 
         AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->cancellation_reason}", $appointment);

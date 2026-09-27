@@ -32,19 +32,6 @@
         <option value="SDU">SDU</option>
         <option value="TMDU">TMDU</option>
       </select>
-      <select v-model="filters.type" class="fsm" @change="fetchCases">
-        <option value="">All Types</option>
-        <option value="counseling">Counseling</option>
-        <option value="academic_coaching">Academic Coaching</option>
-        <option value="admission_slip">Admission Slip</option>
-        <option value="psychological_testing">Psychological Testing</option>
-        <option value="disciplinary">Disciplinary</option>
-        <option value="consultation">Consultation</option>
-      </select>
-      <select v-model="filters.requires_follow_up" class="fsm" @change="fetchCases">
-        <option value="">All Cases</option>
-        <option value="1">Needs Follow-up</option>
-      </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
 
@@ -118,7 +105,7 @@ const route = useRoute();
 const cases      = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', type: '', requires_follow_up: '' });
+const filters    = ref({ search: '', status: '', unit: '' });
 
 async function fetchCases(page = 1) {
   loading.value = true;
@@ -139,7 +126,7 @@ function onSearchInput() {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '', requires_follow_up: '' };
+  filters.value = { search: '', status: '', unit: '' };
   fetchCases();
 }
 

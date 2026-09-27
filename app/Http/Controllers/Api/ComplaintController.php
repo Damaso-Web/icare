@@ -3,10 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\CaseFile;
 use App\Models\Complaint;
 use App\Models\ComplaintAttachment;
+use App\Models\Referral;
 use App\Models\Student;
+use App\Models\User;
+use App\Notifications\NewReferralNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
 class ComplaintController extends Controller
@@ -47,7 +53,7 @@ class ComplaintController extends Controller
             'complainee_address'     => 'nullable|string|max:255',
             'violation_type'         => 'required|string|max:255',
             'incident_date'          => 'required|date',
-            'description'            => 'required|string',
+            'description'            => 'required|string|max:2000',
             'certification_agreed'   => 'required|accepted',
             'evidence.*'             => 'nullable|file|max:10240',
             'affidavit.*'            => 'nullable|file|max:10240',
@@ -76,6 +82,49 @@ class ComplaintController extends Controller
                 ]);
             }
         }
+
+        // Filing a complaint is a disciplinary referral in substance, so it
+        // needs to land in the Referral Queue and route to the SDU Head the
+        // same way a regular disciplinary referral would (mirrors
+        // ReferralController::store()).
+        $case = CaseFile::where('student_id', $student->id)->first();
+
+        if (!$case) {
+            $case = CaseFile::create([
+                'student_id'   => $student->id,
+                'case_type'    => 'disciplinary',
+                'current_unit' => 'GCU',
+                'status'       => 'open',
+                'opened_date'  => today(),
+            ]);
+        } elseif (!$case->isOpen()) {
+            $case->update(['status' => 'open', 'closed_date' => null]);
+        }
+
+        $referral = Referral::create([
+            'student_id'           => $student->id,
+            'case_id'              => $case->id,
+            'referral_type'        => 'disciplinary',
+            'nature_of_concern'    => $validated['description'],
+            'urgency_level'        => 'medium',
+            'is_self_referred'     => false,
+            'referrer_source'      => $request->user()->role,
+            'violation_type'       => $validated['violation_type'],
+            'incident_description' => $validated['description'],
+            'incident_date'        => $validated['incident_date'],
+            'referred_by_user_id'  => $request->user()->id,
+            'referrer_name'        => $request->user()->name,
+            'referrer_role'        => $request->user()->role,
+            'referrer_college'     => $request->user()->college,
+            'status'               => 'submitted',
+        ]);
+
+        AuditLog::record('created', "Filed complaint {$complaint->complaint_code} against student {$student->student_id}, logged as referral {$referral->referral_code}.", $referral);
+
+        $recipients = User::whereIn('role', ['admin', 'sdu_head'])->where('is_active', true)->get();
+        $collegeRep = User::where('role', 'dean_secretary')->where('college', $student->college)->where('is_active', true)->get();
+        $recipients = $recipients->merge($collegeRep)->unique('id');
+        Notification::send($recipients, new NewReferralNotification($referral));
 
         return $complaint->load(['complainee', 'filedBy', 'attachments']);
     }

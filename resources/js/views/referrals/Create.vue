@@ -258,6 +258,7 @@
               placeholder="Describe the student's concern in detail..."
               :style="errorStyle('nature_of_concern')"
               @input="clearFieldError('nature_of_concern')"
+              maxlength="1000"
               required
             ></textarea>
           </div>
@@ -613,7 +614,6 @@ async function confirmSubmit() {
       student_id:        studentId,
       referral_type:     form.value.referral_type,
       nature_of_concern: form.value.nature_of_concern,
-      urgency_level:     'medium',
       is_self_referred:  form.value.referral_source === 'self',
       referrer_source:   form.value.referral_source,
     });

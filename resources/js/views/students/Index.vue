@@ -14,6 +14,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
+          maxlength="50"
           placeholder="Search name or student ID..."
           style="width:100%"
           @keypress="blockSpecialKeypress"
@@ -21,12 +22,12 @@
         />
       </div>
       <select v-model="filters.status" class="fsm" @change="fetchStudents">
-        <option value="">All Status</option>
+        <option value="">Sort by Status</option>
         <option value="1">Active</option>
         <option value="0">Inactive</option>
       </select>
       <select v-model="filters.college" class="fsm" @change="fetchStudents">
-        <option value="">All Colleges</option>
+        <option value="">Sort by Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
       <select v-model="sortOption" class="fsm" @change="applySort">
@@ -635,7 +636,7 @@
           </div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
-            Guardian Information
+            Legal Guardian Information
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
@@ -981,7 +982,7 @@
 
     <!-- Deactivate Student Modal -->
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate Student Account?</div>
         </div>
@@ -1395,7 +1396,7 @@ function validateAddForm() {
   fieldErrors.value = errs;
 
   const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
-  if (missing.length) return `Please fill in: ${missing.join(', ')}.`;
+  if (missing.length) return 'Please make sure to fill in necessary fields.';
   if (!isValidEmail(addForm.value.email)) return 'Please enter a valid email address.';
   if (!isValidPHContact(addForm.value.contact_number)) return 'Contact number must start with 09 and be 11 digits long.';
   if (!isValidPHContact(addForm.value.guardian_contact)) return 'Guardian contact number must start with 09 and be 11 digits long.';
@@ -1537,7 +1538,9 @@ async function fetchStudents(page = 1) {
     else params.is_active = params.status;
     delete params.status;
     const res = await studentAPI.index(params);
-    students.value   = res.data.data;
+    // Deactivated students sink to the bottom of the visible list instead of
+    // being interleaved with active ones (B209).
+    students.value   = [...res.data.data].sort((a, b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
     pagination.value = res.data;
   } catch (e) {
     console.error(e);
@@ -1592,7 +1595,7 @@ async function saveStudent() {
   ];
   const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
   if (missing.length) {
-    addError.value = `Please fill in: ${missing.join(', ')}.`;
+    addError.value = 'Please make sure to fill in necessary fields.';
     return;
   }
 
