@@ -13,9 +13,15 @@
 <template>
   <div class="fade-up">
     <!-- Page Header -->
-    <div class="ph" style="margin-bottom:20px">
-      <h1>Testing Records</h1>
-      <p>Psychological testing queue and assessment records managed by TMDU.</p>
+    <div class="ph" style="margin-bottom:20px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1">
+        <h1>Testing Records</h1>
+        <p>Psychological testing queue and assessment records managed by TMDU.</p>
+      </div>
+      <router-link v-if="canManageAppointments" :to="{ name: 'testing-appointments' }" class="ibtn ibtn-o ibtn-sm">
+        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        Appointments
+      </router-link>
     </div>
 
     <!-- Filter Bar -->
@@ -106,11 +112,18 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
 
 const router       = useRouter();
+const auth         = useAuthStore();
 const filterStatus = ref('');
 const loading      = ref(true);
 const records      = ref([]);
+
+// Matches the "testing-appointments" route's own role gate (TMDU_ROLES) -
+// GCU staff can view Testing Records read-only (shared case), but the
+// appointment queue is TMDU's own.
+const canManageAppointments = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
 
 const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
 

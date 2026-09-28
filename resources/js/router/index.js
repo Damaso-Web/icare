@@ -18,6 +18,7 @@ import Cases from '../views/cases/Index.vue';
 import Appointments from '../views/appointments/Index.vue';
 import TestingRecords from '../views/testing/Index.vue';
 import TestingRecordShow from '../views/testing/Show.vue';
+import TmduAppointments from '../views/testing/Appointments.vue';
 import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
@@ -41,6 +42,9 @@ const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_
 // referral information too (a "shared case" the referring GCU staff can
 // also view, per the Testing module requirements).
 const TESTING_ROLES = ['admin', 'gcu_staff', 'tmdu_staff'];
+// TMDU Appointments (calendar/queue) - unlike Testing Record Details, this
+// isn't a shared-case view, so GCU staff don't need access here.
+const TMDU_ROLES = ['admin', 'tmdu_staff'];
 
 const routes = [
     {
@@ -190,6 +194,15 @@ const routes = [
                 name: 'testing',
                 component: TestingRecords,
                 meta: { roles: TESTING_ROLES },
+            },
+            {
+                // Must come before 'testing/:id' - otherwise the dynamic
+                // route below would swallow this path, treating
+                // "appointments" as a testing record id.
+                path: 'testing/appointments',
+                name: 'testing-appointments',
+                component: TmduAppointments,
+                meta: { roles: TMDU_ROLES },
             },
             {
                 path: 'testing/:id',

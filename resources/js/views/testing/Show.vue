@@ -312,36 +312,31 @@
             </div>
           </div>
 
-          <!-- Testing Action - mirrors the Case Action panel on the Student
-               Information File. Schedule Test Taking / Schedule PAR Release
-               above already create their own appointments automatically;
-               this gives TMDU a way to book anything else tied to this case
-               (e.g. an intake meeting) through the general Appointments module. -->
-          <div class="icard" v-if="canManage && record.case_id">
-            <div class="icard-header"><span class="icard-title">Testing Action</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+          <!-- Appointments - TMDU-side appointments tied to this testing
+               record's case. Schedule Test Taking / Schedule PAR Release
+               above are the only way to create these for a testing case -
+               they're self-contained, already-confirmed scheduling actions,
+               separate from the general Appointments module's confirm queue
+               (that page is for staff confirming appointments students
+               self-requested elsewhere, which doesn't apply here). This
+               panel just lists what those two actions have created. -->
+          <div class="icard" v-if="record.case_id">
+            <div class="icard-header">
+              <span class="icard-title">Appointments</span>
               <router-link
-                :to="{ name: 'appointments', query: { return_to: route.fullPath } }"
-                class="ibtn ibtn-blue"
-                style="width:100%;justify-content:center"
+                v-if="canManage"
+                :to="{ name: 'testing-appointments', query: { return_to: route.fullPath } }"
+                class="ibtn ibtn-g ibtn-sm"
               >
-                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                Schedule Appointment
+                Manage Queue
               </router-link>
             </div>
-          </div>
-
-          <!-- Appointments - every appointment tied to this testing record's
-               case, including the ones Schedule Test Taking / Schedule PAR
-               Release create automatically. -->
-          <div class="icard" v-if="record.case_id">
-            <div class="icard-header"><span class="icard-title">Appointments</span></div>
-            <div v-if="!record.appointments?.length" class="empty-state">
+            <div v-if="!tmduAppointments.length" class="empty-state">
               <h3>No appointments yet</h3>
-              <p>No appointments have been scheduled for this testing case.</p>
+              <p>No TMDU appointments have been scheduled for this testing case.</p>
             </div>
             <div v-else>
-              <div v-for="a in record.appointments" :key="a.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px">
+              <div v-for="a in tmduAppointments" :key="a.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px">
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <div>
                     <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
@@ -616,6 +611,12 @@ async function acknowledgeReferral() {
     saving.value = false;
   }
 }
+
+// Testing Records is TMDU's own module - the case's appointments include
+// GCU's own (from the original referral), so this scopes the panel to only
+// the ones actually booked for TMDU (Schedule Test Taking/Schedule PAR
+// Release above always create theirs as unit: 'TMDU').
+const tmduAppointments = computed(() => (record.value.appointments || []).filter(a => a.unit === 'TMDU'));
 
 async function markAppointmentNoShow(a) {
   try {
