@@ -315,11 +315,14 @@
           <!-- Appointments - TMDU-side appointments tied to this testing
                record's case. Schedule Test Taking / Schedule PAR Release
                above are the only way to create these for a testing case -
-               they're self-contained, already-confirmed scheduling actions,
-               separate from the general Appointments module's confirm queue
-               (that page is for staff confirming appointments students
-               self-requested elsewhere, which doesn't apply here). This
-               panel just lists what those two actions have created. -->
+               TMDU sets the date/time directly with the student face-to-face,
+               so there's nothing for the student to self-schedule or for
+               TMDU to "confirm" separately. They're created as "Pending"
+               and stay that way until the actual meeting happens, at which
+               point TMDU marks it here (No-Show) or moves the record's
+               status forward on its own scheduled outcome. This panel just
+               lists what those two actions have created; the "Manage Queue"
+               link is a read-only overview across all TMDU appointments. -->
           <div class="icard" v-if="record.case_id">
             <div class="icard-header">
               <span class="icard-title">Appointments</span>
@@ -347,7 +350,7 @@
                 </div>
                 <div style="font-size:11px;color:var(--fog)">With {{ a.staff?.name || '-' }}</div>
                 <button
-                  v-if="canManage && a.status === 'confirmed'"
+                  v-if="canManage && a.status === 'pending'"
                   class="ibtn ibtn-sm"
                   style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start"
                   @click="markAppointmentNoShow(a)"

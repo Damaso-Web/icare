@@ -235,7 +235,12 @@ class TestingRecordController extends Controller
             'appointment_date'    => $validated['appointment_date'],
             'start_time'          => $validated['start_time'],
             'end_time'            => $validated['end_time'],
-            'status'              => 'confirmed',
+            // Pending, not confirmed - TMDU set this date directly with the
+            // student face-to-face (never self-scheduled, so request_status
+            // stays 'confirmed' to keep it out of the awaiting-student UI),
+            // but it only becomes a settled outcome (attended/no-show/etc.)
+            // after that appointment actually happens.
+            'status'              => 'pending',
             'request_status'      => 'confirmed',
             'required_documents'  => self::TESTING_REMINDER,
         ];
@@ -332,7 +337,9 @@ class TestingRecordController extends Controller
             'appointment_date'    => $validated['appointment_date'],
             'start_time'          => $validated['start_time'],
             'end_time'            => $validated['end_time'],
-            'status'              => 'confirmed',
+            // Same as scheduleTesting() - pending until the face-to-face
+            // release actually happens, never self-scheduled by the student.
+            'status'              => 'pending',
             'request_status'      => 'confirmed',
         ];
 

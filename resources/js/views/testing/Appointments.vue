@@ -2,20 +2,17 @@
   FILE: resources/js/views/testing/Appointments.vue
   PAGE: iCARE / TMDU Appointments
 
-  New page - a TMDU-only appointment calendar/queue, the same idea as the
-  general Appointments module (resources/js/views/appointments/Index.vue)
-  but scoped entirely to unit: 'TMDU' and without the Unit filter (there's
-  nothing else to filter to here).
+  Read-only overview of every appointment TMDU has on the books, scoped
+  entirely to unit: 'TMDU' (no Unit filter - there's nothing else to filter
+  to here). Every TMDU appointment is now created directly from Testing
+  Record Details ("Schedule Test Taking" / "Schedule PAR Release") with
+  TMDU picking the date/time face-to-face with the student - nothing is
+  ever self-scheduled by the student, so there's no "Confirm" step and no
+  "Awaiting Student" state here. This page is purely for browsing what's
+  scheduled across all students/dates.
 
-  Why this exists: Testing Record Details' own "Schedule Test Taking" /
-  "Schedule PAR Release" actions are self-contained and already-confirmed -
-  they don't need this page. But TMDU does get appointments that start
-  elsewhere and still need staff action here: the self-schedulable
-  "fee_form_pickup" slot created when a GCU->TMDU referral is acknowledged
-  (ReferralController::acknowledge()) arrives as request_status:
-  'awaiting_student', and once the student picks a date it lands back here
-  as 'pending' for TMDU to confirm - the same pattern GCU's own Appointments
-  page already handles for initial_counseling slots.
+  Cancel / No-Show / Request Reschedule stay, since those are legitimate
+  outcomes of a face-to-face meeting that didn't happen as planned.
 
   Reuses appointmentAPI end-to-end - no new backend endpoints. The backend
   already auto-scopes a tmdu_staff user to unit: 'TMDU'
@@ -32,7 +29,7 @@
       </button>
       <div>
         <h1>TMDU Appointments</h1>
-        <p>Confirm, reschedule, or manage psychological testing appointments.</p>
+        <p>Read-only overview of all psychological testing appointments scheduled by TMDU.</p>
       </div>
     </div>
 
@@ -46,7 +43,6 @@
           <select v-model="filters.status" class="fsm" @change="fetchAppointments">
             <option value="">All</option>
             <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
             <option value="no_show">No Show</option>
             <option value="rescheduled">Rescheduled</option>
             <option value="cancelled">Cancelled</option>
@@ -73,12 +69,9 @@
               @mouseleave="$event.currentTarget.style.background=''"
               @click="openApptDetail(a)"
             >
-              <div v-if="a.request_status !== 'awaiting_student' || a.status === 'cancelled'" style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
+              <div style="width:48px;text-align:center;background:var(--snow);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--cloud)">
                 <div style="font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog)">{{ getMonth(a.appointment_date) }}</div>
                 <div style="font-size:20px;font-weight:700;color:var(--forest);font-family:var(--serif);font-style:italic;line-height:1">{{ getDay(a.appointment_date) }}</div>
-              </div>
-              <div v-else style="width:48px;text-align:center;background:var(--amber-lt);border-radius:var(--r-sm);padding:6px 4px;flex-shrink:0;border:1px solid var(--amber);display:flex;align-items:center;justify-content:center">
-                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:var(--amber);fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
               </div>
               <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
@@ -86,25 +79,18 @@
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
-                <div v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
-                  {{ a.reschedule_reason ? 'Reschedule Needed - Waiting for Student' : 'Waiting for Student to Pick a Schedule' }}
-                </div>
-                <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
+                <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} - {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
-                  <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
-                    {{ a.reschedule_reason ? 'Rescheduling' : 'Awaiting Student' }}
-                  </span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
-                <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="openConfirm(a)">Confirm</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
-                <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
-                <button v-if="['pending','confirmed'].includes(a.status) && a.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
+                <button v-if="a.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
+                <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
+                <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
                 <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="openCancel(a)">Cancel</button>
               </div>
             </div>
@@ -228,63 +214,12 @@
           </div>
 
           <div v-if="!['cancelled','completed'].includes(detailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
-            <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
-            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
-            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
-            <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
+            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
+            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
             <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
           </div>
           <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToStudent(detailTarget)">View Student Profile</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Confirm & Assign Staff Modal -->
-    <div v-if="showConfirmModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showConfirmModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Appointment</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showConfirmModal = false">✕</button>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:6px">
-            <div style="font-size:13px;color:var(--ink)">
-              <strong>{{ confirmTarget?.student?.last_name }}, {{ confirmTarget?.student?.first_name }}</strong>
-              <span style="color:var(--stone)"> · {{ confirmTarget?.student?.student_id }}</span>
-            </div>
-            <div v-if="confirmReferral" style="font-size:12px;color:var(--stone)">
-              <div style="font-weight:600;color:var(--fog);text-transform:uppercase;letter-spacing:.5px;font-size:10px;margin-bottom:2px">Reason for Referral / Concern</div>
-              {{ confirmReferral.nature_of_concern || '-' }}
-            </div>
-          </div>
-          <div>
-            <label class="ifl">Assign Staff</label>
-            <select v-model="confirmStaffId" class="ifse">
-              <option value="">Keep current / Auto-assign</option>
-              <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }} ({{ roleLabel(u.role) }})</option>
-            </select>
-          </div>
-          <div v-if="confirmStaffId" style="font-size:12px;color:var(--stone);background:var(--cloud);border-radius:var(--r-sm);padding:10px 12px">
-            <div v-if="loadingAvailability">Checking schedule...</div>
-            <template v-else>
-              <div style="font-weight:600;color:var(--ink);margin-bottom:4px">Schedule for {{ confirmTarget?.appointment_date?.split('T')[0] }}</div>
-              <div v-if="staffAvailability?.booked_slots?.length" style="display:flex;flex-direction:column;gap:2px">
-                <div v-for="(slot, i) in staffAvailability.booked_slots" :key="i" :style="isOverlapping(slot) ? 'color:var(--red);font-weight:600' : ''">
-                  {{ slot.start_time }}–{{ slot.end_time }} · {{ toTitleCase(slot.appointment_type) }}
-                  <span v-if="isOverlapping(slot)">(conflicts with this appointment)</span>
-                </div>
-              </div>
-              <div v-else>No other appointments booked for this staff that day.</div>
-            </template>
-          </div>
-          <div>
-            <label class="ifl">Required Documents (leave blank if none)</label>
-            <textarea v-model="confirmRequiredDocuments" class="ifta" style="min-height:60px" placeholder="e.g. Official Receipt (OR), sharpened pencils"></textarea>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="submitConfirm">Confirm Appointment</button>
-            <button class="ibtn ibtn-o" @click="showConfirmModal = false">Cancel</button>
-          </div>
         </div>
       </div>
     </div>
@@ -357,9 +292,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { appointmentAPI, userAPI } from '../../api/index';
+import { appointmentAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
 const toast  = inject('toast');
@@ -398,14 +333,6 @@ function formatApptDate(date) {
   return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 }
 
-const showConfirmModal   = ref(false);
-const confirmTarget      = ref(null);
-const confirmStaffId     = ref('');
-const confirmRequiredDocuments = ref('');
-const staffList          = ref([]);
-const staffAvailability  = ref(null);
-const loadingAvailability = ref(false);
-
 const today        = new Date();
 const currentMonth = ref(today.getMonth());
 const currentYear  = ref(today.getFullYear());
@@ -430,22 +357,6 @@ function clearDateFilter() {
   previewDate.value = null;
   filters.value.date = '';
   fetchAppointments();
-}
-
-function roleLabel(role) {
-  const labels = { admin: 'Admin', tmdu_staff: 'TMDU Staff' };
-  return labels[role] || role;
-}
-
-async function fetchStaff() {
-  try {
-    const res = await userAPI.index({ is_active: 1 });
-    staffList.value = (res.data.data || []).filter(u =>
-      ['admin', 'tmdu_staff'].includes(u.role)
-    );
-  } catch (e) {
-    console.error(e);
-  }
 }
 
 async function fetchAllAppointments() {
@@ -476,55 +387,6 @@ async function fetchAppointments(page = 1) {
     console.error(e);
   } finally {
     loading.value = false;
-  }
-}
-
-function openConfirm(a) {
-  confirmTarget.value = a;
-  confirmStaffId.value = '';
-  confirmRequiredDocuments.value = '';
-  staffAvailability.value = null;
-  showConfirmModal.value = true;
-}
-
-function isOverlapping(slot) {
-  if (!confirmTarget.value) return false;
-  return slot.start_time < confirmTarget.value.end_time && slot.end_time > confirmTarget.value.start_time;
-}
-
-const confirmReferral = computed(() =>
-  confirmTarget.value?.referral || confirmTarget.value?.case?.latest_referral || null
-);
-
-watch(confirmStaffId, async (staffId) => {
-  staffAvailability.value = null;
-  if (!staffId || !confirmTarget.value) return;
-  loadingAvailability.value = true;
-  try {
-    const date = confirmTarget.value.appointment_date?.split('T')[0];
-    const res = await appointmentAPI.availability({ user_id: staffId, date });
-    staffAvailability.value = res.data;
-  } catch (e) {
-    console.error(e);
-  } finally {
-    loadingAvailability.value = false;
-  }
-});
-
-async function submitConfirm() {
-  try {
-    await appointmentAPI.confirm(confirmTarget.value.id, {
-      staff_user_id:       confirmStaffId.value || null,
-      required_documents:  confirmRequiredDocuments.value || null,
-    });
-    confirmTarget.value.status = 'confirmed';
-    confirmTarget.value.request_status = 'confirmed';
-    toast?.success('Appointment confirmed. Student will be notified.');
-    showConfirmModal.value = false;
-    fetchAppointments();
-    fetchAllAppointments();
-  } catch (e) {
-    toast?.error('Failed to confirm appointment.');
   }
 }
 
@@ -661,6 +523,5 @@ function getDay(date)   { return new Date(date).getDate(); }
 onMounted(() => {
   fetchAppointments();
   fetchAllAppointments();
-  fetchStaff();
 });
 </script>
