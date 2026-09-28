@@ -243,6 +243,7 @@ const pageTitle = computed(() => {
     cases:               'Student Information Files',
     appointments:        'Appointment Calendar',
     testing:             'Testing Records',
+    'testing-appointments': 'Testing Appointments',
     reports:             'Reports & Analytics',
     users:               'User Management',
     'faculty-directory': 'Faculty',
@@ -322,6 +323,13 @@ const menuItems = computed(() => {
       section: null,
     },
     {
+      name:    'testing-appointments',
+      label:   'Testing Appointments',
+      icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+      roles:   ['admin', 'tmdu_staff'],
+      section: null,
+    },
+    {
       name:    'reports',
       label:   'Reports',
       icon:    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
@@ -398,6 +406,7 @@ function isActive(name) {
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
   if (name === 'referral-create' && ['referral-create', 'referral-create-form', 'complaint-create'].includes(routeName)) return true;
   if (name === 'cases'           && routeName.startsWith('case'))    return true;
+  if (name === 'testing'         && routeName === 'testing-show')    return true;
   if (name === 'students'        && routeName.startsWith('student')) return true;
   return routeName === name;
 }

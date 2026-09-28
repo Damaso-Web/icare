@@ -293,55 +293,63 @@ class ReferralController extends Controller
         $referral->update(['status' => 'in_review']);
         $referral->refresh();
 
-        // A case can have several referrals, and each one gets acknowledged
-        // separately - but they shouldn't each spawn their own generic
-        // "Initial Counseling" slot. Reuse whatever's already
-        // pending/confirmed for this case instead of piling up duplicate
-        // appointments. For a TMDU testing referral this is the
-        // self-schedulable "pick up Assessment of Fees form" slot instead of
-        // initial counseling.
-        $appointmentType = $isTmduTesting ? 'fee_form_pickup' : 'initial_counseling';
+        // A GCU/SDU referral gets a self-schedulable "Initial Counseling"
+        // slot - the student picks their own date/time via a scheduling
+        // link, and staff confirms it from the Appointments queue. A TMDU
+        // testing referral does NOT get this: TMDU arranges the fee-form
+        // pickup face-to-face and sets the date directly themselves, via
+        // the "Schedule Fee Form Pickup" action on the Testing Record
+        // Details page (TestingRecordController::scheduleFeeFormPickup())
+        // - no appointment is created here, and no link is sent to the
+        // student. Reuse whatever's already pending/confirmed for this case
+        // instead of piling up duplicate appointments, for the GCU/SDU case.
+        $appointment     = null;
+        $schedulingLink  = null;
 
-        $appointment = $case->appointments()
-            ->where('appointment_type', $appointmentType)
-            ->where('unit', $unit)
-            ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
-            ->latest()
-            ->first();
+        if (!$isTmduTesting) {
+            $appointmentType = 'initial_counseling';
 
-        if ($appointment) {
-            $schedulingLink = $appointment->request_status === 'awaiting_student'
-                ? url("/schedule/{$appointment->scheduling_token}")
-                : null;
-        } else {
-            $token = \Illuminate\Support\Str::random(48);
+            $appointment = $case->appointments()
+                ->where('appointment_type', $appointmentType)
+                ->where('unit', $unit)
+                ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
+                ->latest()
+                ->first();
 
-            // This is just a placeholder slot until the student picks their
-            // own date/time via the scheduling link - but it's still a real
-            // row with a real date, so it must never land on a weekend by
-            // default.
-            $placeholderDate = now()->addDay();
-            while ($placeholderDate->isWeekend()) {
-                $placeholderDate->addDay();
+            if ($appointment) {
+                $schedulingLink = $appointment->request_status === 'awaiting_student'
+                    ? url("/schedule/{$appointment->scheduling_token}")
+                    : null;
+            } else {
+                $token = \Illuminate\Support\Str::random(48);
+
+                // This is just a placeholder slot until the student picks
+                // their own date/time via the scheduling link - but it's
+                // still a real row with a real date, so it must never land
+                // on a weekend by default.
+                $placeholderDate = now()->addDay();
+                while ($placeholderDate->isWeekend()) {
+                    $placeholderDate->addDay();
+                }
+
+                $appointment = \App\Models\Appointment::create([
+                    'case_id'             => $case->id,
+                    'referral_id'         => $referral->id,
+                    'student_id'          => $case->student_id,
+                    'staff_user_id'       => $request->user()->id,
+                    'created_by_user_id'  => $request->user()->id,
+                    'appointment_type'    => $appointmentType,
+                    'unit'                => $unit,
+                    'scheduling_token'    => $token,
+                    'token_expires_at'    => now()->addDays(7),
+                    'request_status'      => 'awaiting_student',
+                    'status'              => 'pending',
+                    'appointment_date'    => $placeholderDate->format('Y-m-d'),
+                    'start_time'          => '08:00',
+                    'end_time'            => '09:00',
+                ]);
+                $schedulingLink = url("/schedule/{$token}");
             }
-
-            $appointment = \App\Models\Appointment::create([
-                'case_id'             => $case->id,
-                'referral_id'         => $referral->id,
-                'student_id'          => $case->student_id,
-                'staff_user_id'       => $request->user()->id,
-                'created_by_user_id'  => $request->user()->id,
-                'appointment_type'    => $appointmentType,
-                'unit'                => $unit,
-                'scheduling_token'    => $token,
-                'token_expires_at'    => now()->addDays(7),
-                'request_status'      => 'awaiting_student',
-                'status'              => 'pending',
-                'appointment_date'    => $placeholderDate->format('Y-m-d'),
-                'start_time'          => '08:00',
-                'end_time'            => '09:00',
-            ]);
-            $schedulingLink = url("/schedule/{$token}");
         }
 
         // Move the linked TestingRecord into its next stage now that TMDU
@@ -361,9 +369,10 @@ class ReferralController extends Controller
     // Notifications happen after the transaction commits - no point
     // notifying anyone about a change that could still have rolled back.
     if ($isTmduTesting && $referral->testingRecord) {
-        // The testing-specific notification carries the fee-form-pickup
-        // scheduling link/content; the generic one still goes to whoever
-        // referred the case to TMDU.
+        // The testing-specific notification just tells the student TMDU
+        // will reach out to arrange the fee-form pickup - no scheduling
+        // link, since TMDU sets that date directly. The generic one still
+        // goes to whoever referred the case to TMDU.
         if ($referral->student) {
             Notification::send($referral->student, new TestingAppointmentReadyNotification($referral->testingRecord));
         }

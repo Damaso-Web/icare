@@ -22,7 +22,11 @@ class TestingAppointmentReadyNotification extends Notification
         return [
             'type'               => 'testing_appointment_ready',
             'testing_record_id'  => $this->testingRecord->id,
-            'message'            => 'Your psychological testing referral has been acknowledged. Please set your preferred appointment schedule.',
+            // No scheduling link - picking up the Assessment of Fees form is
+            // a walk-in, not an appointment. The student pays, then uploads
+            // their OR (requestTestingByStudent()), and TMDU sets the actual
+            // testing date after that (scheduleTesting()).
+            'message'            => 'Your psychological testing referral has been acknowledged. Please proceed to TMDU to pick up your Assessment of Fees form.',
         ];
     }
 }
