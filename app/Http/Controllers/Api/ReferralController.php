@@ -296,13 +296,13 @@ class ReferralController extends Controller
         // A GCU/SDU referral gets a self-schedulable "Initial Counseling"
         // slot - the student picks their own date/time via a scheduling
         // link, and staff confirms it from the Appointments queue. A TMDU
-        // testing referral does NOT get this: TMDU arranges the fee-form
-        // pickup face-to-face and sets the date directly themselves, via
-        // the "Schedule Fee Form Pickup" action on the Testing Record
-        // Details page (TestingRecordController::scheduleFeeFormPickup())
-        // - no appointment is created here, and no link is sent to the
-        // student. Reuse whatever's already pending/confirmed for this case
-        // instead of piling up duplicate appointments, for the GCU/SDU case.
+        // testing referral does NOT get this at all: the fee-form pickup is
+        // a walk-in with no appointment of any kind, and once the student
+        // has paid, TMDU sets the actual test-taking date/time directly on
+        // the Testing Record Details page (TestingRecordController::
+        // scheduleTesting()). Reuse whatever's already pending/confirmed for
+        // this case instead of piling up duplicate appointments, for the
+        // GCU/SDU case.
         $appointment     = null;
         $schedulingLink  = null;
 

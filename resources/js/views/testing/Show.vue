@@ -199,14 +199,34 @@
         <!-- Right -->
         <div style="display:flex;flex-direction:column;gap:16px">
 
+          <!-- Acknowledge - shown right here on Testing Record Details so
+               TMDU never has to go to the Referral Queue first. Handles both
+               shapes: a record linked to a real, shared Referral row (the
+               normal case, via CaseController::referToTmdu()) calls
+               referralAPI.acknowledge() - the same endpoint Referral Queue's
+               own Acknowledge button uses - and a legacy record with no
+               referral_id falls back to testingAPI.acknowledge(). Either way
+               this just flips the status to "fee_form_pending"; the fee-form
+               pickup itself is a walk-in with no appointment. -->
+          <div class="icard" v-if="canManage && record.referral_id && !record.referral?.acknowledged_at && record.status === 'pending'">
+            <div class="icard-body">
+              <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
+                ⚠ This testing referral has not been acknowledged yet.
+              </div>
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledgeLinkedReferral" :disabled="saving">
+                {{ saving ? 'Acknowledging...' : 'Acknowledge Testing Referral' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Legacy fallback acknowledge for records with no referral_id -->
           <div class="icard" v-if="canManage && !record.referral_id && record.status === 'pending' && !record.acknowledged">
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
-                ⚠ This referral has not been acknowledged yet.
+                ⚠ This testing referral has not been acknowledged yet.
               </div>
               <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledgeReferral" :disabled="saving">
-                {{ saving ? 'Acknowledging...' : 'Acknowledge & Notify Student' }}
+                {{ saving ? 'Acknowledging...' : 'Acknowledge Testing Referral' }}
               </button>
             </div>
           </div>
@@ -276,8 +296,13 @@
             </div>
           </div>
 
-          <!-- Schedule Test Taking - kept as it was on Testing Records -->
-          <div class="icard" v-if="canManage && record.status === 'or_submitted'">
+          <!-- Schedule Test Taking - available as soon as the referral is
+               acknowledged (fee_form_pending), not just after the student
+               self-uploads their OR (or_submitted, still supported for
+               backward compatibility with that older path). TMDU decides
+               the date/time and confirms the OR face-to-face here, so there
+               is no need to wait on anything from the student first. -->
+          <div class="icard" v-if="canManage && ['fee_form_pending', 'or_submitted'].includes(record.status)">
             <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <input v-model="testingForm.appointment_date" type="date" class="ifi" />
@@ -393,7 +418,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
-import { testingAPI, userAPI, appointmentAPI } from '../../api/index';
+import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 
@@ -607,7 +632,24 @@ async function acknowledgeReferral() {
   try {
     await testingAPI.acknowledge(record.value.id);
     await loadRecord();
-    toast?.success('Referral acknowledged. Student notified to set their appointment.');
+    toast?.success('Referral acknowledged. Student notified to proceed to TMDU.');
+  } catch (e) {
+    toast?.error('Failed to acknowledge referral.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+// Same action as Referral Queue's own "Acknowledge" button, just reachable
+// from here too - acknowledges the actual shared Referral row (not the
+// TestingRecord directly), which is what moves this record from Pending to
+// Fee Form Pending.
+async function acknowledgeLinkedReferral() {
+  saving.value = true;
+  try {
+    await referralAPI.acknowledge(record.value.referral_id);
+    await loadRecord();
+    toast?.success('Referral acknowledged. Student notified to proceed to TMDU.');
   } catch (e) {
     toast?.error('Failed to acknowledge referral.');
   } finally {

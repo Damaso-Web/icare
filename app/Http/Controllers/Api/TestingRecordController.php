@@ -29,31 +29,12 @@ class TestingRecordController extends Controller
      * handled by ReferralController::acknowledge() instead (since referring
      * to TMDU creates a real, shared Referral row) - this endpoint is kept
      * as a fallback for TestingRecords that predate that change and have no
-     * referral_id. This creates a self-schedulable appointment for the
-     * student to pick up the physical "Assessment of Fees" form - NOT the
-     * testing appointment itself, which TMDU sets directly later in
-     * scheduleTesting().
+     * referral_id. Just flips the status - the fee-form pickup is a walk-in
+     * with no appointment of any kind, and the actual testing appointment is
+     * set directly by TMDU later, in scheduleTesting().
      */
     public function acknowledge(Request $request, TestingRecord $testingRecord)
     {
-        $token = \Illuminate\Support\Str::random(48);
-
-        $appointment = Appointment::create([
-            'case_id'            => $testingRecord->case_id,
-            'student_id'         => $testingRecord->student_id,
-            'staff_user_id'      => $request->user()->id,
-            'created_by_user_id' => $request->user()->id,
-            'appointment_type'   => 'fee_form_pickup',
-            'unit'               => 'TMDU',
-            'scheduling_token'   => $token,
-            'token_expires_at'   => now()->addDays(7),
-            'request_status'     => 'awaiting_student',
-            'status'             => 'pending',
-            'appointment_date'   => now()->addDays(1)->format('Y-m-d'),
-            'start_time'         => '08:00',
-            'end_time'           => '09:00',
-        ]);
-
         $testingRecord->update(['status' => 'fee_form_pending']);
 
         AuditLog::record('acknowledged', "Acknowledged testing referral for record #{$testingRecord->id}.", $testingRecord);
@@ -63,9 +44,7 @@ class TestingRecordController extends Controller
         }
 
         return response()->json([
-            'testing_record'  => $testingRecord,
-            'appointment'     => $appointment,
-            'scheduling_link' => url("/schedule/{$token}"),
+            'testing_record' => $testingRecord,
         ]);
     }
 
