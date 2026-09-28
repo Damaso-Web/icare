@@ -1,9 +1,14 @@
 <template>
   <div class="fade-up">
-    <!-- Page Header -->
-    <div class="ph" style="margin-bottom:20px">
-      <h1>Refer Student</h1>
-      <p>Complete this form to refer a student to the Office of Student Services.</p>
+    <!-- Back + Page Header -->
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <button class="ibtn ibtn-o ibtn-sm" type="button" @click="$router.back()">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <div class="ph" style="margin:0">
+        <h1>Refer Student</h1>
+        <p>Complete this form to refer a student to the Office of Student Services.</p>
+      </div>
     </div>
 
     <div class="icard" style="max-width:820px;margin:0 auto">

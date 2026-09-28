@@ -27,9 +27,12 @@ class MonitoringController extends Controller
             return $query;
         };
 
-        // Feature 60: Pending referrals
+        // Feature 60: Pending referrals - excludes Complaints (Incident
+        // Reports), which are SDU's own module tracked via the dedicated
+        // Complaints page rather than this general monitoring widget.
         $pendingReferrals = Referral::with(['student', 'referredBy'])
             ->where('status', 'submitted')
+            ->whereNull('complaint_id')
             ->latest()
             ->paginate(10, ['*'], 'referrals_page');
 
@@ -53,7 +56,7 @@ class MonitoringController extends Controller
 
         // Summary counts for quick stat cards
         $stats = [
-            'pending_referrals'    => Referral::where('status', 'submitted')->count(),
+            'pending_referrals'    => Referral::where('status', 'submitted')->whereNull('complaint_id')->count(),
             'pending_appointments' => (clone $pendingAppointmentsQuery)->count(),
             'unresolved_cases'     => (clone $unresolvedCasesQuery)->count(),
             'flagged_follow_up'    => CaseFile::where('requires_follow_up', true)->count(),

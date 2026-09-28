@@ -1,8 +1,13 @@
 <template>
   <div class="fade-up">
-    <div class="ph" style="margin-bottom:20px">
-      <h1>File a Complaint</h1>
-      <p>Report an act of misconduct against a student. This is reviewed by the SDU Head.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <button class="ibtn ibtn-o ibtn-sm" type="button" @click="$router.back()">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <div class="ph" style="margin:0">
+        <h1>File a Complaint</h1>
+        <p>Report an act of misconduct against a student. This is reviewed by the SDU Head.</p>
+      </div>
     </div>
 
     <div class="icard" style="max-width:680px;margin:0 auto">
@@ -70,11 +75,6 @@
               <div style="font-size:11px;color:var(--stone)">{{ s.college }}</div>
             </div>
           </div>
-        </div>
-
-        <div v-if="studentFound" style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;margin-bottom:14px;font-size:13px">
-          <div><strong>{{ selectedStudent.last_name }}, {{ selectedStudent.first_name }} {{ selectedStudent.middle_name }}</strong></div>
-          <div style="color:var(--stone)">{{ selectedStudent.college }} &middot; {{ selectedStudent.program }}</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">

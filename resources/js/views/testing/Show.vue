@@ -312,6 +312,57 @@
             </div>
           </div>
 
+          <!-- Testing Action - mirrors the Case Action panel on the Student
+               Information File. Schedule Test Taking / Schedule PAR Release
+               above already create their own appointments automatically;
+               this gives TMDU a way to book anything else tied to this case
+               (e.g. an intake meeting) through the general Appointments module. -->
+          <div class="icard" v-if="canManage && record.case_id">
+            <div class="icard-header"><span class="icard-title">Testing Action</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <router-link
+                :to="{ name: 'appointments', query: { return_to: route.fullPath } }"
+                class="ibtn ibtn-blue"
+                style="width:100%;justify-content:center"
+              >
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                Schedule Appointment
+              </router-link>
+            </div>
+          </div>
+
+          <!-- Appointments - every appointment tied to this testing record's
+               case, including the ones Schedule Test Taking / Schedule PAR
+               Release create automatically. -->
+          <div class="icard" v-if="record.case_id">
+            <div class="icard-header"><span class="icard-title">Appointments</span></div>
+            <div v-if="!record.appointments?.length" class="empty-state">
+              <h3>No appointments yet</h3>
+              <p>No appointments have been scheduled for this testing case.</p>
+            </div>
+            <div v-else>
+              <div v-for="a in record.appointments" :key="a.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                  <div>
+                    <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
+                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                    <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()" style="margin-top:4px;display:inline-block">{{ a.unit }}</span>
+                  </div>
+                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
+                </div>
+                <div style="font-size:11px;color:var(--fog)">With {{ a.staff?.name || '-' }}</div>
+                <button
+                  v-if="canManage && a.status === 'confirmed'"
+                  class="ibtn ibtn-sm"
+                  style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start"
+                  @click="markAppointmentNoShow(a)"
+                >
+                  No-Show
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -344,7 +395,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
-import { testingAPI, userAPI } from '../../api/index';
+import { testingAPI, userAPI, appointmentAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 
@@ -563,6 +614,16 @@ async function acknowledgeReferral() {
     toast?.error('Failed to acknowledge referral.');
   } finally {
     saving.value = false;
+  }
+}
+
+async function markAppointmentNoShow(a) {
+  try {
+    await appointmentAPI.escalateNoShow(a.id);
+    a.status = 'no_show';
+    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
   }
 }
 

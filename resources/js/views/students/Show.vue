@@ -79,7 +79,7 @@
                 <input v-model="referralSearch" class="ifi" style="padding-left:32px" maxlength="50" placeholder="Search referral no." />
               </div>
             </div>
-            <div v-if="!history.referrals?.length" class="empty-state">
+            <div v-if="!visibleReferrals.length" class="empty-state">
               <h3>No referrals yet</h3>
               <p>No referrals found for this student.</p>
             </div>
@@ -123,7 +123,7 @@
           <!-- Related Concerns Comparison - group referrals by type to spot recurrence/escalation.
                Each group is now a collapsible dropdown (B245) so multiple groups
                don't crowd the screen; the count badge stays visible either way. -->
-          <div class="icard" v-if="history.referrals?.length > 1">
+          <div class="icard" v-if="visibleReferrals.length > 1">
             <div class="icard-header"><span class="icard-title">Related Concerns Comparison</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div v-for="group in concernGroups" :key="group.type">
@@ -512,7 +512,7 @@ const referralCtx = computed(() => ({ ctx: fromCases.value ? 'cases' : 'students
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 const primaryCase = computed(() => history.value.cases?.[0] || null);
-const isRecurringStudent = computed(() => (history.value.referrals?.length || 0) > 1);
+const isRecurringStudent = computed(() => visibleReferrals.value.length > 1);
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 
 // Reassign Counselor - moved here from Referral Details
@@ -560,15 +560,20 @@ async function assignCounselor() {
   }
 }
 
+// Incident Reports (Complaint-originated referrals) are SDU's own module,
+// tracked through the dedicated Complaints page rather than a student's
+// case history here - same exclusion as the Referral Queue/Monitoring.
+const visibleReferrals = computed(() => (history.value.referrals || []).filter(r => !r.complaint_id));
+
 const filteredReferrals = computed(() => {
-  const refs = history.value.referrals || [];
+  const refs = visibleReferrals.value;
   const q = referralSearch.value.trim().toLowerCase();
   if (!q) return refs;
   return refs.filter(r => r.referral_code?.toLowerCase().includes(q));
 });
 
 const concernGroups = computed(() => {
-  const refs = history.value.referrals || [];
+  const refs = visibleReferrals.value;
   const groups = {};
   for (const r of refs) {
     const type = r.referral_type || 'other';

@@ -29,6 +29,12 @@ class ReferralController extends Controller
 
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])
         ->where('is_archived', $request->boolean('archived'))
+        // Complaints (Incident Reports) are SDU's own module - they're filed
+        // and tracked through the dedicated Complaints page, not the general
+        // Referral Queue. A referral originated from a Complaint always has
+        // complaint_id set (see ComplaintController::store()), so excluding
+        // those here keeps the Queue to ordinary GCU/TMDU/SDU referrals only.
+        ->whereNull('complaint_id')
         ->when($request->status,          fn($q) => $q->where('status', $request->status))
         ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
         ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
@@ -68,6 +74,9 @@ class ReferralController extends Controller
     {
         $query = Referral::with(['student', 'referredBy'])
             ->where('is_archived', true)
+            // Same exclusion as index() - Complaints stay out of the Referral
+            // Queue's archive view too.
+            ->whereNull('complaint_id')
             ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
                 $s->where('first_name', 'like', "%{$request->search}%")
                   ->orWhere('last_name', 'like', "%{$request->search}%")

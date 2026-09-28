@@ -100,6 +100,10 @@ class TestingRecordController extends Controller
             'referral.complaint.filedBy',
             'referral.complaint.attachments',
             'referral.case',
+            // Testing Action / Appointments panel on the Testing Record
+            // Details page - every appointment sharing this record's case_id
+            // (TestingRecord::appointments()), same pattern as CaseFile's.
+            'appointments.staff',
         ]));
     }
 

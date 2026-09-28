@@ -1028,7 +1028,7 @@
 
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
-              This creates a new referral for {{ referral.student?.last_name }}, {{ referral.student?.first_name }} under the same case, and moves it to TMDU for psychological assessment. That referral becomes shared between GCU and TMDU.
+              This creates a new referral for <strong>{{ referral.student?.last_name }}, {{ referral.student?.first_name }}</strong> under the same case, and moves it to TMDU for psychological assessment. That referral becomes shared between GCU and TMDU.
             </div>
             <div>
               <label class="ifl">Reason for Referral <span style="color:var(--red)">*</span></label>
