@@ -13,6 +13,7 @@ use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
 use App\Notifications\TestingAppointmentReadyNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
 class ReferralController extends Controller
@@ -220,12 +221,6 @@ class ReferralController extends Controller
 
     public function acknowledge(Request $request, Referral $referral)
 {
-    $referral->update([
-        'status'                  => 'acknowledged',
-        'acknowledged_at'         => now(),
-        'acknowledged_by_user_id' => $request->user()->id,
-    ]);
-
     // A psychological_testing referral is the GCU->TMDU shared referral
     // created by CaseController::referToTmdu(). It has its own linked
     // TestingRecord tracking the rest of that workflow (fee form -> OR ->
@@ -234,104 +229,128 @@ class ReferralController extends Controller
     // TestingRecord into its next stage.
     $isTmduTesting = $referral->referral_type === 'psychological_testing';
 
-    $unit = match ($referral->referral_type) {
-        'disciplinary'          => 'SDU',
-        'psychological_testing' => 'TMDU',
-        default                 => 'GCU',
-    };
-
-    // The case was already opened (or reused) when the referral was
-    // submitted - acknowledging just means staff is now picking it up.
-    // Fall back to the student's existing case (not a brand-new one) for
-    // referrals that somehow reached this point without a case_id, since a
-    // student may only ever have one case.
-    $case = $referral->case
-        ?? CaseFile::where('student_id', $referral->student_id)->first()
-        ?? CaseFile::create([
-            'student_id'   => $referral->student_id,
-            'case_type'    => $referral->referral_type,
-            'current_unit' => $unit,
-            'status'       => 'open',
-            'opened_date'  => today(),
+    // Everything below - the referral/case updates, the appointment
+    // creation, and the audit log entry - must succeed or fail together.
+    // Previously these ran as separate, uncommitted-transaction writes, so
+    // if a later step failed (e.g. the appointment insert hitting a DB
+    // constraint it didn't satisfy), the referral had already been flipped
+    // to "acknowledged"/"in_review" and committed - the request still came
+    // back as a 500, but a page refresh showed it as already acknowledged.
+    // Wrapping it all in one transaction means a failure now rolls
+    // everything back, so a 500 always means nothing was saved.
+    [$referral, $case, $appointment, $schedulingLink] = DB::transaction(function () use ($request, $referral, $isTmduTesting) {
+        $referral->update([
+            'status'                  => 'acknowledged',
+            'acknowledged_at'         => now(),
+            'acknowledged_by_user_id' => $request->user()->id,
         ]);
 
-    if (!$case->isOpen()) {
-        $case->update(['status' => 'open', 'closed_date' => null]);
-    }
+        $unit = match ($referral->referral_type) {
+            'disciplinary'          => 'SDU',
+            'psychological_testing' => 'TMDU',
+            default                 => 'GCU',
+        };
 
-    $case->update([
-        'current_unit'         => $unit,
-        'primary_counselor_id' => $case->primary_counselor_id ?? $request->user()->id,
-        'presenting_concern'   => $case->presenting_concern ?? $referral->nature_of_concern,
-        'is_recurring'         => $referral->student->isRecurring(),
-    ]);
+        // The case was already opened (or reused) when the referral was
+        // submitted - acknowledging just means staff is now picking it up.
+        // Fall back to the student's existing case (not a brand-new one) for
+        // referrals that somehow reached this point without a case_id, since
+        // a student may only ever have one case.
+        $case = $referral->case
+            ?? CaseFile::where('student_id', $referral->student_id)->first()
+            ?? CaseFile::create([
+                'student_id'   => $referral->student_id,
+                'case_type'    => $referral->referral_type,
+                'current_unit' => $unit,
+                'status'       => 'open',
+                'opened_date'  => today(),
+            ]);
 
-    if (!$referral->case_id) {
-        $referral->update(['case_id' => $case->id]);
-    }
-
-    $referral->update(['status' => 'in_review']);
-    $referral->refresh();
-
-    // A case can have several referrals, and each one gets acknowledged
-    // separately - but they shouldn't each spawn their own generic "Initial
-    // Counseling" slot. Reuse whatever's already pending/confirmed for this
-    // case instead of piling up duplicate appointments. For a TMDU testing
-    // referral this is the self-schedulable "pick up Assessment of Fees
-    // form" slot instead of initial counseling.
-    $appointmentType = $isTmduTesting ? 'fee_form_pickup' : 'initial_counseling';
-
-    $appointment = $case->appointments()
-        ->where('appointment_type', $appointmentType)
-        ->where('unit', $unit)
-        ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
-        ->latest()
-        ->first();
-
-    if ($appointment) {
-        $schedulingLink = $appointment->request_status === 'awaiting_student'
-            ? url("/schedule/{$appointment->scheduling_token}")
-            : null;
-    } else {
-        $token = \Illuminate\Support\Str::random(48);
-
-        // This is just a placeholder slot until the student picks their own
-        // date/time via the scheduling link - but it's still a real row with
-        // a real date, so it must never land on a weekend by default.
-        $placeholderDate = now()->addDay();
-        while ($placeholderDate->isWeekend()) {
-            $placeholderDate->addDay();
+        if (!$case->isOpen()) {
+            $case->update(['status' => 'open', 'closed_date' => null]);
         }
 
-        $appointment = \App\Models\Appointment::create([
-            'case_id'             => $case->id,
-            'referral_id'         => $referral->id,
-            'student_id'          => $case->student_id,
-            'staff_user_id'       => $request->user()->id,
-            'created_by_user_id'  => $request->user()->id,
-            'appointment_type'    => $appointmentType,
-            'unit'                => $unit,
-            'scheduling_token'    => $token,
-            'token_expires_at'    => now()->addDays(7),
-            'request_status'      => 'awaiting_student',
-            'status'              => 'pending',
-            'appointment_date'    => $placeholderDate->format('Y-m-d'),
-            'start_time'          => '08:00',
-            'end_time'            => '09:00',
+        $case->update([
+            'current_unit'         => $unit,
+            'primary_counselor_id' => $case->primary_counselor_id ?? $request->user()->id,
+            'presenting_concern'   => $case->presenting_concern ?? $referral->nature_of_concern,
+            'is_recurring'         => $referral->student->isRecurring(),
         ]);
-        $schedulingLink = url("/schedule/{$token}");
-    }
 
-    // Move the linked TestingRecord into its next stage now that TMDU has
-    // acknowledged the referral - mirrors what
-    // TestingRecordController::acknowledge() does for records without a
-    // linked referral (kept for backward compatibility with older data).
-    if ($isTmduTesting && $referral->testingRecord) {
-        $referral->testingRecord->update(['status' => 'fee_form_pending']);
-    }
+        if (!$referral->case_id) {
+            $referral->update(['case_id' => $case->id]);
+        }
 
-    AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} under case {$case->case_number}.", $referral);
+        $referral->update(['status' => 'in_review']);
+        $referral->refresh();
 
+        // A case can have several referrals, and each one gets acknowledged
+        // separately - but they shouldn't each spawn their own generic
+        // "Initial Counseling" slot. Reuse whatever's already
+        // pending/confirmed for this case instead of piling up duplicate
+        // appointments. For a TMDU testing referral this is the
+        // self-schedulable "pick up Assessment of Fees form" slot instead of
+        // initial counseling.
+        $appointmentType = $isTmduTesting ? 'fee_form_pickup' : 'initial_counseling';
+
+        $appointment = $case->appointments()
+            ->where('appointment_type', $appointmentType)
+            ->where('unit', $unit)
+            ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
+            ->latest()
+            ->first();
+
+        if ($appointment) {
+            $schedulingLink = $appointment->request_status === 'awaiting_student'
+                ? url("/schedule/{$appointment->scheduling_token}")
+                : null;
+        } else {
+            $token = \Illuminate\Support\Str::random(48);
+
+            // This is just a placeholder slot until the student picks their
+            // own date/time via the scheduling link - but it's still a real
+            // row with a real date, so it must never land on a weekend by
+            // default.
+            $placeholderDate = now()->addDay();
+            while ($placeholderDate->isWeekend()) {
+                $placeholderDate->addDay();
+            }
+
+            $appointment = \App\Models\Appointment::create([
+                'case_id'             => $case->id,
+                'referral_id'         => $referral->id,
+                'student_id'          => $case->student_id,
+                'staff_user_id'       => $request->user()->id,
+                'created_by_user_id'  => $request->user()->id,
+                'appointment_type'    => $appointmentType,
+                'unit'                => $unit,
+                'scheduling_token'    => $token,
+                'token_expires_at'    => now()->addDays(7),
+                'request_status'      => 'awaiting_student',
+                'status'              => 'pending',
+                'appointment_date'    => $placeholderDate->format('Y-m-d'),
+                'start_time'          => '08:00',
+                'end_time'            => '09:00',
+            ]);
+            $schedulingLink = url("/schedule/{$token}");
+        }
+
+        // Move the linked TestingRecord into its next stage now that TMDU
+        // has acknowledged the referral - mirrors what
+        // TestingRecordController::acknowledge() does for records without a
+        // linked referral (kept for backward compatibility with older
+        // data).
+        if ($isTmduTesting && $referral->testingRecord) {
+            $referral->testingRecord->update(['status' => 'fee_form_pending']);
+        }
+
+        AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} under case {$case->case_number}.", $referral);
+
+        return [$referral, $case, $appointment, $schedulingLink];
+    });
+
+    // Notifications happen after the transaction commits - no point
+    // notifying anyone about a change that could still have rolled back.
     if ($isTmduTesting && $referral->testingRecord) {
         // The testing-specific notification carries the fee-form-pickup
         // scheduling link/content; the generic one still goes to whoever

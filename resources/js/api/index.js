@@ -158,15 +158,18 @@ export const appointmentAPI = {
 };
 
 export const testingAPI = {
-    index:          (params)   => api.get('/testing-records', { params }),
-    show:           (id)       => api.get(`/testing-records/${id}`),
-    update:         (id, data) => api.put(`/testing-records/${id}`, data),
-    updateStatus:   (id, data) => api.patch(`/testing-records/${id}/status`, data),
-    sendToGcu:      (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
-    acknowledge:    (id)       => api.post(`/testing-records/${id}/acknowledge`),
-    scheduleTesting:(id, data) => api.post(`/testing-records/${id}/schedule-testing`, data),
-    schedulePar:    (id, data) => api.post(`/testing-records/${id}/schedule-par`, data),
-    orPhoto:        (id)       => api.get(`/testing-records/${id}/or-photo`, { responseType: 'blob' }),
+    index:           (params)   => api.get('/testing-records', { params }),
+    show:            (id)       => api.get(`/testing-records/${id}`),
+    update:          (id, data) => api.put(`/testing-records/${id}`, data),
+    updateStatus:    (id, data) => api.patch(`/testing-records/${id}/status`, data),
+    sendToGcu:       (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
+    acknowledge:     (id)       => api.post(`/testing-records/${id}/acknowledge`),
+    scheduleTesting: (id, data) => api.post(`/testing-records/${id}/schedule-testing`, data),
+    // "Psychological Tests Administered" action on the Testing Record Details
+    // page - saves the tests + date and moves status straight to Awaiting Results.
+    administerTests: (id, data) => api.post(`/testing-records/${id}/administer-tests`, data),
+    schedulePar:     (id, data) => api.post(`/testing-records/${id}/schedule-par`, data),
+    orPhoto:         (id)       => api.get(`/testing-records/${id}/or-photo`, { responseType: 'blob' }),
 };
 
 export const reportAPI = {

@@ -17,6 +17,7 @@ import Complaints from '../views/complaints/Index.vue';
 import Cases from '../views/cases/Index.vue';
 import Appointments from '../views/appointments/Index.vue';
 import TestingRecords from '../views/testing/Index.vue';
+import TestingRecordShow from '../views/testing/Show.vue';
 import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
@@ -35,6 +36,11 @@ const SYSTEM_ADMIN_ONLY = ['system_admin'];
 // access to students/referrals/cases/Users - only Admin has both.
 const MANAGEMENT_ROLES = ['admin', 'system_admin'];
 const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_secretary'];
+// Testing Records (TMDU): shared with the GCU staff who referred the
+// student, since the Testing Record Details page displays their original
+// referral information too (a "shared case" the referring GCU staff can
+// also view, per the Testing module requirements).
+const TESTING_ROLES = ['admin', 'gcu_staff', 'tmdu_staff'];
 
 const routes = [
     {
@@ -183,7 +189,13 @@ const routes = [
                 path: 'testing',
                 name: 'testing',
                 component: TestingRecords,
-                meta: { roles: ['admin', 'gcu_staff', 'tmdu_staff'] },
+                meta: { roles: TESTING_ROLES },
+            },
+            {
+                path: 'testing/:id',
+                name: 'testing-show',
+                component: TestingRecordShow,
+                meta: { roles: TESTING_ROLES },
             },
             {
                 path: 'reports',

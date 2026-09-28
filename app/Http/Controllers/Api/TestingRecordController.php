@@ -82,10 +82,25 @@ class TestingRecordController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
+    // Loads everything the Testing Record Details page needs in one call:
+    // the GCU-authored referral this record was created from (mirroring how
+    // ReferralController::show() loads it for an Incident Report), plus the
+    // usual student/tester/case/document relations.
     public function show(TestingRecord $testingRecord)
     {
         AuditLog::record('viewed', "Viewed testing record #{$testingRecord->id}.", $testingRecord);
-        return response()->json($testingRecord->load(['student', 'referredBy', 'tester', 'case', 'documents']));
+
+        return response()->json($testingRecord->load([
+            'student',
+            'referredBy',
+            'tester',
+            'case',
+            'documents',
+            'referral.complaint.complainee',
+            'referral.complaint.filedBy',
+            'referral.complaint.attachments',
+            'referral.case',
+        ]));
     }
 
     // Streams the student's uploaded OR photo back to staff. Kept off the
@@ -128,10 +143,11 @@ class TestingRecordController extends Controller
     {
         $request->validate([
             // "completed"/"report_sent" were renamed to "test_administered"/
-            // "test_results_issued" to match the team's terminology - the
-            // migration that added referral_id/reason/or_stamped_* also
-            // renamed those two values on the DB enum itself.
-            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,test_administered,par_scheduled,test_results_issued'
+            // "test_results_issued" to match the team's terminology, and
+            // "awaiting_results" was added for the Testing Record Details
+            // page's status bar (see administerTests()) - all three changes
+            // came from widen-only migrations on this DB enum.
+            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,test_administered,awaiting_results,par_scheduled,test_results_issued'
         ]);
 
         $old = ['status' => $testingRecord->status];
@@ -249,8 +265,44 @@ class TestingRecordController extends Controller
     }
 
     /**
+     * "Psychological Tests Administered" action on the Testing Record
+     * Details page. Records which tests were given and when, and moves the
+     * status bar straight to "Awaiting Results" - by design there's no
+     * separate resting state for "Test Administered" alone; the bar step
+     * still lights up as passed once the record reaches Awaiting Results.
+     */
+    public function administerTests(Request $request, TestingRecord $testingRecord)
+    {
+        $validated = $request->validate([
+            'tests_administered' => 'required|array|min:1',
+            'testing_date'       => 'required|date',
+        ]);
+
+        $old = $testingRecord->only(['tests_administered', 'testing_date', 'status']);
+
+        $testingRecord->update([
+            'tests_administered' => $validated['tests_administered'],
+            'testing_date'       => $validated['testing_date'],
+            'status'             => 'awaiting_results',
+        ]);
+
+        AuditLog::record(
+            'tests_administered',
+            "Recorded psychological tests administered for record #{$testingRecord->id}.",
+            $testingRecord,
+            $old,
+            $testingRecord->toArray()
+        );
+
+        return response()->json($testingRecord);
+    }
+
+    /**
      * Step 4: after the exam, TMDU sets a follow-up appointment for when the
      * student will receive their PAR (Psychological Assessment Report).
+     * Available while a record is in the "Awaiting Results" bar step - it's
+     * an optional in-person scheduling step, not itself what moves the bar
+     * to "Results Released" (Attach PAR / sendToGcu() does that).
      */
     public function schedulePar(Request $request, TestingRecord $testingRecord)
     {
@@ -300,11 +352,16 @@ class TestingRecordController extends Controller
         ]);
     }
 
+    // "Attach Psychological Assessment Records (PAR)" action on the Testing
+    // Record Details page. Findings is now optional/unused by that panel
+    // (Assessment Summary + Recommended Actions only) but the column and
+    // validation stay nullable rather than removed, so older records/API
+    // callers that still send it keep working.
     public function sendToGcu(Request $request, TestingRecord $testingRecord)
     {
         $request->validate([
             'assessment_summary' => 'required|string',
-            'findings'           => 'required|string',
+            'findings'           => 'nullable|string',
             'recommendations'    => 'required|string',
             'report_file'        => 'nullable|file|max:10240',
         ]);

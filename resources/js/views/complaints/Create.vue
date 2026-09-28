@@ -5,7 +5,7 @@
       <p>Report an act of misconduct against a student. This is reviewed by the SDU Head.</p>
     </div>
 
-    <div class="icard" style="max-width:680px">
+    <div class="icard" style="max-width:680px;margin:0 auto">
       <form @submit.prevent="openCertificationModal" style="padding:22px">
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
@@ -21,10 +21,10 @@
             class="ifi"
             placeholder="Your full name..."
             maxlength="255"
-            :style="errorStyle('complainant_name')"
-            @input="clearFieldError('complainant_name')"
-            required
+            readonly
+            :style="[errorStyle('complainant_name'), 'background:var(--snow);color:var(--stone);cursor:not-allowed']"
           />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Taken from your account and cannot be edited.</div>
         </div>
 
         <div style="margin-bottom:14px">
@@ -91,23 +91,32 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
             <label class="ifl">College</label>
-            <select v-model="selectedCollegeId" class="ifse" @change="onCollegeChange">
+            <select v-model="selectedCollegeId" class="ifse" :disabled="studentFound && !!selectedCollegeId" @change="onCollegeChange">
               <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
+            <div v-if="studentFound && selectedCollegeId" style="font-size:11px;color:var(--stone);margin-top:4px">Taken from the selected student's record. Search a different student to change it.</div>
           </div>
           <div>
             <label class="ifl">Department</label>
-            <select v-model="form.complainee_department" class="ifse" :disabled="!selectedCollegeId">
+            <select v-model="form.complainee_department" class="ifse" :disabled="!selectedCollegeId || (studentFound && !!selectedCollegeId)">
               <option value="" disabled hidden>Select department...</option>
               <option v-for="d in departments" :key="d.id" :value="d.name">{{ d.name }}</option>
             </select>
+            <div v-if="studentFound && selectedCollegeId && form.complainee_department" style="font-size:11px;color:var(--stone);margin-top:4px">Matched from the student's program. Search a different student to change it.</div>
+            <div v-else-if="studentFound && selectedCollegeId" style="font-size:11px;color:var(--stone);margin-top:4px">No matching department found for this student's program.</div>
           </div>
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Address</label>
-          <input v-model="form.complainee_address" type="text" class="ifi" placeholder="Complainee's address, if known..." maxlength="255" />
+          <input
+            v-model="form.complainee_address"
+            type="text"
+            class="ifi"
+            placeholder="Complainee's address..."
+            maxlength="255"
+          />
         </div>
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
@@ -201,20 +210,19 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:12px 14px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">
             I hereby confirm that the details here are true and correct to the best of my knowledge, and that typing my name below serves in place of my physical signature.
           </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
+            <input type="checkbox" v-model="signatureCertified" style="width:15px;height:15px;accent-color:var(--moss);margin-top:2px" />
+            I have read and agree to the statement above.
+          </label>
           <div>
-            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:13px;color:var(--slate);margin-bottom:8px">
-              <input type="checkbox" v-model="sigUseComplainantName" style="width:15px;height:15px;accent-color:var(--moss);margin-top:2px" @change="onSigUseComplainantNameChange" />
-              Use my Complainant Name above as my signature.
-            </label>
-            <label class="ifl">Type your full name to confirm (in place of a signature)</label>
+            <label class="ifl">Signature (your Complainant Name)</label>
             <input
               v-model="pkiSignature"
               type="text"
               class="ifi"
-              placeholder="Type your full name exactly as entered above..."
               maxlength="255"
-              :readonly="sigUseComplainantName"
-              :style="sigUseComplainantName ? 'background:var(--snow);color:var(--stone);cursor:not-allowed' : ''"
+              readonly
+              style="background:var(--snow);color:var(--stone);cursor:not-allowed"
             />
           </div>
 
@@ -299,6 +307,29 @@ function onCollegeChange() {
   fetchDepartments(selectedCollegeId.value);
 }
 
+// Best-effort match of a student's program to one of that college's
+// departments - e.g. "Bachelor of Science in Civil Engineering" matches the
+// department "Civil Engineering". Programs and departments aren't formally
+// linked in the masterlist, but their names correspond closely enough for
+// most programs to make this a reliable auto-fill; where a program has no
+// equivalent department name (e.g. BS Agriculture), no match is returned and
+// the field is simply left blank.
+function normalizeForMatch(str) {
+  return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+function matchDepartmentForProgram(programName, deptList) {
+  const normProgram = normalizeForMatch(programName);
+  if (!normProgram) return null;
+  let best = null;
+  for (const d of deptList) {
+    const normDept = normalizeForMatch(d.name);
+    if (normDept && normProgram.includes(normDept)) {
+      if (!best || normDept.length > normalizeForMatch(best.name).length) best = d;
+    }
+  }
+  return best;
+}
+
 const fieldErrors = ref({});
 function clearFieldError(field) {
   if (fieldErrors.value[field]) {
@@ -346,13 +377,10 @@ function onFilesSelected(event, category) {
 
 const showCertModal        = ref(false);
 const certificationChecked = ref(false);
+const signatureCertified   = ref(false);
+// Always the Complainant Name - there's nothing to toggle since that field
+// is itself locked to the account name (see the Name input above).
 const pkiSignature         = ref('');
-const sigUseComplainantName = ref(true);
-function onSigUseComplainantNameChange() {
-  if (sigUseComplainantName.value) {
-    pkiSignature.value = form.value.complainant_name;
-  }
-}
 
 function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
@@ -380,7 +408,7 @@ function onStudentSearch() {
   }, 350);
 }
 
-function selectStudent(s) {
+async function selectStudent(s) {
   form.value.complainee_student_id = s.id;
   selectedStudent.value = s;
   studentSearchQuery.value = `${s.last_name}, ${s.first_name}`;
@@ -388,14 +416,30 @@ function selectStudent(s) {
   studentFound.value = true;
   clearFieldError('complainee_student_id');
 
-  // Prefill from the student's record where we have it; still editable.
-  form.value.complainee_college = s.college || '';
+  // Prefill from the student's record where we have it. College and
+  // Department must always match an entry from the masterlist (never a raw
+  // string off the student record), so complainee_college is only ever set
+  // from a matched masterlist entry - if the student's recorded college
+  // string doesn't match any masterlist entry, the field is left blank for
+  // manual selection from the dropdown instead of silently carrying an
+  // unlisted value. Address is fully editable regardless.
   form.value.complainee_address = s.address || '';
 
   const matchedCollege = colleges.value.find(c => c.name === s.college);
   if (matchedCollege) {
     selectedCollegeId.value = matchedCollege.id;
-    fetchDepartments(matchedCollege.id);
+    form.value.complainee_college = matchedCollege.name;
+    await fetchDepartments(matchedCollege.id);
+    // Department is locked once a student is matched (same as College) -
+    // best-effort matched from the student's program name; left blank if
+    // no department name corresponds to it.
+    const matchedDept = matchDepartmentForProgram(s.program, departments.value);
+    form.value.complainee_department = matchedDept ? matchedDept.name : '';
+  } else {
+    selectedCollegeId.value = '';
+    form.value.complainee_college = '';
+    departments.value = [];
+    form.value.complainee_department = '';
   }
 }
 
@@ -422,7 +466,7 @@ function openCertificationModal() {
   }
 
   certificationChecked.value = false;
-  sigUseComplainantName.value = true;
+  signatureCertified.value = false;
   pkiSignature.value = form.value.complainant_name;
   showCertModal.value = true;
 }
@@ -430,15 +474,11 @@ function openCertificationModal() {
 async function handleSubmit() {
   error.value = '';
   if (!certificationChecked.value) {
-    error.value = 'Please tick the certification checkbox before submitting.';
+    error.value = 'Please tick the Non-Forum-Shopping certification checkbox before submitting.';
     return;
   }
-  if (!pkiSignature.value.trim()) {
-    error.value = 'Please type your full name to confirm, in place of a signature.';
-    return;
-  }
-  if (pkiSignature.value.trim().toLowerCase() !== form.value.complainant_name.trim().toLowerCase()) {
-    error.value = 'The typed name must match the Complainant Name entered above.';
+  if (!signatureCertified.value) {
+    error.value = 'Please tick the true-and-correct / signature checkbox before submitting.';
     return;
   }
   loading.value = true;

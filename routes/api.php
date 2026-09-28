@@ -140,6 +140,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);
     Route::post('testing-records/{testingRecord}/acknowledge',       [TestingRecordController::class, 'acknowledge']);
     Route::post('testing-records/{testingRecord}/schedule-testing',  [TestingRecordController::class, 'scheduleTesting']);
+    // "Psychological Tests Administered" action on the Testing Record Details
+    // page - saves tests + date and moves status straight to Awaiting Results.
+    Route::post('testing-records/{testingRecord}/administer-tests',  [TestingRecordController::class, 'administerTests']);
     Route::post('testing-records/{testingRecord}/schedule-par',      [TestingRecordController::class, 'schedulePar']);
     Route::get('testing-records/{testingRecord}/or-photo',           [TestingRecordController::class, 'orPhoto']);
 
