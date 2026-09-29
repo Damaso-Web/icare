@@ -34,7 +34,7 @@
 
         <div style="margin-bottom:14px">
           <label class="ifl">Address <span style="color:var(--red)">*</span></label>
-          <input
+            <input
             v-model="form.complainant_address"
             type="text"
             class="ifi"
@@ -42,6 +42,7 @@
             maxlength="255"
             :style="errorStyle('complainant_address')"
             @input="clearFieldError('complainant_address')"
+            @blur="validateField('complainant_address')"
             required
           />
         </div>
@@ -53,15 +54,17 @@
 
         <div style="margin-bottom:14px;position:relative">
           <label class="ifl">Search Student <span style="color:var(--red)">*</span></label>
-          <input
+                    <input
             v-model="studentSearchQuery"
             type="text"
             class="ifi"
+            maxlength="100"
             :style="errorStyle('complainee_student_id')"
             placeholder="Search by student name..."
             @keypress="blockSpecialKeypress"
             @input="onStudentSearch"
             @focus="showStudentDropdown = studentSuggestions.length > 0"
+            @blur="validateField('complainee_student_id')"
           />
           <div v-if="studentSearchLoading" style="font-size:11px;color:var(--stone);margin-top:4px">Searching...</div>
           <div v-if="showStudentDropdown && studentSuggestions.length" class="student-dropdown">
@@ -126,11 +129,12 @@
 
         <div style="margin-bottom:14px">
           <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
-          <select
+            <select
             v-model="form.violation_type"
             class="ifse"
             :style="errorStyle('violation_type')"
             @change="clearFieldError('violation_type')"
+            @blur="validateField('violation_type')"
             required
           >
             <option value="" disabled hidden>Select act of misconduct...</option>
@@ -140,19 +144,20 @@
 
         <div style="margin-bottom:14px">
           <label class="ifl">Date of Incident <span style="color:var(--red)">*</span></label>
-          <input
+            <input
             v-model="form.incident_date"
             type="date"
             class="ifi"
             :style="errorStyle('incident_date')"
             @input="clearFieldError('incident_date')"
+            @blur="validateField('incident_date')"
             required
           />
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Narration of Relevant and Material Facts <span style="color:var(--red)">*</span></label>
-          <textarea
+            <textarea
             v-model="form.description"
             class="ifta"
             style="min-height:120px"
@@ -160,6 +165,7 @@
             maxlength="2000"
             :style="errorStyle('description')"
             @input="clearFieldError('description')"
+            @blur="validateField('description')"
             required
           ></textarea>
         </div>
@@ -226,7 +232,7 @@
             />
           </div>
 
-          <div v-if="error" style="background:var(--red-lt);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:13px">{{ error }}</div>
+                    <div v-if="modalError" style="background:var(--red-lt);color:var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:13px">{{ modalError }}</div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="loading" @click="handleSubmit">
               {{ loading ? 'Filing...' : 'File Complaint' }}
@@ -336,6 +342,20 @@ function clearFieldError(field) {
     fieldErrors.value = { ...fieldErrors.value, [field]: false };
   }
 }
+
+function validateField(field) {
+  const isEmpty = {
+    complainant_name:      () => !form.value.complainant_name,
+    complainant_address:   () => !form.value.complainant_address,
+    complainee_student_id: () => !form.value.complainee_student_id,
+    violation_type:        () => !form.value.violation_type,
+    incident_date:         () => !form.value.incident_date,
+    description:           () => !form.value.description,
+  }[field]?.();
+
+  fieldErrors.value = { ...fieldErrors.value, [field]: !!isEmpty };
+}
+
 function errorStyle(field) {
   return fieldErrors.value[field]
     ? 'border-color:var(--red);border-width:1.5px'
@@ -343,6 +363,7 @@ function errorStyle(field) {
 }
 
 const error   = ref('');
+const modalError = ref('');
 const loading = ref(false);
 
 const studentSearchQuery   = ref('');
@@ -465,20 +486,21 @@ function openCertificationModal() {
     return;
   }
 
-  certificationChecked.value = false;
+   certificationChecked.value = false;
   signatureCertified.value = false;
   pkiSignature.value = form.value.complainant_name;
+  modalError.value = '';
   showCertModal.value = true;
 }
 
 async function handleSubmit() {
-  error.value = '';
+  modalError.value = '';
   if (!certificationChecked.value) {
-    error.value = 'Please tick the Non-Forum-Shopping certification checkbox before submitting.';
+    modalError.value = 'Please tick the Non-Forum-Shopping certification checkbox before submitting.';
     return;
   }
   if (!signatureCertified.value) {
-    error.value = 'Please tick the true-and-correct / signature checkbox before submitting.';
+    modalError.value = 'Please tick the true-and-correct / signature checkbox before submitting.';
     return;
   }
   loading.value = true;
@@ -498,7 +520,7 @@ async function handleSubmit() {
     toast?.success('Complaint filed.');
     router.push({ name: auth.user?.role === 'sdu_head' ? 'complaints' : 'dashboard' });
   } catch (e) {
-    error.value = e.response?.data?.message || 'Failed to submit complaint.';
+    modalError.value = e.response?.data?.message || 'Failed to submit complaint.';
   } finally {
     loading.value = false;
   }
