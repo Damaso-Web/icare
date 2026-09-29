@@ -74,7 +74,7 @@
               ✓ Existing student found
             </div>
             <div v-else-if="studentSearchQuery.length >= 2 && studentSuggestions.length === 0 && !studentSearchLoading" style="font-size:11px;color:var(--red);margin-top:4px">
-              No matching student found. Double-check the Student ID or name, or fill in the fields below to refer a new student.
+              No matching student found. Double-check the Student ID or name. Only existing students can be referred - fields below are filled in automatically once a student is found.
             </div>
           </div>
 
@@ -84,9 +84,8 @@
               v-model="form.student_id_input"
               class="ifi"
               placeholder="e.g. 2302021"
-              :readonly="studentFound"
-              :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('student_id_input')"
-              @input="form.student_id_input = onlyDigits(form.student_id_input); clearFieldError('student_id_input')"
+              readonly
+              :style="lockedStyle('student_id_input')"
               required
             />
           </div>
@@ -99,9 +98,8 @@
                 v-model="form.last_name"
                 class="ifi"
                 placeholder="e.g. Dela Cruz"
-                :readonly="studentFound"
-                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('last_name')"
-                @input="form.last_name = onlyLetters(form.last_name); clearFieldError('last_name')"
+                readonly
+                :style="lockedStyle('last_name')"
                 required
               />
             </div>
@@ -111,19 +109,18 @@
                 v-model="form.first_name"
                 class="ifi"
                 placeholder="e.g. Juan"
-                :readonly="studentFound"
-                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : errorStyle('first_name')"
-                @input="form.first_name = onlyLetters(form.first_name); clearFieldError('first_name')"
+                readonly
+                :style="lockedStyle('first_name')"
                 required
               />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="form.middle_name" class="ifi" placeholder="e.g. Santos" :readonly="studentFound" :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''" @input="form.middle_name = onlyLetters(form.middle_name)" />
+              <input v-model="form.middle_name" class="ifi" placeholder="e.g. Santos" readonly style="background:var(--snow);color:var(--stone)" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <select v-model="form.suffix" class="ifse" :disabled="studentFound">
+              <select v-model="form.suffix" class="ifse" disabled>
                 <option value="">None</option>
                 <option>Jr.</option>
                 <option>Sr.</option>
@@ -138,9 +135,8 @@
               <select
                 v-model="form.sex"
                 class="ifse"
-                :disabled="studentFound"
+                disabled
                 :style="errorStyle('sex')"
-                @change="clearFieldError('sex')"
                 required
               >
                 <option value="" disabled hidden>Select...</option>
@@ -156,9 +152,8 @@
               <select
                 v-model="form.college"
                 class="ifse"
-                :disabled="studentFound"
+                disabled
                 :style="errorStyle('college')"
-                @change="form.program = ''; clearFieldError('college')"
                 required
               >
                 <option value="" disabled hidden>Select college...</option>
@@ -170,9 +165,8 @@
               <select
                 v-model="form.program"
                 class="ifse"
-                :disabled="studentFound || !form.college"
+                disabled
                 :style="errorStyle('program')"
-                @change="clearFieldError('program')"
                 required
               >
                 <option value="" disabled hidden>Select program...</option>
@@ -185,9 +179,8 @@
             <select
               v-model="form.year_level"
               class="ifse"
-              :disabled="studentFound"
+              disabled
               :style="errorStyle('year_level')"
-              @change="clearFieldError('year_level')"
               required
             >
             <option value="" disabled hidden>Select year level...</option>
@@ -201,9 +194,8 @@
                 class="ifi"
                 placeholder="e.g. A"
                 maxlength="1"
-                :readonly="studentFound"
-                :style="studentFound ? 'background:var(--snow);color:var(--stone)' : ''"
-                @input="form.section = form.section.replace(/[^a-zA-Z]/g, '').slice(0, 1).toUpperCase()"
+                readonly
+                style="background:var(--snow);color:var(--stone)"
               />
             </div>
           </div>
@@ -263,6 +255,7 @@
               placeholder="Describe the student's concern in detail..."
               :style="errorStyle('nature_of_concern')"
               @input="clearFieldError('nature_of_concern')"
+              @blur="validateField('nature_of_concern')"
               maxlength="1000"
               required
             ></textarea>
@@ -432,6 +425,24 @@ function errorStyle(field) {
     : '';
 }
 
+// Same idea as errorStyle(), but for fields that are permanently readonly
+// (Student ID / Last Name / First Name) - they always keep the locked gray
+// background, and additionally get a red border if handleSubmit() flagged
+// them as missing (i.e. no student has been searched/selected yet).
+function lockedStyle(field) {
+  return fieldErrors.value[field]
+    ? 'background:var(--snow);color:var(--stone);border-color:var(--red);border-width:1.5px'
+    : 'background:var(--snow);color:var(--stone)';
+}
+
+function validateField(field) {
+  const isEmpty = {
+    nature_of_concern: () => !form.value.nature_of_concern,
+  }[field]?.();
+
+  fieldErrors.value = { ...fieldErrors.value, [field]: !!isEmpty };
+}
+
 const error   = ref('');
 const success = ref('');
 const loading = ref(false);
@@ -554,6 +565,19 @@ async function selectStudent(s) {
   studentSearchQuery.value  = `${s.last_name}, ${s.first_name}`;
   showStudentDropdown.value = false;
   studentFound.value        = true;
+
+  // Clear any "missing field" errors now that a student has been selected
+  // and all the locked fields are populated.
+  fieldErrors.value = {
+    ...fieldErrors.value,
+    student_id_input: false,
+    last_name: false,
+    first_name: false,
+    sex: false,
+    college: false,
+    program: false,
+    year_level: false,
+  };
 }
 
 function goBack() {
@@ -592,31 +616,17 @@ function handleSubmit() {
 async function confirmSubmit() {
   loading.value = true;
   try {
-    let studentId = null;
     const searchRes = await studentAPI.index({ search: form.value.student_id_input });
     const found = searchRes.data.data?.find(
       s => s.student_id === form.value.student_id_input
     );
 
-    if (found) {
-      studentId = found.id;
-    } else {
-      const newStudent = await studentAPI.store({
-        student_id:  form.value.student_id_input,
-        first_name:  form.value.first_name,
-        last_name:   form.value.last_name,
-        middle_name: form.value.middle_name,
-        sex:         form.value.sex,
-        year_level:  form.value.year_level,
-        college:     form.value.college,
-        program:     form.value.program,
-        section:     form.value.section,
-      });
-      studentId = newStudent.data.id;
+    if (!found) {
+      throw new Error('Student record not found. Please search and select an existing student.');
     }
 
     await referralAPI.store({
-      student_id:        studentId,
+      student_id:        found.id,
       referral_type:     form.value.referral_type,
       nature_of_concern: form.value.nature_of_concern,
       is_self_referred:  form.value.referral_source === 'self',
@@ -637,7 +647,7 @@ async function confirmSubmit() {
 
   } catch (e) {
     showPreview.value = false;
-    error.value = e.response?.data?.message || 'Please fill in all required fields.';
+    error.value = e.response?.data?.message || e.message || 'Please fill in all required fields.';
     toast?.error(error.value);
   } finally {
     loading.value = false;
