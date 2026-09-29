@@ -83,7 +83,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
     Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
     Route::get('referrals/{referral}/session-notes',    [SessionNoteController::class, 'indexByReferral']);
-    Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral']);
+    Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral'])
+        ->middleware('role:admin,gcu_staff');
 
     // Complaints (SDU Incident Reports) - separate from Referrals.
     // Filing is open to anyone who can access "Refer Student" (same as
@@ -110,10 +111,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Session Notes
     Route::get('cases/{case}/session-notes',           [SessionNoteController::class, 'index']);
-    Route::post('cases/{case}/session-notes',          [SessionNoteController::class, 'store']);
+    Route::post('cases/{case}/session-notes',          [SessionNoteController::class, 'store'])
+        ->middleware('role:admin,gcu_staff');
     Route::get('session-notes/{sessionNote}',          [SessionNoteController::class, 'show']);
-    Route::put('session-notes/{sessionNote}',          [SessionNoteController::class, 'update']);
-    Route::delete('session-notes/{sessionNote}',       [SessionNoteController::class, 'destroy']);
+    Route::put('session-notes/{sessionNote}',          [SessionNoteController::class, 'update'])
+        ->middleware('role:admin,gcu_staff');
+    Route::delete('session-notes/{sessionNote}',       [SessionNoteController::class, 'destroy'])
+        ->middleware('role:admin,gcu_staff');
 
     // Appointments
     Route::apiResource('appointments', AppointmentController::class);

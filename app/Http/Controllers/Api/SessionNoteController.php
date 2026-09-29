@@ -11,6 +11,17 @@ use Illuminate\Http\Request;
 
 class SessionNoteController extends Controller
 {
+    /**
+     * Only counselors (admin + gcu_staff) may write or modify session notes.
+     * Mirrors User::canCounsel().
+     */
+    private function authorizeCounselor(): void
+    {
+        if (!request()->user()?->canCounsel()) {
+            abort(403, 'Access denied. Only counselors may modify session notes.');
+        }
+    }
+
     public function index(Request $request, CaseFile $case)
     {
         $user = $request->user();
@@ -89,6 +100,8 @@ class SessionNoteController extends Controller
 
     public function store(Request $request, CaseFile $case)
     {
+        $this->authorizeCounselor();
+
         $validated = $request->validate([
             'session_date'       => 'required|date',
             'session_start_time' => 'nullable|date_format:H:i',
@@ -142,6 +155,8 @@ class SessionNoteController extends Controller
 
     public function update(Request $request, SessionNote $sessionNote)
     {
+        $this->authorizeCounselor();
+
         $old = $sessionNote->toArray();
 
         $sessionNote->update($request->only([
@@ -158,6 +173,8 @@ class SessionNoteController extends Controller
 
     public function destroy(SessionNote $sessionNote)
     {
+        $this->authorizeCounselor();
+
         AuditLog::record('deleted', "Deleted session note #{$sessionNote->session_number}.", $sessionNote);
         $sessionNote->delete();
         return response()->json(['message' => 'Session note deleted.']);

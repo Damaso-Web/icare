@@ -17,6 +17,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Raw MySQL enum syntax - no-op on SQLite (used for the RBAC test
+        // suite), which has no MODIFY COLUMN and stores status loosely-typed
+        // anyway, so every value below is already accepted there.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("
             ALTER TABLE `cases`
             MODIFY COLUMN `status` ENUM(
@@ -37,6 +44,10 @@ return new class extends Migration
         // Park anything still on the new value back on 'open' so the narrowed
         // enum below cannot silently blank those rows.
         DB::table('cases')->where('status', 'on_observation')->update(['status' => 'open']);
+
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
 
         DB::statement("
             ALTER TABLE `cases`

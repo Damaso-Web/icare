@@ -11,6 +11,19 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
+    /**
+     * Roles the currently authenticated actor may assign.
+     * system_admin can assign anything; admin (GCU Head) cannot grant system_admin.
+     */
+    private function assignableRoles(): array
+    {
+        $all = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary', 'system_admin'];
+
+        return request()->user()?->isSystemAdmin()
+            ? $all
+            : array_values(array_diff($all, ['system_admin']));
+    }
+
     public function index(Request $request)
     {
         $query = User::query()
@@ -43,7 +56,7 @@ class UserController extends Controller
             'suffix'                => 'nullable|string|max:20',
             'email'                 => 'required|email|unique:users,email',
             'employee_id'           => 'nullable|string|max:50',
-            'role'                  => 'required|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
+            'role'                  => ['required', \Illuminate\Validation\Rule::in($this->assignableRoles())],
             'college'               => 'nullable|string',
             'department'            => 'nullable|string',
             'contact_number'        => 'nullable|string|max:11',
@@ -78,11 +91,16 @@ class UserController extends Controller
         'suffix'         => 'nullable|string|max:20',
         'email'          => 'sometimes|email|unique:users,email,' . $user->id,
         'employee_id'    => 'nullable|string|max:50',
-        'role'           => 'sometimes|in:admin,gcu_staff,sdu_head,tmdu_staff,faculty,dean_secretary',
+        'role'           => ['sometimes', \Illuminate\Validation\Rule::in($this->assignableRoles())],
         'college'        => 'nullable|string',
         'department'     => 'nullable|string',
         'contact_number' => 'nullable|string|max:11',
     ]);
+
+    // Prevent a user from changing their own role (self-escalation guard).
+    if (isset($validated['role']) && $request->user()->id === $user->id) {
+        unset($validated['role']);
+    }
 
     $old = $user->toArray();
     $user->update($validated);
@@ -185,7 +203,7 @@ class UserController extends Controller
             fclose($handle);
         }
 
-        $validRoles = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
+        $validRoles = $this->assignableRoles();
         $created = 0;
         $skipped = 0;
         $errors  = [];

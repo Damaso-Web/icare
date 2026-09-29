@@ -36,37 +36,62 @@ return new class extends Migration
         // 'test_results_issued'). Widen first (superset of old + new) so
         // existing rows are never briefly invalid, migrate the data, then
         // narrow to the final list.
-        DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
-            'pending','fee_form_pending','or_submitted','scheduled','in_progress',
-            'completed','test_administered','par_scheduled','report_sent','test_results_issued'
-        ) NOT NULL DEFAULT 'pending'");
+        //
+        // The raw ALTER statements are MySQL-only enum syntax - no-op on
+        // SQLite (used for the RBAC test suite), which has no MODIFY COLUMN
+        // and stores status loosely-typed anyway, so every value here is
+        // already accepted there. The data-fix updates below still run on
+        // every driver since they're harmless no-ops when no rows match.
+        $isMysql = DB::connection()->getDriverName() === 'mysql';
+
+        if ($isMysql) {
+            DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
+                'pending','fee_form_pending','or_submitted','scheduled','in_progress',
+                'completed','test_administered','par_scheduled','report_sent','test_results_issued'
+            ) NOT NULL DEFAULT 'pending'");
+        }
 
         DB::table('testing_records')->where('status', 'completed')->update(['status' => 'test_administered']);
         DB::table('testing_records')->where('status', 'report_sent')->update(['status' => 'test_results_issued']);
 
-        DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
-            'pending','fee_form_pending','or_submitted','scheduled','in_progress',
-            'test_administered','par_scheduled','test_results_issued'
-        ) NOT NULL DEFAULT 'pending'");
+        if ($isMysql) {
+            DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
+                'pending','fee_form_pending','or_submitted','scheduled','in_progress',
+                'test_administered','par_scheduled','test_results_issued'
+            ) NOT NULL DEFAULT 'pending'");
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
-            'pending','fee_form_pending','or_submitted','scheduled','in_progress',
-            'completed','test_administered','par_scheduled','report_sent','test_results_issued'
-        ) NOT NULL DEFAULT 'pending'");
+        $isMysql = DB::connection()->getDriverName() === 'mysql';
+
+        if ($isMysql) {
+            DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
+                'pending','fee_form_pending','or_submitted','scheduled','in_progress',
+                'completed','test_administered','par_scheduled','report_sent','test_results_issued'
+            ) NOT NULL DEFAULT 'pending'");
+        }
 
         DB::table('testing_records')->where('status', 'test_administered')->update(['status' => 'completed']);
         DB::table('testing_records')->where('status', 'test_results_issued')->update(['status' => 'report_sent']);
 
-        DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
-            'pending','scheduled','in_progress','completed','report_sent'
-        ) NOT NULL DEFAULT 'pending'");
+        if ($isMysql) {
+            DB::statement("ALTER TABLE testing_records MODIFY status ENUM(
+                'pending','scheduled','in_progress','completed','report_sent'
+            ) NOT NULL DEFAULT 'pending'");
+        }
 
-        Schema::table('testing_records', function (Blueprint $table) {
-            $table->dropForeign(['referral_id']);
-            $table->dropForeign(['or_stamped_by_user_id']);
+        Schema::table('testing_records', function (Blueprint $table) use ($isMysql) {
+            // SQLite can't drop a foreign key constraint without recreating
+            // the table, and doesn't need to anyway - dropping the columns
+            // below removes the constraint along with them there. Only do
+            // the explicit drop on MySQL, where the FK exists independently
+            // of the column and must be removed first.
+            if ($isMysql) {
+                $table->dropForeign(['referral_id']);
+                $table->dropForeign(['or_stamped_by_user_id']);
+            }
             $table->dropColumn(['referral_id', 'reason', 'or_stamped_at', 'or_stamped_by_user_id']);
         });
     }

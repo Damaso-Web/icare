@@ -305,16 +305,22 @@
           <div class="icard" v-if="canManage && ['fee_form_pending', 'or_submitted'].includes(record.status)">
             <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <input v-model="testingForm.appointment_date" type="date" class="ifi" />
-              <div style="display:flex;gap:8px">
-                <input v-model="testingForm.start_time" type="time" class="ifi" style="flex:1" />
-                <input v-model="testingForm.end_time" type="time" class="ifi" style="flex:1" />
+              <div>
+                <input v-model="testingForm.appointment_date" type="date" class="ifi" style="width:100%" />
+                <div v-if="testingDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingDateError }}</div>
+              </div>
+              <div>
+                <div style="display:flex;gap:8px">
+                  <input v-model="testingForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                  <input v-model="testingForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                </div>
+                <div v-if="testingTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingTimeError }}</div>
               </div>
               <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--slate)">
                 <input type="checkbox" v-model="testingForm.or_stamped_confirmed" style="width:15px;height:15px;accent-color:var(--moss);margin-top:1px" />
                 I confirm the student's Official Receipt has been received and stamped, face-to-face.
               </label>
-              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || !testingForm.or_stamped_confirmed">
+              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || !testingForm.or_stamped_confirmed || testingFormInvalid">
                 {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
               </button>
             </div>
@@ -325,12 +331,18 @@
           <div class="icard" v-if="canManage && stage === 'awaiting_results'">
             <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" />
-              <div style="display:flex;gap:8px">
-                <input v-model="parScheduleForm.start_time" type="time" class="ifi" style="flex:1" />
-                <input v-model="parScheduleForm.end_time" type="time" class="ifi" style="flex:1" />
+              <div>
+                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
+                <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
               </div>
-              <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving">
+              <div>
+                <div style="display:flex;gap:8px">
+                  <input v-model="parScheduleForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                  <input v-model="parScheduleForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                </div>
+                <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
+              </div>
+              <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
                 {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
               </button>
               <div v-if="record.status === 'par_scheduled'" style="font-size:12px;color:var(--moss)">✓ PAR release appointment scheduled.</div>
@@ -546,9 +558,42 @@ async function viewOrPhoto() {
   }
 }
 
+// TMDU office hours - both scheduling panels below share these rules.
+// Weekday-only, 8:00 AM-4:00 PM, checked live as the fields change (not just
+// when the schedule button is clicked).
+function isWeekend(dateStr) {
+  if (!dateStr) return false;
+  const day = new Date(dateStr + 'T00:00:00').getDay();
+  return day === 0 || day === 6;
+}
+
+function dateErrorFor(dateStr) {
+  if (!dateStr) return '';
+  return isWeekend(dateStr) ? 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).' : '';
+}
+
+function timeErrorFor(startTime, endTime) {
+  if (!startTime || !endTime) return '';
+  if (startTime < '08:00' || endTime > '16:00') return 'Appointments must be scheduled between 8:00 AM and 4:00 PM.';
+  if (startTime >= endTime) return 'End time must be after start time.';
+  return '';
+}
+
+const testingDateError = computed(() => dateErrorFor(testingForm.value.appointment_date));
+const testingTimeError = computed(() => timeErrorFor(testingForm.value.start_time, testingForm.value.end_time));
+const testingFormInvalid = computed(() => !!testingDateError.value || !!testingTimeError.value);
+
+const parDateError = computed(() => dateErrorFor(parScheduleForm.value.appointment_date));
+const parTimeError = computed(() => timeErrorFor(parScheduleForm.value.start_time, parScheduleForm.value.end_time));
+const parFormInvalid = computed(() => !!parDateError.value || !!parTimeError.value);
+
 async function confirmScheduleTesting() {
   if (!testingForm.value.appointment_date || !testingForm.value.start_time || !testingForm.value.end_time) {
     toast?.error('Please fill in the date and time.');
+    return;
+  }
+  if (testingFormInvalid.value) {
+    toast?.error(testingDateError.value || testingTimeError.value);
     return;
   }
   if (!testingForm.value.or_stamped_confirmed) {
@@ -591,6 +636,10 @@ async function saveTestsAdministered() {
 async function confirmSchedulePar() {
   if (!parScheduleForm.value.appointment_date || !parScheduleForm.value.start_time || !parScheduleForm.value.end_time) {
     toast?.error('Please fill in the date and time.');
+    return;
+  }
+  if (parFormInvalid.value) {
+    toast?.error(parDateError.value || parTimeError.value);
     return;
   }
   saving.value = true;

@@ -11,12 +11,37 @@ use Illuminate\Http\Request;
 
 class CaseInterventionController extends Controller
 {
+    /**
+     * Enforce the mutually-exclusive intervention rules:
+     *  - admin / system_admin / gcu_staff: may record every type EXCEPT `sanction`
+     *  - sdu_head:                        may ONLY record `sanction`
+     *  - tmdu_staff / faculty / dean_secretary: no access
+     */
+    private function authorizeInterventionAccess(?string $type = null): void
+    {
+        $role = request()->user()?->role;
+        $counselors = ['admin', 'system_admin', 'gcu_staff'];
+
+        if (in_array($role, $counselors, true)) {
+            if ($type === 'sanction') {
+                abort(403, 'Sanctions are recorded by SDU only.');
+            }
+            return;
+        }
+
+        if ($role === 'sdu_head') {
+            if ($type !== 'sanction') {
+                abort(403, 'SDU can only record sanctions given to the student.');
+            }
+            return;
+        }
+
+        abort(403, 'Unauthorized. Only GCU staff and SDU may record interventions.');
+    }
+
     public function store(Request $request, CaseFile $case)
     {
         $user = $request->user();
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
-            abort(403, 'Unauthorized. Only OSS staff may access case files.');
-        }
 
         $validated = $request->validate([
             'referral_id' => 'nullable|exists:referrals,id',
@@ -24,6 +49,8 @@ class CaseInterventionController extends Controller
             'description' => 'required|string',
             'excused'     => 'nullable|boolean',
         ]);
+
+        $this->authorizeInterventionAccess($validated['type']);
 
         if (!empty($validated['referral_id'])) {
             $referral = Referral::findOrFail($validated['referral_id']);
@@ -62,9 +89,7 @@ class CaseInterventionController extends Controller
     public function complete(Request $request, CaseIntervention $intervention)
     {
         $user = $request->user();
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
-            abort(403, 'Unauthorized. Only OSS staff may access case files.');
-        }
+        $this->authorizeInterventionAccess($intervention->type);
 
         $intervention->update([
             'is_completed'         => true,
@@ -80,9 +105,7 @@ class CaseInterventionController extends Controller
     public function destroy(Request $request, CaseIntervention $intervention)
     {
         $user = $request->user();
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
-            abort(403, 'Unauthorized. Only OSS staff may access case files.');
-        }
+        $this->authorizeInterventionAccess($intervention->type);
 
         AuditLog::record('deleted', "Deleted a previous intervention entry for case #{$intervention->case_id}.", $intervention, $intervention->toArray());
         $intervention->delete();

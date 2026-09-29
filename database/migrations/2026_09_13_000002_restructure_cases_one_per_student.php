@@ -89,25 +89,50 @@ return new class extends Migration
 
         // 3. The 1:1 referral_id column is now redundant - the relationship lives
         //    on referrals.case_id instead (one case has many referrals).
-        if (Schema::hasColumn('cases', 'referral_id')) {
-            Schema::table('cases', function (Blueprint $table) {
-                $table->dropForeign(['referral_id']);
-                $table->dropColumn('referral_id');
-            });
+        //
+        //    SQLite refuses to DROP COLUMN on a column that carries a
+        //    REFERENCES clause (the FK is baked into the table definition
+        //    there, not a separately droppable named constraint like
+        //    MySQL's), so this cleanup is MySQL-only there. But the column
+        //    was originally NOT NULL (back when every case had exactly one
+        //    founding referral), and nothing sets it going forward, so on
+        //    SQLite (used for the RBAC test suite) it at least needs to
+        //    become nullable, or every case insert fails outright.
+        if (DB::connection()->getDriverName() === 'mysql') {
+            if (Schema::hasColumn('cases', 'referral_id')) {
+                Schema::table('cases', function (Blueprint $table) {
+                    $table->dropForeign(['referral_id']);
+                    $table->dropColumn('referral_id');
+                });
+            }
+        } else {
+            $this->makeSqliteColumnNullable('cases', 'referral_id');
         }
 
         // 4. Restore the data-integrity guarantee: exactly one case per student.
         //    Add the unique index before dropping the old plain index - MySQL
         //    requires the student_id foreign key stay backed by an index at
         //    all times, so both must briefly coexist.
-        $hasUnique = collect(DB::select("SHOW INDEX FROM cases WHERE Key_name = 'cases_student_id_unique'"))->isNotEmpty();
+        // SHOW INDEX is MySQL-only syntax. On SQLite (used for the RBAC test
+        // suite), check sqlite_master for the same named index instead.
+        $isMysql = DB::connection()->getDriverName() === 'mysql';
+
+        $hasUnique = $isMysql
+            ? collect(DB::select("SHOW INDEX FROM cases WHERE Key_name = 'cases_student_id_unique'"))->isNotEmpty()
+            : collect(DB::select(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'cases' AND name = 'cases_student_id_unique'"
+            ))->isNotEmpty();
         if (!$hasUnique) {
             Schema::table('cases', function (Blueprint $table) {
                 $table->unique('student_id');
             });
         }
 
-        $hasPlainIndex = collect(DB::select("SHOW INDEX FROM cases WHERE Key_name = 'cases_student_id_index'"))->isNotEmpty();
+        $hasPlainIndex = $isMysql
+            ? collect(DB::select("SHOW INDEX FROM cases WHERE Key_name = 'cases_student_id_index'"))->isNotEmpty()
+            : collect(DB::select(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'cases' AND name = 'cases_student_id_index'"
+            ))->isNotEmpty();
         if ($hasPlainIndex) {
             Schema::table('cases', function (Blueprint $table) {
                 $table->dropIndex(['student_id']);
@@ -117,14 +142,86 @@ return new class extends Migration
 
     public function down(): void
     {
+        try {
+            Schema::table('cases', function (Blueprint $table) {
+                $table->dropUnique(['student_id']);
+            });
+        } catch (\Throwable $e) {
+            // Same SQLite naming quirk as the up() dropUnique calls above -
+            // safe to ignore if there's no index under that exact name.
+        }
+
         Schema::table('cases', function (Blueprint $table) {
-            $table->dropUnique(['student_id']);
             $table->foreignId('referral_id')->nullable()->constrained('referrals')->restrictOnDelete();
         });
 
         Schema::table('referrals', function (Blueprint $table) {
-            $table->dropForeign(['case_id']);
+            if (DB::connection()->getDriverName() === 'mysql') { $table->dropForeign(['case_id']); }
             $table->dropColumn('case_id');
         });
+    }
+
+    /**
+     * Make a column nullable on SQLite by rebuilding the table.
+     *
+     * SQLite has no ALTER COLUMN, and Doctrine/DBAL's own rebuild-based
+     * change() doesn't reliably regenerate CHECK/NOT NULL clauses baked
+     * into the original CREATE TABLE text - it can copy them over
+     * verbatim. So this reads the table's real CREATE TABLE SQL and
+     * patches just the "<column> ... not null" fragment for the given
+     * column, leaving every other column, CHECK constraint, and the
+     * table's foreign key clauses untouched.
+     *
+     * As with rebuildSqliteRoleCheck() in
+     * 2026_09_23_000005_add_system_admin_to_users_role_enum.php, the
+     * replacement table is built under a brand-new temporary name FIRST
+     * rather than renaming the original table away. Renaming the
+     * original triggers SQLite's automatic rewrite of every OTHER
+     * table's foreign-key reference text to point at the new name -
+     * which would permanently break those references once the
+     * temporary table is later dropped. Building under a fresh name
+     * that nothing references yet avoids the rewrite entirely; only the
+     * final drop+rename (of a table nothing points to during the swap
+     * except by name) is needed.
+     */
+    private function makeSqliteColumnNullable(string $table, string $column): void
+    {
+        $createSql = DB::selectOne(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+            [$table]
+        )->sql;
+
+        $tempTable = $table . '_nullable_rebuild_new';
+
+        // Match `"column" <type...> not null` up to the next column/constraint
+        // boundary (a comma at the same nesting level or the closing paren),
+        // and drop just the "not null" piece. The column definition itself
+        // (type, default, etc.) is preserved verbatim; separate clauses
+        // elsewhere in the CREATE TABLE text (e.g. a `foreign key(...)
+        // references ...` line for the same column) are untouched since
+        // they don't contain the literal "not null" substring being matched
+        // here.
+        $pattern = '/("' . preg_quote($column, '/') . '"\s+[a-z]+)\s+not null/i';
+        $newCreateSql = preg_replace($pattern, '$1', $createSql, 1);
+
+        $newCreateSql = preg_replace(
+            '/create table\s+"?' . preg_quote($table, '/') . '"?/i',
+            'CREATE TABLE ' . $tempTable,
+            $newCreateSql,
+            1
+        );
+
+        DB::statement($newCreateSql);
+        DB::statement("INSERT INTO {$tempTable} SELECT * FROM {$table}");
+
+        // FK enforcement has to be off only for this DROP - the original
+        // table briefly doesn't exist while every other table's FK text
+        // still names it, but the very next statement recreates it under
+        // the same name with the same data, so nothing is left dangling
+        // once this method returns.
+        DB::statement('PRAGMA foreign_keys = OFF');
+        DB::statement("DROP TABLE {$table}");
+        DB::statement("ALTER TABLE {$tempTable} RENAME TO {$table}");
+        DB::statement('PRAGMA foreign_keys = ON');
     }
 };

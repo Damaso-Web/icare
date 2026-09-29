@@ -12,6 +12,15 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
+                'name'        => 'System Administrator (Dev/QA)',
+                'email'       => 'sysadmin@bsu.edu.ph',
+                'employee_id' => 'BSU-SYS-001',
+                'role'        => 'system_admin',
+                'unit'        => 'OSS',
+                'password'    => Hash::make('SysAdmin@iCARE2026'),
+                'is_active'   => true,
+            ],
+            [
                 'name'        => 'System Administrator',
                 'email'       => 'admin@bsu.edu.ph',
                 'employee_id' => 'BSU-ADMIN-001',

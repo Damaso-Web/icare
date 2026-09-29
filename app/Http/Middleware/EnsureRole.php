@@ -11,7 +11,14 @@ class EnsureRole
     {
         $user = $request->user();
 
-        if (!$user || !in_array($user->role, $roles)) {
+        if (!$user) {
+            abort(401, 'Unauthenticated.');
+        }
+
+        $userRole = strtolower(trim((string) $user->role));
+        $allowed  = array_map(fn ($r) => strtolower(trim($r)), $roles);
+
+        if (!in_array($userRole, $allowed, true)) {
             abort(403, 'Unauthorized. You do not have permission to access this resource.');
         }
 

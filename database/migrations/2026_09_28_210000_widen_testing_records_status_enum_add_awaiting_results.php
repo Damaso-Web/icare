@@ -19,6 +19,13 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Raw MySQL enum syntax - no-op on SQLite (used for the RBAC test
+        // suite), which has no MODIFY COLUMN and stores status loosely-typed
+        // anyway, so 'awaiting_results' is already accepted there.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE testing_records MODIFY COLUMN status ENUM(
             'pending','fee_form_pending','or_submitted','scheduled','in_progress',
             'test_administered','awaiting_results','par_scheduled','test_results_issued'
@@ -27,6 +34,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE testing_records MODIFY COLUMN status ENUM(
             'pending','fee_form_pending','or_submitted','scheduled','in_progress',
             'test_administered','par_scheduled','test_results_issued'

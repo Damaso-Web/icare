@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
@@ -28,8 +29,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('referrals', function (Blueprint $table) {
-            $table->dropForeign(['feedback_sent_by_user_id']);
-            $table->dropForeign(['admission_issued_by_user_id']);
+            if (DB::connection()->getDriverName() === 'mysql') { $table->dropForeign(['feedback_sent_by_user_id']); }
+            if (DB::connection()->getDriverName() === 'mysql') { $table->dropForeign(['admission_issued_by_user_id']); }
             $table->dropColumn([
                 'feedback_notes',
                 'feedback_sent_at',

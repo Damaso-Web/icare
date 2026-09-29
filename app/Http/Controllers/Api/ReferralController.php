@@ -18,6 +18,25 @@ use Illuminate\Support\Facades\Notification;
 
 class ReferralController extends Controller
 {
+    // Locks TMDU staff to only modifying psychological-testing referrals
+    // that are currently assigned to TMDU's own unit - they can't write to
+    // any other referral type, or to a testing referral that hasn't (or no
+    // longer) belongs to TMDU (e.g. still sitting with GCU pre-acknowledge).
+    private function authorizeReferralWriter(Request $request, ?Referral $referral = null): void
+    {
+        $user = $request->user();
+
+        if (!$user->isTMDUStaff()) {
+            return;
+        }
+
+        if (!$referral
+            || $referral->referral_type !== 'psychological_testing'
+            || optional($referral->case)->current_unit !== 'TMDU') {
+            abort(403, 'TMDU can only modify psychological testing referrals assigned to TMDU.');
+        }
+    }
+
     public function index(Request $request)
 {
     $user = $request->user();
@@ -61,6 +80,9 @@ class ReferralController extends Controller
         // A college representative coordinates on behalf of their whole
         // college, not just referrals they personally submitted.
         $query->whereHas('student', fn($s) => $s->where('college', $user->college));
+    } elseif ($user->isTMDUStaff()) {
+        $query->where('referral_type', 'psychological_testing')
+              ->whereHas('case', fn($c) => $c->where('current_unit', 'TMDU'));
     }
 
     return response()->json(
@@ -72,22 +94,37 @@ class ReferralController extends Controller
 
     public function archived(Request $request)
     {
+        $user  = $request->user();
         $query = Referral::with(['student', 'referredBy'])
             ->where('is_archived', true)
             // Same exclusion as index() - Complaints stay out of the Referral
             // Queue's archive view too.
-            ->whereNull('complaint_id')
-            ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-                $s->where('first_name', 'like', "%{$request->search}%")
-                  ->orWhere('last_name', 'like', "%{$request->search}%")
-                  ->orWhere('student_id', 'like', "%{$request->search}%")
-            ));
+            ->whereNull('complaint_id');
+
+        if ($user->isFaculty()) {
+            $query->where('referred_by_user_id', $user->id);
+        } elseif ($user->isDeanSecretary()) {
+            $query->whereHas('student', fn($s) => $s->where('college', $user->college));
+        } elseif ($user->isTMDUStaff()) {
+            $query->where('referral_type', 'psychological_testing')
+                  ->whereHas('case', fn($c) => $c->where('current_unit', 'TMDU'));
+        }
+
+        $query->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
+            $s->where('first_name', 'like', "%{$request->search}%")
+              ->orWhere('last_name', 'like', "%{$request->search}%")
+              ->orWhere('student_id', 'like', "%{$request->search}%")
+        ));
 
         return response()->json($query->latest()->paginate(20));
     }
 
     public function store(Request $request)
     {
+        if ($request->user()->isTMDUStaff()) {
+            abort(403, 'TMDU cannot create referrals.');
+        }
+
         $validated = $request->validate([
             'student_id'          => 'required|exists:students,id',
             'referral_type'       => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
@@ -196,6 +233,7 @@ class ReferralController extends Controller
 
     public function update(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $old = $referral->toArray();
         $referral->update($request->only([
@@ -214,6 +252,7 @@ class ReferralController extends Controller
 
     public function archive(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $referral->update(['is_archived' => true]);
         AuditLog::record('archived', "Archived referral {$referral->referral_code}.", $referral);
@@ -222,6 +261,7 @@ class ReferralController extends Controller
 
     public function unarchive(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $referral->update(['is_archived' => false]);
         AuditLog::record('unarchived', "Restored referral {$referral->referral_code} from archive.", $referral);
@@ -230,6 +270,8 @@ class ReferralController extends Controller
 
     public function acknowledge(Request $request, Referral $referral)
 {
+    $this->authorizeReferralWriter($request, $referral);
+
     // A psychological_testing referral is the GCU->TMDU shared referral
     // created by CaseController::referToTmdu(). It has its own linked
     // TestingRecord tracking the rest of that workflow (fee form -> OR ->
@@ -394,6 +436,7 @@ class ReferralController extends Controller
 
     public function assign(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $request->validate(['user_id' => 'required|exists:users,id']);
         $old = $referral->only(['assigned_to_user_id']);
@@ -409,6 +452,7 @@ class ReferralController extends Controller
 
     public function updateStatus(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $request->validate([
             'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
@@ -426,6 +470,7 @@ class ReferralController extends Controller
 
     public function sendFeedback(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $user = $request->user();
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');
@@ -454,6 +499,7 @@ class ReferralController extends Controller
 
     public function saveAdmissionSlip(Request $request, Referral $referral)
     {
+        $this->authorizeReferralWriter($request, $referral);
         $user = $request->user();
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');
@@ -483,6 +529,7 @@ class ReferralController extends Controller
 
     public function tracking(Referral $referral)
     {
+        $this->authorizeReferralWriter(request(), $referral);
         $this->authorizeView($referral, request()->user());
         return response()->json([
             'referral'     => $referral->only(['referral_code', 'status', 'referral_type', 'created_at', 'acknowledged_at']),
@@ -498,6 +545,15 @@ class ReferralController extends Controller
         }
         if ($user->isDeanSecretary() && $referral->student->college !== $user->college) {
             abort(403, 'Unauthorized.');
+        }
+
+        if ($user->isTMDUStaff()) {
+            $isTesting = $referral->referral_type === 'psychological_testing';
+            $inTmdu    = optional($referral->case)->current_unit === 'TMDU';
+
+            if (!$isTesting || !$inTmdu) {
+                abort(403, 'TMDU can only view psychological testing referrals assigned to TMDU.');
+            }
         }
     }
 }

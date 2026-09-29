@@ -10,11 +10,21 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // Raw MySQL syntax - no-op on SQLite (used for the RBAC test suite),
+        // which has no MODIFY COLUMN and allows NULL here regardless.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement('ALTER TABLE students MODIFY college VARCHAR(255) NULL');
     }
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE students MODIFY college VARCHAR(255) NOT NULL DEFAULT ''");
     }
 };

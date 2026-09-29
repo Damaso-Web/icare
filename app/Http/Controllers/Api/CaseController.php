@@ -27,6 +27,18 @@ class CaseController extends Controller
         }
     }
 
+    /**
+     * Only the GCU Head (admin) and gcu_staff may write to a SIF (CaseFile).
+     * SDU and TMDU are read-only on cases.
+     */
+    private function authorizeCaseWriter(): void
+    {
+        $role = request()->user()?->role;
+        if (!in_array($role, ['admin', 'gcu_staff'], true)) {
+            abort(403, 'Unauthorized. Only GCU staff may modify case files.');
+        }
+    }
+
     private function authorizeUnitAccess(CaseFile $case): void
     {
         $user = request()->user();
@@ -115,6 +127,7 @@ class CaseController extends Controller
     public function update(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
         $this->authorizeUnitAccess($case);
 
         $old = $case->toArray();
@@ -134,6 +147,7 @@ class CaseController extends Controller
     public function updateStatus(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'status' => 'required|in:open,on_observation,in_progress,awaiting_testing,awaiting_external,on_hold,resolved,closed'
@@ -147,6 +161,7 @@ class CaseController extends Controller
     public function close(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'interventions_applied' => 'required|string',
@@ -183,6 +198,7 @@ class CaseController extends Controller
     public function referToTmdu(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate(['reason' => 'required|string']);
 
@@ -247,6 +263,7 @@ class CaseController extends Controller
     public function referExternal(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'destination' => 'required|string',
@@ -266,6 +283,7 @@ class CaseController extends Controller
     public function handoff(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'to_user_id' => 'required|exists:users,id',
@@ -297,6 +315,7 @@ class CaseController extends Controller
     public function acknowledgeHandoff(Request $request, CaseFile $case, CaseHandoff $handoff)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         if ($handoff->case_id !== $case->id) {
             abort(422, 'This handoff does not belong to this case.');
@@ -320,6 +339,7 @@ class CaseController extends Controller
     public function flagUnreachable(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'notes' => 'nullable|string',
@@ -353,6 +373,7 @@ class CaseController extends Controller
     public function flagFollowUp(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $request->validate([
             'notes' => 'nullable|string',
@@ -374,6 +395,7 @@ class CaseController extends Controller
     public function resolveFollowUp(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
 
         $old = $case->toArray();
         $case->update(['requires_follow_up' => false]);

@@ -17,6 +17,13 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Raw MySQL enum syntax - no-op on SQLite (used for the RBAC test
+        // suite), which has no MODIFY COLUMN and stores appointment_type
+        // loosely-typed anyway, so every value here is already accepted.
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE appointments MODIFY COLUMN appointment_type ENUM(
             'initial_counseling',
             'follow_up_session',
@@ -32,6 +39,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
         DB::statement("ALTER TABLE appointments MODIFY COLUMN appointment_type ENUM(
             'initial_counseling',
             'follow_up_session',
