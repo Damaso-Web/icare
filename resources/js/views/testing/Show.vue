@@ -326,27 +326,34 @@
             </div>
           </div>
 
-         <!-- Schedule PAR Release - reachable both before and after PAR results are
-     attached, since staff may attach the report first and schedule the
-     hand-off appointment with the student afterward. -->
-    <div class="icard" v-if="canManage && ['awaiting_results', 'results_released'].includes(stage)">
+                   <!-- Schedule PAR Release - reachable both before and after PAR results are
+               attached, since staff may attach the report first and schedule the
+               hand-off appointment with the student afterward. Once already
+               scheduled, the form hides behind a "Reschedule" toggle instead of
+               staying open (which let staff resubmit it repeatedly). -->
+          <div class="icard" v-if="canManage && ['awaiting_results', 'results_released'].includes(stage)">
             <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <div>
-                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
-                <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
-              </div>
-              <div>
-                <div style="display:flex;gap:8px">
-                  <input v-model="parScheduleForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
-                  <input v-model="parScheduleForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+              <template v-if="record.status === 'par_scheduled' && !showParRescheduleForm">
+                <div style="font-size:12px;color:var(--moss)">✓ PAR release appointment scheduled.</div>
+                <button class="ibtn ibtn-o ibtn-sm" @click="showParRescheduleForm = true">Reschedule</button>
+              </template>
+              <template v-else>
+                <div>
+                  <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
+                  <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
                 </div>
-                <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
-              </div>
-              <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
-                {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
-              </button>
-              <div v-if="record.status === 'par_scheduled'" style="font-size:12px;color:var(--moss)">✓ PAR release appointment scheduled.</div>
+                <div>
+                  <div style="display:flex;gap:8px">
+                    <input v-model="parScheduleForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                    <input v-model="parScheduleForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                  </div>
+                  <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
+                </div>
+                <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
+                  {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
+                </button>
+              </template>
             </div>
           </div>
 
@@ -503,6 +510,7 @@ const TMDU_ROLES = ['admin', 'tmdu_staff'];
 const showAssignModal = ref(false);
 const assignForm      = ref({ to_user_id: '' });
 const assignStaffList = ref([]);
+const showParRescheduleForm = ref(false);
 
 async function loadAssignStaff() {
   assignStaffList.value = [];
@@ -648,6 +656,7 @@ async function confirmSchedulePar() {
     await testingAPI.schedulePar(record.value.id, parScheduleForm.value);
     toast?.success('PAR release appointment scheduled. Student has been notified.');
     await loadRecord();
+    showParRescheduleForm.value = false;
   } catch (e) {
     toast?.error('Failed to schedule PAR release.');
   } finally {

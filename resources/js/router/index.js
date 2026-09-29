@@ -145,7 +145,7 @@ const routes = [
                 path: 'referrals',
                 name: 'referrals',
                 component: Referrals,
-                meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'faculty'] },
+                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'] },
             },
             {
                 path: 'referrals/create',

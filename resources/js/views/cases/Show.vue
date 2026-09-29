@@ -381,8 +381,8 @@
               <div v-else style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                 ⚠ Acknowledge referral first
               </div>
-              <button
-                v-if="!caseFile.referred_to_tmdu"
+                <button
+                v-if="!caseFile.testing_record || caseFile.testing_record.status === 'test_results_issued'"
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
                 @click="referToTmdu"

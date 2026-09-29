@@ -399,6 +399,8 @@ class UserController extends Controller
         $preview = [];
         $duplicateCount = 0;
 
+        $existingUsers = User::whereIn('email', $emails)->get()->keyBy('email');
+
         foreach ($rows as $i => $row) {
             $row['role']  = strtolower(trim($row['role'] ?? ''));
             $reasons      = $this->validateImportRow($row, $validRoles);
@@ -406,6 +408,16 @@ class UserController extends Controller
 
             if ($isDuplicate) {
                 $duplicateCount++;
+
+                // Protect existing admin/system_admin accounts: a bulk
+                // masterlist import must never be able to change the role
+                // of a privileged account (e.g. an admin's email accidentally
+                // reused as a "faculty" row would otherwise silently demote
+                // them). Flag it invalid so it can't be actioned as update.
+                $existingUser = $existingUsers->get($row['email']);
+                if ($existingUser && in_array($existingUser->role, ['admin', 'system_admin'], true)) {
+                    $reasons[] = "This email belongs to a protected {$existingUser->role} account and cannot be modified by import.";
+                }
             }
 
             $preview[] = [
@@ -479,6 +491,15 @@ class UserController extends Controller
 
             $existingUser = $existing->get($row['email']);
 
+            // Never let a bulk import modify a protected admin/system_admin
+            // account, even if the frontend sent an 'update' decision for it
+            // (e.g. importPreview already flagged this row invalid).
+            if ($existingUser && in_array($existingUser->role, ['admin', 'system_admin'], true)) {
+                $skipped++;
+                $errors[] = 'Row ' . ($i + 2) . ": email {$row['email']} belongs to a protected {$existingUser->role} account and was not modified.";
+                continue;
+            }
+
             $payload = [
                 'first_name'     => $row['first_name'],
                 'middle_name'    => $row['middle_name'] ?? null,
@@ -493,27 +514,36 @@ class UserController extends Controller
                 'contact_number' => $row['contact_number'] ?? null,
             ];
 
-            if ($existingUser) {
-                // decision is 'update' (or 'create' re-hitting an existing
-                // email, which is also treated as an update to avoid a
-                // duplicate-email database error).
-                $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
-                $updated++;
-            } else {
-                $tempPassword = Str::random(10);
-                $payload['password']             = Hash::make($tempPassword);
-                $payload['temp_password']        = $tempPassword;
-                $payload['must_change_password'] = true;
-                $payload['is_active']            = true;
+                        try {
+                if ($existingUser) {
+                    // decision is 'update' (or 'create' re-hitting an existing
+                    // email, which is also treated as an update to avoid a
+                    // duplicate-email database error).
+                    $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
+                    $updated++;
+                } else {
+                    $tempPassword = Str::random(10);
+                    $payload['password']             = Hash::make($tempPassword);
+                    $payload['temp_password']        = $tempPassword;
+                    $payload['must_change_password'] = true;
+                    $payload['is_active']            = true;
 
-                $user = User::create($payload);
+                    $user = User::create($payload);
 
-                $passwords[] = [
-                    'email'         => $user->email,
-                    'name'          => $user->name,
-                    'temp_password' => $tempPassword,
-                ];
-                $created++;
+                    $passwords[] = [
+                        'email'         => $user->email,
+                        'name'          => $user->name,
+                        'temp_password' => $tempPassword,
+                    ];
+                    $created++;
+                }
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                // A duplicate value on some other unique column (e.g.
+                // employee_id reused across rows or already taken by an
+                // existing account) must not crash the whole batch - skip
+                // just this row and report it.
+                $skipped++;
+                $errors[] = 'Row ' . ($i + 2) . ": could not save {$row['email']} - a unique field (such as Employee ID) is already in use.";
             }
         }
 

@@ -204,15 +204,11 @@ class ReferralController extends Controller
             ->where('id', '!=', $referral->id)
             ->count();
 
-        $referral->load([
+            $referral->load([
             'student', 'referredBy', 'assignedTo', 'feedbackSentBy', 'admissionIssuedBy',
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
-            'case.counselor', 'case.referrals', 'case.appointments.staff',
-            // For a disciplinary referral filed together with a Complaint
-            // ("Incident Report"), pull in the full complaint + its evidence
-            // so referrals/Show.vue can render it in place of the normal
-            // Referral Info panel once acknowledged.
+            'case.counselor', 'case.referrals', 'case.appointments.staff', 'case.testingRecord',
             'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
         ]);
 

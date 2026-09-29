@@ -291,7 +291,7 @@ const menuItems = computed(() => {
       name:    'referrals',
       label:   role === 'tmdu_staff' ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'tmdu_staff'],
+      roles:   ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'],
       section: null,
     },
     {
@@ -305,14 +305,14 @@ const menuItems = computed(() => {
       name:    'appointments',
       label:   'Appointment',
       icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'],
+      roles:   ['admin', 'gcu_staff'],
       section: null,
     },
     {
       name:    'cases',
       label:   'Student Information Files',
       icon:    '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'],
+      roles:   ['admin', 'gcu_staff', 'tmdu_staff'],
       section: null,
     },
     {
