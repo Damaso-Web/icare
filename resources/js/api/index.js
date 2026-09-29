@@ -189,6 +189,8 @@ export const userAPI = {
     toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importConfirm: (data)     => api.post('/users/import-confirm', data),
     viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
 };
 

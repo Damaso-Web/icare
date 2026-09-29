@@ -268,4 +268,265 @@ class UserController extends Controller
             'passwords' => $generatedPasswords,
         ]);
     }
+
+    /**
+     * Column-header map for the Faculty/Employee masterlist templates,
+     * mirroring StudentController's studentHeaderMap() pattern.
+     */
+    private function employeeHeaderMap(): array
+    {
+        return [
+            'last name'      => 'last_name',
+            'first name'     => 'first_name',
+            'middle name'    => 'middle_name',
+            'suffix'         => 'suffix',
+            'email address'  => 'email',
+            'email'          => 'email',
+            'role'           => 'role',
+            'employee id'    => 'employee_id',
+            'college'        => 'college',
+            'department'     => 'department',
+            'contact number' => 'contact_number',
+        ];
+    }
+
+    /**
+     * Parses an uploaded masterlist file (xlsx/xls/csv/txt) into an array of
+     * associative rows, keyed by the mapped field names in $headerMap.
+     * Same parsing logic already used inline by import(), just reusable.
+     */
+    private function parseFile($file, string $ext, array $headerMap): array
+    {
+        $rows = [];
+
+        if (in_array($ext, ['xlsx', 'xls'])) {
+            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            $sheet = $spreadsheet->getActiveSheet();
+            $data  = $sheet->toArray(null, true, true, false);
+
+            if (empty($data)) {
+                return [];
+            }
+
+            $rawHeader = array_map(fn($h) => strtolower(trim($h ?? '')), $data[0]);
+            for ($i = 1; $i < count($data); $i++) {
+                $rowAssoc = [];
+                foreach ($rawHeader as $idx => $key) {
+                    $mappedKey = $headerMap[$key] ?? $key;
+                    $rowAssoc[$mappedKey] = $data[$i][$idx] ?? null;
+                }
+                $rows[] = $rowAssoc;
+            }
+        } else {
+            $handle = fopen($file->getRealPath(), 'r');
+            $rawHeader = array_map(fn($h) => strtolower(trim($h)), fgetcsv($handle));
+            while (($data = fgetcsv($handle)) !== false) {
+                $rowAssoc = [];
+                foreach ($rawHeader as $idx => $key) {
+                    $mappedKey = $headerMap[$key] ?? $key;
+                    $rowAssoc[$mappedKey] = $data[$idx] ?? null;
+                }
+                $rows[] = $rowAssoc;
+            }
+            fclose($handle);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * Validates a single parsed masterlist row for the Faculty/Employee import,
+     * mirroring StudentController's validateImportRow() pattern.
+     */
+    private function validateImportRow(array $row, array $validRoles): array
+    {
+        $reasons = [];
+
+        if (empty($row['last_name'])) {
+            $reasons[] = 'Last Name is required.';
+        }
+
+        if (empty($row['first_name'])) {
+            $reasons[] = 'First Name is required.';
+        }
+
+        if (empty($row['email'])) {
+            $reasons[] = 'Email is required.';
+        } elseif (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
+            $reasons[] = 'Email address is invalid.';
+        }
+
+        if (empty($row['role'])) {
+            $reasons[] = 'Role is required.';
+        } elseif (!in_array($row['role'], $validRoles)) {
+            $reasons[] = "Invalid role '{$row['role']}'.";
+        }
+
+        return $reasons;
+    }
+
+    /**
+     * Step 1 of the Faculty/Employee masterlist upload: parse + validate
+     * every row up front and return a preview (new/duplicate/invalid) without
+     * writing anything to the database yet. Mirrors
+     * StudentController::importPreview().
+     */
+    public function importPreview(Request $request)
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:csv,txt,xlsx,xls',
+        ]);
+
+        $file = $request->file('file');
+        $ext  = strtolower($file->getClientOriginalExtension());
+        $rows = $this->parseFile($file, $ext, $this->employeeHeaderMap());
+
+        if (empty($rows)) {
+            return response()->json(['preview' => [], 'total' => 0, 'duplicates' => 0, 'token' => '']);
+        }
+
+        $validRoles = $this->assignableRoles();
+
+        $emails = collect($rows)
+            ->pluck('email')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $existingEmails = User::whereIn('email', $emails)->pluck('email')->flip();
+
+        $preview = [];
+        $duplicateCount = 0;
+
+        foreach ($rows as $i => $row) {
+            $row['role']  = strtolower(trim($row['role'] ?? ''));
+            $reasons      = $this->validateImportRow($row, $validRoles);
+            $isDuplicate  = !empty($row['email']) && isset($existingEmails[$row['email']]);
+
+            if ($isDuplicate) {
+                $duplicateCount++;
+            }
+
+            $preview[] = [
+                'row'          => $i + 2,
+                'email'        => $row['email'] ?? '',
+                'name'         => trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')),
+                'role'         => $row['role'] ?? '',
+                'is_duplicate' => $isDuplicate,
+                'valid'        => empty($reasons),
+                'reasons'      => $reasons,
+            ];
+        }
+
+        $token = uniqid('import_');
+        cache()->put($token, $rows, now()->addMinutes(15));
+
+        return response()->json([
+            'token'      => $token,
+            'preview'    => $preview,
+            'total'      => count($rows),
+            'duplicates' => $duplicateCount,
+        ]);
+    }
+
+    /**
+     * Step 2 of the Faculty/Employee masterlist upload: re-fetch the cached,
+     * already-validated rows by token and actually create/update/skip each
+     * one according to the admin's per-row decisions. Mirrors
+     * StudentController::importConfirm().
+     */
+    public function importConfirm(Request $request)
+    {
+        $request->validate([
+            'token'     => 'required|string',
+            'decisions' => 'required|array',
+        ]);
+
+        $rows = cache()->get($request->token);
+
+        if (!$rows) {
+            return response()->json(['message' => 'Import session expired. Please upload the file again.'], 422);
+        }
+
+        $decisions  = $request->decisions;
+        $validRoles = $this->assignableRoles();
+
+        $emails   = collect($rows)->pluck('email')->filter()->unique()->values()->all();
+        $existing = User::whereIn('email', $emails)->get()->keyBy('email');
+
+        $created   = 0;
+        $updated   = 0;
+        $skipped   = 0;
+        $errors    = [];
+        $passwords = [];
+
+        foreach ($rows as $i => $row) {
+            $decision = $decisions[$i] ?? 'skip';
+
+            if ($decision === 'skip') {
+                $skipped++;
+                continue;
+            }
+
+            $row['role'] = strtolower(trim($row['role'] ?? ''));
+            $reasons = $this->validateImportRow($row, $validRoles);
+            if (!empty($reasons)) {
+                $skipped++;
+                $errors[] = 'Row ' . ($i + 2) . ': ' . implode(' ', $reasons);
+                continue;
+            }
+
+            $existingUser = $existing->get($row['email']);
+
+            $payload = [
+                'first_name'     => $row['first_name'],
+                'middle_name'    => $row['middle_name'] ?? null,
+                'last_name'      => $row['last_name'],
+                'suffix'         => $row['suffix'] ?? null,
+                'name'           => trim($row['first_name'] . ' ' . $row['last_name']),
+                'email'          => $row['email'],
+                'role'           => $row['role'],
+                'employee_id'    => $row['employee_id'] ?? null,
+                'college'        => $row['college'] ?? null,
+                'department'     => $row['department'] ?? null,
+                'contact_number' => $row['contact_number'] ?? null,
+            ];
+
+            if ($existingUser) {
+                // decision is 'update' (or 'create' re-hitting an existing
+                // email, which is also treated as an update to avoid a
+                // duplicate-email database error).
+                $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
+                $updated++;
+            } else {
+                $tempPassword = Str::random(10);
+                $payload['password']             = Hash::make($tempPassword);
+                $payload['temp_password']        = $tempPassword;
+                $payload['must_change_password'] = true;
+                $payload['is_active']            = true;
+
+                $user = User::create($payload);
+
+                $passwords[] = [
+                    'email'         => $user->email,
+                    'name'          => $user->name,
+                    'temp_password' => $tempPassword,
+                ];
+                $created++;
+            }
+        }
+
+        cache()->forget($request->token);
+
+        AuditLog::record('imported', "Bulk imported {$created} employees, updated {$updated}, skipped {$skipped}.");
+
+        return response()->json([
+            'created'   => $created,
+            'updated'   => $updated,
+            'skipped'   => $skipped,
+            'errors'    => $errors,
+            'passwords' => $passwords,
+        ]);
+    }
 }

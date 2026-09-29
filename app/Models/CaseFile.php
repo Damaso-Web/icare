@@ -89,7 +89,7 @@ class CaseFile extends Model
     public function interventions()  { return $this->hasMany(CaseIntervention::class, 'case_id')->latest(); }
     public function sessionNotes()  { return $this->hasMany(SessionNote::class, 'case_id')->orderBy('session_date'); }
     public function appointments()  { return $this->hasMany(Appointment::class, 'case_id')->orderBy('appointment_date'); }
-    public function testingRecord() { return $this->hasOne(TestingRecord::class, 'case_id'); }
+    public function testingRecord() { return $this->hasOne(TestingRecord::class, 'case_id')->latestOfMany(); }
     public function handoffs()      { return $this->hasMany(CaseHandoff::class, 'case_id'); }
     public function documents()     { return $this->morphMany(Document::class, 'documentable'); }
 

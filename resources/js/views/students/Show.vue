@@ -260,6 +260,29 @@
             </div>
           </div>
 
+                    <!-- Testing / PAR Results - psychological testing records for this
+               student. Hidden from Case Files since the case-scoped Study
+               Report already shows that case's current testing record. -->
+          <div class="icard" v-if="!fromCases && history.testing_records?.length">
+            <div class="icard-header"><span class="icard-title">Testing / PAR Results</span></div>
+            <div
+              v-for="t in history.testing_records"
+              :key="t.id"
+              style="padding:12px 18px;border-bottom:1px solid var(--cloud)"
+            >
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(t.status) }}</div>
+                <span v-if="t.report_date" style="font-size:11px;color:var(--stone)">{{ formatDate(t.report_date) }}</span>
+              </div>
+              <div v-if="t.assessment_summary" style="font-size:12px;color:var(--slate);margin-top:6px;white-space:pre-wrap">
+                {{ t.assessment_summary }}
+              </div>
+              <div v-if="t.recommendations" style="font-size:11px;color:var(--stone);margin-top:6px">
+                <strong>Recommendations:</strong> {{ t.recommendations }}
+              </div>
+            </div>
+          </div>
+
         </div>
       </div>
 

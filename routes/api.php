@@ -48,6 +48,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',     [AuthController::class, 'logout']);
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
+    Route::put('/me/profile',  [AuthController::class, 'updateProfile']);
 
     // Dev/QA role switcher - locked to one designated tester account inside the controller
     Route::post('dev/switch-role',       [DevController::class, 'switchRole']);
@@ -191,6 +192,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
         Route::post('users/import', [UserController::class, 'import']);
+        Route::post('users/import', [UserController::class, 'import']);
+        Route::post('users/import-preview', [UserController::class, 'importPreview']);
+        Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
 

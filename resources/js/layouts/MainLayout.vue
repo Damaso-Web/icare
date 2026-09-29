@@ -287,11 +287,11 @@ const menuItems = computed(() => {
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
       section: null,
     },
-    {
+        {
       name:    'referrals',
-      label:   'Referral Queue',
+      label:   role === 'tmdu_staff' ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'faculty'],
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'tmdu_staff'],
       section: null,
     },
     {

@@ -180,12 +180,13 @@ class StudentController extends Controller
         return response()->json($student);
     }
 
-    public function history(Student $student)
+        public function history(Student $student)
     {
         return response()->json([
-            'cases'        => $student->cases()->with('counselor')->latest()->get(),
-            'referrals'    => $student->referrals()->with('case:id,status')->latest()->get(),
-            'appointments' => $student->appointments()->with('staff')->latest()->get(),
+            'cases'           => $student->cases()->with('counselor')->latest()->get(),
+            'referrals'       => $student->referrals()->with('case:id,status')->latest()->get(),
+            'appointments'    => $student->appointments()->with('staff')->latest()->get(),
+            'testing_records' => \App\Models\TestingRecord::where('student_id', $student->id)->latest()->get(),
         ]);
     }
 

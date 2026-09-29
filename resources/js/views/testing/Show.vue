@@ -326,9 +326,10 @@
             </div>
           </div>
 
-          <!-- Schedule PAR Release - same style as Schedule Test Taking, only
-               reachable while the record is in the Awaiting Results stage. -->
-          <div class="icard" v-if="canManage && stage === 'awaiting_results'">
+         <!-- Schedule PAR Release - reachable both before and after PAR results are
+     attached, since staff may attach the report first and schedule the
+     hand-off appointment with the student afterward. -->
+    <div class="icard" v-if="canManage && ['awaiting_results', 'results_released'].includes(stage)">
             <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <div>

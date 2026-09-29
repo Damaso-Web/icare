@@ -48,7 +48,7 @@
         <option value="last_name:desc">Name: Z-A</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
-      <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="showImportModal = true">
+      <button v-if="auth.isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
@@ -427,57 +427,132 @@
     </div>
 
     <!-- Import Modal -->
-    <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+    <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showImportModal = false">✕</button>
+          <button class="ibtn ibtn-g ibtn-sm" @click="closeImportModal">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-            Download the template below, fill it in, then upload it here.
-          </div>
-          <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
-            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Download Template
-          </a>
-          <div>
-            <label class="ifl">File</label>
-            <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleImportFileSelect" />
-          </div>
-          <div v-if="importResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
-            ✓ {{ importResult.created }} employees added, {{ importResult.skipped }} skipped.
-            <div v-if="importResult.errors?.length" style="margin-top:6px;font-size:11px;color:var(--red)">
-              <div v-for="(err, i) in importResult.errors" :key="i">{{ err }}</div>
+
+          <template v-if="!previewData.total">
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
+              Download the template below, fill it in, then upload it here.
             </div>
+            <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Template
+            </a>
+            <div>
+              <label class="ifl">File</label>
+              <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
+            </div>
+            <div v-if="loadingPreview" style="text-align:center;padding:20px">
+              <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+              <div style="font-size:12px;color:var(--stone);margin-top:8px">Reading file...</div>
+            </div>
+            <div v-if="previewError" style="display:flex;flex-direction:column;gap:8px">
+              <div style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+                {{ previewError }}
+              </div>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
+            </div>
+          </template>
+
+          <template v-else>
+            <div style="font-size:13px;color:var(--stone)">{{ previewData.total }} record(s) found - {{ previewData.duplicates }} duplicate(s)</div>
+
+            <div v-if="previewData.duplicates > 0" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
+              ⚠ Some emails already exist. Choose how to handle all duplicates below.
+            </div>
+
+           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <table class="itable">
+              <thead>
+                <tr>
+                  <th style="width:50px">Row</th>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th style="width:100px">Status</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in previewData.preview" :key="item.row">
+                  <td style="font-size:12px">{{ item.row }}</td>
+                  <td style="font-size:12px">{{ item.name || '-' }}</td>
+                  <td style="font-family:var(--mono);font-size:12px">{{ item.email || '-' }}</td>
+                  <td>
+                    <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
+                    <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                    <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
+                  </td>
+                  <td style="font-size:11px;line-height:1.5;vertical-align:top">
+                    <template v-if="item.reasons && item.reasons.length">
+                      <div v-for="(r, i) in item.reasons" :key="i" style="color:var(--red)">• {{ r }}</div>
+                    </template>
+                    <span v-else-if="item.is_duplicate" style="color:var(--amber)">Email already exists</span>
+                    <span v-else style="color:var(--fog)">—</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="openImportConfirm" :disabled="!importFile || importing">
-              <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-              {{ importing ? 'Uploading...' : 'Upload' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="showImportModal = false">Close</button>
-          </div>
+
+            <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
+                <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ importing ? 'Uploading...' : 'Update Existing' }}
+              </button>
+              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="openImportConfirm('skip')" :disabled="importing">
+                Keep Existing Information
+              </button>
+            </div>
+            <div v-else style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="openImportConfirm('create')" :disabled="importing">
+                <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+                {{ importing ? 'Uploading...' : 'Confirm Upload' }}
+              </button>
+            </div>
+
+            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="resetImportFlow">Choose Different File</button>
+          </template>
+
         </div>
       </div>
     </div>
 
     <!-- Import Confirmation Modal -->
     <div v-if="showImportConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showImportConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Upload</div>
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Masterlist Upload</div>
           <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--stone)">Please confirm you want to upload this file:</div>
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;font-size:13px">
-            <div><strong>Type:</strong> {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
-            <div style="margin-top:6px"><strong>File:</strong> {{ importFile?.name }}</div>
+          <div style="font-size:13px;color:var(--stone)">Please review the summary below before uploading:</div>
+
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
+            <div v-if="pendingImportChoice === 'create'">
+              <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+            </div>
+            <div v-else-if="pendingImportChoice === 'update'">
+              <strong>{{ importSummary.duplicates }}</strong> duplicate{{ importSummary.duplicates === 1 ? '' : 's' }} will be <strong>updated</strong>,
+              and <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+            </div>
+            <div v-else-if="pendingImportChoice === 'skip'">
+              <strong>{{ importSummary.newRecords }}</strong> new record{{ importSummary.newRecords === 1 ? '' : 's' }} will be added.
+              Existing duplicate{{ importSummary.duplicates === 1 ? '' : 's' }}
+              (<strong>{{ importSummary.duplicates }}</strong>) will be kept as-is.
+            </div>
+            <div v-if="importSummary.invalid > 0" style="color:var(--red)">
+              <strong>{{ importSummary.invalid }}</strong> invalid row{{ importSummary.invalid === 1 ? '' : 's' }} will be skipped.
+            </div>
+            <div style="font-size:11px;color:var(--fog);margin-top:4px">
+              Total: {{ previewData.total }} row(s) detected.
+            </div>
           </div>
-          <div style="font-size:12px;color:var(--stone)">
-            Once uploaded, new records will be added and duplicates handled by the backend.
-          </div>
+
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
               <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -737,11 +812,23 @@ const isAddFormEmpty = computed(() =>
   !userForm.value.department
 );
 
-const showImportModal = ref(false);
-const importFile      = ref(null);
-const importing       = ref(false);
-const importResult    = ref(null);
+// Import flow (preview -> confirm), matching the Students masterlist import.
+const showImportModal   = ref(false);
+const loadingPreview    = ref(false);
+const previewError      = ref('');
+const previewData       = ref({ preview: [], total: 0, duplicates: 0, token: '' });
+const importing         = ref(false);
 const showImportConfirm = ref(false);
+const pendingImportChoice = ref('');
+
+const importSummary = computed(() => {
+  const items = previewData.value.preview || [];
+  return {
+    newRecords: items.filter(i => i.valid && !i.is_duplicate).length,
+    duplicates: items.filter(i => i.valid && i.is_duplicate).length,
+    invalid:    items.filter(i => !i.valid).length,
+  };
+});
 
 function onSearchLetters() {
   filters.value.search = safeSearchInput(filters.value.search);
@@ -933,36 +1020,83 @@ function contactNumberBlockingNonZero(value) {
   return contactNumberInput(value);
 }
 
-function handleImportFileSelect(e) {
-  importFile.value = e.target.files[0];
-  importResult.value = null;
+function openImportModal() {
+  resetImportFlow();
+  showImportModal.value = true;
 }
 
-async function uploadImportFile() {
-  if (!importFile.value) return;
-  importing.value = true;
+function closeImportModal() {
+  showImportModal.value = false;
+  resetImportFlow();
+}
+
+function resetImportFlow() {
+  previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
+  previewError.value = '';
+}
+
+async function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  loadingPreview.value = true;
+  previewError.value = '';
   try {
     const formData = new FormData();
-    formData.append('file', importFile.value);
-    const res = await userAPI.import(formData);
-    importResult.value = res.data;
-    toast?.success(`${res.data.created} employees imported successfully.`);
-    fetchUsers();
-  } catch (e) {
-    toast?.error('Please fill in all required fields.');
+    formData.append('file', file);
+    const res = await userAPI.importPreview(formData);
+
+    if (res.data.total === 0) {
+      previewError.value = 'The file appears to be empty. Please choose a different file.';
+      loadingPreview.value = false;
+      return;
+    }
+
+    previewData.value = res.data;
+  } catch (err) {
+    previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
   } finally {
-    importing.value = false;
+    loadingPreview.value = false;
   }
 }
 
-function openImportConfirm() {
-  if (!importFile.value) return;
+function openImportConfirm(choice) {
+  pendingImportChoice.value = choice;
   showImportConfirm.value = true;
 }
 
 async function doConfirmedImport() {
+  const choice = pendingImportChoice.value;
   showImportConfirm.value = false;
-  await uploadImportFile();
+  await confirmImport(choice);
+}
+
+async function confirmImport(globalChoice) {
+  importing.value = true;
+  try {
+    const finalDecisions = {};
+    previewData.value.preview.forEach((item, idx) => {
+      if (item.is_duplicate && item.valid) {
+        finalDecisions[idx] = globalChoice === 'update' ? 'update' : 'skip';
+      } else if (item.valid) {
+        finalDecisions[idx] = 'create';
+      } else {
+        finalDecisions[idx] = 'skip';
+      }
+    });
+
+    const res = await userAPI.importConfirm({
+      token: previewData.value.token,
+      decisions: finalDecisions,
+    });
+    toast?.success(`${res.data.created} added, ${res.data.updated} updated, ${res.data.skipped} skipped.`);
+    closeImportModal();
+    fetchUsers();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to complete import.');
+  } finally {
+    importing.value = false;
+  }
 }
 
 function changePage(page) { fetchUsers(page); }

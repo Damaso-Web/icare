@@ -12,7 +12,7 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
-                'name'        => 'System Administrator (Dev/QA)',
+                'name'        => 'System Administrator',
                 'email'       => 'sysadmin@bsu.edu.ph',
                 'employee_id' => 'BSU-SYS-001',
                 'role'        => 'system_admin',
@@ -21,7 +21,7 @@ class UserSeeder extends Seeder
                 'is_active'   => true,
             ],
             [
-                'name'        => 'System Administrator',
+                'name'        => 'Administrator',
                 'email'       => 'admin@bsu.edu.ph',
                 'employee_id' => 'BSU-ADMIN-001',
                 'role'        => 'admin',

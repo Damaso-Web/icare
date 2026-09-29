@@ -496,7 +496,7 @@ async function handleSubmit() {
       headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' },
     });
     toast?.success('Complaint filed.');
-    router.push({ name: 'referral-create' });
+    router.push({ name: 'complaints' });
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to submit complaint.';
   } finally {
