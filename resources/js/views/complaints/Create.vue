@@ -496,7 +496,7 @@ async function handleSubmit() {
       headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' },
     });
     toast?.success('Complaint filed.');
-    router.push({ name: 'complaints' });
+    router.push({ name: auth.user?.role === 'sdu_head' ? 'complaints' : 'dashboard' });
   } catch (e) {
     error.value = e.response?.data?.message || 'Failed to submit complaint.';
   } finally {

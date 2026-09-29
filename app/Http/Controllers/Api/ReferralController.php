@@ -8,6 +8,7 @@ use App\Models\CaseFile;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
+use App\Models\TestingRecord;
 use App\Notifications\NewReferralNotification;
 use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
@@ -209,6 +210,7 @@ class ReferralController extends Controller
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
             'case.counselor', 'case.referrals', 'case.appointments.staff', 'case.testingRecord',
+            'testingRecord',
             'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
         ]);
 
@@ -326,6 +328,24 @@ class ReferralController extends Controller
 
         if (!$referral->case_id) {
             $referral->update(['case_id' => $case->id]);
+        }
+
+        // Every psychological_testing referral gets its OWN independent
+        // testing cycle - not shared with any other referral on the same
+        // case. Referrals created via CaseController::referToTmdu() already
+        // have one; a referral submitted through the normal "Refer Student"
+        // form does not, so create it here on acknowledgment instead.
+        if ($isTmduTesting) {
+            TestingRecord::firstOrCreate(
+                ['referral_id' => $referral->id],
+                [
+                    'case_id'             => $case->id,
+                    'student_id'          => $referral->student_id,
+                    'referred_by_user_id' => $referral->referred_by_user_id,
+                    'reason'              => $referral->nature_of_concern,
+                    'status'              => 'pending',
+                ]
+            );
         }
 
         $referral->update(['status' => 'in_review']);

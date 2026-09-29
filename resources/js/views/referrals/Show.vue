@@ -678,7 +678,7 @@
               </div>
               <template v-if="fromCases">
                 <button
-                  v-if="!referral.case.testing_record || referral.case.testing_record.status === 'test_results_issued'"
+                  v-if="!referral.testing_record || referral.testing_record.status === 'test_results_issued'"
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
                   @click="openTmduModal"

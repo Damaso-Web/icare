@@ -381,8 +381,7 @@
               <div v-else style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                 ⚠ Acknowledge referral first
               </div>
-                <button
-                v-if="!caseFile.testing_record || caseFile.testing_record.status === 'test_results_issued'"
+                                <button
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
                 @click="referToTmdu"
@@ -761,6 +760,7 @@ const showStatusModal      = ref(false);
 const showUnreachableModal = ref(false);
 const newStatus            = ref('');
 const unreachableNotes     = ref('');
+const justReferredToTmdu = ref(false);
 
 const showInterventionModal = ref(false);
 const interventionForm = ref({ type: 'previous_intervention', referral_id: '', excused: null, description: '' });
@@ -951,9 +951,9 @@ async function closeCase() {
 async function referToTmdu() {
   try {
     await caseAPI.referToTmdu(caseFile.value.id, { reason: 'Referred for psychological assessment.' });
-    caseFile.value.current_unit     = 'TMDU';
-    caseFile.value.status           = 'awaiting_testing';
-    caseFile.value.referred_to_tmdu = true;
+    caseFile.value.current_unit = 'TMDU';
+    caseFile.value.status       = 'awaiting_testing';
+    justReferredToTmdu.value    = true;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
     toast?.error('Failed to refer to TMDU.');
