@@ -185,7 +185,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('document-settings/{code}', [DocumentSettingController::class, 'show']);
 
        // Admin only
-    Route::middleware('role:admin')->group(function () {
+        Route::middleware('role:admin,system_admin')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
@@ -204,10 +204,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
     });
 
-    // Admin and System Admin - Management page write access (Colleges,
-    // Programs, Departments, Referral Form Options). System Admin still
-    // cannot touch students, referrals, cases, or User Management - only
-    // Admin has both this and those.
+        // Admin and System Admin - Management page write access (Colleges,
+    // Programs, Departments, Referral Form Options). System Admin also
+    // has User Management access (see the role:admin,system_admin group
+    // above) - only students, referrals, and cases remain Admin-only.
     Route::middleware('role:admin,system_admin')->group(function () {
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
