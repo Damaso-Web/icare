@@ -1,27 +1,9 @@
-<!--
-  FILE: resources/js/views/testing/Index.vue
-  PAGE: iCARE / Testing Records (queue)
-
-  Changed in this update: "View" / row click now navigates to the new
-  Testing Record Details page (route "testing-show") instead of opening the
-  old in-page drawer. The drawer (status select, schedule/PAR panels, tests
-  administered chips, PAR upload, Issue Test Results to GCU, etc.) has been
-  removed from here - all of that now lives on the detail page, alongside
-  the referral info, student profile, status pipeline, and Reassign as
-  Test Administrator.
--->
 <template>
   <div class="fade-up">
     <!-- Page Header -->
-    <div class="ph" style="margin-bottom:20px;display:flex;align-items:center;gap:10px">
-      <div style="flex:1">
-        <h1>Testing Records</h1>
-        <p>Psychological testing queue and assessment records managed by TMDU.</p>
-      </div>
-      <router-link v-if="canManageAppointments" :to="{ name: 'testing-appointments' }" class="ibtn ibtn-o ibtn-sm">
-        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        Appointments
-      </router-link>
+    <div class="ph" style="margin-bottom:20px">
+      <h1>Testing Records</h1>
+      <p>Psychological testing queue and assessment records managed by TMDU.</p>
     </div>
 
     <!-- Filter Bar -->
@@ -34,7 +16,6 @@
         <option value="scheduled">Scheduled</option>
         <option value="in_progress">In Progress</option>
         <option value="test_administered">Test Administered</option>
-        <option value="awaiting_results">Awaiting Results</option>
         <option value="par_scheduled">PAR Scheduled</option>
         <option value="test_results_issued">Test Results Issued</option>
       </select>
@@ -104,45 +85,266 @@
       </div>
 
     </div>
+
+    <!-- Record Detail Drawer -->
+    <div v-if="selectedRecord" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60" @click.self="selectedRecord = null">
+      <div style="position:fixed;top:0;right:0;width:min(560px,100vw);height:100vh;background:#fff;overflow-y:auto;box-shadow:-6px 0 40px rgba(0,0,0,.18)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Testing Record #{{ selectedRecord.id }}</div>
+            <div style="font-size:12px;color:var(--stone)">{{ selectedRecord.student?.first_name }} {{ selectedRecord.student?.last_name }}</div>
+          </div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="selectedRecord = null">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+
+          <!-- Status -->
+          <div>
+            <label class="ifl">Status</label>
+            <select v-model="selectedRecord.status" class="ifse" :disabled="isReportLocked">
+              <option value="pending">Pending</option>
+              <option value="fee_form_pending">Fee Form Pending</option>
+              <option value="or_submitted">OR Submitted</option>
+              <option value="scheduled">Scheduled</option>
+              <option value="in_progress">In Progress</option>
+              <option value="test_administered">Test Administered</option>
+              <option value="par_scheduled">PAR Scheduled</option>
+              <option value="test_results_issued">Test Results Issued</option>
+            </select>
+          </div>
+
+          <!-- Once the PAR/report has been issued to GCU, the record is final -
+               every field below becomes read-only so no one can quietly edit
+               a report after the fact. -->
+          <div v-if="isReportLocked" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:10px 14px;font-size:12px;color:var(--moss);font-weight:600">
+            Test results have been issued to GCU. This record is now read-only.
+          </div>
+
+          <!-- Assign Tester - who owns this record (TMDU staff/head, i.e. a
+               psychometrician). Nothing else on the record can be actioned
+               until this is set; stays editable (to reassign) even
+               afterward, except once the report is already locked. -->
+          <div v-if="!isReportLocked">
+            <label class="ifl">Assigned Tester (Psychometrician)</label>
+            <select
+              v-model="assignTesterId"
+              class="ifse"
+              :disabled="assigning"
+              @change="assignTester"
+            >
+              <option value="" disabled>Select TMDU staff/head...</option>
+              <option v-for="u in availableTesters" :key="u.id" :value="u.id">{{ u.name }}</option>
+            </select>
+          </div>
+
+          <!-- Nothing can be done on this record until someone claims it. -->
+          <div v-if="isUnassigned" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-md);padding:10px 14px;font-size:12px;color:#92400e;font-weight:600">
+            No tester assigned yet. Assign a tester above before making any changes to this record.
+          </div>
+
+          <!-- OR Photo (uploaded by the student when requesting their testing schedule) -->
+          <div v-if="selectedRecord.or_photo_path" style="background:var(--foam);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss);margin-bottom:6px">OR Submitted by Student</div>
+            <div style="font-size:12px;color:var(--stone);margin-bottom:8px">{{ selectedRecord.or_photo_original_name || 'or-photo' }} · {{ formatDate(selectedRecord.or_uploaded_at) }}</div>
+            <button class="ibtn ibtn-o ibtn-sm" @click="viewOrPhoto" :disabled="loadingOrPhoto">
+              {{ loadingOrPhoto ? 'Loading...' : 'View OR Photo' }}
+            </button>
+            <div v-if="selectedRecord.or_stamped_at" style="font-size:12px;color:var(--moss);margin-top:8px">
+              ✓ OR confirmed stamped by {{ selectedRecord.or_stamped_by?.name || 'TMDU staff' }} on {{ formatDate(selectedRecord.or_stamped_at) }}
+            </div>
+          </div>
+
+          <!-- Schedule Testing (once the student has submitted their OR). This is
+               also the same in-person visit where the student hands over the
+               physically stamped OR, so confirming that is required here too. -->
+          <div v-if="selectedRecord.status === 'or_submitted'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule Testing Appointment</div>
+            <input v-model="testingForm.appointment_date" type="date" class="ifi" />
+            <div style="display:flex;gap:8px">
+              <input v-model="testingForm.start_time" type="time" class="ifi" style="flex:1" />
+              <input v-model="testingForm.end_time" type="time" class="ifi" style="flex:1" />
+            </div>
+            <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--slate)">
+              <input type="checkbox" v-model="testingForm.or_stamped_confirmed" style="width:15px;height:15px;accent-color:var(--moss);margin-top:1px" />
+              I confirm the student's Official Receipt has been received and stamped, face-to-face.
+            </label>
+            <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || isUnassigned || !testingForm.or_stamped_confirmed">
+              {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
+            </button>
+          </div>
+
+          <!-- Schedule PAR release (once the test has been administered) -->
+          <div v-if="selectedRecord.status === 'test_administered'" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-md);padding:12px 14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12px;font-weight:600;color:var(--moss)">Schedule PAR Release</div>
+            <input v-model="parForm.appointment_date" type="date" class="ifi" />
+            <div style="display:flex;gap:8px">
+              <input v-model="parForm.start_time" type="time" class="ifi" style="flex:1" />
+              <input v-model="parForm.end_time" type="time" class="ifi" style="flex:1" />
+            </div>
+            <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving || isUnassigned">
+              {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
+            </button>
+          </div>
+
+          <!-- Test Administered By -->
+          <div>
+            <label class="ifl">Test Administered By</label>
+            <input v-model="selectedRecord.tester_name" class="ifi" placeholder="Name of TMDU staff who administered the test" :disabled="isReportLocked" />
+          </div>
+
+          <!-- Testing Date -->
+          <div>
+            <label class="ifl">Testing Date</label>
+            <input v-model="selectedRecord.testing_date" type="date" class="ifi" :disabled="isReportLocked" />
+          </div>
+
+          <!-- Tests Administered - Psychological only -->
+          <div>
+            <label class="ifl">Psychological Tests Administered</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+              <span
+                v-for="test in availableTests"
+                :key="test"
+                style="padding:4px 10px;border-radius:20px;font-size:11px;border:1.5px solid var(--silver);transition:all .1s"
+                :style="{
+                  background: selectedRecord.tests_administered?.includes(test) ? 'var(--moss)' : '#fff',
+                  color: selectedRecord.tests_administered?.includes(test) ? '#fff' : 'var(--slate)',
+                  borderColor: selectedRecord.tests_administered?.includes(test) ? 'var(--moss)' : 'var(--silver)',
+                  cursor: isReportLocked ? 'default' : 'pointer',
+                  opacity: isReportLocked ? 0.6 : 1,
+                }"
+                @click="toggleTest(test)"
+              >
+                {{ test }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Attach File (sent to GCU together with the PAR report below) -->
+          <div v-if="!isReportLocked">
+            <label class="ifl">Attach PAR / Result File</label>
+            <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" @change="handleFileUpload" />
+            <div v-if="selectedRecord.attached_file" style="font-size:12px;color:var(--moss);margin-top:4px">
+              ✓ File ready to send: {{ selectedRecord.attached_file }}
+            </div>
+          </div>
+
+          <!-- Assessment Summary -->
+          <div>
+            <label class="ifl">Assessment Summary</label>
+            <textarea v-model="selectedRecord.assessment_summary" class="ifta" placeholder="Summarize the assessment results..." :disabled="isReportLocked"></textarea>
+          </div>
+
+          <!-- Findings -->
+          <div>
+            <label class="ifl">Findings</label>
+            <textarea v-model="selectedRecord.findings" class="ifta" placeholder="Detail the findings from the tests..." :disabled="isReportLocked"></textarea>
+          </div>
+
+          <!-- Recommendations -->
+          <div>
+            <label class="ifl">Recommendations</label>
+            <textarea v-model="selectedRecord.recommendations" class="ifta" placeholder="Provide recommendations based on findings..." :disabled="isReportLocked"></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button
+              class="ibtn ibtn-sm"
+              style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
+              @click="acknowledgeReferral"
+              v-if="selectedRecord.status === 'pending' && !selectedRecord.acknowledged"
+              :disabled="saving || isUnassigned"
+            >
+              Acknowledge &amp; Notify Student
+            </button>
+            <button class="ibtn ibtn-p" @click="saveRecord" v-if="!isReportLocked" :disabled="saving || isUnassigned">
+              <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+              <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+              {{ saving ? 'Saving...' : 'Save' }}
+            </button>
+            <button
+              class="ibtn ibtn-blue"
+              @click="sendToGcu"
+              v-if="selectedRecord.status === 'test_administered' || selectedRecord.status === 'par_scheduled'"
+              :disabled="saving || isUnassigned"
+            >
+              Issue Test Results to GCU
+            </button>
+            <button class="ibtn ibtn-o" @click="selectedRecord = null">Cancel</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, inject } from 'vue';
 import { testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
-import { useAuthStore } from '../../stores/auth';
 
-const router       = useRouter();
-const auth         = useAuthStore();
+const toast        = inject('toast');
 const filterStatus = ref('');
+const selectedRecord = ref(null);
 const loading      = ref(true);
+const saving       = ref(false);
+const loadingOrPhoto = ref(false);
 const records      = ref([]);
+const selectedFile = ref(null);
 
-// Matches the "testing-appointments" route's own role gate (TMDU_ROLES) -
-// GCU staff can view Testing Records read-only (shared case), but the
-// appointment queue is TMDU's own.
-const canManageAppointments = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
+// Roster for the "Assign Tester" dropdown, and the assignment state for the
+// currently open record.
+const availableTesters = ref([]);
+const assignTesterId   = ref('');
+const assigning        = ref(false);
+
+const testingForm = ref({ appointment_date: '', start_time: '', end_time: '', or_stamped_confirmed: false });
+const parForm      = ref({ appointment_date: '', start_time: '', end_time: '' });
+
+// Psychological tests only
+const availableTests = [
+  'MMPI-2',
+  'SCL-90',
+  'Beck Depression Inventory (BDI)',
+  'Hamilton Anxiety Scale (HAM-A)',
+  "Raven's Progressive Matrices",
+  'WAIS-IV',
+  'Draw-A-Person Test',
+  'Sentence Completion Test',
+];
 
 const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
+
+// Once TMDU has issued the test results/PAR to GCU, the record is final -
+// nothing on it (status, tester, dates, tests, summary/findings/
+// recommendations, the attached file) should be editable from here anymore,
+// even by reopening the status dropdown and looping back through "Save".
+const isReportLocked = computed(() => selectedRecord.value?.status === 'test_results_issued');
+
+// Nothing on a record can be actioned - acknowledged, scheduled,
+// administered, saved, or issued - until a psychometrician (TMDU staff or
+// head) has been assigned to it. Mirrors the backend gate in
+// TestingRecordController::ensureTesterAssigned().
+const isUnassigned = computed(() => !selectedRecord.value?.assigned_tester_user_id);
 
 const stats = computed(() => [
   { label: 'Pending',     value: records.value.filter(r => r.status === 'pending' || r.status === 'fee_form_pending' || r.status === 'or_submitted').length, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'In Progress', value: records.value.filter(r => r.status === 'scheduled' || r.status === 'in_progress').length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { label: 'Completed',   value: records.value.filter(r => ['test_administered', 'awaiting_results', 'par_scheduled', 'test_results_issued'].includes(r.status)).length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Completed',   value: records.value.filter(r => ['test_administered', 'par_scheduled', 'test_results_issued'].includes(r.status)).length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
 ]);
 
 function statusBadge(status) {
   return {
-    pending:            'ibadge-pending',
-    fee_form_pending:   'ibadge-pending',
-    or_submitted:       'ibadge-scheduled',
+    pending:           'ibadge-pending',
+    fee_form_pending:  'ibadge-pending',
+    or_submitted:      'ibadge-scheduled',
     scheduled:          'ibadge-scheduled',
     in_progress:        'ibadge-in_progress',
     test_administered:  'ibadge-completed',
-    awaiting_results:   'ibadge-completed',
-    par_scheduled:      'ibadge-completed',
+    par_scheduled:      'ibadge-scheduled',
     test_results_issued:'ibadge-closed',
   }[status] || 'ibadge-pending';
 }
@@ -160,7 +362,174 @@ async function fetchRecords() {
 }
 
 function openRecord(t) {
-  router.push({ name: 'testing-show', params: { id: t.id } });
+  selectedRecord.value = {
+    ...t,
+    tests_administered: [...(t.tests_administered || [])],
+    tester_name: t.tester?.name || '',
+  };
+  selectedFile.value = null;
+  assignTesterId.value = t.assigned_tester_user_id || '';
+  testingForm.value = { appointment_date: '', start_time: '', end_time: '', or_stamped_confirmed: false };
+  parForm.value = { appointment_date: '', start_time: '', end_time: '' };
+}
+
+async function fetchAvailableTesters() {
+  try {
+    const res = await testingAPI.availableTesters();
+    availableTesters.value = res.data;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function assignTester() {
+  if (!assignTesterId.value) return;
+  assigning.value = true;
+  try {
+    const res = await testingAPI.assign(selectedRecord.value.id, { tester_user_id: assignTesterId.value });
+    selectedRecord.value.assigned_tester_user_id = res.data.assigned_tester_user_id;
+    selectedRecord.value.tester = res.data.tester;
+    toast?.success('Tester assigned. They have been notified.');
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to assign tester.');
+  } finally {
+    assigning.value = false;
+  }
+}
+
+function toggleTest(test) {
+  if (isReportLocked.value) return;
+  if (!selectedRecord.value.tests_administered) selectedRecord.value.tests_administered = [];
+  const idx = selectedRecord.value.tests_administered.indexOf(test);
+  if (idx === -1) selectedRecord.value.tests_administered.push(test);
+  else selectedRecord.value.tests_administered.splice(idx, 1);
+}
+
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (file) {
+    selectedFile.value = file;
+    selectedRecord.value.attached_file = file.name;
+  }
+}
+
+async function viewOrPhoto() {
+  loadingOrPhoto.value = true;
+  try {
+    const res = await testingAPI.orPhoto(selectedRecord.value.id);
+    const url = URL.createObjectURL(res.data);
+    window.open(url, '_blank');
+  } catch (e) {
+    toast?.error('Failed to load OR photo.');
+  } finally {
+    loadingOrPhoto.value = false;
+  }
+}
+
+async function confirmScheduleTesting() {
+  if (!testingForm.value.appointment_date || !testingForm.value.start_time || !testingForm.value.end_time) {
+    toast?.error('Please fill in the date and time.');
+    return;
+  }
+  if (!testingForm.value.or_stamped_confirmed) {
+    toast?.error("Please confirm the student's OR has been received and stamped.");
+    return;
+  }
+  saving.value = true;
+  try {
+    await testingAPI.scheduleTesting(selectedRecord.value.id, testingForm.value);
+    toast?.success('Testing appointment scheduled. Student has been notified.');
+    selectedRecord.value = null;
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to schedule testing appointment.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function confirmSchedulePar() {
+  if (!parForm.value.appointment_date || !parForm.value.start_time || !parForm.value.end_time) {
+    toast?.error('Please fill in the date and time.');
+    return;
+  }
+  saving.value = true;
+  try {
+    await testingAPI.schedulePar(selectedRecord.value.id, parForm.value);
+    toast?.success('PAR release appointment scheduled. Student has been notified.');
+    selectedRecord.value = null;
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to schedule PAR release.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function saveRecord() {
+  saving.value = true;
+  try {
+    // Update status first
+    await testingAPI.updateStatus(selectedRecord.value.id, {
+      status: selectedRecord.value.status,
+    });
+
+    // Then update other fields
+    await testingAPI.update(selectedRecord.value.id, {
+      tests_administered:  selectedRecord.value.tests_administered,
+      testing_date:        selectedRecord.value.testing_date,
+      assessment_summary:  selectedRecord.value.assessment_summary,
+      findings:            selectedRecord.value.findings,
+      recommendations:     selectedRecord.value.recommendations,
+    });
+
+    selectedRecord.value = null;
+    toast?.success('Testing record saved successfully.');
+
+    // Refresh from server to confirm
+    await fetchRecords();
+  } catch (e) {
+    console.error(e);
+    toast?.error('Failed to save record.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function acknowledgeReferral() {
+  saving.value = true;
+  try {
+    await testingAPI.acknowledge(selectedRecord.value.id);
+    selectedRecord.value.acknowledged = true;
+    toast?.success('Referral acknowledged. Student notified to set their appointment.');
+  } catch (e) {
+    toast?.error('Failed to acknowledge referral.');
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function sendToGcu() {
+  saving.value = true;
+  try {
+    const formData = new FormData();
+    formData.append('assessment_summary', selectedRecord.value.assessment_summary || '');
+    formData.append('findings', selectedRecord.value.findings || '');
+    formData.append('recommendations', selectedRecord.value.recommendations || '');
+    if (selectedFile.value) {
+      formData.append('report_file', selectedFile.value);
+    }
+
+    await testingAPI.sendToGcu(selectedRecord.value.id, formData);
+    selectedRecord.value = null;
+    toast?.success('Report sent to GCU successfully.');
+    await fetchRecords();
+  } catch (e) {
+    toast?.error('Failed to send report.');
+  } finally {
+    saving.value = false;
+  }
 }
 
 function resetFilters() {
@@ -176,5 +545,8 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-onMounted(() => fetchRecords());
+onMounted(() => {
+  fetchRecords();
+  fetchAvailableTesters();
+});
 </script>

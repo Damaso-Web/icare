@@ -55,7 +55,27 @@ class TestingRecord extends Model
     public function documents()   { return $this->morphMany(Document::class, 'documentable'); }
 
     // Appointments aren't owned by a specific TestingRecord directly (no FK
-    // column for it), but every testing-workflow appointment shares this
-    // record's case_id - same pattern CaseFile::appointments() already uses.
-    public function appointments() { return $this->hasMany(Appointment::class, 'case_id', 'case_id'); }
+    // column for it), so this is keyed off the shared case_id - same pattern
+    // CaseFile::appointments() already uses. But a case_id is shared with
+    // every other referral on that same case too (a psychological_testing
+    // referral's case_id is the student's one lifetime case, same as GCU's),
+    // so without a type scope this pulled in every appointment on the case -
+    // e.g. scheduling a follow-up session from the referral's SIF page
+    // (Show.vue::saveFollowUp()) would show up here under "Testing Records >
+    // Appointments" even though it has nothing to do with the testing
+    // workflow. Note this can't be scoped by unit instead: once the case is
+    // referred to TMDU, its current_unit is 'TMDU', and a follow-up session
+    // scheduled from the SIF page inherits that same unit (Show.vue sends
+    // `unit: referral.case.current_unit`) - so unit alone doesn't
+    // distinguish it from a real testing appointment. appointment_type does:
+    // only scheduleTesting()/schedulePar() create 'psychological_testing'/
+    // 'par_release' appointments, and those are the only ones that actually
+    // belong to this record's workflow ('fee_form_pickup' is in the enum for
+    // completeness but nothing currently creates one - the fee-form pickup
+    // is a walk-in with no appointment at all).
+    public function appointments()
+    {
+        return $this->hasMany(Appointment::class, 'case_id', 'case_id')
+            ->whereIn('appointment_type', ['psychological_testing', 'par_release', 'fee_form_pickup']);
+    }
 }

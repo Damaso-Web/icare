@@ -8,7 +8,6 @@ use App\Models\CaseFile;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
-use App\Models\TestingRecord;
 use App\Notifications\NewReferralNotification;
 use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
@@ -205,12 +204,15 @@ class ReferralController extends Controller
             ->where('id', '!=', $referral->id)
             ->count();
 
-            $referral->load([
+        $referral->load([
             'student', 'referredBy', 'assignedTo', 'feedbackSentBy', 'admissionIssuedBy',
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
-            'case.counselor', 'case.referrals', 'case.appointments.staff', 'case.testingRecord',
-            'testingRecord',
+            'case.counselor', 'case.referrals', 'case.appointments.staff',
+            // For a disciplinary referral filed together with a Complaint
+            // ("Incident Report"), pull in the full complaint + its evidence
+            // so referrals/Show.vue can render it in place of the normal
+            // Referral Info panel once acknowledged.
             'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
         ]);
 
@@ -270,13 +272,28 @@ class ReferralController extends Controller
 {
     $this->authorizeReferralWriter($request, $referral);
 
-    // A psychological_testing referral is the GCU->TMDU shared referral
-    // created by CaseController::referToTmdu(). It has its own linked
-    // TestingRecord tracking the rest of that workflow (fee form -> OR ->
-    // F2F test -> PAR), so acknowledging it schedules a fee-form-pickup slot
-    // instead of the generic initial-counseling one, and moves that
-    // TestingRecord into its next stage.
-    $isTmduTesting = $referral->referral_type === 'psychological_testing';
+    // "Psychological Testing" is also a selectable Service Requested tag on
+    // the general referral form (used SWS-wide for counting/filtering by
+    // service type), so referral_type alone does NOT mean this is a TMDU
+    // testing cycle - every referral must still go through the normal GCU
+    // interview first. A referral only truly becomes a TMDU testing cycle
+    // once it carries its own TestingRecord, which only happens when it was
+    // created via CaseController::referToTmdu() (GCU explicitly escalating
+    // after their own interview). That record tracks the rest of the
+    // workflow (fee form -> OR -> F2F test -> PAR), so acknowledging such a
+    // referral schedules a fee-form-pickup slot instead of the generic
+    // initial-counseling one, and moves the TestingRecord into its next
+    // stage.
+    $isTmduTesting = $referral->testingRecord()->exists();
+
+    // A TMDU testing cycle can't be acknowledged - or touched at all - until
+    // a psychometrician (TMDU staff/head) has actually claimed it via
+    // TestingRecordController::assign(). Mirrors the same gate on every
+    // TestingRecordController action, so this is the one place a testing
+    // referral could otherwise slip past it.
+    if ($isTmduTesting && !optional($referral->testingRecord)->assigned_tester_user_id) {
+        abort(422, 'Assign a tester to this testing record before acknowledging it.');
+    }
 
     // Everything below - the referral/case updates, the appointment
     // creation, and the audit log entry - must succeed or fail together.
@@ -294,10 +311,14 @@ class ReferralController extends Controller
             'acknowledged_by_user_id' => $request->user()->id,
         ]);
 
-        $unit = match ($referral->referral_type) {
-            'disciplinary'          => 'SDU',
-            'psychological_testing' => 'TMDU',
-            default                 => 'GCU',
+        // Same reasoning as $isTmduTesting above: the case only moves to
+        // TMDU when this referral is a real testing cycle (has a
+        // TestingRecord), never just because "Psychological Testing" was
+        // picked as the Service Requested tag on a general referral.
+        $unit = match (true) {
+            $referral->referral_type === 'disciplinary' => 'SDU',
+            $isTmduTesting                               => 'TMDU',
+            default                                       => 'GCU',
         };
 
         // The case was already opened (or reused) when the referral was
@@ -328,24 +349,6 @@ class ReferralController extends Controller
 
         if (!$referral->case_id) {
             $referral->update(['case_id' => $case->id]);
-        }
-
-        // Every psychological_testing referral gets its OWN independent
-        // testing cycle - not shared with any other referral on the same
-        // case. Referrals created via CaseController::referToTmdu() already
-        // have one; a referral submitted through the normal "Refer Student"
-        // form does not, so create it here on acknowledgment instead.
-        if ($isTmduTesting) {
-            TestingRecord::firstOrCreate(
-                ['referral_id' => $referral->id],
-                [
-                    'case_id'             => $case->id,
-                    'student_id'          => $referral->student_id,
-                    'referred_by_user_id' => $referral->referred_by_user_id,
-                    'reason'              => $referral->nature_of_concern,
-                    'status'              => 'pending',
-                ]
-            );
         }
 
         $referral->update(['status' => 'in_review']);

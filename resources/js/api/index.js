@@ -170,6 +170,10 @@ export const testingAPI = {
     administerTests: (id, data) => api.post(`/testing-records/${id}/administer-tests`, data),
     schedulePar:     (id, data) => api.post(`/testing-records/${id}/schedule-par`, data),
     orPhoto:         (id)       => api.get(`/testing-records/${id}/or-photo`, { responseType: 'blob' }),
+    // Assigning the psychometrician (TMDU staff/head) who will handle a
+    // record - required before any other action on it can proceed.
+    assign:           (id, data) => api.post(`/testing-records/${id}/assign`, data),
+    availableTesters: ()         => api.get('/testing-records/available-testers'),
 };
 
 export const reportAPI = {
@@ -189,8 +193,6 @@ export const userAPI = {
     toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importConfirm: (data)     => api.post('/users/import-confirm', data),
     viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
 };
 

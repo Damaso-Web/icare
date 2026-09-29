@@ -10,6 +10,7 @@ use App\Models\TestingRecord;
 use App\Models\User;
 use App\Notifications\ParReadyNotification;
 use App\Notifications\ParScheduledNotification;
+use App\Notifications\TesterAssignedNotification;
 use App\Notifications\TestingAppointmentReadyNotification;
 use App\Notifications\TestingRequestSubmittedNotification;
 use App\Notifications\TestingScheduledNotification;
@@ -24,6 +25,63 @@ class TestingRecordController extends Controller
     // so it shows up with zero extra frontend work.
     protected const TESTING_REMINDER = "Please bring your Official Receipt (OR), two (2) sharpened pencils with eraser, and arrive at least 15 minutes before your scheduled exam time.";
 
+    // Every staff-side action on a testing record - acknowledging it,
+    // scheduling, administering, issuing results - requires a psychometrician
+    // (TMDU staff or head) to already be assigned. Nothing should happen to a
+    // record that's just sitting in TMDU's queue unowned; whoever picks it up
+    // has to claim it via assign() first. Viewing, the student-facing
+    // requestTestingByStudent(), and assign() itself are exempt.
+    private function ensureTesterAssigned(TestingRecord $testingRecord): void
+    {
+        if (!$testingRecord->assigned_tester_user_id) {
+            abort(422, 'Assign a tester to this record before making any changes.');
+        }
+    }
+
+    // Populates the "Assign Tester" control on the Testing Record Details
+    // page. Deliberately not admin-only like the main Users list - any TMDU
+    // staff/head needs to see the roster to claim or hand off a record.
+    public function availableTesters()
+    {
+        return response()->json(
+            User::whereIn('role', ['tmdu_staff', 'admin'])
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'role'])
+        );
+    }
+
+    // Claims (or reassigns) the psychometrician responsible for this record.
+    // This is the one action exempt from ensureTesterAssigned() - it's what
+    // unblocks everything else.
+    public function assign(Request $request, TestingRecord $testingRecord)
+    {
+        $validated = $request->validate([
+            'tester_user_id' => 'required|exists:users,id',
+        ]);
+
+        $tester = User::findOrFail($validated['tester_user_id']);
+        abort_unless(
+            in_array($tester->role, ['tmdu_staff', 'admin'], true),
+            422,
+            'The selected user is not TMDU staff.'
+        );
+
+        $old = ['assigned_tester_user_id' => $testingRecord->assigned_tester_user_id];
+        $testingRecord->update(['assigned_tester_user_id' => $tester->id]);
+
+        AuditLog::record(
+            'tester_assigned',
+            "Assigned {$tester->name} as tester for testing record #{$testingRecord->id}.",
+            $testingRecord,
+            $old
+        );
+
+        Notification::send($tester, new TesterAssignedNotification($testingRecord));
+
+        return response()->json($testingRecord->load('tester'));
+    }
+
     /**
      * Step 1: TMDU acknowledges the GCU->TMDU referral. This is now normally
      * handled by ReferralController::acknowledge() instead (since referring
@@ -35,6 +93,8 @@ class TestingRecordController extends Controller
      */
     public function acknowledge(Request $request, TestingRecord $testingRecord)
     {
+        $this->ensureTesterAssigned($testingRecord);
+
         $testingRecord->update(['status' => 'fee_form_pending']);
 
         AuditLog::record('acknowledged', "Acknowledged testing referral for record #{$testingRecord->id}.", $testingRecord);
@@ -106,6 +166,15 @@ class TestingRecordController extends Controller
 
     public function update(Request $request, TestingRecord $testingRecord)
     {
+        // Once the PAR/report has been issued to GCU, the record is final -
+        // this is the same lock the frontend enforces by disabling the
+        // fields, but that's UX only; a direct API call must be refused too,
+        // or the report could be silently rewritten after the fact.
+        if ($testingRecord->status === 'test_results_issued') {
+            abort(422, 'This testing record has already been issued to GCU and can no longer be edited.');
+        }
+        $this->ensureTesterAssigned($testingRecord);
+
         $validated = $request->validate([
             'assigned_tester_user_id' => 'nullable|exists:users,id',
             'tests_administered'      => 'nullable|array',
@@ -124,6 +193,14 @@ class TestingRecordController extends Controller
 
     public function updateStatus(Request $request, TestingRecord $testingRecord)
     {
+        // Same lock as update() - once results are issued, staff can't loop
+        // the status back to an earlier stage from this endpoint to reopen
+        // editing on the record.
+        if ($testingRecord->status === 'test_results_issued') {
+            abort(422, 'This testing record has already been issued to GCU and can no longer be edited.');
+        }
+        $this->ensureTesterAssigned($testingRecord);
+
         $request->validate([
             // "completed"/"report_sent" were renamed to "test_administered"/
             // "test_results_issued" to match the team's terminology, and
@@ -191,6 +268,8 @@ class TestingRecordController extends Controller
      */
     public function scheduleTesting(Request $request, TestingRecord $testingRecord)
     {
+        $this->ensureTesterAssigned($testingRecord);
+
         $validated = $request->validate([
             'appointment_date'     => 'required|date',
             'start_time'           => 'required',
@@ -261,6 +340,8 @@ class TestingRecordController extends Controller
      */
     public function administerTests(Request $request, TestingRecord $testingRecord)
     {
+        $this->ensureTesterAssigned($testingRecord);
+
         $validated = $request->validate([
             'tests_administered' => 'required|array|min:1',
             'testing_date'       => 'required|date',
@@ -294,6 +375,8 @@ class TestingRecordController extends Controller
      */
     public function schedulePar(Request $request, TestingRecord $testingRecord)
     {
+        $this->ensureTesterAssigned($testingRecord);
+
         $validated = $request->validate([
             'appointment_date' => 'required|date',
             'start_time'       => 'required',
@@ -349,6 +432,14 @@ class TestingRecordController extends Controller
     // callers that still send it keep working.
     public function sendToGcu(Request $request, TestingRecord $testingRecord)
     {
+        // Results can only be issued once - without this, re-submitting this
+        // action would silently overwrite the report (and re-attach a new
+        // file over the original) after it's already gone out to GCU.
+        if ($testingRecord->status === 'test_results_issued') {
+            abort(422, 'Test results have already been issued to GCU for this record.');
+        }
+        $this->ensureTesterAssigned($testingRecord);
+
         $request->validate([
             'assessment_summary' => 'required|string',
             'findings'           => 'nullable|string',

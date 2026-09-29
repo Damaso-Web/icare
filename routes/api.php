@@ -48,7 +48,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout',     [AuthController::class, 'logout']);
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
-    Route::put('/me/profile',  [AuthController::class, 'updateProfile']);
 
     // Dev/QA role switcher - locked to one designated tester account inside the controller
     Route::post('dev/switch-role',       [DevController::class, 'switchRole']);
@@ -140,7 +139,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('staff-availability', StaffAvailabilityController::class);
 
     // Testing Records
+    // Registered before the apiResource below so "available-testers" isn't
+    // swallowed by its {testingRecord} show route.
+    Route::get('testing-records/available-testers', [TestingRecordController::class, 'availableTesters']);
     Route::apiResource('testing-records', TestingRecordController::class);
+    Route::post('testing-records/{testingRecord}/assign',            [TestingRecordController::class, 'assign']);
     Route::patch('testing-records/{testingRecord}/status',           [TestingRecordController::class, 'updateStatus']);
     Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);
     Route::post('testing-records/{testingRecord}/acknowledge',       [TestingRecordController::class, 'acknowledge']);
@@ -186,15 +189,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('document-settings/{code}', [DocumentSettingController::class, 'show']);
 
        // Admin only
-        Route::middleware('role:admin,system_admin')->group(function () {
+    Route::middleware('role:admin')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
         Route::post('users/import', [UserController::class, 'import']);
-        Route::post('users/import', [UserController::class, 'import']);
-        Route::post('users/import-preview', [UserController::class, 'importPreview']);
-        Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
 
@@ -208,10 +208,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
     });
 
-        // Admin and System Admin - Management page write access (Colleges,
-    // Programs, Departments, Referral Form Options). System Admin also
-    // has User Management access (see the role:admin,system_admin group
-    // above) - only students, referrals, and cases remain Admin-only.
+    // Admin and System Admin - Management page write access (Colleges,
+    // Programs, Departments, Referral Form Options). System Admin still
+    // cannot touch students, referrals, cases, or User Management - only
+    // Admin has both this and those.
     Route::middleware('role:admin,system_admin')->group(function () {
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
