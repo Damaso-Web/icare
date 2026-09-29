@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\CaseFile;
+use App\Models\Complaint;
 use App\Models\Referral;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
@@ -78,8 +79,7 @@ class DashboardController extends Controller
             'stats' => [
                 'active_cases'      => CaseFile::where('current_unit', 'SDU')
                                         ->whereIn('status', ['open', 'in_progress'])->count(),
-                'pending_referrals' => Referral::where('referral_type', 'disciplinary')
-                                        ->where('status', 'submitted')->count(),
+                'pending_complaints' => Complaint::where('status', 'pending')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'SDU')
                                         ->whereNotIn('status', ['cancelled'])->count(),
