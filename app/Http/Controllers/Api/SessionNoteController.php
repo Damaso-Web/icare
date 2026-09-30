@@ -94,6 +94,15 @@ class SessionNoteController extends Controller
             ]);
         }
 
+        // Logging the first session is what actually shows GCU is working
+        // the referral, so it's the trigger that moves the SIF's status
+        // pipeline to "In Progress" - only a forward move, so a referral
+        // already past this point (referred out, completed, closed) never
+        // gets bumped backward by a later session note.
+        if (in_array($referral->status, ['submitted', 'acknowledged', 'in_review', 'scheduled'])) {
+            $referral->update(['status' => 'in_progress']);
+        }
+
         AuditLog::record('created', "Logged session #{$sessionNumber} for referral {$referral->referral_code}.", $note);
         return response()->json($note->load('recordedBy'), 201);
     }

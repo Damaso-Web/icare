@@ -81,13 +81,31 @@ class AppointmentController extends Controller
         // Fallback to the creating user if TBA/auto-assign was chosen (column is NOT NULL)
         $validated['staff_user_id'] = $validated['staff_user_id'] ?: $request->user()->id;
 
+        // This endpoint is only ever used for a staff member directly
+        // booking a date/time with the student already agreed face-to-face
+        // (currently: Schedule Follow-up on the SIF) - there is no
+        // self-scheduling step to wait on here, unlike the scheduling-link
+        // flow in ReferralController::acknowledge()/PublicSchedulingController.
+        // Without this, the appointment fell back to the appointments table's
+        // request_status default of 'awaiting_student', which put it in the
+        // student's "pending - pick your own time" queue with no scheduling
+        // token to actually act on, and none of the confirmed-appointment
+        // actions (Student Attended / No-Show / Request Reschedule / Cancel)
+        // available anywhere.
         $appt = Appointment::create([
             ...$validated,
             'created_by_user_id' => $request->user()->id,
             'duration_minutes'   => $this->calcDuration($validated['start_time'], $validated['end_time']),
+            'status'              => 'confirmed',
+            'request_status'      => 'confirmed',
+            'confirmation_sent'    => true,
+            'confirmation_sent_at' => now(),
         ]);
 
         AuditLog::record('created', "Scheduled appointment {$appt->appointment_code}.", $appt);
+
+        Notification::send($appt->student, new AppointmentConfirmedNotification($appt));
+
         return response()->json($appt->load(['student', 'staff', 'createdBy']), 201);
     }
 
@@ -105,11 +123,11 @@ class AppointmentController extends Controller
         ]);
 
         // A follow-up session's own notes are gated on THAT follow-up's own
-        // attendance, separately from - and narrower than - the referral-wide
-        // gate on Referral::attendanceGateReason(). This is what lets a
-        // follow-up be scheduled and later attended without re-locking the
-        // whole SIF: only this one follow-up's notes are blocked, and only
-        // until this one follow-up's checked_in is true.
+        // attendance. The general SIF-wide attendance gate has been removed
+        // (per the updated referral process); this narrower, follow-up-only
+        // lock is the one piece of it that's intentionally kept - GCU must
+        // click "Student Attended" on this specific follow-up before adding
+        // notes for it.
         if (array_key_exists('notes', $validated)
             && $appointment->appointment_type === 'follow_up_session'
             && !$appointment->checked_in) {

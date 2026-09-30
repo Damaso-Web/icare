@@ -5,40 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+// One immutable record per Feedback Slip send for a referral - mirrors how
+// SessionNote rows are never overwritten. See Referral::feedbackSlips().
 class FeedbackSlip extends Model
 {
     use HasFactory;
 
-    // Append-only: rows here are never edited after creation
-    // (ReferralController::sendFeedback() only ever creates, never updates
-    // or deletes a FeedbackSlip). There is deliberately no update()/destroy()
-    // endpoint for this model - that IS the lock the Feedback Slip needed.
     protected $fillable = [
         'referral_id',
-        'case_id',
-        'student_id',
-        'ctrl_no',
-        'checklist',
-        'referred_other_text',
-        'others_text',
-        'notes',
-        'recorded_by_user_id',
-        'sent_to_user_id',
+        'sent_by_user_id',
         'sent_to_name',
         'sent_to_role',
+        'feedback_checklist',
+        'feedback_referred_other_text',
+        'feedback_others_text',
+        'feedback_notes',
+        'feedback_ctrl_no',
         'sent_at',
     ];
 
     protected $casts = [
-        'checklist' => 'array',
-        'sent_at'   => 'datetime',
+        'feedback_checklist' => 'array',
+        'sent_at'             => 'datetime',
     ];
 
-    public function referral()   { return $this->belongsTo(Referral::class, 'referral_id'); }
-    public function case()       { return $this->belongsTo(CaseFile::class, 'case_id'); }
-    public function student()    { return $this->belongsTo(Student::class); }
-    // Attending OSS Personnel who filled out and sent this copy.
-    public function recordedBy() { return $this->belongsTo(User::class, 'recorded_by_user_id'); }
-    // The referrer this copy was sent to, when they have a system account.
-    public function sentTo()     { return $this->belongsTo(User::class, 'sent_to_user_id'); }
+    public function referral() { return $this->belongsTo(Referral::class); }
+    // "Recorded By" on the slip.
+    public function sentBy()   { return $this->belongsTo(User::class, 'sent_by_user_id'); }
 }

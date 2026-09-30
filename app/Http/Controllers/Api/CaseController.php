@@ -11,7 +11,6 @@ use App\Models\TestingRecord;
 use App\Models\User;
 use App\Notifications\CaseHandoffNotification;
 use App\Notifications\HandoffAcknowledgedNotification;
-use App\Notifications\UnreachableStudentNotification;
 use App\Notifications\TestingReferralNotification;
 use App\Notifications\ReferredToTmduNotification;
 use Illuminate\Http\Request;
@@ -204,21 +203,6 @@ class CaseController extends Controller
 
         $user = $request->user();
 
-        // Same attendance gate as every other outcome action on this case's
-        // current referral (Referral::attendanceGateReason()) - referring to
-        // TMDU is itself a GCU decision that should only follow an attended
-        // session, same as sending a feedback slip or updating status.
-        $currentReferral = $case->latestReferral;
-        if ($currentReferral) {
-            $reason = $currentReferral->attendanceGateReason();
-            if ($reason === 'not_set') {
-                abort(422, 'No appointment has been set for this case yet.');
-            }
-            if ($reason === 'not_attended') {
-                abort(422, 'The student has not yet attended their appointment.');
-            }
-        }
-
         // Per the team's decision: referring a case to TMDU for psychological
         // testing now also creates a real, shared Referral row (referral_type
         // psychological_testing) under the same case - not just a
@@ -323,14 +307,21 @@ class CaseController extends Controller
         $this->authorizeCaseWriter();
 
         $request->validate([
-            'to_user_id' => 'required|exists:users,id',
-            'to_unit'    => 'required|in:GCU,SDU,TMDU',
-            'reason'     => 'required|string',
-            'notes'      => 'nullable|string',
+            'to_user_id'  => 'required|exists:users,id',
+            'to_unit'     => 'required|in:GCU,SDU,TMDU',
+            'reason'      => 'required|string',
+            'notes'       => 'nullable|string',
+            // Which of the case's referrals this endorsement was made from
+            // (Show.vue sends the referral it's currently viewing). Optional
+            // and validated loosely to this case, so an older caller that
+            // doesn't send it yet still works - the handoff just won't be
+            // scoped to one referral (see CaseHandoff::referral()).
+            'referral_id' => 'nullable|integer|exists:referrals,id',
         ]);
 
         $handoff = CaseHandoff::create([
             'case_id'      => $case->id,
+            'referral_id'  => $request->referral_id,
             'from_user_id' => $request->user()->id,
             'to_user_id'   => $request->to_user_id,
             'from_unit'    => $case->current_unit,
@@ -370,41 +361,6 @@ class CaseController extends Controller
         }
 
         return response()->json($handoff->load(['fromUser', 'toUser']));
-    }
-
-    // FR 2.7: Alert Dean's Secretary for Unreachable Students
-    public function flagUnreachable(Request $request, CaseFile $case)
-    {
-        $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
-
-        $request->validate([
-            'notes' => 'nullable|string',
-        ]);
-
-        $case->update([
-            'student_unreachable'     => true,
-            'unreachable_flagged_at'  => now(),
-            'unreachable_flagged_by'  => $request->user()->id,
-            'unreachable_notes'       => $request->notes,
-        ]);
-
-        $deanSecretaries = User::where('role', 'dean_secretary')
-            ->where('college', $case->student->college)
-            ->where('is_active', true)
-            ->get();
-
-        foreach ($deanSecretaries as $secretary) {
-            $secretary->notify(new UnreachableStudentNotification($case, $request->notes ?? ''));
-        }
-
-        AuditLog::record('unreachable_flagged', "Student flagged as unreachable for case {$case->case_number}.", $case);
-
-        return response()->json([
-            'message'  => 'Student flagged as unreachable. Dean\'s Secretary has been notified.',
-            'case'     => $case,
-            'notified' => $deanSecretaries->count(),
-        ]);
     }
 
     public function flagFollowUp(Request $request, CaseFile $case)

@@ -99,52 +99,16 @@ class Referral extends Model
     // CaseController::referToTmdu()).
     public function testingRecord()  { return $this->hasOne(TestingRecord::class); }
 
+    // Immutable history of every Feedback Slip (QF-OSS-01 companion
+    // document) sent for this referral - each send creates a new row
+    // rather than overwriting a single set of columns, mirroring how
+    // session notes are never overwritten either. Newest first.
+    public function feedbackSlips()
+    {
+        return $this->hasMany(FeedbackSlip::class)->latest('sent_at');
+    }
+
     // Helpers
     public function isUrgent(): bool  { return in_array($this->urgency_level, ['high', 'critical']); }
     public function isPending(): bool { return $this->status === 'submitted'; }
-
-    // The referral's very first appointment - the initial_counseling slot
-    // created by ReferralController::acknowledge() (or the fee_form_pickup/
-    // psychological_testing one for a TMDU testing referral). Deliberately
-    // excludes follow_up_session appointments: those get their own separate,
-    // narrower gate (see AppointmentController::update()) that only locks
-    // that one follow-up's own notes, not the whole SIF. If the first slot
-    // was rescheduled, this follows the rescheduled_from_id chain forward to
-    // whatever superseded it, so a stale/cancelled original slot doesn't
-    // permanently block everything once a valid replacement exists.
-    public function initialAppointment(): ?Appointment
-    {
-        $appointment = Appointment::where('referral_id', $this->id)
-            ->where('appointment_type', '!=', 'follow_up_session')
-            ->orderBy('created_at')
-            ->first();
-
-        while ($appointment && $appointment->status === 'rescheduled') {
-            $next = Appointment::where('rescheduled_from_id', $appointment->id)->first();
-            if (!$next) {
-                break;
-            }
-            $appointment = $next;
-        }
-
-        return $appointment;
-    }
-
-    // Whether the SIF should still be locked to view-only. Unlocking is a
-    // one-time, permanent trigger keyed ONLY to the referral's first
-    // appointment (see initialAppointment()) - once that one has been
-    // checked in as attended, general SIF actions (feedback slip, status
-    // updates, interventions, Refer to TMDU) stay unlocked for good.
-    // Scheduling a follow-up later does NOT re-lock any of this; a follow-up
-    // only gates its own notes (AppointmentController::update()).
-    public function attendanceGateReason(): ?string
-    {
-        $appointment = $this->initialAppointment();
-
-        if (!$appointment) {
-            return 'not_set';
-        }
-
-        return $appointment->checked_in ? null : 'not_attended';
-    }
 }

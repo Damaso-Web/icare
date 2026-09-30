@@ -65,15 +65,6 @@
             <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
             Endorse to Unit
           </button>
-          <button
-            v-if="isGCU && fromCases && !referral.case.student_unreachable"
-            class="ibtn ibtn-sm"
-            style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
-            @click="showUnreachableModal = true"
-          >
-            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Flag Unreachable
-          </button>
         </div>
       </div>
 
@@ -102,23 +93,6 @@
             <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.case.last_session_at) }}</div>
           </div>
         </div>
-      </div>
-
-      <div v-if="referral.case?.student_unreachable" class="icard" style="margin-bottom:16px;background:var(--amber-lt);border:1px solid var(--amber);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        Student flagged as unreachable. Dean's Secretary has been notified.
-      </div>
-
-      <!-- General attendance gate banner. The SIF-wide actions (feedback
-           slip, session notes, interventions/sanctions/reports, status
-           updates, TMDU referral) stay locked until the referral's very
-           first appointment has been marked attended by GCU. This is a
-           one-time, permanent unlock - it never re-locks because of a
-           later follow-up appointment (follow-ups have their own,
-           separate, narrower lock further down). -->
-      <div v-if="attendanceGateMessage" class="icard" style="margin-bottom:16px;background:var(--red-lt);border:1px solid var(--red);padding:10px 14px;font-size:13px;color:var(--red);display:flex;align-items:center;gap:8px">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-        {{ attendanceGateMessage }}
       </div>
 
       <!-- Status Pipeline - full width, not confined to the left column -->
@@ -302,24 +276,19 @@
                 <div v-if="referral.sanction_notes" style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.6">{{ referral.sanction_notes }}</div>
               </div>
 
-              <div v-if="referral.case?.handoffs?.length">
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Handoff History</div>
-                <div v-for="h in [...referral.case.handoffs].reverse()" :key="h.id" style="padding:8px 0;border-top:1px solid var(--cloud)">
-                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-                    <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ h.from_unit }} → {{ h.to_unit }}</div>
-                    <span v-if="h.acknowledged" class="ibadge" style="background:var(--mist);color:var(--moss)">Receipt Confirmed</span>
-                  </div>
+              <!-- Handoff/endorsement history - just a record of what moved
+                   where and why, no confirm-receipt step needed. Scoped to
+                   this referral (see caseHandoffs computed) so a case that
+                   carries more than one referral (e.g. a sibling TMDU
+                   referral) doesn't leak the other referral's endorsements
+                   in here. -->
+              <div v-if="caseHandoffs.length">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Handoff / Endorsement History</div>
+                <div v-for="h in [...caseHandoffs].reverse()" :key="h.id" style="padding:8px 0;border-top:1px solid var(--cloud)">
+                  <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ h.from_unit }} → {{ h.to_unit }}</div>
                   <div style="font-size:11px;color:var(--stone);margin-top:2px">By {{ h.from_user?.name || '-' }} to {{ h.to_user?.name || '-' }}</div>
                   <div v-if="h.reason" style="font-size:12px;color:var(--slate);margin-top:4px">{{ h.reason }}</div>
                   <div style="font-size:11px;color:var(--fog);margin-top:2px">{{ formatDate(h.created_at) }}</div>
-                  <button
-                    v-if="!h.acknowledged && h.to_user_id === auth.user?.id"
-                    class="ibtn ibtn-o ibtn-sm"
-                    style="margin-top:6px"
-                    @click="confirmHandoffReceipt(h)"
-                  >
-                    Confirm Receipt
-                  </button>
                 </div>
               </div>
             </div>
@@ -508,22 +477,58 @@
                   <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
                   Send to Referrer
                 </button>
-                <div v-if="referral.feedback_sent_at" style="font-size:11px;color:var(--fog);margin-top:8px">
-                  Last sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}
-                </div>
               </template>
               <template v-else>
-                <div v-if="!referral.feedback_notes" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
-                <div v-else>
-                  <div v-if="referral.feedback_checklist?.length" style="font-size:12px;color:var(--stone);margin-bottom:8px">
-                    <span v-for="key in referral.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin-right:4px;margin-bottom:4px">
-                      {{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}
-                    </span>
-                  </div>
-                  <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.feedback_notes }}</div>
-                  <div style="font-size:11px;color:var(--fog);margin-top:8px">Sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}</div>
-                </div>
+                <div v-if="!referral.feedback_slips?.length" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
               </template>
+            </div>
+
+            <!-- Sent history - like Session Notes, every send is kept as its
+                 own permanent record here rather than being overwritten by
+                 the next one. -->
+            <div v-if="referral.feedback_slips?.length">
+              <div v-for="slip in referral.feedback_slips" :key="slip.id" style="padding:14px 18px;border-top:1px solid var(--cloud)">
+                <div v-if="slip.feedback_checklist?.length" style="font-size:12px;color:var(--stone);margin-bottom:8px">
+                  <span v-for="key in slip.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin-right:4px;margin-bottom:4px">
+                    {{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}
+                  </span>
+                </div>
+                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ slip.feedback_notes }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:8px">
+                  Sent {{ formatDate(slip.sent_at) }} &middot; Recorded By: {{ slip.sent_by?.name || '-' }} &middot; Sent To: {{ slip.sent_to_name || '-' }}<span v-if="slip.sent_to_role">, {{ slip.sent_to_role }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PAR Results - staff only, Student Information Files only.
+               Surfaces the psychological assessment report once TMDU has
+               issued it, without GCU needing to open the sibling
+               psychological_testing referral's own Testing Record. -->
+          <div class="icard" v-if="isGCU && fromCases && tmduTestingRecord && tmduTestingRecord.status === 'test_results_issued'">
+            <div class="icard-header"><span class="icard-title">Psychological Assessment Report (PAR)</span></div>
+            <div class="icard-body">
+              <div v-if="tmduTestingRecord.tests_administered?.length" style="margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Psychological Tests Administered</div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <span v-for="test in tmduTestingRecord.tests_administered" :key="test" class="ibadge" style="background:var(--mist);color:var(--moss)">{{ test }}</span>
+                </div>
+              </div>
+              <div style="margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Assessment Summary</div>
+                <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ tmduTestingRecord.assessment_summary || '-' }}</div>
+              </div>
+              <div style="margin-bottom:12px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Recommended Actions</div>
+                <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ tmduTestingRecord.recommendations || '-' }}</div>
+              </div>
+              <a v-if="parDocument" :href="attachmentUrl(parDocument)" target="_blank" class="ibtn ibtn-o ibtn-sm" style="margin-bottom:8px">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                {{ parDocument.original_filename || 'View PAR File' }}
+              </a>
+              <div style="font-size:11px;color:var(--fog)">
+                Released by TMDU {{ formatDate(tmduTestingRecord.report_sent_at) }}<span v-if="tmduTestingRecord.tester?.name"> &middot; {{ tmduTestingRecord.tester.name }}</span>
+              </div>
             </div>
           </div>
 
@@ -700,6 +705,18 @@
                 </button>
                 <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                   ✓ Already referred to TMDU
+                </div>
+                <button
+                  v-if="!['completed', 'closed'].includes(referral.status)"
+                  class="ibtn ibtn-p"
+                  style="width:100%;justify-content:center"
+                  @click="completeReferral"
+                >
+                  <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  Complete Referral
+                </button>
+                <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
+                  ✓ Referral completed
                 </div>
               </template>
               <router-link
@@ -894,30 +911,6 @@
         </div>
       </div>
 
-      <!-- Flag Unreachable Modal -->
-      <div v-if="showUnreachableModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showUnreachableModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Flag Student as Unreachable</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showUnreachableModal = false">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--amber)">
-              ⚠ This will notify the Dean's Secretary of {{ referral.student?.college }} that the student is unreachable.
-            </div>
-            <div>
-              <label class="ifl">Notes / Reason</label>
-              <textarea v-model="unreachableNotes" class="ifta" placeholder="Describe attempts made to contact the student..."></textarea>
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="flagUnreachable">
-                Flag as Unreachable
-              </button>
-              <button class="ibtn ibtn-o" @click="showUnreachableModal = false">Cancel</button>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- Intervention Detail Modal -->
       <div v-if="selectedIntervention" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="selectedIntervention = null">
@@ -1134,10 +1127,8 @@ const followUpError      = ref('');
 const schedulingFollowUp = ref(false);
 
 const showStatusModal      = ref(false);
-const showUnreachableModal = ref(false);
 const showTransferModal    = ref(false);
 const newStatus             = ref('');
-const unreachableNotes      = ref('');
 const unitStaffList         = ref([]);
 const transferError         = ref('');
 
@@ -1203,26 +1194,31 @@ const referralAppointments = computed(() => {
   return all.filter(a => a.referral_id === referral.value.id);
 });
 
-// Attendance gate (server-computed on ReferralController::show() as
-// referral.attendance_gate_reason, based on Referral::attendanceGateReason()).
-// 'not_set'      - no appointment has been scheduled for this referral yet.
-// 'not_attended' - an appointment exists but GCU hasn't checked the student in yet.
-// null           - the referral's first appointment was attended; SIF actions unlock
-//                  permanently from here, regardless of any later follow-up.
-const attendanceGateMessage = computed(() => {
-  const reason = referral.value.attendance_gate_reason;
-  if (reason === 'not_set') return 'No appointment has been set for this referral yet. SIF actions (feedback slip, session notes, interventions, TMDU referral) will unlock once one is scheduled and the student attends.';
-  if (reason === 'not_attended') return 'The student has not yet attended their appointment. SIF actions will unlock once GCU marks the student as attended.';
-  return '';
+// Handoffs made before the referral_id column existed can't be attributed
+// to one referral, so they still show on every referral of the case (the
+// old behavior); a handoff made from this point on is tagged with the
+// referral it was actually endorsed from and only shows there.
+const caseHandoffs = computed(() => {
+  const all = referral.value.case?.handoffs || [];
+  return all.filter(h => !h.referral_id || h.referral_id === referral.value.id);
 });
 
-function guardAttendance() {
-  if (attendanceGateMessage.value) {
-    toast?.error(attendanceGateMessage.value);
-    return false;
-  }
-  return true;
-}
+// "Refer to TMDU" creates a separate, sibling Referral (referral_type
+// psychological_testing) on this same case - see CaseController::referToTmdu().
+// This referral's own SIF stays GCU's; the actual psychological testing
+// workflow runs on the sibling referral's Testing Record. Once TMDU issues
+// the PAR (status test_results_issued), GCU should be able to see the
+// results here without having to go find that Testing Record themselves.
+const tmduTestingRecord = computed(() => {
+  const sibling = (referral.value.case?.referrals || [])
+    .find(r => r.referral_type === 'psychological_testing' && r.testing_record);
+  return sibling?.testing_record || null;
+});
+
+const parDocument = computed(() =>
+  (tmduTestingRecord.value?.documents || [])
+    .find(d => d.document_type === 'psychological_assessment_report') || null
+);
 
 const interventionLocked = computed(() =>
   referral.value.referral_type === 'class_attendance'
@@ -1393,6 +1389,13 @@ async function logSession() {
     };
     const res = await sessionNoteAPI.storeByReferral(referral.value.id, payload);
     sessionNotes.value.unshift(res.data);
+    // Mirrors ReferralController/SessionNoteController::storeByReferral()'s
+    // server-side bump to "In Progress" - only move the badge forward here
+    // too, so it doesn't visually override a status that's already moved on
+    // (referred out, completed, closed) until the next full reload.
+    if (['submitted', 'acknowledged', 'in_review', 'scheduled'].includes(referral.value.status)) {
+      referral.value.status = 'in_progress';
+    }
     showSessionModal.value = false;
     toast?.success('Session notes saved successfully.');
     sessionForm.value = {
@@ -1418,7 +1421,6 @@ function openFeedbackConfirm() {
 }
 
 async function sendFeedback() {
-  if (!guardAttendance()) { showFeedbackConfirm.value = false; return; }
   sendingFeedback.value = true;
   try {
     await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
@@ -1427,6 +1429,15 @@ async function sendFeedback() {
     // was actually persisted rather than an optimistic local update.
     const fresh = await referralAPI.show(referral.value.id);
     referral.value = fresh.data;
+    // Each send is its own new history entry, not an edit of the last one -
+    // clear the compose form so the next entry starts blank.
+    feedbackForm.value = {
+      feedback_notes: '',
+      feedback_checklist: [],
+      feedback_referred_other_text: '',
+      feedback_others_text: '',
+      feedback_ctrl_no: '',
+    };
     showFeedbackConfirm.value = false;
     toast?.success('Feedback sent to referrer.');
   } catch (e) {
@@ -1437,7 +1448,6 @@ async function sendFeedback() {
 }
 
 async function addIntervention() {
-  if (!guardAttendance()) return;
   if (!interventionForm.value.text) {
     toast?.error('Please describe the intervention.');
     return;
@@ -1462,7 +1472,6 @@ async function addIntervention() {
 }
 
 async function addSanction() {
-  if (!guardAttendance()) return;
   if (!sanctionForm.value.text) {
     toast?.error('Please describe the sanction given.');
     return;
@@ -1483,7 +1492,6 @@ async function addSanction() {
 }
 
 async function addDetailedReport() {
-  if (!guardAttendance()) return;
   if (!detailedReportForm.value.text) {
     toast?.error('Please write the report entry.');
     return;
@@ -1504,7 +1512,6 @@ async function addDetailedReport() {
 }
 
 async function updateStatus() {
-  if (!guardAttendance()) return;
   try {
     const res = await referralAPI.updateStatus(referral.value.id, { status: newStatus.value });
     referral.value.status = res.data.status;
@@ -1515,14 +1522,17 @@ async function updateStatus() {
   }
 }
 
-async function flagUnreachable() {
+// One-click shortcut for the common case (mark this referral done) instead
+// of having to open Update Status and pick "Completed" from the dropdown.
+async function completeReferral() {
+  if (!confirm('Mark this referral as completed?')) return;
   try {
-    await caseAPI.flagUnreachable(referral.value.case.id, { notes: unreachableNotes.value });
-    referral.value.case.student_unreachable = true;
-    showUnreachableModal.value = false;
-    toast?.success("Student flagged as unreachable. Dean's Secretary has been notified.");
+    const res = await referralAPI.updateStatus(referral.value.id, { status: 'completed' });
+    referral.value.status = res.data.status;
+    newStatus.value = res.data.status;
+    toast?.success('Referral marked as completed.');
   } catch (e) {
-    toast?.error('Failed to flag student as unreachable.');
+    toast?.error(e.response?.data?.message || 'Failed to complete referral.');
   }
 }
 
@@ -1534,14 +1544,12 @@ const tmduError      = ref('');
 const tmduForm       = ref({ reason: '' });
 
 function openTmduModal() {
-  if (!guardAttendance()) return;
   tmduForm.value = { reason: '' };
   tmduError.value = '';
   showTmduModal.value = true;
 }
 
 async function referToTmdu() {
-  if (!guardAttendance()) { showTmduModal.value = false; return; }
   if (!tmduForm.value.reason.trim()) {
     tmduError.value = 'Please provide a reason for the referral.';
     return;
@@ -1594,19 +1602,22 @@ async function transferUnit() {
   transferError.value = '';
   const previousUnit = referral.value.case.current_unit;
   try {
-    const res = await caseAPI.handoff(referral.value.case.id, transferForm.value);
+    // Tag the handoff with the referral it's actually being made from, so
+    // it only shows up in THIS referral's history - not every other
+    // referral sharing the same case (e.g. a sibling TMDU referral).
+    const res = await caseAPI.handoff(referral.value.case.id, { ...transferForm.value, referral_id: referral.value.id });
     referral.value.case.current_unit = res.data.current_unit;
     referral.value.case.handoffs = [
       ...(referral.value.case.handoffs || []),
       {
         id: Date.now(),
+        referral_id: referral.value.id,
         from_unit: previousUnit,
         to_unit: transferForm.value.to_unit,
         reason: transferForm.value.reason,
         from_user: { name: auth.user?.name },
         to_user_id: Number(transferForm.value.to_user_id),
         to_user: unitStaffList.value.find(u => u.id === Number(transferForm.value.to_user_id)),
-        acknowledged: false,
         created_at: new Date().toISOString(),
       },
     ];
@@ -1614,17 +1625,6 @@ async function transferUnit() {
     toast?.success('Case transferred.');
   } catch (e) {
     transferError.value = e.response?.data?.message || 'Failed to transfer case.';
-  }
-}
-
-async function confirmHandoffReceipt(handoff) {
-  try {
-    const res = await caseAPI.acknowledgeHandoff(referral.value.case.id, handoff.id);
-    handoff.acknowledged = true;
-    handoff.acknowledged_at = res.data.acknowledged_at;
-    toast?.success('Receipt confirmed.');
-  } catch (e) {
-    toast?.error('Failed to confirm receipt.');
   }
 }
 
@@ -1725,11 +1725,10 @@ onMounted(async () => {
   try {
     const res = await referralAPI.show(route.params.id);
     referral.value = res.data;
-    feedbackForm.value.feedback_notes               = res.data.feedback_notes || '';
-    feedbackForm.value.feedback_checklist            = res.data.feedback_checklist || [];
-    feedbackForm.value.feedback_referred_other_text  = res.data.feedback_referred_other_text || '';
-    feedbackForm.value.feedback_others_text          = res.data.feedback_others_text || '';
-    feedbackForm.value.feedback_ctrl_no              = res.data.feedback_ctrl_no || '';
+    // The compose form always starts blank - each send is its own new
+    // history entry (see referral.feedback_slips), never an edit of a
+    // previous one, so there is nothing to pre-fill from.
+    feedbackForm.value.feedback_ctrl_no = res.data.feedback_ctrl_no || '';
 
     newStatus.value = res.data.status || '';
     if (isGCU.value) {

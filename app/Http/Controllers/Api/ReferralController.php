@@ -37,23 +37,6 @@ class ReferralController extends Controller
         }
     }
 
-    // Writing up an outcome (feedback slip, status change, admission slip,
-    // interventions, Refer to TMDU) only makes sense once the student has
-    // actually shown up to their first appointment on this referral. See
-    // Referral::attendanceGateReason() - this is a one-time, permanent
-    // unlock, not re-checked against later appointments like follow-ups.
-    private function ensureAppointmentAttended(Referral $referral): void
-    {
-        $reason = $referral->attendanceGateReason();
-
-        if ($reason === 'not_set') {
-            abort(422, 'No appointment has been set for this referral yet.');
-        }
-        if ($reason === 'not_attended') {
-            abort(422, 'The student has not yet attended their appointment.');
-        }
-    }
-
     public function index(Request $request)
 {
     $user = $request->user();
@@ -226,19 +209,23 @@ class ReferralController extends Controller
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
             'case.counselor', 'case.referrals', 'case.appointments.staff',
+            // A "Refer to TMDU" creates a separate, sibling Referral row
+            // (referral_type psychological_testing) on this same case - see
+            // CaseController::referToTmdu(). Loading its TestingRecord (and
+            // the PAR document attached to it) here is what lets this GCU
+            // referral's own SIF page surface the PAR results once TMDU has
+            // issued them, without needing to open the Testing Record itself.
+            'case.referrals.testingRecord.documents',
+            'case.referrals.testingRecord.tester',
             // For a disciplinary referral filed together with a Complaint
             // ("Incident Report"), pull in the full complaint + its evidence
             // so referrals/Show.vue can render it in place of the normal
             // Referral Info panel once acknowledged.
             'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
-            // So the SIF page can compute the attendance gate itself
-            // (Referral::attendanceGateReason()) instead of guessing from
-            // the whole case's appointment list, which includes other
-            // referrals' appointments too.
             'appointments',
+            // Immutable Feedback Slip send history, newest first.
+            'feedbackSlips.sentBy',
         ]);
-
-        $referral->attendance_gate_reason = $referral->attendanceGateReason();
 
         $relatedConcerns = $referral->case
             ? $referral->case->referrals
@@ -499,7 +486,6 @@ class ReferralController extends Controller
     {
         $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
-        $this->ensureAppointmentAttended($referral);
         $request->validate([
             'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
         ]);
@@ -521,7 +507,6 @@ class ReferralController extends Controller
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');
         }
-        $this->ensureAppointmentAttended($referral);
 
         $validated = $request->validate([
             'feedback_notes'               => 'required|string',
@@ -532,16 +517,29 @@ class ReferralController extends Controller
             'feedback_ctrl_no'             => 'nullable|string|max:50',
         ]);
 
+        // Every send is its own immutable history row - like a session note,
+        // never overwritten - snapshotting who it was sent to (the referrer
+        // as recorded at submission time) alongside who recorded/sent it.
+        $slip = $referral->feedbackSlips()->create([
+            ...$validated,
+            'sent_by_user_id' => $user->id,
+            'sent_to_name'    => $referral->referrer_name,
+            'sent_to_role'    => $referral->referrer_role,
+            'sent_at'         => now(),
+        ]);
+
+        // Kept in sync for anything still reading the single-slip columns
+        // (e.g. the printed slip's "last sent" line), but the history list
+        // in feedback_slips is now the source of truth.
         $referral->update([
             ...$validated,
-            // Attending OSS Personnel on the printed slip is always whoever sent it.
             'feedback_sent_at'         => now(),
             'feedback_sent_by_user_id' => $user->id,
         ]);
 
         AuditLog::record('feedback_sent', "Sent feedback slip for referral {$referral->referral_code} to referrer.", $referral);
 
-        return response()->json($referral->load('feedbackSentBy'));
+        return response()->json($slip->load('sentBy'));
     }
 
     public function saveAdmissionSlip(Request $request, Referral $referral)
@@ -555,7 +553,6 @@ class ReferralController extends Controller
         if ($referral->referral_type !== 'class_attendance') {
             abort(422, 'Admission slips only apply to class attendance referrals.');
         }
-        $this->ensureAppointmentAttended($referral);
 
         $validated = $request->validate([
             'admission_date'     => 'required|date',
