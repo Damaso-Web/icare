@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
-use App\Models\FeedbackSlip;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
@@ -38,9 +37,11 @@ class ReferralController extends Controller
         }
     }
 
-    // Writing up an outcome (feedback slip, status change, admission slip)
-    // only makes sense once the student has actually shown up. See
-    // Referral::attendanceGateReason() for what "current appointment" means.
+    // Writing up an outcome (feedback slip, status change, admission slip,
+    // interventions, Refer to TMDU) only makes sense once the student has
+    // actually shown up to their first appointment on this referral. See
+    // Referral::attendanceGateReason() - this is a one-time, permanent
+    // unlock, not re-checked against later appointments like follow-ups.
     private function ensureAppointmentAttended(Referral $referral): void
     {
         $reason = $referral->attendanceGateReason();
@@ -230,21 +231,11 @@ class ReferralController extends Controller
             // so referrals/Show.vue can render it in place of the normal
             // Referral Info panel once acknowledged.
             'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
-            // So the SIF page can tell, before the user even clicks
-            // Acknowledge, whether this psychological_testing referral is
-            // blocked on ReferralController::acknowledge()'s "assign a
-            // tester first" gate - otherwise TMDU just gets a raw 422 with
-            // no explanation.
-            'testingRecord.tester',
             // So the SIF page can compute the attendance gate itself
             // (Referral::attendanceGateReason()) instead of guessing from
             // the whole case's appointment list, which includes other
             // referrals' appointments too.
             'appointments',
-            // Every Feedback Slip copy ever sent for this referral, newest
-            // first - see FeedbackSlip / Referral::feedbackSlips().
-            'feedbackSlips.recordedBy',
-            'feedbackSlips.sentTo',
         ]);
 
         $referral->attendance_gate_reason = $referral->attendanceGateReason();
@@ -313,11 +304,21 @@ class ReferralController extends Controller
     // once it carries its own TestingRecord, which only happens when it was
     // created via CaseController::referToTmdu() (GCU explicitly escalating
     // after their own interview). That record tracks the rest of the
-    // workflow (fee form -> OR -> F2F test -> PAR), so acknowledging such a
-    // referral schedules a fee-form-pickup slot instead of the generic
-    // initial-counseling one, and moves the TestingRecord into its next
-    // stage.
+    // workflow (schedule test taking -> test administered -> awaiting
+    // results -> results released), so acknowledging such a referral skips
+    // the generic initial-counseling appointment entirely (TMDU schedules
+    // the actual test date/time directly on the Testing Record), and moves
+    // the TestingRecord into its next stage.
     $isTmduTesting = $referral->testingRecord()->exists();
+
+    // A TMDU testing cycle can't be acknowledged - or touched at all - until
+    // a psychometrician (TMDU staff/head) has actually claimed it via
+    // TestingRecordController::assign(). Mirrors the same gate on every
+    // TestingRecordController action, so this is the one place a testing
+    // referral could otherwise slip past it.
+    if ($isTmduTesting && !optional($referral->testingRecord)->assigned_tester_user_id) {
+        abort(422, 'Assign a tester to this testing record before acknowledging it.');
+    }
 
     // Everything below - the referral/case updates, the appointment
     // creation, and the audit log entry - must succeed or fail together.
@@ -381,13 +382,12 @@ class ReferralController extends Controller
         // A GCU/SDU referral gets a self-schedulable "Initial Counseling"
         // slot - the student picks their own date/time via a scheduling
         // link, and staff confirms it from the Appointments queue. A TMDU
-        // testing referral does NOT get this at all: the fee-form pickup is
-        // a walk-in with no appointment of any kind, and once the student
-        // has paid, TMDU sets the actual test-taking date/time directly on
-        // the Testing Record Details page (TestingRecordController::
-        // scheduleTesting()). Reuse whatever's already pending/confirmed for
-        // this case instead of piling up duplicate appointments, for the
-        // GCU/SDU case.
+        // testing referral does NOT get this at all: TMDU sets the actual
+        // test-taking date/time directly on the Testing Record Details page
+        // (TestingRecordController::scheduleTesting()), with no appointment
+        // of any kind created here. Reuse whatever's already
+        // pending/confirmed for this case instead of piling up duplicate
+        // appointments, for the GCU/SDU case.
         $appointment     = null;
         $schedulingLink  = null;
 
@@ -441,9 +441,11 @@ class ReferralController extends Controller
         // has acknowledged the referral - mirrors what
         // TestingRecordController::acknowledge() does for records without a
         // linked referral (kept for backward compatibility with older
-        // data).
+        // data). No fee-form/OR step anymore, so this just confirms the
+        // record is in the (already-default) "pending" stage, ready for
+        // Schedule Test Taking.
         if ($isTmduTesting && $referral->testingRecord) {
-            $referral->testingRecord->update(['status' => 'fee_form_pending']);
+            $referral->testingRecord->update(['status' => 'pending']);
         }
 
         AuditLog::record('acknowledged', "Acknowledged referral {$referral->referral_code} under case {$case->case_number}.", $referral);
@@ -455,9 +457,9 @@ class ReferralController extends Controller
     // notifying anyone about a change that could still have rolled back.
     if ($isTmduTesting && $referral->testingRecord) {
         // The testing-specific notification just tells the student TMDU
-        // will reach out to arrange the fee-form pickup - no scheduling
-        // link, since TMDU sets that date directly. The generic one still
-        // goes to whoever referred the case to TMDU.
+        // will reach out to arrange the test-taking schedule - no
+        // scheduling link, since TMDU sets that date directly. The generic
+        // one still goes to whoever referred the case to TMDU.
         if ($referral->student) {
             Notification::send($referral->student, new TestingAppointmentReadyNotification($referral->testingRecord));
         }
@@ -530,44 +532,16 @@ class ReferralController extends Controller
             'feedback_ctrl_no'             => 'nullable|string|max:50',
         ]);
 
-        // Every send creates a brand new, permanent copy instead of
-        // overwriting the last one - see FeedbackSlip. There is no
-        // update/destroy endpoint for this model, so once a copy is sent it
-        // can never be edited; staff can only send another one afterward.
-        $slip = FeedbackSlip::create([
-            'referral_id'          => $referral->id,
-            'case_id'              => $referral->case_id,
-            'student_id'           => $referral->student_id,
-            'ctrl_no'              => $validated['feedback_ctrl_no'] ?? null,
-            'checklist'            => $validated['feedback_checklist'] ?? [],
-            'referred_other_text'  => $validated['feedback_referred_other_text'] ?? null,
-            'others_text'          => $validated['feedback_others_text'] ?? null,
-            'notes'                => $validated['feedback_notes'],
-            // Attending OSS Personnel on the printed slip is always whoever sent it.
-            'recorded_by_user_id'  => $user->id,
-            // The referrer this copy is going to - a user account when the
-            // referrer has one, the referrer_name/referrer_role snapshot
-            // captured at intake otherwise (e.g. a walk-in with no account).
-            'sent_to_user_id'      => $referral->referred_by_user_id,
-            'sent_to_name'         => $referral->referrer_name,
-            'sent_to_role'         => $referral->referrer_role,
-            'sent_at'              => now(),
-        ]);
-
-        // Kept in sync on the referral too, purely as a lightweight "has
-        // feedback ever been sent / when was the last one" snapshot for
-        // anything elsewhere in the app that reads these columns directly
-        // (e.g. list/badge views) - FeedbackSlip rows above are the actual
-        // source of truth and history.
         $referral->update([
             ...$validated,
+            // Attending OSS Personnel on the printed slip is always whoever sent it.
             'feedback_sent_at'         => now(),
             'feedback_sent_by_user_id' => $user->id,
         ]);
 
-        AuditLog::record('feedback_sent', "Sent feedback slip for referral {$referral->referral_code} to referrer.", $slip);
+        AuditLog::record('feedback_sent', "Sent feedback slip for referral {$referral->referral_code} to referrer.", $referral);
 
-        return response()->json($referral->load(['feedbackSentBy', 'feedbackSlips.recordedBy', 'feedbackSlips.sentTo']));
+        return response()->json($referral->load('feedbackSentBy'));
     }
 
     public function saveAdmissionSlip(Request $request, Referral $referral)

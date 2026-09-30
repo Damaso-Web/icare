@@ -31,7 +31,21 @@
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date &amp; Time</div>
-            <div style="font-size:13px;color:var(--ink)">{{ formatDate(appointment.appointment_date) }} · {{ appointment.start_time }} - {{ appointment.end_time }}</div>
+            <!-- When this appointment is still awaiting the student's own
+                 pick (request_status === 'awaiting_student'), appointment_date/
+                 start_time/end_time only hold a placeholder value the backend
+                 wrote when the slot was created (ReferralController::
+                 acknowledge() / CallSlipController), never anything the
+                 student chose - showing it as if it were real is exactly the
+                 "there's already a date before I even picked one" bug. A
+                 reschedule request is different: appointment_date there is
+                 the real, previously-confirmed date (shown for reference
+                 above, in the amber "You're rescheduling..." notice), so
+                 that case still shows it normally. -->
+            <div v-if="needsScheduling && !appointment.reschedule_reason" style="font-size:13px;color:var(--stone);font-style:italic">
+              Not yet scheduled - choose your preferred date and time below.
+            </div>
+            <div v-else style="font-size:13px;color:var(--ink)">{{ formatDate(appointment.appointment_date) }} · {{ appointment.start_time }} - {{ appointment.end_time }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service</div>
@@ -451,10 +465,17 @@ async function doConfirmedSubmit() {
   showConfirmModal.value = false;
   submitting.value = true;
   try {
-    await axios.post(
+    const res = await axios.post(
       `${API_BASE}/schedule/${appointment.value.scheduling_token}/submit`,
       scheduleForm.value
     );
+    // Without this, "appointment" still held the placeholder date/time from
+    // before the student picked anything (never refetched after submit), so
+    // the Date & Time field above would keep showing that stale placeholder
+    // instead of what was actually just requested - the other half of the
+    // "wrong date/time" report. The backend's response already has the real
+    // saved values (PublicSchedulingController::submit()).
+    appointment.value = { ...appointment.value, ...res.data.appointment };
     scheduleSuccess.value = true;
   } catch (e) {
     scheduleError.value = e.response?.data?.message || 'Failed to submit your request.';

@@ -42,7 +42,6 @@
               v-for="r in dashboard.recent_referrals"
               :key="r.id"
               class="qr"
-              :class="urgencyRow(r.urgency_level)"
               @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
             >
               <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
@@ -52,8 +51,12 @@
                   <span class="qid">{{ r.student?.student_id }}</span>
                 </div>
                 <div class="qmeta">{{ r.referral_type?.replace(/_/g, ' ') }} · {{ r.referrer_name }}</div>
+                <!-- Urgency badge/row-highlight removed - urgency_level is
+                     never actually set by anyone (no form exposes it; it's
+                     just the DB column default, or hardcoded 'medium' for
+                     complaint-based referrals in ComplaintController), so
+                     the "Medium" tag it always showed was meaningless. -->
                 <div class="qtags">
-                  <span class="ibadge" :class="'ibadge-' + r.urgency_level">{{ r.urgency_level }}</span>
                   <span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span>
                 </div>
               </div>
@@ -269,10 +272,6 @@ function goToStat(stat) {
 
 function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase();
-}
-
-function urgencyRow(level) {
-  return { uh: level === 'high' || level === 'critical', um: level === 'medium', ul: level === 'low' };
 }
 
 function formatDate(date) {

@@ -87,15 +87,15 @@ class TestingRecordController extends Controller
      * handled by ReferralController::acknowledge() instead (since referring
      * to TMDU creates a real, shared Referral row) - this endpoint is kept
      * as a fallback for TestingRecords that predate that change and have no
-     * referral_id. Just flips the status - the fee-form pickup is a walk-in
-     * with no appointment of any kind, and the actual testing appointment is
-     * set directly by TMDU later, in scheduleTesting().
+     * referral_id. Just flips the status - there is no fee-form/OR step
+     * anymore, so an acknowledged record simply sits as "Pending" until TMDU
+     * directly schedules the test in scheduleTesting().
      */
     public function acknowledge(Request $request, TestingRecord $testingRecord)
     {
         $this->ensureTesterAssigned($testingRecord);
 
-        $testingRecord->update(['status' => 'fee_form_pending']);
+        $testingRecord->update(['status' => 'pending']);
 
         AuditLog::record('acknowledged', "Acknowledged testing referral for record #{$testingRecord->id}.", $testingRecord);
 
@@ -191,6 +191,17 @@ class TestingRecordController extends Controller
         return response()->json($testingRecord);
     }
 
+    // General-purpose status setter - kept only for early-stage manual
+    // corrections (e.g. undoing an accidental "Confirm Testing Schedule").
+    // It deliberately does NOT allow setting 'awaiting_results' or
+    // 'test_results_issued': those stages have real preconditions attached
+    // (schedulePar()'s test-taking attendance gate, and sendToGcu()/
+    // attachPar()'s PAR/assessment-summary requirement) that this endpoint
+    // has no way to also check, so allowing it to set them directly would
+    // let staff skip straight to "Results Released" with the student never
+    // having attended anything. Use scheduleTesting() / administerTests() /
+    // schedulePar() / sendToGcu() to reach those stages instead - nothing
+    // in the current UI calls this for anything past 'test_administered'.
     public function updateStatus(Request $request, TestingRecord $testingRecord)
     {
         // Same lock as update() - once results are issued, staff can't loop
@@ -202,12 +213,13 @@ class TestingRecordController extends Controller
         $this->ensureTesterAssigned($testingRecord);
 
         $request->validate([
-            // "completed"/"report_sent" were renamed to "test_administered"/
-            // "test_results_issued" to match the team's terminology, and
-            // "awaiting_results" was added for the Testing Record Details
-            // page's status bar (see administerTests()) - all three changes
-            // came from widen-only migrations on this DB enum.
-            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,test_administered,awaiting_results,par_scheduled,test_results_issued'
+            // Only the early, precondition-free stages are settable here.
+            // Legacy values (fee_form_pending, or_submitted, in_progress,
+            // par_scheduled) are accepted too, so an older record can still
+            // be corrected back to whichever equivalent stage it used to
+            // have, but nothing here ever writes those values going
+            // forward - see the controller notes above and in Index.vue.
+            'status' => 'required|in:pending,fee_form_pending,or_submitted,scheduled,in_progress,test_administered'
         ]);
 
         $old = ['status' => $testingRecord->status];
@@ -256,25 +268,21 @@ class TestingRecordController extends Controller
     }
 
     /**
-     * Step 3: TMDU staff sets (and confirms) the actual testing appointment.
-     * Unlike the fee-form pickup, the student does not self-schedule this -
-     * TMDU picks the date/time directly and it's created already confirmed.
-     *
-     * This is also the moment TMDU confirms (face-to-face, at the same
-     * office visit) that they've physically received and stamped the
-     * student's Official Receipt - the two happen together in person, so
-     * `or_stamped_confirmed` is required here rather than as its own
-     * separate step/endpoint.
+     * "Schedule Test Taking": TMDU staff sets (and confirms) the actual
+     * testing appointment directly - the student does not self-schedule
+     * this. Available once the record is "Pending" (right after Acknowledge,
+     * no fee-form/OR step in between). Sends the student the pencils/arrival
+     * reminder (TESTING_REMINDER) and moves the record to "Scheduled for
+     * Testing".
      */
     public function scheduleTesting(Request $request, TestingRecord $testingRecord)
     {
         $this->ensureTesterAssigned($testingRecord);
 
         $validated = $request->validate([
-            'appointment_date'     => 'required|date',
-            'start_time'           => 'required',
-            'end_time'             => 'required',
-            'or_stamped_confirmed' => 'required|accepted',
+            'appointment_date' => 'required|date',
+            'start_time'       => 'required',
+            'end_time'         => 'required',
         ]);
 
         $appointment = $testingRecord->case->appointments()
@@ -310,16 +318,11 @@ class TestingRecordController extends Controller
         }
 
         $testingRecord->update([
-            'status'                => 'scheduled',
-            'testing_date'          => $validated['appointment_date'],
-            // Only set once, in case scheduleTesting() is ever called again
-            // to reschedule the same test (shouldn't overwrite who actually
-            // stamped the OR the first time).
-            'or_stamped_at'         => $testingRecord->or_stamped_at ?? now(),
-            'or_stamped_by_user_id' => $testingRecord->or_stamped_by_user_id ?? $request->user()->id,
+            'status'       => 'scheduled',
+            'testing_date' => $validated['appointment_date'],
         ]);
 
-        AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id} (OR confirmed stamped).", $testingRecord);
+        AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id}.", $testingRecord);
 
         if ($testingRecord->student) {
             Notification::send($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment));
@@ -334,9 +337,9 @@ class TestingRecordController extends Controller
     /**
      * "Psychological Tests Administered" action on the Testing Record
      * Details page. Records which tests were given and when, and moves the
-     * status bar straight to "Awaiting Results" - by design there's no
-     * separate resting state for "Test Administered" alone; the bar step
-     * still lights up as passed once the record reaches Awaiting Results.
+     * record to its own resting status, "Test Administered" - separate from
+     * "Awaiting Results", which now only happens once PAR release is
+     * actually scheduled (see schedulePar()).
      */
     public function administerTests(Request $request, TestingRecord $testingRecord)
     {
@@ -352,7 +355,7 @@ class TestingRecordController extends Controller
         $testingRecord->update([
             'tests_administered' => $validated['tests_administered'],
             'testing_date'       => $validated['testing_date'],
-            'status'             => 'awaiting_results',
+            'status'             => 'test_administered',
         ]);
 
         AuditLog::record(
@@ -367,15 +370,28 @@ class TestingRecordController extends Controller
     }
 
     /**
-     * Step 4: after the exam, TMDU sets a follow-up appointment for when the
-     * student will receive their PAR (Psychological Assessment Report).
-     * Available while a record is in the "Awaiting Results" bar step - it's
-     * an optional in-person scheduling step, not itself what moves the bar
-     * to "Results Released" (Attach PAR / sendToGcu() does that).
+     * "Schedule PAR Release": after the exam, TMDU sets an appointment for
+     * when the student will receive their PAR (Psychological Assessment
+     * Report). Available once a record is "Test Administered" - and only
+     * once the student has actually attended the scheduled test-taking
+     * appointment; a test that was administered without that appointment
+     * being marked attended (AppointmentController::checkIn()) can't move
+     * forward. Moves the record to "Awaiting Results". This is not itself
+     * what moves it to "Results Released" (Attach PAR / sendToGcu() does).
      */
     public function schedulePar(Request $request, TestingRecord $testingRecord)
     {
         $this->ensureTesterAssigned($testingRecord);
+
+        $testAppointment = $testingRecord->case->appointments()
+            ->where('appointment_type', 'psychological_testing')
+            ->whereNotIn('status', ['cancelled'])
+            ->latest()
+            ->first();
+
+        if (!$testAppointment || !$testAppointment->checked_in) {
+            abort(422, 'The student must have attended the scheduled test-taking appointment before PAR release can be scheduled.');
+        }
 
         $validated = $request->validate([
             'appointment_date' => 'required|date',
@@ -411,7 +427,7 @@ class TestingRecordController extends Controller
             $appointment = Appointment::create($attributes);
         }
 
-        $testingRecord->update(['status' => 'par_scheduled']);
+        $testingRecord->update(['status' => 'awaiting_results']);
 
         AuditLog::record('par_scheduled', "Scheduled PAR release for record #{$testingRecord->id}.", $testingRecord);
 

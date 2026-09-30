@@ -103,6 +103,19 @@ class AppointmentController extends Controller
             'notes'            => 'nullable|string|max:1000',
             'appointment_type' => 'nullable|string',
         ]);
+
+        // A follow-up session's own notes are gated on THAT follow-up's own
+        // attendance, separately from - and narrower than - the referral-wide
+        // gate on Referral::attendanceGateReason(). This is what lets a
+        // follow-up be scheduled and later attended without re-locking the
+        // whole SIF: only this one follow-up's notes are blocked, and only
+        // until this one follow-up's checked_in is true.
+        if (array_key_exists('notes', $validated)
+            && $appointment->appointment_type === 'follow_up_session'
+            && !$appointment->checked_in) {
+            abort(422, 'The student has not yet attended this follow-up session.');
+        }
+
         $old = $appointment->toArray();
         $appointment->update($validated);
         AuditLog::record('updated', "Updated appointment {$appointment->appointment_code}.", $appointment, $old, $appointment->toArray());

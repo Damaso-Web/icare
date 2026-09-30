@@ -37,7 +37,11 @@
           style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
           @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })"
         >
-          <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} - {{ a.end_time }}</div>
+          <!-- Same placeholder issue as AppointmentShow.vue: while awaiting
+               the student's own pick, appointment_date/start_time/end_time
+               are just the backend's placeholder slot, not a real date. -->
+          <div v-if="a.request_status === 'awaiting_student'" style="font-size:13.5px;font-weight:600;color:var(--stone);font-style:italic">Awaiting your preferred date &amp; time</div>
+          <div v-else style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} - {{ a.end_time }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px;display:flex;align-items:center;gap:6px">
             <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
             {{ toTitleCase(a.appointment_type) }}

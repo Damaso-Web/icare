@@ -36,7 +36,14 @@
         </div>
         <div v-else>
           <div v-for="a in appointments.slice(0, 3)" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
-            <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+            <!-- An appointment still awaiting the student's own schedule
+                 pick (see the "pending appointment request" banner above)
+                 is a real DB row with a placeholder date/time - it never
+                 had a real one, so don't show it as if it did. -->
+            <div v-if="a.request_status === 'awaiting_student'" style="font-size:13px;font-weight:600;color:var(--stone);font-style:italic">
+              Awaiting your schedule selection
+            </div>
+            <div v-else style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
             <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block">{{ toTitleCase(a.status) }}</span>
           </div>
         </div>

@@ -200,10 +200,14 @@ class CaseController extends Controller
         $this->authorizeStaffAccess();
         $this->authorizeCaseWriter();
 
-        // Same attendance gate as the referral-level actions in
-        // ReferralController (feedback slip, status update, admission slip) -
-        // GCU shouldn't be able to refer a case out for testing before the
-        // student has actually shown up to their current appointment.
+        $request->validate(['reason' => 'required|string']);
+
+        $user = $request->user();
+
+        // Same attendance gate as every other outcome action on this case's
+        // current referral (Referral::attendanceGateReason()) - referring to
+        // TMDU is itself a GCU decision that should only follow an attended
+        // session, same as sending a feedback slip or updating status.
         $currentReferral = $case->latestReferral;
         if ($currentReferral) {
             $reason = $currentReferral->attendanceGateReason();
@@ -214,10 +218,6 @@ class CaseController extends Controller
                 abort(422, 'The student has not yet attended their appointment.');
             }
         }
-
-        $request->validate(['reason' => 'required|string']);
-
-        $user = $request->user();
 
         // Per the team's decision: referring a case to TMDU for psychological
         // testing now also creates a real, shared Referral row (referral_type
@@ -237,14 +237,36 @@ class CaseController extends Controller
             'status'              => 'submitted',
         ]);
 
-        $testing = TestingRecord::create([
-            'case_id'             => $case->id,
-            'referral_id'         => $referral->id,
-            'student_id'          => $case->student_id,
-            'referred_by_user_id' => $user->id,
-            'reason'              => $request->reason,
-            'status'              => 'pending',
-        ]);
+        // If the student already has a Testing Record that hasn't been
+        // finished yet (not 'test_results_issued'), this new referral is
+        // just another escalation into that SAME record rather than a brand
+        // new one - re-referring a student TMDU is already working with
+        // doesn't fork off a second, disconnected record. The record's own
+        // progress (status, assigned tester, etc.) is left untouched; only
+        // the referral it's currently tied to (and the reason on file)
+        // moves to this newest one.
+        $testing = TestingRecord::where('student_id', $case->student_id)
+            ->where('status', '!=', 'test_results_issued')
+            ->latest()
+            ->first();
+
+        if ($testing) {
+            $testing->update([
+                'referral_id'         => $referral->id,
+                'case_id'             => $case->id,
+                'referred_by_user_id' => $user->id,
+                'reason'              => $request->reason,
+            ]);
+        } else {
+            $testing = TestingRecord::create([
+                'case_id'             => $case->id,
+                'referral_id'         => $referral->id,
+                'student_id'          => $case->student_id,
+                'referred_by_user_id' => $user->id,
+                'reason'              => $request->reason,
+                'status'              => 'pending',
+            ]);
+        }
 
         $case->update([
             'referred_to_tmdu' => true,

@@ -2,20 +2,24 @@
   FILE: resources/js/views/testing/Show.vue
   PAGE: iCARE / Testing Record Details (TMDU)
 
-  New page (Testing module overhaul). Mirrors the SIF-style layout of
-  resources/js/views/referrals/Show.vue: a 5-step status pipeline updated
-  through action buttons, the original GCU-authored referral information
-  (TestingRecord.referral - the same shared Referral row GCU filled out),
-  Student Profile Details, and a "Reassign" action (adapted from the
-  case-level Reassign Counselor pattern in students/Show.vue) that sets
-  this record's Test Administrator instead of a case's counselor.
+  Mirrors the SIF-style layout of resources/js/views/referrals/Show.vue: a
+  5-step status pipeline updated through action buttons, the original
+  GCU-authored referral information (TestingRecord.referral - the same
+  shared Referral row GCU filled out), Student Profile Details, and a
+  "Reassign" action (adapted from the case-level Reassign Counselor pattern
+  in students/Show.vue) that sets this record's Test Administrator instead
+  of a case's counselor.
 
   Status bar: Pending | Scheduled for Testing | Test Administered |
-  Awaiting Results | Results Released. DB statuses collapse into these 5
-  stages (see stageOf()) - "Test Administered" has no resting state of its
-  own going forward: saving "Psychological Tests Administered" moves the
-  record straight to Awaiting Results, and the bar still lights up
-  "Test Administered" as passed at that point.
+  Awaiting Results | Results Released - these map 1:1 to the five
+  testing_records.status values (pending, scheduled, test_administered,
+  awaiting_results, test_results_issued). There is no fee-form/OR step:
+  TMDU schedules the test-taking date directly once the referral is
+  acknowledged. "Test Administered" IS its own resting stage now - saving
+  "Psychological Tests Administered" stops there; moving on to "Awaiting
+  Results" is a separate action (Schedule PAR Release), and the backend
+  only allows that once the student has attended the test-taking
+  appointment (marked from the "Manage Queue" appointments page).
 
   This is a shared case: GCU staff who referred the student (and admin) can
   open this page read-only. Only TMDU staff/admin (canManage) see the
@@ -120,7 +124,7 @@
           </div>
 
           <!-- Psychological Tests Administered - the action that moves the
-               bar from Scheduled for Testing straight to Awaiting Results. -->
+               bar from Scheduled for Testing to Test Administered. -->
           <div class="icard" v-if="canManage && stage === 'scheduled_for_testing'">
             <div class="icard-header"><span class="icard-title">Psychological Tests Administered</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
@@ -147,7 +151,35 @@
                 </div>
               </div>
               <button class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" @click="saveTestsAdministered" :disabled="saving">
-                {{ saving ? 'Saving...' : 'Save & Move to Awaiting Results' }}
+                {{ saving ? 'Saving...' : 'Save Tests Administered' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Schedule PAR Release - the action that moves the bar from Test
+               Administered to Awaiting Results. The backend only allows this
+               once the student has attended the test-taking appointment
+               (marked "Student Attended" from Manage Queue below), so the
+               button surfaces that 422 as a plain error if clicked early. -->
+          <div class="icard" v-if="canManage && stage === 'test_administered'">
+            <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <div v-if="!testTakingAttended" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
+                The student must be marked as attended on the test-taking appointment (Manage Queue) before PAR release can be scheduled.
+              </div>
+              <div>
+                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
+                <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
+              </div>
+              <div>
+                <div style="display:flex;gap:8px">
+                  <input v-model="parScheduleForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                  <input v-model="parScheduleForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                </div>
+                <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
+              </div>
+              <button class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
+                {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
               </button>
             </div>
           </div>
@@ -205,9 +237,10 @@
                normal case, via CaseController::referToTmdu()) calls
                referralAPI.acknowledge() - the same endpoint Referral Queue's
                own Acknowledge button uses - and a legacy record with no
-               referral_id falls back to testingAPI.acknowledge(). Either way
-               this just flips the status to "fee_form_pending"; the fee-form
-               pickup itself is a walk-in with no appointment. -->
+               referral_id falls back to testingAPI.acknowledge(). Neither
+               changes the TestingRecord's own status (it stays "pending"
+               throughout); the Referral's acknowledged_at is what actually
+               unlocks Schedule Test Taking below. -->
           <div class="icard" v-if="canManage && record.referral_id && !record.referral?.acknowledged_at && record.status === 'pending'">
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
@@ -282,27 +315,15 @@
             </div>
           </div>
 
-          <!-- OR Photo (uploaded by the student when requesting their testing schedule) -->
-          <div class="icard" v-if="record.or_photo_path">
-            <div class="icard-header"><span class="icard-title">OR Submitted by Student</span></div>
-            <div class="icard-body">
-              <div style="font-size:12px;color:var(--stone);margin-bottom:8px">{{ record.or_photo_original_name || 'or-photo' }} · {{ formatDate(record.or_uploaded_at) }}</div>
-              <button class="ibtn ibtn-o ibtn-sm" @click="viewOrPhoto" :disabled="loadingOrPhoto">
-                {{ loadingOrPhoto ? 'Loading...' : 'View OR Photo' }}
-              </button>
-              <div v-if="record.or_stamped_at" style="font-size:12px;color:var(--moss);margin-top:8px">
-                ✓ OR confirmed stamped by {{ record.or_stamped_by?.name || 'TMDU staff' }} on {{ formatDate(record.or_stamped_at) }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Schedule Test Taking - available as soon as the referral is
-               acknowledged (fee_form_pending), not just after the student
-               self-uploads their OR (or_submitted, still supported for
-               backward compatibility with that older path). TMDU decides
-               the date/time and confirms the OR face-to-face here, so there
-               is no need to wait on anything from the student first. -->
-          <div class="icard" v-if="canManage && ['fee_form_pending', 'or_submitted'].includes(record.status)">
+          <!-- Schedule Test Taking - available once the referral is
+               acknowledged. Acknowledging no longer changes the
+               TestingRecord's own status (it stays "pending" both before
+               and after - see TestingRecordController::acknowledge()), so
+               for a record linked to a real Referral this also requires
+               referral.acknowledged_at to be set; a legacy record with no
+               referral_id falls back to status alone. No fee-form/OR step -
+               TMDU decides the date/time directly. -->
+          <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
             <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <div>
@@ -316,44 +337,9 @@
                 </div>
                 <div v-if="testingTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingTimeError }}</div>
               </div>
-              <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-size:12px;color:var(--slate)">
-                <input type="checkbox" v-model="testingForm.or_stamped_confirmed" style="width:15px;height:15px;accent-color:var(--moss);margin-top:1px" />
-                I confirm the student's Official Receipt has been received and stamped, face-to-face.
-              </label>
-              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || !testingForm.or_stamped_confirmed || testingFormInvalid">
+              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || testingFormInvalid">
                 {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
               </button>
-            </div>
-          </div>
-
-                   <!-- Schedule PAR Release - reachable both before and after PAR results are
-               attached, since staff may attach the report first and schedule the
-               hand-off appointment with the student afterward. Once already
-               scheduled, the form hides behind a "Reschedule" toggle instead of
-               staying open (which let staff resubmit it repeatedly). -->
-          <div class="icard" v-if="canManage && ['awaiting_results', 'results_released'].includes(stage)">
-            <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <template v-if="record.status === 'par_scheduled' && !showParRescheduleForm">
-                <div style="font-size:12px;color:var(--moss)">✓ PAR release appointment scheduled.</div>
-                <button class="ibtn ibtn-o ibtn-sm" @click="showParRescheduleForm = true">Reschedule</button>
-              </template>
-              <template v-else>
-                <div>
-                  <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
-                  <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
-                </div>
-                <div>
-                  <div style="display:flex;gap:8px">
-                    <input v-model="parScheduleForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
-                    <input v-model="parScheduleForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
-                  </div>
-                  <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
-                </div>
-                <button class="ibtn ibtn-p ibtn-sm" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
-                  {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
-                </button>
-              </template>
             </div>
           </div>
 
@@ -448,11 +434,10 @@ const auth    = useAuthStore();
 
 const loading         = ref(true);
 const saving          = ref(false);
-const loadingOrPhoto  = ref(false);
 const record          = ref({});
 const selectedFile    = ref(null);
 
-const testingForm     = ref({ appointment_date: '', start_time: '', end_time: '', or_stamped_confirmed: false });
+const testingForm     = ref({ appointment_date: '', start_time: '', end_time: '' });
 const parScheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const administerForm  = ref({ tests_administered: [], testing_date: '' });
 const parForm         = ref({ assessment_summary: '', recommendations: '' });
@@ -471,16 +456,17 @@ const availableTests = [
 
 const canManage = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
 
-// Collapses the DB-level testing_records.status values into the 5 bar
-// stages. "test_administered" (legacy) and "par_scheduled" both fall under
-// "Awaiting Results" - see the migration/controller notes for why there's
-// no separate resting state for "Test Administered" going forward.
+// Maps the DB-level testing_records.status values onto the 5 bar stages.
+// The current flow is a straight 1:1 mapping; the old collapsed values
+// (fee_form_pending, or_submitted, in_progress, par_scheduled) are kept
+// here purely for backward compatibility with any pre-existing records,
+// since the controller no longer writes them.
 function stageOf(status) {
-  if (['pending', 'fee_form_pending', 'or_submitted'].includes(status)) return 'pending';
-  if (['scheduled', 'in_progress'].includes(status)) return 'scheduled_for_testing';
-  if (['test_administered', 'awaiting_results', 'par_scheduled'].includes(status)) return 'awaiting_results';
+  if (status === 'scheduled' || status === 'in_progress') return 'scheduled_for_testing';
+  if (status === 'test_administered') return 'test_administered';
+  if (status === 'awaiting_results' || status === 'par_scheduled') return 'awaiting_results';
   if (status === 'test_results_issued') return 'results_released';
-  return 'pending';
+  return 'pending'; // pending, fee_form_pending, or_submitted (legacy)
 }
 
 const stage = computed(() => stageOf(record.value.status));
@@ -498,9 +484,6 @@ function isStepDone(key) {
   return stageOrder.indexOf(key) < stageOrder.indexOf(stage.value);
 }
 function isCurrentStep(key) {
-  // "test_administered" never becomes the current stage on its own (saving
-  // Psychological Tests Administered jumps straight to Awaiting Results) -
-  // it only ever shows as done or upcoming, never highlighted as current.
   return key === stage.value;
 }
 
@@ -510,7 +493,6 @@ const TMDU_ROLES = ['admin', 'tmdu_staff'];
 const showAssignModal = ref(false);
 const assignForm      = ref({ to_user_id: '' });
 const assignStaffList = ref([]);
-const showParRescheduleForm = ref(false);
 
 async function loadAssignStaff() {
   assignStaffList.value = [];
@@ -554,19 +536,6 @@ function handleFileUpload(event) {
   selectedFile.value = event.target.files[0] || null;
 }
 
-async function viewOrPhoto() {
-  loadingOrPhoto.value = true;
-  try {
-    const res = await testingAPI.orPhoto(record.value.id);
-    const url = URL.createObjectURL(res.data);
-    window.open(url, '_blank');
-  } catch (e) {
-    toast?.error('Failed to load OR photo.');
-  } finally {
-    loadingOrPhoto.value = false;
-  }
-}
-
 // TMDU office hours - both scheduling panels below share these rules.
 // Weekday-only, 8:00 AM-4:00 PM, checked live as the fields change (not just
 // when the schedule button is clicked).
@@ -605,17 +574,13 @@ async function confirmScheduleTesting() {
     toast?.error(testingDateError.value || testingTimeError.value);
     return;
   }
-  if (!testingForm.value.or_stamped_confirmed) {
-    toast?.error("Please confirm the student's OR has been received and stamped.");
-    return;
-  }
   saving.value = true;
   try {
     await testingAPI.scheduleTesting(record.value.id, testingForm.value);
-    toast?.success('Testing appointment scheduled. Student has been notified.');
+    toast?.success('Testing appointment scheduled. Student has been notified to bring 2 pencils and arrive 15 minutes early.');
     await loadRecord();
   } catch (e) {
-    toast?.error('Failed to schedule testing appointment.');
+    toast?.error(e.response?.data?.message || 'Failed to schedule testing appointment.');
   } finally {
     saving.value = false;
   }
@@ -633,10 +598,10 @@ async function saveTestsAdministered() {
   saving.value = true;
   try {
     await testingAPI.administerTests(record.value.id, administerForm.value);
-    toast?.success('Tests administered recorded. Now awaiting results.');
+    toast?.success('Tests administered recorded.');
     await loadRecord();
   } catch (e) {
-    toast?.error('Failed to save tests administered.');
+    toast?.error(e.response?.data?.message || 'Failed to save tests administered.');
   } finally {
     saving.value = false;
   }
@@ -656,9 +621,11 @@ async function confirmSchedulePar() {
     await testingAPI.schedulePar(record.value.id, parScheduleForm.value);
     toast?.success('PAR release appointment scheduled. Student has been notified.');
     await loadRecord();
-    showParRescheduleForm.value = false;
   } catch (e) {
-    toast?.error('Failed to schedule PAR release.');
+    // Surfaces the schedulePar() attendance-gate 422 ("The student must
+    // have attended the scheduled test-taking appointment...") along with
+    // any other backend validation error.
+    toast?.error(e.response?.data?.message || 'Failed to schedule PAR release.');
   } finally {
     saving.value = false;
   }
@@ -680,7 +647,7 @@ async function attachPar() {
     toast?.success('PAR attached. Results released to GCU.');
     await loadRecord();
   } catch (e) {
-    toast?.error('Failed to attach PAR.');
+    toast?.error(e.response?.data?.message || 'Failed to attach PAR.');
   } finally {
     saving.value = false;
   }
@@ -691,9 +658,9 @@ async function acknowledgeReferral() {
   try {
     await testingAPI.acknowledge(record.value.id);
     await loadRecord();
-    toast?.success('Referral acknowledged. Student notified to proceed to TMDU.');
+    toast?.success('Referral acknowledged. You can now schedule test taking.');
   } catch (e) {
-    toast?.error('Failed to acknowledge referral.');
+    toast?.error(e.response?.data?.message || 'Failed to acknowledge referral.');
   } finally {
     saving.value = false;
   }
@@ -701,16 +668,17 @@ async function acknowledgeReferral() {
 
 // Same action as Referral Queue's own "Acknowledge" button, just reachable
 // from here too - acknowledges the actual shared Referral row (not the
-// TestingRecord directly), which is what moves this record from Pending to
-// Fee Form Pending.
+// TestingRecord directly). This sets referral.acknowledged_at, which is
+// what unlocks Schedule Test Taking above (the TestingRecord's own status
+// stays "pending" throughout).
 async function acknowledgeLinkedReferral() {
   saving.value = true;
   try {
     await referralAPI.acknowledge(record.value.referral_id);
     await loadRecord();
-    toast?.success('Referral acknowledged. Student notified to proceed to TMDU.');
+    toast?.success('Referral acknowledged. You can now schedule test taking.');
   } catch (e) {
-    toast?.error('Failed to acknowledge referral.');
+    toast?.error(e.response?.data?.message || 'Failed to acknowledge referral.');
   } finally {
     saving.value = false;
   }
@@ -721,6 +689,14 @@ async function acknowledgeLinkedReferral() {
 // the ones actually booked for TMDU (Schedule Test Taking/Schedule PAR
 // Release above always create theirs as unit: 'TMDU').
 const tmduAppointments = computed(() => (record.value.appointments || []).filter(a => a.unit === 'TMDU'));
+
+// Whether the test-taking appointment has been marked attended (checked_in)
+// from Manage Queue - this is exactly what TestingRecordController::
+// schedulePar() checks server-side before allowing Schedule PAR Release, so
+// surface it here too instead of only finding out via a 422 after clicking.
+const testTakingAttended = computed(() =>
+  tmduAppointments.value.some(a => a.appointment_type === 'psychological_testing' && a.checked_in)
+);
 
 async function markAppointmentNoShow(a) {
   try {

@@ -53,9 +53,10 @@ class CaseInterventionController extends Controller
         $this->authorizeInterventionAccess($validated['type']);
 
         // Same attendance gate as ReferralController's referral-level
-        // actions - a specific referral is checked directly; otherwise fall
-        // back to the case's current referral, since a case-level entry
-        // still describes something that happened (or didn't) in a session.
+        // actions (Referral::attendanceGateReason()) - a specific referral
+        // is checked directly; otherwise fall back to the case's current
+        // referral, since a case-level entry still describes something that
+        // happened (or didn't) in a session.
         $gateReferral = !empty($validated['referral_id'])
             ? Referral::find($validated['referral_id'])
             : $case->latestReferral;
