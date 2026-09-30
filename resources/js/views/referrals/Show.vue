@@ -53,7 +53,7 @@
         <div v-if="(isGCU || isSDUHead) && referral.case" style="margin-left:auto;display:flex;gap:8px">
           <!-- Update Status is now a Student Information Files action - the
                Referral Queue only displays the details. -->
-          <button v-if="isGCU && fromCases" class="ibtn ibtn-o ibtn-sm" @click="showStatusModal = true">
+          <button v-if="isGCU && fromCases" class="ibtn ibtn-o ibtn-sm" @click="openStatusModal">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
@@ -75,6 +75,14 @@
             Flag Unreachable
           </button>
         </div>
+      </div>
+
+      <!-- Attendance gate banner: this referral's actions stay view-only
+           until the student has attended their current appointment
+           (Referral::attendanceGateReason(), computed on the backend). -->
+      <div v-if="attendanceGateMessage" style="background:var(--red-lt);border:1px solid var(--red);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:var(--red);margin-bottom:16px;display:flex;align-items:center;gap:8px">
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>{{ attendanceGateMessage }} You can view this referral, but actions (feedback, status updates, interventions, referrals) are locked until then.</span>
       </div>
 
       <!-- Case Summary - Student Information Files only; the Referral Queue
@@ -461,57 +469,70 @@
               </div>
             </div>
 
-            <div class="icard-body">
-              <template v-if="isGCU">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided</div>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-                  <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
-                    <input type="checkbox" :value="item.key" v-model="feedbackForm.feedback_checklist" style="width:15px;height:15px;accent-color:var(--moss)"/>
-                    {{ item.label }}
-                    <input
-                      v-if="item.key === 'referred_other' && feedbackForm.feedback_checklist.includes('referred_other')"
-                      v-model="feedbackForm.feedback_referred_other_text"
-                      type="text"
-                      placeholder="for interventions..."
-                      style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
-                    />
-                    <input
-                      v-if="item.key === 'others' && feedbackForm.feedback_checklist.includes('others')"
-                      v-model="feedbackForm.feedback_others_text"
-                      type="text"
-                      placeholder="specify..."
-                      style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
-                    />
-                  </label>
-                </div>
+            <!-- Compose a NEW copy - GCU only. This never edits a copy
+                 already sent (there is no such thing - see FeedbackSlip);
+                 it only ever creates another entry in the history below. -->
+            <div class="icard-body" v-if="isGCU">
+              <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided</div>
+              <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
+                  <input type="checkbox" :value="item.key" v-model="feedbackForm.feedback_checklist" style="width:15px;height:15px;accent-color:var(--moss)"/>
+                  {{ item.label }}
+                  <input
+                    v-if="item.key === 'referred_other' && feedbackForm.feedback_checklist.includes('referred_other')"
+                    v-model="feedbackForm.feedback_referred_other_text"
+                    type="text"
+                    placeholder="for interventions..."
+                    style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
+                  />
+                  <input
+                    v-if="item.key === 'others' && feedbackForm.feedback_checklist.includes('others')"
+                    v-model="feedbackForm.feedback_others_text"
+                    type="text"
+                    placeholder="specify..."
+                    style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
+                  />
+                </label>
+              </div>
 
-                <label class="ifl">Remarks</label>
-                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
+              <label class="ifl">Remarks</label>
+              <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
 
-                <div style="font-size:11px;color:var(--fog);margin-top:10px">
-                  Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
-                </div>
+              <div style="font-size:11px;color:var(--fog);margin-top:10px">
+                Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
+              </div>
 
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="openFeedbackConfirm">
-                  <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send to Referrer
-                </button>
-                <div v-if="referral.feedback_sent_at" style="font-size:11px;color:var(--fog);margin-top:8px">
-                  Last sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}
+              <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="openFeedbackConfirm">
+                <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                Send to Referrer
+              </button>
+            </div>
+
+            <!-- History - every copy ever sent, oldest at the bottom. Locked:
+                 there is no edit affordance here for any reason, for anyone -
+                 each entry is exactly what was actually sent at the time. -->
+            <div :style="isGCU ? 'border-top:1px solid var(--cloud)' : ''">
+              <div v-if="referral.feedback_slips?.length" style="padding:10px 18px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);background:var(--snow);border-bottom:1px solid var(--cloud)">
+                Sent Copies ({{ referral.feedback_slips.length }})
+              </div>
+              <div v-if="!referral.feedback_slips?.length" class="empty-state" style="padding:24px 18px">
+                <h3>No feedback has been shared yet</h3>
+                <p v-if="!isGCU">The referring party will be notified once GCU sends a copy.</p>
+              </div>
+              <div v-for="slip in referral.feedback_slips" :key="slip.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
+                <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">
+                  Sent {{ formatDate(slip.sent_at) }}
                 </div>
-              </template>
-              <template v-else>
-                <div v-if="!referral.feedback_notes" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
-                <div v-else>
-                  <div v-if="referral.feedback_checklist?.length" style="font-size:12px;color:var(--stone);margin-bottom:8px">
-                    <span v-for="key in referral.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin-right:4px;margin-bottom:4px">
-                      {{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}
-                    </span>
-                  </div>
-                  <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ referral.feedback_notes }}</div>
-                  <div style="font-size:11px;color:var(--fog);margin-top:8px">Sent {{ formatDate(referral.feedback_sent_at) }} by {{ referral.feedback_sent_by?.name }}</div>
+                <div v-if="slip.checklist?.length" style="font-size:12px;color:var(--stone);margin-bottom:8px">
+                  <span v-for="key in slip.checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin-right:4px;margin-bottom:4px">
+                    {{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}
+                  </span>
                 </div>
-              </template>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Remarks</div>
+                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ slip.notes }}</div>
+                <div style="font-size:11px;color:var(--fog)">Recorded by: <strong style="color:var(--slate)">{{ slip.recorded_by?.name || '-' }}</strong></div>
+                <div style="font-size:11px;color:var(--fog)">Sent to: <strong style="color:var(--slate)">{{ slip.sent_to?.name || slip.sent_to_name || '-' }}</strong><span v-if="slip.sent_to_role"> ({{ slip.sent_to_role }})</span></div>
+              </div>
             </div>
           </div>
 
@@ -602,7 +623,16 @@
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.
               </div>
-              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledge" :disabled="acknowledging">
+              <!-- A psychological_testing referral can't be acknowledged
+                   until a tester is assigned to its TestingRecord (Testing
+                   Records page) - ReferralController::acknowledge() rejects
+                   it with a 422 otherwise. Catching that after the fact reads
+                   as a broken button, so it's disabled with an explanation
+                   up front instead. -->
+              <div v-if="needsTesterAssignment" style="background:var(--red-lt);border:1px solid var(--red);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red);margin-bottom:12px">
+                No tester has been assigned to this testing record yet. Assign one from the Testing Records page before acknowledging.
+              </div>
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="acknowledge" :disabled="acknowledging || needsTesterAssignment">
                 <svg v-if="!acknowledging" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 <span v-if="acknowledging" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ acknowledging ? 'Acknowledging...' : 'Acknowledge Referral' }}
@@ -678,7 +708,7 @@
               </div>
               <template v-if="fromCases">
                 <button
-                  v-if="!referral.testing_record || referral.testing_record.status === 'test_results_issued'"
+                  v-if="!referral.case.referred_to_tmdu"
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
                   @click="openTmduModal"
@@ -1252,6 +1282,36 @@ const canAcknowledge = computed(() =>
   referral.value.referral_type === 'psychological_testing' ? isTMDUStaff.value : isGCU.value
 );
 
+// Mirrors TestingRecordController::ensureTesterAssigned() /
+// ReferralController::acknowledge()'s gate - see the Acknowledge button below.
+const needsTesterAssignment = computed(() =>
+  referral.value.referral_type === 'psychological_testing' &&
+  !referral.value.testing_record?.assigned_tester_user_id
+);
+
+// Backend-computed (Referral::attendanceGateReason(), returned by
+// ReferralController::show() as attendance_gate_reason): whether the
+// student has actually attended their current appointment. Blocks every
+// action on this referral except viewing - feedback slip, status update,
+// interventions/sanctions/reports, and Refer to TMDU - until it's clear.
+const attendanceGateReason = computed(() => referral.value.attendance_gate_reason);
+const attendanceGateMessage = computed(() => {
+  if (attendanceGateReason.value === 'not_set') return 'No appointment has been set for this referral yet.';
+  if (attendanceGateReason.value === 'not_attended') return 'The student has not yet attended their appointment.';
+  return '';
+});
+
+// Called at the top of every mutating action on this referral. Returns
+// false (and toasts why) when blocked, so the calling function can bail out
+// before even hitting the API - the API enforces the same rule server-side
+// regardless, but this is what makes clicking the button itself informative
+// instead of just failing.
+function guardAttendance() {
+  if (!attendanceGateMessage.value) return true;
+  toast?.error(attendanceGateMessage.value);
+  return false;
+}
+
 // Set by whichever module linked here (?ctx=cases from Case Files). This page is
 // shared, so the flag decides whether it behaves as a live referral worksheet
 // (Referral Queue) or as a read-only entry in a case history (Case Files).
@@ -1300,7 +1360,7 @@ async function acknowledge() {
     referral.value = { ...referral.value, ...res.data.referral };
     toast?.success('Acknowledged referral.');
   } catch (e) {
-    toast?.error('Failed to acknowledge referral.');
+    toast?.error(e.response?.data?.message || 'Failed to acknowledge referral.');
   } finally {
     acknowledging.value = false;
   }
@@ -1369,6 +1429,7 @@ const showFeedbackConfirm = ref(false);
 const sendingFeedback     = ref(false);
 
 function openFeedbackConfirm() {
+  if (!guardAttendance()) return;
   if (!feedbackForm.value.feedback_notes) {
     toast?.error('Please write a feedback summary before sending.');
     return;
@@ -1377,6 +1438,7 @@ function openFeedbackConfirm() {
 }
 
 async function sendFeedback() {
+  if (!guardAttendance()) return;
   sendingFeedback.value = true;
   try {
     await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
@@ -1386,15 +1448,26 @@ async function sendFeedback() {
     const fresh = await referralAPI.show(referral.value.id);
     referral.value = fresh.data;
     showFeedbackConfirm.value = false;
+    // Each send is a new, locked copy (see FeedbackSlip) - clear the
+    // compose form so it's obviously ready for the next one rather than
+    // looking like the just-sent copy is still open for editing.
+    feedbackForm.value = {
+      feedback_notes: '',
+      feedback_checklist: [],
+      feedback_referred_other_text: '',
+      feedback_others_text: '',
+      feedback_ctrl_no: '',
+    };
     toast?.success('Feedback sent to referrer.');
   } catch (e) {
-    toast?.error('Failed to send feedback.');
+    toast?.error(e.response?.data?.message || 'Failed to send feedback.');
   } finally {
     sendingFeedback.value = false;
   }
 }
 
 async function addIntervention() {
+  if (!guardAttendance()) return;
   if (!interventionForm.value.text) {
     toast?.error('Please describe the intervention.');
     return;
@@ -1419,6 +1492,7 @@ async function addIntervention() {
 }
 
 async function addSanction() {
+  if (!guardAttendance()) return;
   if (!sanctionForm.value.text) {
     toast?.error('Please describe the sanction given.');
     return;
@@ -1439,6 +1513,7 @@ async function addSanction() {
 }
 
 async function addDetailedReport() {
+  if (!guardAttendance()) return;
   if (!detailedReportForm.value.text) {
     toast?.error('Please write the report entry.');
     return;
@@ -1459,14 +1534,20 @@ async function addDetailedReport() {
 }
 
 async function updateStatus() {
+  if (!guardAttendance()) return;
   try {
     const res = await referralAPI.updateStatus(referral.value.id, { status: newStatus.value });
     referral.value.status = res.data.status;
     showStatusModal.value = false;
     toast?.success('Referral status updated.');
   } catch (e) {
-    toast?.error('Failed to update status.');
+    toast?.error(e.response?.data?.message || 'Failed to update status.');
   }
+}
+
+function openStatusModal() {
+  if (!guardAttendance()) return;
+  showStatusModal.value = true;
 }
 
 async function flagUnreachable() {
@@ -1488,12 +1569,14 @@ const tmduError      = ref('');
 const tmduForm       = ref({ reason: '' });
 
 function openTmduModal() {
+  if (!guardAttendance()) return;
   tmduForm.value = { reason: '' };
   tmduError.value = '';
   showTmduModal.value = true;
 }
 
 async function referToTmdu() {
+  if (!guardAttendance()) return;
   if (!tmduForm.value.reason.trim()) {
     tmduError.value = 'Please provide a reason for the referral.';
     return;
@@ -1677,11 +1760,10 @@ onMounted(async () => {
   try {
     const res = await referralAPI.show(route.params.id);
     referral.value = res.data;
-    feedbackForm.value.feedback_notes               = res.data.feedback_notes || '';
-    feedbackForm.value.feedback_checklist            = res.data.feedback_checklist || [];
-    feedbackForm.value.feedback_referred_other_text  = res.data.feedback_referred_other_text || '';
-    feedbackForm.value.feedback_others_text          = res.data.feedback_others_text || '';
-    feedbackForm.value.feedback_ctrl_no              = res.data.feedback_ctrl_no || '';
+    // The compose box always starts blank - it's for writing the NEXT copy,
+    // not editing whatever was last sent (see FeedbackSlip / feedback_slips
+    // below the form, which show the actual sent history).
+    feedbackForm.value.feedback_ctrl_no = res.data.feedback_ctrl_no || '';
 
     newStatus.value = res.data.status || '';
     if (isGCU.value) {

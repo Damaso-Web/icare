@@ -93,6 +93,11 @@ class Referral extends Model
     public function sessionNotes()   { return $this->hasMany(SessionNote::class, 'referral_id')->orderBy('session_date'); }
     public function appointments()   { return $this->hasMany(Appointment::class, 'referral_id')->orderBy('appointment_date'); }
     public function feedbackSentBy() { return $this->belongsTo(User::class, 'feedback_sent_by_user_id'); }
+    // Every Feedback Slip (QF-OSS-03) copy ever sent for this referral - an
+    // append-only log, newest first. See FeedbackSlip: nothing in that
+    // table is ever edited or deleted, so each entry here is a locked,
+    // permanent copy of what was actually sent to the referrer.
+    public function feedbackSlips()  { return $this->hasMany(FeedbackSlip::class, 'referral_id')->orderByDesc('sent_at'); }
     public function admissionIssuedBy() { return $this->belongsTo(User::class, 'admission_issued_by_user_id'); }
     // The TMDU testing workflow record this referral spawned (only present
     // for referral_type = 'psychological_testing' referrals created via
@@ -102,4 +107,30 @@ class Referral extends Model
     // Helpers
     public function isUrgent(): bool  { return in_array($this->urgency_level, ['high', 'critical']); }
     public function isPending(): bool { return $this->status === 'submitted'; }
+
+    // Staff shouldn't be able to write up outcomes (send a feedback slip,
+    // change status, issue an admission slip, refer to TMDU) for a session
+    // that hasn't actually happened yet. This looks at whichever appointment
+    // is currently "live" for this referral - the most recent non-cancelled
+    // one tied to it by referral_id (initial_counseling from acknowledge(),
+    // or whatever follow_up_session was scheduled most recently from the SIF
+    // page) - and returns null once it's been checked in as attended, or a
+    // reason otherwise so callers can explain the block instead of just
+    // failing silently. A real TMDU testing referral (no appointment at all
+    // until scheduleTesting()) correctly reads as 'not_set' right after
+    // acknowledgment.
+    public function attendanceGateReason(): ?string
+    {
+        $current = Appointment::where('referral_id', $this->id)
+            ->where('status', '!=', 'cancelled')
+            ->orderByDesc('appointment_date')
+            ->orderByDesc('start_time')
+            ->first();
+
+        if (!$current) {
+            return 'not_set';
+        }
+
+        return $current->checked_in ? null : 'not_attended';
+    }
 }

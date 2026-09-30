@@ -200,6 +200,21 @@ class CaseController extends Controller
         $this->authorizeStaffAccess();
         $this->authorizeCaseWriter();
 
+        // Same attendance gate as the referral-level actions in
+        // ReferralController (feedback slip, status update, admission slip) -
+        // GCU shouldn't be able to refer a case out for testing before the
+        // student has actually shown up to their current appointment.
+        $currentReferral = $case->latestReferral;
+        if ($currentReferral) {
+            $reason = $currentReferral->attendanceGateReason();
+            if ($reason === 'not_set') {
+                abort(422, 'No appointment has been set for this case yet.');
+            }
+            if ($reason === 'not_attended') {
+                abort(422, 'The student has not yet attended their appointment.');
+            }
+        }
+
         $request->validate(['reason' => 'required|string']);
 
         $user = $request->user();

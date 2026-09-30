@@ -52,6 +52,23 @@ class CaseInterventionController extends Controller
 
         $this->authorizeInterventionAccess($validated['type']);
 
+        // Same attendance gate as ReferralController's referral-level
+        // actions - a specific referral is checked directly; otherwise fall
+        // back to the case's current referral, since a case-level entry
+        // still describes something that happened (or didn't) in a session.
+        $gateReferral = !empty($validated['referral_id'])
+            ? Referral::find($validated['referral_id'])
+            : $case->latestReferral;
+        if ($gateReferral) {
+            $reason = $gateReferral->attendanceGateReason();
+            if ($reason === 'not_set') {
+                abort(422, 'No appointment has been set for this referral yet.');
+            }
+            if ($reason === 'not_attended') {
+                abort(422, 'The student has not yet attended their appointment.');
+            }
+        }
+
         if (!empty($validated['referral_id'])) {
             $referral = Referral::findOrFail($validated['referral_id']);
             if ($referral->case_id !== $case->id) {
