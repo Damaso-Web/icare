@@ -5,27 +5,34 @@
       <p>View and manage your appointment requests.</p>
     </div>
 
-    <!-- Pending Appointment Request Banner - when there's more than one,
-         the student picks which referral's appointment to schedule first
-         instead of always being sent to the oldest one. -->
+    <!-- Pending Appointment Requests - styled like the staff-side SIF's
+         referral rows (badges + a per-row action button) instead of a
+         dropdown, so with more than one the student picks which referral's
+         appointment to schedule by acting on that row directly. -->
     <div v-if="pendingAppointments.length" class="icard" style="border:2px solid var(--moss);margin-bottom:20px">
-      <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+      <div class="icard-header">
+        <span class="icard-title">
+          {{ pendingAppointments.length }} Pending Appointment Request{{ pendingAppointments.length > 1 ? 's' : '' }}
+        </span>
+      </div>
+      <div style="padding:10px 18px;font-size:12px;color:var(--stone);border-bottom:1px solid var(--cloud)">
+        {{ pendingAppointments.length > 1 ? 'Select which one to schedule, one at a time.' : 'Please choose your preferred date and time.' }}
+      </div>
+      <div
+        v-for="pa in pendingAppointments"
+        :key="pa.id"
+        style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"
+      >
         <div>
-          <div style="font-size:14px;font-weight:600;color:var(--ink)">
-            You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}
+          <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:var(--mono)">
+            {{ pa.referral?.referral_code || pa.case?.latest_referral?.referral_code || pa.appointment_code }}
           </div>
-          <div style="font-size:12px;color:var(--stone);margin-top:2px">
-            {{ pendingAppointments.length > 1 ? 'Select which one to schedule, one at a time.' : 'Please choose your preferred date and time.' }}
+          <div style="font-size:12px;color:var(--stone);margin-top:2px;display:flex;align-items:center;gap:6px">
+            <span class="ibadge" :class="'unit-' + pa.unit?.toLowerCase()">{{ pa.unit }}</span>
+            {{ toTitleCase(pa.appointment_type) }}
           </div>
         </div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <select v-if="pendingAppointments.length > 1" v-model="selectedPendingId" class="ifse" style="min-width:220px">
-            <option v-for="pa in pendingAppointments" :key="pa.id" :value="pa.id">
-              {{ pendingLabel(pa) }}
-            </option>
-          </select>
-          <button class="ibtn ibtn-p" @click="goToSchedule(selectedPendingAppointment)">Schedule Now</button>
-        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="goToSchedule(pa)">Schedule Now</button>
       </div>
     </div>
 
@@ -66,7 +73,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -76,17 +83,6 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 const loading = ref(true);
 const appointments = ref([]);
 const pendingAppointments = ref([]);
-const selectedPendingId = ref(null);
-
-const selectedPendingAppointment = computed(() =>
-  pendingAppointments.value.find(pa => pa.id === selectedPendingId.value) || pendingAppointments.value[0]
-);
-
-function pendingLabel(pa) {
-  const code = pa.referral?.referral_code || pa.case?.latest_referral?.referral_code || pa.appointment_code;
-  const type = toTitleCase(pa.appointment_type);
-  return pa.unit ? `${code} · ${type} · ${pa.unit}` : `${code} · ${type}`;
-}
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };
@@ -112,7 +108,6 @@ async function fetchData() {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
-    selectedPendingId.value = pendingAppointments.value[0]?.id || null;
   } catch (e) {
     console.error(e);
   } finally {
