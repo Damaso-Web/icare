@@ -41,6 +41,23 @@ class Student extends Authenticatable
         'temp_password',
         'deactivation_reason',
         'deactivation_notes',
+        'father_first_name',
+        'father_middle_name',
+        'father_last_name',
+        'father_occupation',
+        'father_contact_number',
+        'mother_first_name',
+        'mother_middle_name',
+        'mother_last_name',
+        'mother_occupation',
+        'mother_contact_number',
+        'siblings',
+        'elementary_school',
+        'elementary_year_graduated',
+        'high_school',
+        'high_school_year_graduated',
+        'college_school',
+        'college_year_graduated',
     ];
 
     protected $hidden = [

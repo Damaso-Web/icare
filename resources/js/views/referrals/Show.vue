@@ -651,7 +651,7 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Student</span>
-              <router-link :to="{ name: 'student-show', params: { id: referral.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
+              <button class="ibtn ibtn-g ibtn-sm" @click="showProfileModal = true">Profile</button>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
@@ -676,6 +676,186 @@
             </div>
           </div>
 
+          <!-- Student Profile Modal - shows the full profile (incl. the new
+               Family/Siblings/Educational Attainment fields the student
+               fills in on their own account page) without navigating away
+               from the SIF. Family/Siblings/Education are collapsible
+               dropdown groups, matching the "Related Concerns Comparison"
+               pattern on the Student Profile page, since there can be a
+               variable (and sometimes empty) amount of each. Read-only here -
+               staff edit the base profile via the Student/Client module. -->
+          <div v-if="showProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showProfileModal = false">
+            <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;display:flex;flex-direction:column">
+              <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+                <div style="font-size:15px;font-weight:600;color:var(--ink)">Student Profile</div>
+                <button class="ibtn ibtn-g ibtn-sm" @click="showProfileModal = false">✕</button>
+              </div>
+              <div style="padding:22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
+
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div class="qav" style="width:44px;height:44px;font-size:16px">
+                    {{ initials(referral.student?.first_name, referral.student?.last_name) }}
+                  </div>
+                  <div>
+                    <div style="font-size:14.5px;font-weight:600;color:var(--ink)">
+                      {{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }}
+                    </div>
+                    <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ referral.student?.student_id }}</div>
+                  </div>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.college || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.program || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.year_level || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.section || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.sex || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.contact_number || '-' }}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ referral.student?.email || '-' }}</div>
+                </div>
+
+                <div style="height:1px;background:var(--cloud)"></div>
+
+                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Guardian</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Full Name</div>
+                    <div style="font-size:13px;color:var(--ink)">
+                      {{ [referral.student?.guardian_last_name, referral.student?.guardian_first_name].filter(Boolean).length
+                          ? `${referral.student?.guardian_last_name || ''}, ${referral.student?.guardian_first_name || ''} ${referral.student?.guardian_middle_name || ''}`.trim()
+                          : '-' }}
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Relationship</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.guardian_relationship || '-' }}</div>
+                  </div>
+                  <div>
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Contact</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ referral.student?.guardian_contact || '-' }}</div>
+                  </div>
+                </div>
+
+                <div style="height:1px;background:var(--cloud)"></div>
+
+                <!-- Collapsible groups, same interaction as Related Concerns
+                     Comparison: chevron rotates, count badge always visible. -->
+                <div v-for="group in profileDetailGroups" :key="group.key">
+                  <div
+                    style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
+                    @click="toggleProfileGroup(group.key)"
+                  >
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s;flex-shrink:0" :style="{ transform: expandedProfileGroups[group.key] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+                    <div style="font-size:12.5px;font-weight:700;color:var(--ink)">{{ group.label }}</div>
+                    <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.count }}</span>
+                  </div>
+                  <div v-if="expandedProfileGroups[group.key]" style="padding:4px 0 10px 22px;display:flex;flex-direction:column;gap:10px">
+
+                    <!-- Family Information -->
+                    <template v-if="group.key === 'family'">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.father_last_name, referral.student?.father_first_name, referral.student?.father_middle_name) }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Occupation</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_occupation || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Contact</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_contact_number || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Name</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.mother_last_name, referral.student?.mother_first_name, referral.student?.mother_middle_name) }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Occupation</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_occupation || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Contact</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_contact_number || '-' }}</div>
+                        </div>
+                      </div>
+                    </template>
+
+                    <!-- Siblings Information -->
+                    <template v-else-if="group.key === 'siblings'">
+                      <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
+                      <div class="ts" v-else>
+                        <table class="itable">
+                          <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
+                          <tbody>
+                            <tr v-for="(s, i) in profileSiblings" :key="i">
+                              <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
+                              <td style="font-size:12px">{{ s.age || '-' }}</td>
+                              <td style="font-size:12px">{{ s.occupation || '-' }}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </template>
+
+                    <!-- Educational Attainment -->
+                    <template v-else-if="group.key === 'education'">
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_school || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_year_graduated || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school_year_graduated || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.college_school || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.college_year_graduated || '-' }}</div>
+                        </div>
+                      </div>
+                    </template>
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
           <!-- Case Action - Student Information Files only. Removed entirely
                for an Incident Report. -->
           <div class="icard" v-if="isGCU && referral.case && fromCases && !isIncidentReport">
@@ -694,8 +874,15 @@
                 ⚠ Acknowledge referral first
               </div>
               <template v-if="fromCases">
+                <!-- "Refer to TMDU" creates a separate, sibling Referral
+                     (referral_type psychological_testing) on this same case
+                     - see CaseController::referToTmdu(). This referral's own
+                     testing_record field is never populated (that lives on
+                     the sibling), so this checks tmduTestingRecord (the
+                     sibling's testing record, same computed the PAR Results
+                     card uses) instead. -->
                 <button
-                  v-if="!referral.testing_record || referral.testing_record.status === 'test_results_issued'"
+                  v-if="!tmduTestingRecord || tmduTestingRecord.status === 'test_results_issued'"
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
                   @click="openTmduModal"
@@ -1351,6 +1538,52 @@ function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
 
+// Student Profile Modal - opens in place of navigating away to the
+// Student Profile page (B-: "Profile" button used to redirect out of the
+// SIF). Family/Siblings/Education collapse behind a dropdown toggle, same
+// pattern as Related Concerns Comparison on the Student Profile page.
+const showProfileModal = ref(false);
+const expandedProfileGroups = ref({});
+function toggleProfileGroup(key) {
+  expandedProfileGroups.value = {
+    ...expandedProfileGroups.value,
+    [key]: !expandedProfileGroups.value[key],
+  };
+}
+
+// siblings is stored as JSON on the backend; axios/the API may hand it back
+// already parsed (array) or as a raw string depending on the DB driver, so
+// handle both rather than assuming one shape.
+const profileSiblings = computed(() => {
+  const raw = referral.value.student?.siblings;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+});
+
+// Builds "Last, First Middle" the same way the existing Guardian block
+// does, returning '-' when none of the name parts are filled in.
+function fullName(last, first, middle) {
+  if (![last, first, middle].filter(Boolean).length) return '-';
+  return `${last || ''}, ${first || ''} ${middle || ''}`.trim();
+}
+
+const profileDetailGroups = computed(() => {
+  const s = referral.value.student || {};
+  const familyCount = [s.father_last_name, s.mother_last_name].filter(Boolean).length;
+  const educationCount = [s.elementary_school, s.high_school, s.college_school].filter(Boolean).length;
+  return [
+    { key: 'family', label: 'Family Information', count: familyCount },
+    { key: 'siblings', label: 'Siblings Information', count: profileSiblings.value.length },
+    { key: 'education', label: 'Educational Attainment', count: educationCount },
+  ];
+});
+
 // Document Code Headers - read only here. Revision No. / Effectivity / Ctrl
 // No. for both the Referral Slip (QF-OSS-01) and the Feedback Slip
 // (QF-OSS-03) are edited in Management by admin, not on individual referrals.
@@ -1560,8 +1793,20 @@ async function referToTmdu() {
     referral.value.case.current_unit     = 'TMDU';
     referral.value.case.status           = 'awaiting_testing';
     referral.value.case.referred_to_tmdu = true;
-    showTmduModal.value = false;
+    // The response returns the new sibling referral and its testing record
+    // as separate top-level fields, not nested together - stitch them back
+    // together and add the referral into this case's referrals list so
+    // tmduTestingRecord (and the "Already referred to TMDU" button state)
+    // updates immediately instead of only after a full page reload.
     const newReferral = res.data?.referral;
+    const newTestingRecord = res.data?.testing_record;
+    if (newReferral) {
+      referral.value.case.referrals = [
+        ...(referral.value.case.referrals || []),
+        { ...newReferral, testing_record: newTestingRecord || null },
+      ];
+    }
+    showTmduModal.value = false;
     toast?.success(newReferral ? `Referred to TMDU. New referral ${newReferral.referral_code} created.` : 'Case referred to TMDU.');
   } catch (e) {
     tmduError.value = e.response?.data?.message || 'Failed to refer to TMDU.';

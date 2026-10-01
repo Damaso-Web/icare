@@ -113,6 +113,37 @@ public function updateProfile(Request $request)
         'suffix'         => 'nullable|string|max:20',
         'email'          => 'nullable|email',
         'contact_number' => 'nullable|string|max:11',
+
+        // Family Information - names split into first/middle/last, same as
+        // the student's own name and the guardian_first_name/middle/last
+        // columns, rather than one plain "name" string.
+        'father_first_name'       => 'nullable|string|max:255',
+        'father_middle_name'      => 'nullable|string|max:255',
+        'father_last_name'        => 'nullable|string|max:255',
+        'father_occupation'       => 'nullable|string|max:255',
+        'father_contact_number'   => 'nullable|string|max:11',
+        'mother_first_name'       => 'nullable|string|max:255',
+        'mother_middle_name'      => 'nullable|string|max:255',
+        'mother_last_name'        => 'nullable|string|max:255',
+        'mother_occupation'       => 'nullable|string|max:255',
+        'mother_contact_number'   => 'nullable|string|max:11',
+
+        // Siblings Information - a repeatable list filled in by the student,
+        // same first/middle/last split per sibling.
+        'siblings'                    => 'nullable|array',
+        'siblings.*.first_name'       => 'required|string|max:255',
+        'siblings.*.middle_name'      => 'nullable|string|max:255',
+        'siblings.*.last_name'        => 'required|string|max:255',
+        'siblings.*.age'              => 'nullable|string|max:3',
+        'siblings.*.occupation'       => 'nullable|string|max:255',
+
+        // Educational Attainment (school history)
+        'elementary_school'               => 'nullable|string|max:255',
+        'elementary_year_graduated'       => 'nullable|string|max:4',
+        'high_school'                     => 'nullable|string|max:255',
+        'high_school_year_graduated'      => 'nullable|string|max:4',
+        'college_school'                  => 'nullable|string|max:255',
+        'college_year_graduated'          => 'nullable|string|max:4',
     ]);
 
     $student->update($validated);
