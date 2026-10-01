@@ -1793,21 +1793,34 @@ async function referToTmdu() {
     referral.value.case.current_unit     = 'TMDU';
     referral.value.case.status           = 'awaiting_testing';
     referral.value.case.referred_to_tmdu = true;
-    // The response returns the new sibling referral and its testing record
-    // as separate top-level fields, not nested together - stitch them back
-    // together and add the referral into this case's referrals list so
+    // The response returns the sibling referral and its testing record as
+    // separate top-level fields, not nested together - stitch them back
+    // together and merge the referral into this case's referrals list so
     // tmduTestingRecord (and the "Already referred to TMDU" button state)
     // updates immediately instead of only after a full page reload.
+    //
+    // referral_was_reused tells us whether the backend reused an existing
+    // open psychological_testing referral for this case instead of making a
+    // new one (clicking "Refer to TMDU" more than once used to fork off a
+    // duplicate referral every time) - replace that entry in place rather
+    // than appending, so the list doesn't end up with a client-side
+    // duplicate either.
     const newReferral = res.data?.referral;
     const newTestingRecord = res.data?.testing_record;
+    const wasReused = !!res.data?.referral_was_reused;
     if (newReferral) {
-      referral.value.case.referrals = [
-        ...(referral.value.case.referrals || []),
-        { ...newReferral, testing_record: newTestingRecord || null },
-      ];
+      const merged = { ...newReferral, testing_record: newTestingRecord || null };
+      const existingList = referral.value.case.referrals || [];
+      referral.value.case.referrals = wasReused
+        ? existingList.map(r => (r.id === newReferral.id ? merged : r))
+        : [...existingList, merged];
     }
     showTmduModal.value = false;
-    toast?.success(newReferral ? `Referred to TMDU. New referral ${newReferral.referral_code} created.` : 'Case referred to TMDU.');
+    toast?.success(
+      !newReferral ? 'Case referred to TMDU.'
+      : wasReused ? `Updated the existing TMDU referral ${newReferral.referral_code}.`
+      : `Referred to TMDU. New referral ${newReferral.referral_code} created.`
+    );
   } catch (e) {
     tmduError.value = e.response?.data?.message || 'Failed to refer to TMDU.';
   } finally {

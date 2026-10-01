@@ -990,29 +990,12 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
             Deactivating preserves the student's records, which can be reactivated later if needed.
           </div>
-          <div style="position:relative">
+          <div>
             <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>
-            <input
-              v-model="reasonSearchQuery"
-              class="ifi"
-              placeholder="Search or select a reason..."
-              @focus="showReasonDropdown = true"
-              @input="showReasonDropdown = true; graduateReason = ''"
-              autocomplete="off"
-            />
-            <div
-              v-if="showReasonDropdown && filteredReasons.length > 0"
-              style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:180px;overflow-y:auto;margin-top:4px"
-            >
-              <div
-                v-for="r in filteredReasons"
-                :key="r.value"
-                style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--cloud)"
-                @mouseover="$event.currentTarget.style.background='var(--foam)'"
-                @mouseleave="$event.currentTarget.style.background='#fff'"
-                @click="selectReason(r)"
-              >{{ r.label }}</div>
-            </div>
+            <select v-model="graduateReason" class="ifse">
+              <option value="" disabled>Select a reason...</option>
+              <option v-for="r in REASON_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
           </div>
           <div v-if="graduateReason === 'other'">
             <label class="ifl">Please specify</label>
@@ -1042,7 +1025,7 @@
             You are about to deactivate <strong>{{ studentToGraduate?.first_name }} {{ studentToGraduate?.last_name }}</strong>'s account.
           </div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
-            <div><strong>Reason:</strong> {{ reasonSearchQuery || '—' }}</div>
+            <div><strong>Reason:</strong> {{ graduateReasonLabel || '—' }}</div>
             <div v-if="graduateReason === 'other' && graduateNotes" style="margin-top:4px"><strong>Details:</strong> {{ graduateNotes }}</div>
           </div>
           <div v-if="deactivating" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);background:var(--foam);border-radius:var(--r-sm);padding:10px 14px">
@@ -1143,16 +1126,9 @@ const REASON_OPTIONS = [
   { value: 'disciplinary_suspension', label: 'Disciplinary Suspension' },
   { value: 'other', label: 'Other' },
 ];
-const reasonSearchQuery = ref('');
-const showReasonDropdown = ref(false);
-const filteredReasons = computed(() =>
-  REASON_OPTIONS.filter(r => r.label.toLowerCase().includes(reasonSearchQuery.value.toLowerCase()))
+const graduateReasonLabel = computed(() =>
+  REASON_OPTIONS.find(r => r.value === graduateReason.value)?.label || ''
 );
-function selectReason(r) {
-  graduateReason.value = r.value;
-  reasonSearchQuery.value = r.label;
-  showReasonDropdown.value = false;
-}
 
 const addError = ref('');
 const createdPassword = ref('');
@@ -1708,8 +1684,6 @@ async function doGraduate() {
 function confirmGraduate(s) {
   studentToGraduate.value = s;
   graduateReason.value = '';
-  reasonSearchQuery.value = '';
-  showReasonDropdown.value = false;
   graduateNotes.value = '';
   showGraduateModal.value = true;
 }

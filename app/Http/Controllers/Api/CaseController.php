@@ -203,36 +203,47 @@ class CaseController extends Controller
 
         $user = $request->user();
 
-        // Per the team's decision: referring a case to TMDU for psychological
-        // testing now also creates a real, shared Referral row (referral_type
-        // psychological_testing) under the same case - not just a
-        // TestingRecord as before. This is what makes the referral itself
-        // (not the whole case) show up as shared between GCU and TMDU, in
-        // the Referral Queue / SIF for both units.
-        $referral = Referral::create([
-            'student_id'          => $case->student_id,
-            'case_id'             => $case->id,
-            'referred_by_user_id' => $user->id,
-            'referrer_name'       => $user->name,
-            'referrer_role'       => $user->role,
-            'referrer_college'    => $user->college,
-            'referral_type'       => 'psychological_testing',
-            'nature_of_concern'   => $request->reason,
-            'status'              => 'submitted',
-        ]);
-
         // If the student already has a Testing Record that hasn't been
-        // finished yet (not 'test_results_issued'), this new referral is
-        // just another escalation into that SAME record rather than a brand
-        // new one - re-referring a student TMDU is already working with
-        // doesn't fork off a second, disconnected record. The record's own
-        // progress (status, assigned tester, etc.) is left untouched; only
-        // the referral it's currently tied to (and the reason on file)
-        // moves to this newest one.
+        // finished yet (not 'test_results_issued'), this is just another
+        // escalation into that SAME record and its SAME referral, rather
+        // than forking off a brand new pair of them - re-referring a
+        // student TMDU is already working with doesn't fork off a second,
+        // disconnected engagement.
+        //
+        // This also fixes "Refer to TMDU" creating a duplicate Referral row
+        // every time it was clicked for the same case: the referral's own
+        // `status` never gets synced when TMDU finishes testing (nothing
+        // sets it to completed/closed), so checking the referral's status
+        // directly can't tell "still in progress" from "done, go again" -
+        // but the TestingRecord's status always can, so that is what both
+        // the referral and the testing record now key off, together.
         $testing = TestingRecord::where('student_id', $case->student_id)
             ->where('status', '!=', 'test_results_issued')
             ->latest()
             ->first();
+
+        // Tracked separately so the response can tell the frontend whether
+        // this click actually created a new referral or just updated the
+        // one already open, so the UI can message it accurately instead of
+        // always saying "New referral created".
+        $referralWasReused = (bool) ($testing && $testing->referral);
+        $referral = $referralWasReused ? $testing->referral : null;
+
+        if ($referral) {
+            $referral->update(['nature_of_concern' => $request->reason]);
+        } else {
+            $referral = Referral::create([
+                'student_id'          => $case->student_id,
+                'case_id'             => $case->id,
+                'referred_by_user_id' => $user->id,
+                'referrer_name'       => $user->name,
+                'referrer_role'       => $user->role,
+                'referrer_college'    => $user->college,
+                'referral_type'       => 'psychological_testing',
+                'nature_of_concern'   => $request->reason,
+                'status'              => 'submitted',
+            ]);
+        }
 
         if ($testing) {
             $testing->update([
@@ -278,7 +289,12 @@ class CaseController extends Controller
             Notification::send($case->student, new ReferredToTmduNotification($case));
         }
 
-        return response()->json(['case' => $case, 'referral' => $referral, 'testing_record' => $testing]);
+        return response()->json([
+            'case' => $case,
+            'referral' => $referral,
+            'testing_record' => $testing,
+            'referral_was_reused' => $referralWasReused,
+        ]);
     }
 
     public function referExternal(Request $request, CaseFile $case)
