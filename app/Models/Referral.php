@@ -111,4 +111,19 @@ class Referral extends Model
     // Helpers
     public function isUrgent(): bool  { return in_array($this->urgency_level, ['high', 'critical']); }
     public function isPending(): bool { return $this->status === 'submitted'; }
+
+    // Gate for Case Action: sending a Feedback Slip, referring to TMDU, or
+    // completing this referral should only be possible once an appointment
+    // has actually happened for the case as a whole - "set" (any row
+    // exists) is not enough, the student has to have shown up (status
+    // 'completed', set by AppointmentController::checkIn()). Checked at the
+    // case level (CaseFile::hasAttendedAppointment()) since this is a gate
+    // on the SIF as a whole, not a single referral's own appointment list;
+    // falls back to this referral's own appointments if it has no case yet.
+    public function hasAttendedAppointment(): bool
+    {
+        return $this->case
+            ? $this->case->hasAttendedAppointment()
+            : $this->appointments()->where('status', 'completed')->exists();
+    }
 }

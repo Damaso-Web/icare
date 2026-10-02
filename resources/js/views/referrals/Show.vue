@@ -443,7 +443,12 @@
             </div>
 
             <div class="icard-body">
-              <template v-if="isGCU">
+              <template v-if="isGCU && !hasAttendedAppointment">
+                <div style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone)">
+                  ⚠ An appointment must be set and the student must have attended it before a feedback slip can be sent.
+                </div>
+              </template>
+              <template v-else-if="isGCU">
                 <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided</div>
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
                   <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
@@ -880,9 +885,17 @@
                      testing_record field is never populated (that lives on
                      the sibling), so this checks tmduTestingRecord (the
                      sibling's testing record, same computed the PAR Results
-                     card uses) instead. -->
+                     card uses) instead. Also gated on hasAttendedAppointment -
+                     an appointment must be set AND attended before the case
+                     can be escalated, same gate the backend enforces. -->
+                <div v-if="tmduTestingRecord && tmduTestingRecord.status !== 'test_results_issued'" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
+                  ✓ Already referred to TMDU
+                </div>
+                <div v-else-if="!hasAttendedAppointment" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                  ⚠ An appointment must be set and attended before referring to TMDU
+                </div>
                 <button
-                  v-if="!tmduTestingRecord || tmduTestingRecord.status === 'test_results_issued'"
+                  v-else
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
                   @click="openTmduModal"
@@ -890,31 +903,23 @@
                   <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                   Refer to TMDU
                 </button>
-                <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
-                  ✓ Already referred to TMDU
+
+                <div v-if="['completed', 'closed'].includes(referral.status)" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
+                  ✓ Referral completed
+                </div>
+                <div v-else-if="!hasAttendedAppointment" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                  ⚠ An appointment must be set and attended before completing this referral
                 </div>
                 <button
-                  v-if="!['completed', 'closed'].includes(referral.status)"
+                  v-else
                   class="ibtn ibtn-p"
                   style="width:100%;justify-content:center"
-                  @click="completeReferral"
+                  @click="showCompleteReferralModal = true"
                 >
                   <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                   Complete Referral
                 </button>
-                <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
-                  ✓ Referral completed
-                </div>
               </template>
-              <router-link
-                :to="{ name: 'case-study-report', params: { id: referral.case.id } }"
-                target="_blank"
-                class="ibtn ibtn-o"
-                style="width:100%;justify-content:center"
-              >
-                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                View Case Study Report
-              </router-link>
             </div>
           </div>
 
@@ -1247,6 +1252,28 @@
         </div>
       </div>
 
+      <!-- Complete Referral Confirmation Modal - replaces the browser's
+           native confirm() popup, which looked and behaved differently from
+           every other confirmation in the app. -->
+      <div v-if="showCompleteReferralModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!completingReferral && (showCompleteReferralModal = false)">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark Referral as Completed?</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:13px;color:var(--slate);line-height:1.6">
+              This marks referral <strong>{{ referral.referral_code }}</strong> as completed. You can still reopen it later through Update Status if needed.
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="completingReferral" @click="completeReferral">
+                {{ completingReferral ? 'Completing...' : 'Mark Completed' }}
+              </button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="completingReferral" @click="showCompleteReferralModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Transfer Unit Modal -->
       <div v-if="showTransferModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTransferModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -1381,13 +1408,26 @@ const referralAppointments = computed(() => {
   return all.filter(a => a.referral_id === referral.value.id);
 });
 
-// Handoffs made before the referral_id column existed can't be attributed
-// to one referral, so they still show on every referral of the case (the
-// old behavior); a handoff made from this point on is tagged with the
-// referral it was actually endorsed from and only shows there.
+// Case Action gate: Send Feedback Slip, Refer to TMDU, and Complete
+// Referral should all stay unavailable until an appointment for this case
+// has actually happened - "set" (any row exists) isn't enough, the student
+// has to have shown up. Checked case-wide (not just this referral's own
+// appointments), matching the backend check in CaseFile::hasAttendedAppointment()
+// / Referral::hasAttendedAppointment(). "Schedule Appointment" itself is
+// never gated by this - it has to stay clickable precisely so staff can set
+// the appointment that satisfies this gate.
+const hasAttendedAppointment = computed(() => {
+  const all = referral.value.case?.appointments || [];
+  return all.some(a => a.status === 'completed');
+});
+
+// Every handoff (Endorse to Unit, Refer to TMDU) is tagged with the
+// referral it was actually made from, so it should only ever show up in
+// that one referral's own Handoff/Endorsement History - never on every
+// referral under the same case.
 const caseHandoffs = computed(() => {
   const all = referral.value.case?.handoffs || [];
-  return all.filter(h => !h.referral_id || h.referral_id === referral.value.id);
+  return all.filter(h => h.referral_id === referral.value.id);
 });
 
 // "Refer to TMDU" creates a separate, sibling Referral (referral_type
@@ -1757,15 +1797,23 @@ async function updateStatus() {
 
 // One-click shortcut for the common case (mark this referral done) instead
 // of having to open Update Status and pick "Completed" from the dropdown.
+// Confirmation now happens via the in-app modal (showCompleteReferralModal)
+// instead of the browser's native confirm() popup.
+const showCompleteReferralModal = ref(false);
+const completingReferral = ref(false);
+
 async function completeReferral() {
-  if (!confirm('Mark this referral as completed?')) return;
+  completingReferral.value = true;
   try {
     const res = await referralAPI.updateStatus(referral.value.id, { status: 'completed' });
     referral.value.status = res.data.status;
     newStatus.value = res.data.status;
+    showCompleteReferralModal.value = false;
     toast?.success('Referral marked as completed.');
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to complete referral.');
+  } finally {
+    completingReferral.value = false;
   }
 }
 

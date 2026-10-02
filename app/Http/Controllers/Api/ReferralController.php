@@ -489,6 +489,15 @@ class ReferralController extends Controller
         $request->validate([
             'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
         ]);
+
+        // "Complete Referral" goes through this same endpoint (status =
+        // completed) - an appointment must be set AND attended before the
+        // SIF can be marked done. Only gates that one target status; every
+        // other status move in the normal workflow is unaffected.
+        if ($request->status === 'completed' && !$referral->hasAttendedAppointment()) {
+            abort(422, 'An appointment must be set and the student must have attended it before this referral can be marked completed.');
+        }
+
         $old = ['status' => $referral->status];
         $referral->update(['status' => $request->status]);
         AuditLog::record('status_updated', "Updated referral {$referral->referral_code} status to {$request->status}.", $referral, $old);
@@ -506,6 +515,13 @@ class ReferralController extends Controller
         $user = $request->user();
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');
+        }
+
+        // An appointment must be set AND attended before a Feedback Slip can
+        // go out - previously this could be sent before the student had even
+        // shown up to anything.
+        if (!$referral->hasAttendedAppointment()) {
+            abort(422, 'An appointment must be set and the student must have attended it before a feedback slip can be sent.');
         }
 
         $validated = $request->validate([

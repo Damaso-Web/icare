@@ -8,7 +8,6 @@
            instead of having to re-find the case afterward. -->
       <button v-if="returnTo" class="ibtn ibtn-o ibtn-sm" @click="$router.push(returnTo)">
         <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Case File
       </button>
       <div>
         <h1>Appointment Calendar</h1>

@@ -25,7 +25,6 @@
     <div class="ph" style="margin-bottom:20px;display:flex;align-items:center;gap:10px">
       <button v-if="returnTo" class="ibtn ibtn-o ibtn-sm" @click="$router.push(returnTo)">
         <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Testing Record
       </button>
       <div>
         <h1>TMDU Appointments</h1>

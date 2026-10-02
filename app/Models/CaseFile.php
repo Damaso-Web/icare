@@ -95,6 +95,16 @@ class CaseFile extends Model
 
     public function isOpen(): bool  { return !in_array($this->status, ['resolved', 'closed']); }
 
+    // Gate for Case Action in the SIF: sending a Feedback Slip, referring to
+    // TMDU, or completing a referral should only be possible once an
+    // appointment under this case has actually happened - "set" (any row
+    // exists) is not enough, the student has to have shown up (status
+    // 'completed', set by AppointmentController::checkIn()).
+    public function hasAttendedAppointment(): bool
+    {
+        return $this->appointments()->where('status', 'completed')->exists();
+    }
+
     // Anything that would make an inactivity-based auto-transition wrong:
     // a session logged recently, an intervention logged recently, or an
     // upcoming appointment that just hasn't happened yet.

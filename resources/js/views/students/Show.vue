@@ -72,7 +72,25 @@
 
           <!-- Referral List -->
           <div class="icard">
-            <div class="icard-header"><span class="icard-title">Referrals</span></div>
+            <div class="icard-header">
+              <span class="icard-title">Referrals</span>
+              <!-- View Case Study Report - moved here from each individual
+                   Referral Details page's Case Action card, since the
+                   report is case-level (it only ever takes the case id),
+                   not referral-level - it belongs on the main SIF page,
+                   next to the linked referrals it covers, not repeated on
+                   every one of them. -->
+              <router-link
+                v-if="primaryCase"
+                :to="{ name: 'case-study-report', params: { id: primaryCase.id } }"
+                target="_blank"
+                class="ibtn ibtn-o ibtn-sm"
+                style="margin-left:auto"
+              >
+                <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                View Case Study Report
+              </router-link>
+            </div>
             <div style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
               <div style="position:relative">
                 <svg viewBox="0 0 24 24" style="width:15px;height:15px;position:absolute;left:10px;top:50%;transform:translateY(-50%);stroke:var(--fog);fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -94,7 +112,6 @@
                     <th>Refer No.</th>
                     <th>Type</th>
                     <th>Unit</th>
-                    <th>Case Status</th>
                     <th>Status</th>
                     <th>Date</th>
                     <th></th>
@@ -110,7 +127,6 @@
                     <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
                     <td>{{ toTitleCase(r.referral_type) }}</td>
                     <td><span class="ibadge" :class="'unit-' + referralUnit(r.referral_type).toLowerCase()">{{ referralUnit(r.referral_type) }}</span></td>
-                    <td><span v-if="r.case" class="ibadge" :class="'ibadge-' + r.case.status">{{ toTitleCase(r.case.status) }}</span><span v-else>-</span></td>
                     <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                     <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
                     <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">View</button></td>

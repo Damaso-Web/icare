@@ -203,6 +203,13 @@ class CaseController extends Controller
 
         $user = $request->user();
 
+        // An appointment must be set AND attended before this case can be
+        // escalated to TMDU - previously a referral could be sent off to
+        // TMDU before the student had even shown up to anything.
+        if (!$case->hasAttendedAppointment()) {
+            abort(422, 'An appointment must be set and the student must have attended it before this case can be referred to TMDU.');
+        }
+
         // If the student already has a Testing Record that hasn't been
         // finished yet (not 'test_results_issued'), this is just another
         // escalation into that SAME record and its SAME referral, rather
@@ -269,8 +276,14 @@ class CaseController extends Controller
             'status'           => 'awaiting_testing',
         ]);
 
+        // Tagged with the referral this escalation was actually made from
+        // (not just the case) so it only shows up in that one referral's own
+        // Handoff/Endorsement History instead of bleeding into every other
+        // referral under the same case - see Referral Show.vue's
+        // caseHandoffs computed, which keys off this column.
         CaseHandoff::create([
             'case_id'      => $case->id,
+            'referral_id'  => $referral->id,
             'from_user_id' => $user->id,
             'to_user_id'   => $user->id,
             'from_unit'    => 'GCU',
