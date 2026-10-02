@@ -199,9 +199,18 @@ class CaseController extends Controller
         $this->authorizeStaffAccess();
         $this->authorizeCaseWriter();
 
-        $request->validate(['reason' => 'required|string']);
+        // referral_id is the GCU-side referral the staff member actually
+        // clicked "Refer to TMDU" from (referrals/Show.vue sends
+        // referral.value.id) - this is what scopes the escalation to that
+        // one referral instead of sharing it across every referral on the
+        // case. See $sourceReferral below.
+        $request->validate([
+            'reason'      => 'required|string',
+            'referral_id' => 'required|exists:referrals,id',
+        ]);
 
         $user = $request->user();
+        $sourceReferral = Referral::findOrFail($request->referral_id);
 
         // An appointment must be set AND attended before this case can be
         // escalated to TMDU - previously a referral could be sent off to
@@ -210,21 +219,27 @@ class CaseController extends Controller
             abort(422, 'An appointment must be set and the student must have attended it before this case can be referred to TMDU.');
         }
 
-        // If the student already has a Testing Record that hasn't been
-        // finished yet (not 'test_results_issued'), this is just another
-        // escalation into that SAME record and its SAME referral, rather
-        // than forking off a brand new pair of them - re-referring a
-        // student TMDU is already working with doesn't fork off a second,
-        // disconnected engagement.
+        // Scoped per-referral, not per-case: re-clicking "Refer to TMDU"
+        // from the SAME referral reuses that referral's own unfinished
+        // Testing Record (not 'test_results_issued' yet) rather than
+        // forking off a brand new pair of them. A DIFFERENT referral under
+        // the same case (one student has one case for life, so it's common
+        // for several unrelated referrals to share a case) always starts
+        // its own, independent escalation instead - it is never blocked or
+        // merged into a TMDU escalation some other referral already has in
+        // progress. source_referral_id is what makes this possible; records
+        // created before that column existed won't have one and so won't
+        // be matched here (treated as belonging to no particular referral).
         //
         // This also fixes "Refer to TMDU" creating a duplicate Referral row
-        // every time it was clicked for the same case: the referral's own
-        // `status` never gets synced when TMDU finishes testing (nothing
-        // sets it to completed/closed), so checking the referral's status
-        // directly can't tell "still in progress" from "done, go again" -
-        // but the TestingRecord's status always can, so that is what both
-        // the referral and the testing record now key off, together.
-        $testing = TestingRecord::where('student_id', $case->student_id)
+        // every time it was clicked for the same referral: the referral's
+        // own `status` never gets synced when TMDU finishes testing
+        // (nothing sets it to completed/closed), so checking the referral's
+        // status directly can't tell "still in progress" from "done, go
+        // again" - but the TestingRecord's status always can, so that is
+        // what both the referral and the testing record now key off,
+        // together.
+        $testing = TestingRecord::where('source_referral_id', $sourceReferral->id)
             ->where('status', '!=', 'test_results_issued')
             ->latest()
             ->first();
@@ -263,6 +278,7 @@ class CaseController extends Controller
             $testing = TestingRecord::create([
                 'case_id'             => $case->id,
                 'referral_id'         => $referral->id,
+                'source_referral_id'  => $sourceReferral->id,
                 'student_id'          => $case->student_id,
                 'referred_by_user_id' => $user->id,
                 'reason'              => $request->reason,

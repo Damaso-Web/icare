@@ -13,6 +13,7 @@ class TestingRecord extends Model
     protected $fillable = [
         'case_id',
         'referral_id',
+        'source_referral_id',
         'student_id',
         'referred_by_user_id',
         'reason',
@@ -48,6 +49,15 @@ class TestingRecord extends Model
     // The shared GCU<->TMDU Referral this testing record was created from.
     // Nullable - records created before this link existed won't have one.
     public function referral()    { return $this->belongsTo(Referral::class); }
+    // The GCU-side referral that this specific TMDU escalation was actually
+    // started from (CaseController::referToTmdu()) - NOT the same thing as
+    // referral() above, which is this record's own psychological_testing
+    // sibling referral. This is what scopes "Refer to TMDU" / "Already
+    // referred to TMDU" per-referral on referrals/Show.vue's
+    // tmduTestingRecord computed, instead of sharing one TMDU escalation
+    // across every referral under the case. Nullable - records created
+    // before this column existed won't have one.
+    public function sourceReferral() { return $this->belongsTo(Referral::class, 'source_referral_id'); }
     public function student()     { return $this->belongsTo(Student::class); }
     public function referredBy()  { return $this->belongsTo(User::class, 'referred_by_user_id'); }
     public function tester()      { return $this->belongsTo(User::class, 'assigned_tester_user_id'); }

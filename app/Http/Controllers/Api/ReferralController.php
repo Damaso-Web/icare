@@ -298,14 +298,13 @@ class ReferralController extends Controller
     // the TestingRecord into its next stage.
     $isTmduTesting = $referral->testingRecord()->exists();
 
-    // A TMDU testing cycle can't be acknowledged - or touched at all - until
-    // a psychometrician (TMDU staff/head) has actually claimed it via
-    // TestingRecordController::assign(). Mirrors the same gate on every
-    // TestingRecordController action, so this is the one place a testing
-    // referral could otherwise slip past it.
-    if ($isTmduTesting && !optional($referral->testingRecord)->assigned_tester_user_id) {
-        abort(422, 'Assign a tester to this testing record before acknowledging it.');
-    }
+    // Previously this required a psychometrician (TMDU staff/head) to have
+    // already claimed the testing record via TestingRecordController::
+    // assign() before the referral itself could even be acknowledged.
+    // Acknowledging only records that GCU/TMDU has picked the referral up -
+    // it shouldn't be blocked on a separate staffing step. Assigning a
+    // tester is still done the same way, any time, from the Testing Record
+    // Details page; it just no longer has to happen first.
 
     // Everything below - the referral/case updates, the appointment
     // creation, and the audit log entry - must succeed or fail together.
