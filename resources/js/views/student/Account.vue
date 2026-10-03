@@ -11,19 +11,20 @@
         <div class="icard-header"><span class="icard-title">Profile Information</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="profileError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileError }}</div>
+          <div v-if="profileSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileSuccess }}</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="profileForm.last_name" class="ifi" @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+              <input v-model="profileForm.last_name" class="ifi" maxlength="20" @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="profileForm.first_name" class="ifi" @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+              <input v-model="profileForm.first_name" class="ifi" maxlength="20" @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, '')" />
             </div>
           </div>
           <div>
             <label class="ifl">Middle Name</label>
-            <input v-model="profileForm.middle_name" class="ifi" @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+            <input v-model="profileForm.middle_name" class="ifi" maxlength="20" @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, '')" />
           </div>
           <div>
             <label class="ifl">Suffix</label>
@@ -34,11 +35,13 @@
               <option value="I">I</option>
               <option value="II">II</option>
               <option value="III">III</option>
+              <option value="IV">IV</option>
+              <option value="V">V</option>
             </select>
           </div>
           <div>
             <label class="ifl">Email Address</label>
-            <input v-model="profileForm.email" type="email" class="ifi" />
+            <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" />
           </div>
           <div>
             <label class="ifl">Contact Number</label>
@@ -59,6 +62,7 @@
         <div class="icard-header"><span class="icard-title">Family &amp; Educational Background</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
           <div v-if="backgroundError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundError }}</div>
+          <div v-if="backgroundSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundSuccess }}</div>
 
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Family Information</div>
 
@@ -191,17 +195,27 @@
         <div class="icard-header"><span class="icard-title">Change Password</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pwError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwError }}</div>
+          <div v-if="pwSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwSuccess }}</div>
           <div>
             <label class="ifl">Current Password</label>
-            <input v-model="pwForm.current_password" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
+              <button type="button" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showCurrentPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <div>
             <label class="ifl">New Password</label>
-            <input v-model="pwForm.password" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
+              <button type="button" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showNewPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <div>
             <label class="ifl">Confirm New Password</label>
-            <input v-model="pwForm.password_confirmation" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
+              <button type="button" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showConfirmPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="changePassword">Change Password</button>
         </div>
@@ -222,8 +236,29 @@ const profileForm = ref({ first_name: '', last_name: '', middle_name: '', suffix
 const profileSnapshot = ref('');
 const isProfileUnchanged = computed(() => JSON.stringify(profileForm.value) === profileSnapshot.value);
 const profileError = ref('');
+const profileSuccess = ref('');
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
 const pwError = ref('');
+const pwSuccess = ref('');
+const showCurrentPw = ref(false);
+const showNewPw = ref(false);
+const showConfirmPw = ref(false);
+
+// B271: the old fallback - e.response?.data?.message - showed Laravel's
+// generic "The given data was invalid." on a validation failure (password
+// too short, confirmation mismatch, etc.) instead of saying what was
+// actually wrong. The real per-field reasons are in e.response.data.errors;
+// this surfaces the first one instead, falling back to the current-password
+// check's own specific message (which isn't a validation error, just a 422)
+// or the generic fallback only when neither is present.
+function firstApiError(e, fallback) {
+  const errors = e.response?.data?.errors;
+  if (errors) {
+    const firstField = Object.keys(errors)[0];
+    if (firstField && errors[firstField]?.[0]) return errors[firstField][0];
+  }
+  return e.response?.data?.message || fallback;
+}
 
 function emptyBackgroundForm() {
   return {
@@ -239,6 +274,7 @@ const backgroundForm = ref(emptyBackgroundForm());
 const backgroundSnapshot = ref('');
 const isBackgroundUnchanged = computed(() => JSON.stringify(backgroundForm.value) === backgroundSnapshot.value);
 const backgroundError = ref('');
+const backgroundSuccess = ref('');
 
 function addSibling() {
   backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', age: '', occupation: '' });
@@ -253,6 +289,7 @@ function authHeaders() {
 
 async function saveProfile() {
   profileError.value = '';
+  profileSuccess.value = '';
 
   if (profileForm.value.contact_number && !/^09\d{9}$/.test(profileForm.value.contact_number)) {
     profileError.value = 'Contact number must start with 09 and be 11 digits long.';
@@ -264,13 +301,15 @@ async function saveProfile() {
     student.value = { ...student.value, ...res.data };
     localStorage.setItem('student', JSON.stringify(student.value));
     profileSnapshot.value = JSON.stringify(profileForm.value);
+    profileSuccess.value = 'Profile updated successfully.';
   } catch (e) {
-    profileError.value = e.response?.data?.message || 'Failed to update profile.';
+    profileError.value = firstApiError(e, 'Failed to update profile.');
   }
 }
 
 async function saveBackground() {
   backgroundError.value = '';
+  backgroundSuccess.value = '';
 
   for (const sib of backgroundForm.value.siblings) {
     if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
@@ -286,20 +325,26 @@ async function saveBackground() {
     // exactly what was just saved.
     await axios.put(`${API_BASE}/student/profile`, backgroundForm.value, authHeaders());
     backgroundSnapshot.value = JSON.stringify(backgroundForm.value);
+    backgroundSuccess.value = 'Family and educational background updated successfully.';
   } catch (e) {
-    backgroundError.value = e.response?.data?.message || 'Failed to update your family and educational background.';
+    backgroundError.value = firstApiError(e, 'Failed to update your family and educational background.');
   }
 }
 
 async function changePassword() {
   pwError.value = '';
+  pwSuccess.value = '';
   try {
     await axios.put(`${API_BASE}/student/password`, pwForm.value, authHeaders());
     student.value.must_change_password = false;
     localStorage.setItem('student', JSON.stringify(student.value));
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
+    showCurrentPw.value = false;
+    showNewPw.value = false;
+    showConfirmPw.value = false;
+    pwSuccess.value = 'Password changed successfully.';
   } catch (e) {
-    pwError.value = e.response?.data?.message || 'Failed to change password.';
+    pwError.value = firstApiError(e, 'Failed to change password.');
   }
 }
 

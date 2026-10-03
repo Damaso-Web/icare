@@ -49,6 +49,7 @@
               v-model="studentSearchQuery"
               class="ifi"
               placeholder="e.g. 2302021 or Dela Cruz"
+              maxlength="100"
               @keypress="blockSpecialKeypress"
               @input="onStudentSearch"
               @focus="showStudentDropdown = studentSuggestions.length > 0"
@@ -248,7 +249,7 @@
           </div>
 
           <div style="margin-bottom:14px">
-            <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span></label>
+            <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 1000 characters)</span></label>
             <textarea
               v-model="form.nature_of_concern"
               class="ifta"
@@ -280,7 +281,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Referral Details</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showPreview = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
@@ -581,11 +581,7 @@ async function selectStudent(s) {
 }
 
 function goBack() {
-  if (isFacultyOrDean.value) {
-    router.push({ name: 'dashboard' });
-  } else {
-    router.push({ name: 'referrals' });
-  }
+  router.back();
 }
 
 function handleSubmit() {
@@ -685,4 +681,4 @@ onMounted(() => {
   fetchFormOptions();
   fetchDocSettings();
 });
-</script>
+</script>s

@@ -162,7 +162,7 @@
           <div style="height:1px;background:var(--cloud);margin:4px 0"></div>
 
           <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Guardian Information</div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Legal Guardian Information</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
@@ -371,7 +371,7 @@
           </div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:4px">
-            Guardian Information
+            Legal Guardian Information
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
 
@@ -455,7 +455,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showEditConfirm = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">
@@ -730,7 +729,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Student Details</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showAddPreview = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">Please review the information below before adding this student:</div>
@@ -747,12 +745,12 @@
             <div><strong>Program:</strong> {{ addForm.program }}</div>
             <div><strong>Year Level:</strong> {{ addForm.year_level }}</div>
             <div><strong>Section:</strong> {{ addForm.section }}</div>
-            <div><strong>Email:</strong> {{ addForm.email }}</div>
+            <div><strong>Email Address:</strong> {{ addForm.email }}</div>
             <div><strong>Contact Number:</strong> {{ addForm.contact_number }}</div>
           </div>
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px">
-            Guardian Information
+            Legal Guardian Information
             <div style="flex:1;height:1px;background:var(--cloud)"></div>
           </div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
@@ -925,7 +923,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Masterlist Upload</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">Please review the summary below before uploading:</div>

@@ -45,8 +45,6 @@ class DashboardController extends Controller
             'stats' => [
                 'open_cases'        => CaseFile::whereIn('status', ['open', 'in_progress'])->count(),
                 'pending_referrals' => Referral::where('status', 'submitted')->count(),
-                'high_priority'     => Referral::where('urgency_level', 'high')
-                                        ->whereNotIn('status', ['completed', 'closed'])->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'GCU')
                                         ->whereNotIn('status', ['cancelled'])->count(),

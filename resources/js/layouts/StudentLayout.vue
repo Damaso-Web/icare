@@ -184,7 +184,7 @@ function isActive(name) {
 function logout() {
   localStorage.removeItem('student_token');
   localStorage.removeItem('student');
-  router.push({ name: 'student-login' });
+  router.push({ name: 'login-choice' });
 }
 
 const showBackToStaff = computed(() => {

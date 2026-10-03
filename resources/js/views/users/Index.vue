@@ -268,15 +268,13 @@
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <select v-model="userForm.suffix" class="ifse">
-                <option value="">None</option>
-                <option value="Jr.">Jr.</option>
-                <option value="Sr.">Sr.</option>
-                <option value="II">II</option>
-                <option value="III">III</option>
-                <option value="IV">IV</option>
-                <option value="V">V</option>
-              </select>
+              <input
+                v-model="userForm.suffix"
+                class="ifi"
+                maxlength="20"
+                placeholder="Jr., Sr., III"
+                @input="userForm.suffix = onlyLettersStrict(userForm.suffix)"
+              />
             </div>
           </div>
 
@@ -394,7 +392,6 @@
           <div style="font-size:15px;font-weight:600;color:var(--ink)">
             {{ isEditing ? 'Confirm Changes' : (isFacultyView ? 'Confirm New Faculty' : 'Confirm New Employee') }}
           </div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showUserPreview = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">
@@ -431,7 +428,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="closeImportModal">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
 
@@ -457,6 +453,7 @@
               </div>
               <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
             </div>
+            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="closeImportModal">Cancel</button>
           </template>
 
           <template v-else>
@@ -527,7 +524,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Masterlist Upload</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showImportConfirm = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">Please review the summary below before uploading:</div>
@@ -627,7 +623,7 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {

@@ -234,7 +234,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Appointment</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showConfirmModal = false">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:6px">
@@ -382,7 +381,11 @@ const loading    = ref(true);
 const appointments = ref([]);
 const allAppointments = ref([]);
 const pagination = ref({});
-const filters = ref({ unit: '', status: 'pending', date: '' });
+// B282: this used to default to 'pending', hiding every other status
+// (confirmed, completed, etc.) until staff manually cleared the filter.
+// '' matches the "All" option below, so the calendar shows everything by
+// default.
+const filters = ref({ unit: '', status: '', date: '' });
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
@@ -616,7 +619,7 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { unit: '', status: 'pending', date: '' };
+  filters.value = { unit: '', status: '', date: '' };
   previewDate.value = null;
   fetchAppointments();
 }

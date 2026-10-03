@@ -16,13 +16,13 @@
         <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
         Generate
       </button>
-      <button class="ibtn ibtn-o ibtn-sm">
+      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportReport('pdf')">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export PDF
+        {{ exporting === 'pdf' ? 'Exporting...' : 'Export PDF' }}
       </button>
-      <button class="ibtn ibtn-o ibtn-sm">
+      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportReport('excel')">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export Excel
+        {{ exporting === 'excel' ? 'Exporting...' : 'Export Excel' }}
       </button>
     </div>
 
@@ -231,13 +231,45 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
+import axios from 'axios';
 import { reportAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
+
+const toast = inject('toast');
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
 
 const loading  = ref(true);
 const dateFrom = ref('');
 const dateTo   = ref('');
+const exporting = ref('');
+
+async function exportReport(format) {
+  exporting.value = format;
+  try {
+    const res = await axios.get(`${API_BASE}/reports/export/${format}`, {
+      ...authHeaders(),
+      params: { date_from: dateFrom.value, date_to: dateTo.value },
+      responseType: 'blob',
+    });
+    const ext = format === 'pdf' ? 'pdf' : 'xlsx';
+    const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `iCARE-Report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    toast?.error('Failed to export report.');
+  } finally {
+    exporting.value = '';
+  }
+}
 
 const referralData  = ref({});
 const caseData      = ref({});

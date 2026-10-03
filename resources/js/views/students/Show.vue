@@ -113,7 +113,7 @@
                     <th>Type</th>
                     <th>Unit</th>
                     <th>Status</th>
-                    <th>Date</th>
+                    <th>Date Submitted</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -160,7 +160,7 @@
                       <col style="width:25%" />
                     </colgroup>
                     <thead>
-                      <tr><th>Date</th><th>Concern</th><th>Status</th></tr>
+                      <tr><th>Date Submitted</th><th>Concern</th><th>Status</th></tr>
                     </thead>
                     <tbody>
                       <tr v-for="r in group.referrals" :key="r.id" style="cursor:pointer" @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">

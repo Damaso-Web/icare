@@ -324,14 +324,15 @@
           <div v-if="collegeError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ collegeError }}</div>
           <div>
             <label class="ifl">Name <span style="color:var(--red)">*</span></label>
-            <input v-model="collegeForm.name" class="ifi" placeholder="e.g. College of Engineering (CE)" />
+            <input v-model="collegeForm.name" class="ifi" maxlength="150" placeholder="e.g. College of Engineering (CE)" />
+            <div v-if="!collegeForm.name.trim() && collegeTouched" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div>
             <label class="ifl">Abbreviation</label>
-            <input v-model="collegeForm.abbrev" class="ifi" placeholder="e.g. CE" />
+            <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" />
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="saveCollege">
+            <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; saveCollege()">
               {{ savingCollege ? 'Saving...' : (collegeForm.id ? 'Save Changes' : 'Add College') }}
             </button>
             <button class="ibtn ibtn-o" @click="showCollegeModal = false">Cancel</button>
@@ -357,10 +358,12 @@
           </div>
           <div>
             <label class="ifl">Program Name <span style="color:var(--red)">*</span></label>
-            <input v-model="programForm.name" class="ifi" placeholder="e.g. Bachelor of Science in Information Technology" />
+            <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" />
+            <div v-if="programTouched && !programForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
+            <div v-if="programTouched && !programForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="saveProgram">
+            <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; saveProgram()">
               {{ savingProgram ? 'Saving...' : (programForm.id ? 'Save Changes' : 'Add Program') }}
             </button>
             <button class="ibtn ibtn-o" @click="showProgramModal = false">Cancel</button>
@@ -386,10 +389,12 @@
           </div>
           <div>
             <label class="ifl">Department Name <span style="color:var(--red)">*</span></label>
-            <input v-model="departmentForm.name" class="ifi" placeholder="e.g. Information Technology" />
+            <input v-model="departmentForm.name" class="ifi" maxlength="150" placeholder="e.g. Information Technology" />
+            <div v-if="departmentTouched && !departmentForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
+            <div v-if="departmentTouched && !departmentForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="saveDepartment">
+            <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="departmentTouched = true; saveDepartment()">
               {{ savingDepartment ? 'Saving...' : (departmentForm.id ? 'Save Changes' : 'Add Department') }}
             </button>
             <button class="ibtn ibtn-o" @click="showDepartmentModal = false">Cancel</button>
@@ -408,7 +413,8 @@
           <div v-if="formOptionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ formOptionError }}</div>
           <div>
             <label class="ifl">Label <span style="color:var(--red)">*</span></label>
-            <input v-model="formOptionForm.label" class="ifi" placeholder="What staff will see in the dropdown" />
+            <input v-model="formOptionForm.label" class="ifi" maxlength="150" placeholder="What staff will see in the dropdown" />
+            <div v-if="formOptionTouched && !formOptionForm.label.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div v-if="activeTab === 'wellness'">
             <label class="ifl">Unit <span style="color:var(--red)">*</span></label>
@@ -418,16 +424,19 @@
               <option value="TMDU">TMDU</option>
             </select>
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Which unit handles this service. Referrals to TMDU still go through GCU first - this tag only controls where the service shows up in filters and queues.</div>
+            <div v-if="formOptionTouched && activeTab === 'wellness' && !formOptionForm.unit" style="font-size:11px;color:var(--red);margin-top:4px">Please select a unit.</div>
           </div>
           <div v-if="!formOptionForm.id">
             <label class="ifl">Stored Value <span style="color:var(--red)">*</span></label>
             <input
               v-model="formOptionForm.value"
               class="ifi"
+              maxlength="50"
               placeholder="e.g. counseling"
               @input="formOptionForm.value = formOptionForm.value.replace(/[^a-zA-Z0-9_]/g, '')"
             />
             <div style="font-size:11px;color:var(--stone);margin-top:4px">A short internal code (letters, numbers, underscores only). This gets stored on records and can't be changed later.</div>
+            <div v-if="formOptionTouched && !formOptionForm.value.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div v-else>
             <label class="ifl">Stored Value</label>
@@ -435,10 +444,30 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Not editable - existing records reference this value.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="saveFormOption">
+            <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="formOptionTouched = true; saveFormOption()">
               {{ savingFormOption ? 'Saving...' : (formOptionForm.id ? 'Save Changes' : 'Add') }}
             </button>
             <button class="ibtn ibtn-o" @click="showFormOptionModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Delete Confirmation Modal ============ -->
+    <div v-if="showDeleteConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDeleteConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Delete?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Delete <strong>"{{ deleteName }}"</strong>? This cannot be undone.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="deleting" @click="doConfirmedDelete">
+              {{ deleting ? 'Deleting...' : 'Yes, Delete' }}
+            </button>
+            <button class="ibtn ibtn-o" :disabled="deleting" @click="showDeleteConfirm = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -495,6 +524,7 @@ const showCollegeModal = ref(false);
 const collegeForm = ref({ id: null, name: '', abbrev: '' });
 const collegeError = ref('');
 const savingCollege = ref(false);
+const collegeTouched = ref(false);
 
 async function fetchColleges() {
   loadingColleges.value = true;
@@ -511,6 +541,7 @@ async function fetchColleges() {
 function openCollegeModal(c) {
   collegeForm.value = c ? { id: c.id, name: c.name, abbrev: c.abbrev || '' } : { id: null, name: '', abbrev: '' };
   collegeError.value = '';
+  collegeTouched.value = false;
   showCollegeModal.value = true;
 }
 
@@ -533,15 +564,8 @@ async function saveCollege() {
   }
 }
 
-async function deleteCollege(c) {
-  if (!confirm(`Delete "${c.name}"? This can't be undone.`)) return;
-  try {
-    await axios.delete(`${API_BASE}/management/colleges/${c.id}`, authHeaders());
-    toast?.success('College deleted.');
-    fetchColleges();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to delete college.');
-  }
+function deleteCollege(c) {
+  openDeleteConfirm('college', c, c.name);
 }
 
 // ---------- Programs ----------
@@ -552,6 +576,7 @@ const showProgramModal = ref(false);
 const programForm = ref({ id: null, college_id: '', name: '' });
 const programError = ref('');
 const savingProgram = ref(false);
+const programTouched = ref(false);
 
 async function fetchPrograms() {
   loadingPrograms.value = true;
@@ -569,6 +594,7 @@ async function fetchPrograms() {
 function openProgramModal(p) {
   programForm.value = p ? { id: p.id, college_id: p.college_id, name: p.name } : { id: null, college_id: '', name: '' };
   programError.value = '';
+  programTouched.value = false;
   showProgramModal.value = true;
 }
 
@@ -591,15 +617,8 @@ async function saveProgram() {
   }
 }
 
-async function deleteProgram(p) {
-  if (!confirm(`Delete "${p.name}"? This can't be undone.`)) return;
-  try {
-    await axios.delete(`${API_BASE}/management/programs/${p.id}`, authHeaders());
-    toast?.success('Program deleted.');
-    fetchPrograms();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to delete program.');
-  }
+function deleteProgram(p) {
+  openDeleteConfirm('program', p, p.name);
 }
 
 // ---------- Departments ----------
@@ -610,6 +629,7 @@ const showDepartmentModal = ref(false);
 const departmentForm = ref({ id: null, college_id: '', name: '' });
 const departmentError = ref('');
 const savingDepartment = ref(false);
+const departmentTouched = ref(false);
 
 async function fetchDepartments() {
   loadingDepartments.value = true;
@@ -627,6 +647,7 @@ async function fetchDepartments() {
 function openDepartmentModal(d) {
   departmentForm.value = d ? { id: d.id, college_id: d.college_id, name: d.name } : { id: null, college_id: '', name: '' };
   departmentError.value = '';
+  departmentTouched.value = false;
   showDepartmentModal.value = true;
 }
 
@@ -649,15 +670,8 @@ async function saveDepartment() {
   }
 }
 
-async function deleteDepartment(d) {
-  if (!confirm(`Delete "${d.name}"? This can't be undone.`)) return;
-  try {
-    await axios.delete(`${API_BASE}/management/departments/${d.id}`, authHeaders());
-    toast?.success('Department deleted.');
-    fetchDepartments();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to delete department.');
-  }
+function deleteDepartment(d) {
+  openDeleteConfirm('department', d, d.name);
 }
 
 // ---------- Wellness / Disciplinary / Referral Sources (all referral_form_options, split by category) ----------
@@ -667,6 +681,7 @@ const showFormOptionModal = ref(false);
 const formOptionForm = ref({ id: null, category: 'referral_type', value: '', label: '', unit: '' });
 const formOptionError = ref('');
 const savingFormOption = ref(false);
+const formOptionTouched = ref(false);
 
 async function fetchFormOptions() {
   const category = TAB_CATEGORY[activeTab.value];
@@ -688,6 +703,7 @@ function openFormOptionModal(o) {
     ? { id: o.id, category: o.category, value: o.value, label: o.label, unit: o.unit || '' }
     : { id: null, category, value: '', label: '', unit: '' };
   formOptionError.value = '';
+  formOptionTouched.value = false;
   showFormOptionModal.value = true;
 }
 
@@ -712,14 +728,52 @@ async function saveFormOption() {
   }
 }
 
-async function deleteFormOption(o) {
-  if (!confirm(`Delete "${o.label}"? This can't be undone.`)) return;
+function deleteFormOption(o) {
+  openDeleteConfirm('formOption', o, o.label);
+}
+
+// ---------- Delete Confirmation (styled modal, replacing browser confirm()) ----------
+const showDeleteConfirm = ref(false);
+const deleteTarget = ref(null);
+const deleteKind    = ref('');
+const deleteName    = ref('');
+const deleting      = ref(false);
+
+function openDeleteConfirm(kind, target, name) {
+  deleteKind.value   = kind;
+  deleteTarget.value = target;
+  deleteName.value   = name;
+  showDeleteConfirm.value = true;
+}
+
+async function doConfirmedDelete() {
+  const kind = deleteKind.value;
+  const target = deleteTarget.value;
+  if (!target) return;
+  deleting.value = true;
   try {
-    await axios.delete(`${API_BASE}/management/form-options/${o.id}`, authHeaders());
-    toast?.success('Deleted.');
-    fetchFormOptions();
+    if (kind === 'college') {
+      await axios.delete(`${API_BASE}/management/colleges/${target.id}`, authHeaders());
+      toast?.success('College deleted.');
+      fetchColleges();
+    } else if (kind === 'program') {
+      await axios.delete(`${API_BASE}/management/programs/${target.id}`, authHeaders());
+      toast?.success('Program deleted.');
+      fetchPrograms();
+    } else if (kind === 'department') {
+      await axios.delete(`${API_BASE}/management/departments/${target.id}`, authHeaders());
+      toast?.success('Department deleted.');
+      fetchDepartments();
+    } else if (kind === 'formOption') {
+      await axios.delete(`${API_BASE}/management/form-options/${target.id}`, authHeaders());
+      toast?.success('Deleted.');
+      fetchFormOptions();
+    }
+    showDeleteConfirm.value = false;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to delete.');
+  } finally {
+    deleting.value = false;
   }
 }
 

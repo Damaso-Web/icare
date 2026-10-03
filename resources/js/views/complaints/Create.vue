@@ -61,7 +61,7 @@
             maxlength="100"
             :style="errorStyle('complainee_student_id')"
             placeholder="Search by student name..."
-            @keypress="blockSpecialKeypress"
+            @keypress="blockLetterKeypress"
             @input="onStudentSearch"
             @focus="showStudentDropdown = studentSuggestions.length > 0"
             @blur="validateField('complainee_student_id')"
@@ -156,7 +156,7 @@
         </div>
 
         <div style="margin-bottom:14px">
-          <label class="ifl">Narration of Relevant and Material Facts <span style="color:var(--red)">*</span></label>
+          <label class="ifl">Narration of Relevant and Material Facts <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 2000 characters)</span></label>
             <textarea
             v-model="form.description"
             class="ifta"
@@ -172,13 +172,15 @@
 
         <div style="margin-bottom:14px">
           <label class="ifl">Evidence (optional)</label>
-          <input type="file" multiple class="ifi" @change="onFilesSelected($event, 'evidence')" />
+          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="ifi" @change="onFilesSelected($event, 'evidence')" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
           <div v-if="evidenceFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidenceFiles.length }} file(s) selected</div>
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Affidavit of Witness (optional)</label>
-          <input type="file" multiple class="ifi" @change="onFilesSelected($event, 'affidavit')" />
+          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="ifi" @change="onFilesSelected($event, 'affidavit')" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
           <div v-if="affidavitFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavitFiles.length }} file(s) selected</div>
         </div>
 
@@ -251,7 +253,16 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters } from '../../utils/validators';
+
+// Student search here is by name only (the API call below passes
+// name_only: 1), so unlike the Refer Student form's ID-or-name search,
+// digits are not valid input - blocked both at keypress and on paste/input.
+function blockLetterKeypress(e) {
+  if (!/^[a-zA-Z\s\-]$/.test(e.key)) {
+    e.preventDefault();
+  }
+}
 
 const router = useRouter();
 const toast  = inject('toast');
@@ -404,7 +415,7 @@ const signatureCertified   = ref(false);
 const pkiSignature         = ref('');
 
 function onStudentSearch() {
-  studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
+  studentSearchQuery.value = onlyLetters(studentSearchQuery.value);
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
   form.value.complainee_student_id = null;

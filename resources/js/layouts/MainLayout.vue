@@ -413,7 +413,7 @@ function isActive(name) {
 
 async function handleLogout() {
   await auth.logout();
-  router.push({ name: 'login' });
+  router.push({ name: 'login-choice' });
 }
 
 onMounted(() => fetchNotifications());

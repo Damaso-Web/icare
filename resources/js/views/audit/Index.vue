@@ -28,9 +28,13 @@
       </select>
       <input v-model="filters.date_from" type="date" class="ifi" style="width:160px" @change="fetchLogs" />
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <button class="ibtn ibtn-o ibtn-sm" style="margin-left:auto">
+      <select v-model="exportFormat" class="fsm" style="margin-left:auto">
+        <option value="pdf">PDF</option>
+        <option value="excel">Excel</option>
+      </select>
+      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportLogs">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export
+        {{ exporting ? 'Exporting...' : 'Export' }}
       </button>
     </div>
 
@@ -143,9 +147,43 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, inject } from 'vue';
+import axios from 'axios';
 import { auditAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
+
+const toast = inject('toast');
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+function authHeaders() {
+  return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
+}
+
+const exportFormat = ref('pdf');
+const exporting    = ref(false);
+
+async function exportLogs() {
+  exporting.value = true;
+  try {
+    const res = await axios.get(`${API_BASE}/audit-logs/export/${exportFormat.value}`, {
+      ...authHeaders(),
+      params: { ...filters.value },
+      responseType: 'blob',
+    });
+    const ext = exportFormat.value === 'pdf' ? 'pdf' : 'xlsx';
+    const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `iCARE-Audit-Trail-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (e) {
+    toast?.error('Failed to export audit log.');
+  } finally {
+    exporting.value = false;
+  }
+}
 
 const loading     = ref(true);
 const logs        = ref([]);

@@ -312,7 +312,8 @@ const loading    = ref(true);
 const appointments = ref([]);
 const allAppointments = ref([]);
 const pagination = ref({});
-const filters = ref({ status: 'pending', date: '' });
+// B282: defaulted to 'pending' before, hiding every other status by default.
+const filters = ref({ status: '', date: '' });
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
@@ -473,7 +474,7 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { status: 'pending', date: '' };
+  filters.value = { status: '', date: '' };
   previewDate.value = null;
   fetchAppointments();
 }
