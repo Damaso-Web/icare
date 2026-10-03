@@ -181,15 +181,17 @@
         <div v-if="recurringData.top_recurring_students?.length" style="padding:14px 18px;border-top:1px solid var(--cloud)">
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Most Frequently Referred Students</div>
           <div style="display:flex;flex-direction:column;gap:6px">
-            <router-link
+            <div
               v-for="s in recurringData.top_recurring_students"
               :key="s.id"
-              :to="{ name: 'student-show', params: { id: s.id } }"
-              style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--ink);text-decoration:none"
+              style="display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;color:var(--ink)"
             >
-              <span>{{ s.last_name }}, {{ s.first_name }} <span style="color:var(--fog);font-family:var(--mono)">({{ s.student_id }})</span></span>
+              <span style="display:flex;align-items:center;gap:10px">
+                <button class="ibtn ibtn-o ibtn-sm" @click="$router.push({ name: 'student-show', params: { id: s.id }, query: { ctx: 'reports' } })">View</button>
+                <span>{{ s.last_name }}, {{ s.first_name }} <span style="color:var(--fog);font-family:var(--mono)">({{ s.student_id }})</span></span>
+              </span>
               <span style="color:var(--stone)">{{ s.referrals_count }} referrals</span>
-            </router-link>
+            </div>
           </div>
         </div>
       </div>

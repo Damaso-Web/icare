@@ -402,6 +402,7 @@ function isActive(name) {
   if (routeName === 'student-show' || routeName === 'referral-show') {
     if (route.query.ctx === 'cases')    return name === 'cases';
     if (route.query.ctx === 'students') return name === 'students';
+    if (route.query.ctx === 'reports')  return name === 'reports';
   }
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
   if (name === 'referral-create' && ['referral-create', 'referral-create-form', 'complaint-create'].includes(routeName)) return true;

@@ -47,7 +47,10 @@ class User extends Authenticatable
     {
         static::saving(function (User $user) {
             if ($user->isDirty('first_name') || $user->isDirty('last_name') || $user->isDirty('middle_name') || $user->isDirty('suffix')) {
-                $user->name = trim(($user->first_name ?? '') . ' ' . ($user->middle_name ?? '') . ' ' . ($user->last_name ?? '') . ' ' . ($user->suffix ?? ''));
+                $user->name = implode(' ', array_filter(
+                    array_map('trim', [$user->first_name ?? '', $user->middle_name ?? '', $user->last_name ?? '', $user->suffix ?? '']),
+                    'strlen'
+                ));
             }
         });
     }

@@ -547,7 +547,7 @@ const fromCases = computed(() => route.query.ctx === 'cases');
 
 // Carry the module context forward into Referral Details so that page - and the
 // sidebar highlight in MainLayout - knows where the user actually came from.
-const referralCtx = computed(() => ({ ctx: fromCases.value ? 'cases' : 'students' }));
+const referralCtx = computed(() => ({ ctx: fromCases.value ? 'cases' : (route.query.ctx === 'reports' ? 'reports' : 'students') }));
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 const primaryCase = computed(() => history.value.cases?.[0] || null);
