@@ -47,31 +47,31 @@ class CaseInterventionController extends Controller
             'referral_id' => 'nullable|exists:referrals,id',
             'type'        => 'required|in:previous_intervention,follow_up,parent_conference,home_visit,referral_external,sanction,detailed_report,other',
             'description' => 'required|string',
-            'excused'     => 'nullable|boolean',
         ]);
 
         $this->authorizeInterventionAccess($validated['type']);
 
+        // The excused/unexcused determination (and its "locked once
+        // Unexcused" rule) used to live here, folded into the plain
+        // Previous Interventions log for class_attendance referrals. It's
+        // now its own Admission Slip (QF-OSS-GCU-09), with its own
+        // admission_excused column and lock, handled entirely by
+        // ReferralController::saveAdmissionSlip() - this endpoint no longer
+        // has anything to do with it.
         if (!empty($validated['referral_id'])) {
             $referral = Referral::findOrFail($validated['referral_id']);
             if ($referral->case_id !== $case->id) {
                 abort(422, 'This referral does not belong to this case.');
             }
 
-            if ($referral->referral_type === 'class_attendance') {
-                $locked = $case->interventions()
-                    ->where('referral_id', $referral->id)
-                    ->where('excused', false)
-                    ->exists();
-
-                if ($locked) {
-                    abort(422, 'This referral has already been marked Unexcused. No further interventions can be added.');
-                }
-            } else {
-                $validated['excused'] = null;
+            // Session Notes/Follow-up/Previous Interventions all require the
+            // referral to be acknowledged and have an attended appointment,
+            // same broader SIF edit gate the rest of the referral enforces.
+            // Sanctions/Detailed Reports (SDU's Incident Report domain) are
+            // exempt - those aren't gated by this referral-level workflow.
+            if (!in_array($validated['type'], ['sanction', 'detailed_report'], true) && !$referral->canEditSif()) {
+                abort(422, 'This referral must be acknowledged and have an appointment set and attended before entries can be added.');
             }
-        } else {
-            $validated['excused'] = null;
         }
 
         $intervention = CaseIntervention::create([

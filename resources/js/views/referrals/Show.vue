@@ -295,60 +295,38 @@
           </div>
 
 
-          <!-- Previous Interventions - case-level, append-only log. For Class Attendance referrals, this doubles as the admission slip: an Unexcused mark locks the referral.
-               Student Information Files only. Replaced by Sanction/s Given +
-               Detailed Report for an Incident Report. -->
+          <!-- Previous Interventions - plain narrative log, scoped to THIS
+               referral only (previousInterventionsForReferral - the history
+               list used to read every intervention on the whole case,
+               unfiltered, the same bug Handoff History had before it was
+               scoped). No longer doubles as the admission slip for Class
+               Attendance - that excused/unexcused determination now lives
+               on its own Admission Slip card below, with its own document
+               code. Student Information Files only. Replaced by Sanction/s
+               Given + Detailed Report for an Incident Report. -->
           <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Previous Interventions</span></div>
             <div class="icard-body">
               <div style="font-size:11px;color:var(--stone);margin-bottom:10px;font-style:italic">For OSS Personnel</div>
 
-              <!-- Add entry (GCU only) - Person-In-Charge is always the logged-in staff account; excused/unexcused only applies to Class Attendance referrals -->
-              <div v-if="isGCU && !interventionLocked && !isResolved">
-                <div :style="{ display:'grid', gridTemplateColumns: showExcusedRemarks ? '2fr 1fr' : '1fr', gap:'16px', alignItems:'start', marginBottom:'12px' }">
-                  <div>
-                    <label class="ifl">Intervention</label>
-                    <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..."></textarea>
-                  </div>
-                  <div v-if="showExcusedRemarks">
-                    <label class="ifl">Remarks</label>
-                    <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
-                      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
-                        <input
-                          type="checkbox"
-                          :checked="interventionForm.excused === '1'"
-                          @change="interventionForm.excused = interventionForm.excused === '1' ? '' : '1'"
-                          style="width:15px;height:15px;accent-color:var(--moss)"
-                        />
-                        Excused
-                      </label>
-                      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
-                        <input
-                          type="checkbox"
-                          :checked="interventionForm.excused === '0'"
-                          @change="interventionForm.excused = interventionForm.excused === '0' ? '' : '0'"
-                          style="width:15px;height:15px;accent-color:var(--red)"
-                        />
-                        Unexcused
-                      </label>
-                    </div>
-                    <button class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" @click="addIntervention">Save Entry</button>
-                  </div>
-                </div>
-                <button v-if="!showExcusedRemarks" class="ibtn ibtn-p ibtn-sm" style="margin-bottom:16px" @click="addIntervention">Save Entry</button>
-              </div>
-              <div v-else-if="isGCU && interventionLocked" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
-                This referral has been marked Unexcused, which serves as its admission slip. No further interventions can be added for it.
+              <!-- Add entry (GCU only) - Person-In-Charge is always the logged-in staff account -->
+              <div v-if="isGCU && !isResolved && canEditSif">
+                <label class="ifl">Intervention</label>
+                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..."></textarea>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px;margin-bottom:16px" @click="addIntervention">Save Entry</button>
               </div>
               <div v-else-if="isGCU && isResolved" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
                 ✓ This referral has been resolved. It is now view-only.
               </div>
+              <div v-else-if="isGCU && !canEditSif" style="background:var(--cloud);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--stone);margin-bottom:16px">
+                ⚠ This referral must be acknowledged and have an appointment set and attended before entries can be added.
+              </div>
 
               <!-- History - each saved entry is permanent; new activity adds another entry, it never overwrites -->
-              <div v-if="!referral.case.interventions?.length" style="font-size:13px;color:var(--stone)">No previous interventions recorded yet.</div>
+              <div v-if="!previousInterventionsForReferral.length" style="font-size:13px;color:var(--stone)">No previous interventions recorded yet.</div>
               <div v-else style="display:flex;flex-direction:column;gap:8px">
                 <div
-                  v-for="item in referral.case.interventions"
+                  v-for="item in previousInterventionsForReferral"
                   :key="item.id"
                   style="padding:10px 12px;background:var(--snow);border-radius:var(--r-sm);border-left:2px solid var(--silver);cursor:pointer;transition:background .1s"
                   @mouseover="$event.currentTarget.style.background='var(--foam)'"
@@ -361,12 +339,103 @@
                   </div>
                   <div style="font-size:11px;color:var(--stone);margin-top:3px">
                     {{ toTitleCase(item.type) || 'Previous Intervention' }}
-                    <span v-if="item.referral"> · {{ toTitleCase(item.referral.referral_type) }}</span>
-                    <span v-if="item.excused !== null"> · {{ item.excused ? 'Excused' : 'Unexcused' }}</span>
                     <span v-if="item.is_completed" class="ibadge" style="background:var(--mist);color:var(--moss);margin-left:4px">Completed</span>
                   </div>
                   <div style="font-size:10.5px;color:var(--fog);margin-top:2px">By {{ item.recorded_by?.name || item.person_in_charge?.name || '-' }}</div>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Admission Slip - Class Attendance referrals only. This is the
+               actual excused/unexcused determination (previously this lived
+               inside Previous Interventions, conflating a narrative log with
+               an official slip that has its own document code). Once marked
+               Unexcused, it locks further edits to this referral, same as
+               before - just checked on the referral's own admission_excused
+               column now (ReferralController::saveAdmissionSlip()) instead
+               of digging through case interventions. -->
+          <div class="icard" v-if="isClassAttendance && referral.case && fromCases && !isIncidentReport">
+            <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
+
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-OSS-GCU-09</div>
+                <div><strong>Revision No.:</strong> {{ admissionDoc.revision_no || '01' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(admissionDoc.effectivity_date) || '07/04/23' }}</div>
+                <div><strong>Ctrl No.:</strong> {{ admissionDoc.ctrl_no || '26-1' }}</div>
+              </div>
+            </div>
+
+            <div class="icard-body">
+              <template v-if="isGCU && admission_excused_locked">
+                <div style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss)">
+                  ✓ This referral has been marked Unexcused. No further changes can be made to the admission slip.
+                </div>
+              </template>
+              <template v-else-if="isGCU && isResolved">
+                <div style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss)">
+                  ✓ This referral has been resolved. It is now view-only.
+                </div>
+              </template>
+              <template v-else-if="isGCU && !canEditSif">
+                <div style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone)">
+                  ⚠ This referral must be acknowledged and have an appointment set and attended before an admission slip can be issued.
+                </div>
+              </template>
+              <template v-else-if="isGCU">
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
+                  <div>
+                    <label class="ifl">Date</label>
+                    <input type="date" v-model="admissionForm.admission_date" class="ifse" />
+                  </div>
+                  <div>
+                    <label class="ifl">Time In</label>
+                    <input type="time" v-model="admissionForm.admission_time_in" class="ifse" />
+                  </div>
+                  <div>
+                    <label class="ifl">Time Out</label>
+                    <input type="time" v-model="admissionForm.admission_time_out" class="ifse" />
+                  </div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
+                    <input
+                      type="checkbox"
+                      :checked="admissionForm.admission_excused === '1'"
+                      @change="admissionForm.admission_excused = admissionForm.admission_excused === '1' ? '' : '1'"
+                      style="width:15px;height:15px;accent-color:var(--moss)"
+                    />
+                    Excused
+                  </label>
+                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
+                    <input
+                      type="checkbox"
+                      :checked="admissionForm.admission_excused === '0'"
+                      @change="admissionForm.admission_excused = admissionForm.admission_excused === '0' ? '' : '0'"
+                      style="width:15px;height:15px;accent-color:var(--red)"
+                    />
+                    Unexcused
+                  </label>
+                </div>
+                <label class="ifl">Remarks</label>
+                <textarea v-model="admissionForm.admission_remarks" class="ifta" placeholder="Remarks for the admission slip..."></textarea>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="saveAdmissionSlip">Save Admission Slip</button>
+              </template>
+              <template v-else>
+                <div v-if="!referral.admission_issued_at" style="font-size:13px;color:var(--stone)">No admission slip has been issued yet.</div>
+              </template>
+
+              <div v-if="referral.admission_issued_at" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--cloud)">
+                <div style="font-size:11px;color:var(--fog)">
+                  Date: {{ formatDate(referral.admission_date) }}
+                  <span v-if="referral.admission_time_in"> · {{ referral.admission_time_in }}<span v-if="referral.admission_time_out"> - {{ referral.admission_time_out }}</span></span>
+                  <span v-if="referral.admission_excused !== null"> · {{ referral.admission_excused ? 'Excused' : 'Unexcused' }}</span>
+                </div>
+                <div v-if="referral.admission_remarks" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-top:6px">{{ referral.admission_remarks }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:6px">Issued by {{ referral.admission_issued_by?.name || '-' }} &middot; {{ formatDate(referral.admission_issued_at) }}</div>
               </div>
             </div>
           </div>
@@ -446,14 +515,14 @@
             </div>
 
             <div class="icard-body">
-              <template v-if="isGCU && !hasAttendedAppointment">
-                <div style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone)">
-                  ⚠ An appointment must be set and the student must have attended it before a feedback slip can be sent.
-                </div>
-              </template>
-              <template v-else-if="isGCU && isResolved">
+              <template v-if="isGCU && isResolved">
                 <div style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss)">
                   ✓ This referral has been resolved. It is now view-only.
+                </div>
+              </template>
+              <template v-else-if="isGCU && !canEditSif">
+                <div style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone)">
+                  ⚠ This referral must be acknowledged and have an appointment set and attended before a feedback slip can be sent.
                 </div>
               </template>
               <template v-else-if="isGCU">
@@ -550,10 +619,13 @@
           <div class="icard" v-if="isGCU && fromCases && !isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
-              <button v-if="!isResolved" class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
+              <button v-if="!isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Notes
               </button>
+              <div v-else-if="!isResolved && !canEditSif" style="font-size:11px;color:var(--stone)">
+                ⚠ Must be acknowledged with an attended appointment first
+              </div>
             </div>
             <div v-if="sessionNotes.length === 0" class="empty-state">
               <h3>No sessions yet</h3>
@@ -585,10 +657,13 @@
           <div class="icard" v-if="fromCases && !isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">Follow-up Session</span>
-              <button v-if="isGCU && !isResolved" class="ibtn ibtn-p ibtn-sm" @click="openFollowUpModal">
+              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="openFollowUpModal">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Schedule Follow-up
               </button>
+              <div v-else-if="isGCU && !isResolved && !canEditSif" style="font-size:11px;color:var(--stone)">
+                ⚠ Must be acknowledged with an attended appointment first
+              </div>
             </div>
             <div v-if="followUps.length === 0" class="empty-state">
               <h3>No follow-up scheduled</h3>
@@ -905,8 +980,8 @@
                   <div v-if="tmduTestingRecord && tmduTestingRecord.status !== 'test_results_issued'" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                     ✓ Already referred to TMDU
                   </div>
-                  <div v-else-if="!hasAttendedAppointment" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
-                    ⚠ An appointment must be set and attended before referring to TMDU
+                  <div v-else-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                    ⚠ This referral must be acknowledged and have an appointment set and attended before referring to TMDU
                   </div>
                   <button
                     v-else
@@ -918,8 +993,8 @@
                     Refer to TMDU
                   </button>
 
-                  <div v-if="!hasAttendedAppointment" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
-                    ⚠ An appointment must be set and attended before resolving this referral
+                  <div v-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                    ⚠ This referral must be acknowledged and have an appointment set and attended before resolving
                   </div>
                   <button
                     v-else
@@ -1351,7 +1426,7 @@ const selectedFollowUp  = ref(null);
 const followUpNotesForm = ref('');
 
 const transferForm = ref({ to_unit: '', to_user_id: '', reason: '' });
-const interventionForm = ref({ text: '', excused: '', type: 'previous_intervention' });
+const interventionForm = ref({ text: '' });
 const selectedIntervention = ref(null);
 
 // Incident Report only - "Sanction/s Given" and "Detailed Report" reuse the
@@ -1400,6 +1475,19 @@ const detailedReportsForReferral = computed(() =>
   interventionsForReferral.value.filter(i => i.type === 'detailed_report')
 );
 
+// The Previous Interventions history itself was still reading every
+// intervention on the whole case (referral.case.interventions, unfiltered)
+// instead of this referral's own - so a case carrying several referrals
+// (one student, one case for life) showed every OTHER referral's entries
+// here too, same bug Handoff History had before it was scoped. This uses
+// the same interventionsForReferral filtering sanctionsForReferral and
+// detailedReportsForReferral already use, narrowed to the plain
+// 'previous_intervention' type (addIntervention() already saves
+// referral_id correctly - only the display was unfiltered).
+const previousInterventionsForReferral = computed(() =>
+  interventionsForReferral.value.filter(i => i.type === 'previous_intervention')
+);
+
 function attachmentUrl(att) {
   return `${API_BASE.replace(/\/api$/, '')}/storage/${att.file_path}`;
 }
@@ -1421,6 +1509,16 @@ const hasAttendedAppointment = computed(() => {
   const all = referral.value.case?.appointments || [];
   return all.some(a => a.status === 'completed');
 });
+
+// Broader than hasAttendedAppointment alone: nothing in the SIF should be
+// editable at all - not just Feedback Slip/Refer to TMDU/Resolve, but also
+// Previous Interventions, Session Notes, and Follow-up Session - until the
+// referral has actually been acknowledged AND an appointment for the case
+// has been attended. A referral still sitting at 'submitted' has no case
+// action yet (and "Schedule Appointment" itself stays hidden until
+// acknowledged - see the Case Action card below), so staff could otherwise
+// log session notes or follow-ups against a referral nobody has picked up.
+const canEditSif = computed(() => referral.value.status !== 'submitted' && hasAttendedAppointment.value);
 
 // Once a referral is resolved (status 'completed'), the whole SIF locks
 // down to view-only - Case Action, Feedback Slip, Session Notes, Follow-up
@@ -1484,14 +1582,20 @@ const parDocument = computed(() =>
     .find(d => d.document_type === 'psychological_assessment_report') || null
 );
 
-const interventionLocked = computed(() =>
-  referral.value.referral_type === 'class_attendance'
-  && interventionsForReferral.value.some(i => i.excused === false)
-);
+// Admission Slip (QF-OSS-GCU-09) is its own card, Class Attendance
+// referrals only - the excused/unexcused determination used to live inside
+// Previous Interventions (via the now-removed interventionLocked /
+// showExcusedRemarks computeds below), conflating a narrative log with an
+// official slip that has its own document code.
+const isClassAttendance = computed(() => referral.value.referral_type === 'class_attendance');
 
-const showExcusedRemarks = computed(() =>
-  interventionForm.value.type === 'previous_intervention'
-  && referral.value.referral_type === 'class_attendance'
+// Once Admission Slip has been saved as Unexcused, lock further edits to it -
+// same "once set, no take-backs" behavior the old interventionLocked
+// computed gave, just checked on the referral's own admission_excused
+// column (set by ReferralController::saveAdmissionSlip()) instead of
+// digging through case interventions for an excused:false entry.
+const admission_excused_locked = computed(() =>
+  isClassAttendance.value && referral.value.admission_excused === false
 );
 
 const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head'], TMDU: ['admin', 'tmdu_staff'] };
@@ -1667,6 +1771,8 @@ const profileDetailGroups = computed(() => {
 const referralDoc = ref({});
 const feedbackDoc = ref({});
 const tmduDoc      = ref({});
+// Admission Slip (QF-OSS-GCU-09) - Class Attendance referrals only.
+const admissionDoc = ref({});
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
@@ -1764,20 +1870,48 @@ async function addIntervention() {
   }
   try {
     const res = await caseAPI.addIntervention(referral.value.case.id, {
-      referral_id: interventionForm.value.type === 'previous_intervention' ? referral.value.id : null,
-      type: interventionForm.value.type,
+      referral_id: referral.value.id,
+      type: 'previous_intervention',
       description: interventionForm.value.text,
-      excused: showExcusedRemarks.value && interventionForm.value.excused !== ''
-        ? interventionForm.value.excused === '1'
-        : null,
     });
     if (!referral.value.case.interventions) referral.value.case.interventions = [];
     referral.value.case.interventions.unshift(res.data);
-    interventionForm.value = { text: '', excused: '', type: 'previous_intervention' };
+    interventionForm.value = { text: '' };
     toast?.success('Entry recorded.');
     viewIntervention(res.data);
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to save entry.');
+  }
+}
+
+// Admission Slip (QF-OSS-GCU-09) - Class Attendance referrals only. The
+// excused/unexcused checkboxes are modeled as a tri-state string ('1'/'0'/'')
+// rather than a plain boolean so "neither checked yet" is representable and
+// distinct from "explicitly Unexcused" - the backend only locks once it
+// actually receives false, not on an empty/undecided value.
+const admissionForm = ref({
+  admission_date: '',
+  admission_time_in: '',
+  admission_time_out: '',
+  admission_excused: '',
+  admission_remarks: '',
+});
+
+async function saveAdmissionSlip() {
+  try {
+    const res = await referralAPI.saveAdmissionSlip(referral.value.id, {
+      admission_date: admissionForm.value.admission_date || null,
+      admission_time_in: admissionForm.value.admission_time_in || null,
+      admission_time_out: admissionForm.value.admission_time_out || null,
+      admission_excused: admissionForm.value.admission_excused === ''
+        ? null
+        : admissionForm.value.admission_excused === '1',
+      admission_remarks: admissionForm.value.admission_remarks,
+    });
+    referral.value = res.data;
+    toast?.success('Admission slip saved.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to save admission slip.');
   }
 }
 
@@ -2091,5 +2225,6 @@ onMounted(async () => {
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
   fetchDocSettings('QF-OSS-GCU-05', tmduDoc);
+  fetchDocSettings('QF-OSS-GCU-09', admissionDoc);
 });
 </script>

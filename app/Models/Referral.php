@@ -47,6 +47,7 @@ class Referral extends Model
         'admission_date',
         'admission_time_in',
         'admission_time_out',
+        'admission_excused',
         'admission_remarks',
         'admission_issued_at',
         'admission_issued_by_user_id',
@@ -62,6 +63,7 @@ class Referral extends Model
         'feedback_sent_at'  => 'datetime',
         'feedback_checklist' => 'array',
         'admission_date'    => 'date',
+        'admission_excused' => 'boolean',
         'admission_issued_at' => 'datetime',
     ];
 
@@ -125,5 +127,17 @@ class Referral extends Model
         return $this->case
             ? $this->case->hasAttendedAppointment()
             : $this->appointments()->where('status', 'completed')->exists();
+    }
+
+    // Broader SIF edit gate: nothing on the referral's Student Information
+    // File - Previous Interventions, Session Notes, Follow-up Session,
+    // Admission Slip, Feedback Slip, or Case Action (Refer to TMDU/Resolve)
+    // - should be editable until the referral has actually been
+    // acknowledged (status moved past 'submitted') AND an appointment for
+    // the case has been attended. Mirrors referrals/Show.vue's canEditSif
+    // computed so the frontend gate and this backend gate can't drift.
+    public function canEditSif(): bool
+    {
+        return $this->status !== 'submitted' && $this->hasAttendedAppointment();
     }
 }

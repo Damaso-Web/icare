@@ -18,6 +18,14 @@ class AppointmentController extends Controller
 {
     // A reschedule limit any higher stops functioning as a limit at all.
     private const RESCHEDULE_LIMIT = 3;
+
+    // Auto-filled into required_documents on confirm() for a class_attendance
+    // referral's appointment, when staff doesn't type their own text -
+    // mirrors TestingRecordController::TESTING_REMINDER's pattern for the
+    // psychological_testing workflow. Per QF-OSS-GCU-09 (Admission Slip):
+    // once the appointment is confirmed, the student needs to be told to
+    // bring these so the admission slip can actually be processed.
+    private const CLASS_ATTENDANCE_REMINDER = "Please bring a Letter of Explanation, a photocopy of the valid ID of the parent/legal guardian who signed the letter, and 3 specimen signatures of that same parent/legal guardian.";
     public function index(Request $request)
     {
         $user = $request->user();
@@ -158,13 +166,21 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'This staff member already has a conflicting appointment at this time.'], 422);
         }
 
+        // Class Attendance appointments always need the Admission Slip
+        // documents mentioned to the student on confirmation - auto-fill
+        // the reminder when staff didn't type their own required_documents
+        // text, same pattern TestingRecordController::scheduleTesting() uses
+        // for TESTING_REMINDER. Staff-provided text always wins.
+        $requiredDocuments = $validated['required_documents']
+            ?? ($appointment->referral?->referral_type === 'class_attendance' ? self::CLASS_ATTENDANCE_REMINDER : null);
+
         $appointment->update([
             'status'               => 'confirmed',
             'request_status'       => 'confirmed',
             'confirmation_sent'    => true,
             'confirmation_sent_at' => now(),
             ...(!empty($validated['staff_user_id']) ? ['staff_user_id' => $validated['staff_user_id']] : []),
-            ...(!empty($validated['required_documents']) ? ['required_documents' => $validated['required_documents']] : []),
+            ...(!empty($requiredDocuments) ? ['required_documents' => $requiredDocuments] : []),
         ]);
 
         if ($appointment->case?->latestReferral) {
@@ -176,7 +192,7 @@ class AppointmentController extends Controller
         if ($appointment->student) {
             Notification::send($appointment->student, new AppointmentConfirmedNotification($appointment));
 
-            if (!empty($validated['required_documents'])) {
+            if (!empty($requiredDocuments)) {
                 Notification::send($appointment->student, new DocumentsRequiredNotification($appointment));
             }
         }

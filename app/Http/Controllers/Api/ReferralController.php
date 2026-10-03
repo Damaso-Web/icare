@@ -489,12 +489,14 @@ class ReferralController extends Controller
             'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
         ]);
 
-        // "Complete Referral" goes through this same endpoint (status =
-        // completed) - an appointment must be set AND attended before the
-        // SIF can be marked done. Only gates that one target status; every
+        // "Resolve Referral" goes through this same endpoint (status =
+        // completed) - the referral must be acknowledged AND have an
+        // attended appointment before the SIF can be marked done (same
+        // broader gate the rest of the SIF now enforces - see
+        // Referral::canEditSif()). Only gates that one target status; every
         // other status move in the normal workflow is unaffected.
-        if ($request->status === 'completed' && !$referral->hasAttendedAppointment()) {
-            abort(422, 'An appointment must be set and the student must have attended it before this referral can be marked completed.');
+        if ($request->status === 'completed' && !$referral->canEditSif()) {
+            abort(422, 'This referral must be acknowledged and have an appointment set and attended before it can be resolved.');
         }
 
         $old = ['status' => $referral->status];
@@ -516,11 +518,12 @@ class ReferralController extends Controller
             abort(403, 'Access denied.');
         }
 
-        // An appointment must be set AND attended before a Feedback Slip can
-        // go out - previously this could be sent before the student had even
-        // shown up to anything.
-        if (!$referral->hasAttendedAppointment()) {
-            abort(422, 'An appointment must be set and the student must have attended it before a feedback slip can be sent.');
+        // The referral must be acknowledged AND have an attended
+        // appointment before a Feedback Slip can go out - previously this
+        // only checked for an attended appointment, without requiring the
+        // referral to have actually been acknowledged first.
+        if (!$referral->canEditSif()) {
+            abort(422, 'This referral must be acknowledged and have an appointment set and attended before a feedback slip can be sent.');
         }
 
         $validated = $request->validate([
@@ -569,10 +572,26 @@ class ReferralController extends Controller
             abort(422, 'Admission slips only apply to class attendance referrals.');
         }
 
+        // Same broader SIF edit gate as the rest of the referral - the
+        // admission slip can't be issued or changed until the referral has
+        // been acknowledged AND an appointment has been attended.
+        if (!$referral->canEditSif()) {
+            abort(422, 'This referral must be acknowledged and have an appointment set and attended before an admission slip can be issued.');
+        }
+
+        // Once marked Unexcused, the admission slip locks - no further
+        // changes, same "no take-backs" rule the old case-intervention-based
+        // excused lock enforced (CaseInterventionController::store()),
+        // just checked on the referral's own admission_excused column now.
+        if ($referral->admission_excused === false) {
+            abort(422, 'This referral has been marked Unexcused. No further changes can be made to the admission slip.');
+        }
+
         $validated = $request->validate([
             'admission_date'     => 'required|date',
             'admission_time_in'  => 'nullable|date_format:H:i',
             'admission_time_out' => 'nullable|date_format:H:i',
+            'admission_excused'  => 'nullable|boolean',
             'admission_remarks'  => 'nullable|string',
         ]);
 

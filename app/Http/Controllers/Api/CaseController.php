@@ -212,11 +212,15 @@ class CaseController extends Controller
         $user = $request->user();
         $sourceReferral = Referral::findOrFail($request->referral_id);
 
-        // An appointment must be set AND attended before this case can be
-        // escalated to TMDU - previously a referral could be sent off to
-        // TMDU before the student had even shown up to anything.
-        if (!$case->hasAttendedAppointment()) {
-            abort(422, 'An appointment must be set and the student must have attended it before this case can be referred to TMDU.');
+        // The referral this escalation is actually being made from must be
+        // acknowledged AND have an attended appointment before it can be
+        // referred to TMDU - previously this only checked the case had any
+        // attended appointment at all, without requiring the referral
+        // itself to have been picked up (acknowledged) first. Checked on
+        // $sourceReferral (not just $case) so this stays consistent with
+        // the referral-level SIF edit gate (Referral::canEditSif()).
+        if (!$sourceReferral->canEditSif()) {
+            abort(422, 'This referral must be acknowledged and have an appointment set and attended before it can be referred to TMDU.');
         }
 
         // Scoped per-referral, not per-case: re-clicking "Refer to TMDU"

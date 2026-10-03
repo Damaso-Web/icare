@@ -20,6 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
+    'https://sensational-donut-8d1d65.netlify.app',
     'https://curious-malabi-34cbb3.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
