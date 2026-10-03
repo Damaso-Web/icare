@@ -18,6 +18,7 @@
         <option value="logout">Logout</option>
         <option value="created">Created</option>
         <option value="updated">Updated</option>
+        <option value="profile_updated">Profile Updated</option>
         <option value="deleted">Deleted</option>
         <option value="viewed">Viewed</option>
         <option value="acknowledged">Acknowledged</option>

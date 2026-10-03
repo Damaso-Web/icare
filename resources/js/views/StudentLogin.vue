@@ -130,7 +130,7 @@ function goBack() {
 
 const form = ref({ student_id: '', password: '' });
 
-const API_BASE = 'https://icare-backend-5jwe.onrender.com/api';
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 async function handleLogin() {
   error.value = '';

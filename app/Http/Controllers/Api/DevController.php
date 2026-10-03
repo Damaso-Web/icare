@@ -13,7 +13,7 @@ class DevController extends Controller
     // This whole controller is a testing convenience for one designated
     // account only - never trust the frontend's own gating on this, since
     // it lets an account jump into any staff role at will.
-    private const TESTER_EMAIL = 'genrytester@bsu.edu.ph';
+    public const TESTER_EMAIL = 'genrytester@bsu.edu.ph';
 
     private const ROLE_PROFILES = [
         'admin'          => ['unit' => 'OSS',  'college' => null,  'department' => null],
@@ -62,11 +62,17 @@ class DevController extends Controller
     {
         $this->authorizeTester($request);
 
+        // Carry over the record made under the old placeholder ID so its
+        // referrals/appointments stay attached
+        if (!Student::where('student_id', '1411204')->exists()) {
+            Student::where('student_id', 'DEV-TESTER-001')->update(['student_id' => '1411204']);
+        }
+
         $student = Student::firstOrCreate(
-            ['student_id' => 'DEV-TESTER-001'],
+            ['student_id' => '1411204'],
             [
                 'first_name' => 'Genry',
-                'last_name'  => 'Tester',
+                'last_name'  => 'Gumabay',
                 'college'    => 'CIT',
                 'program'    => 'Bachelor of Science in Information Technology',
                 'year_level' => '4th Year',
@@ -76,6 +82,9 @@ class DevController extends Controller
                 'is_active'  => true,
             ]
         );
+
+        // Keep the name in sync on records created before it changed
+        $student->update(['first_name' => 'Genry', 'last_name' => 'Gumabay']);
 
         $token = $student->createToken('dev-switch-student', ['student'])->plainTextToken;
 
