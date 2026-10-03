@@ -58,16 +58,22 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
     // Students
-    Route::apiResource('students', StudentController::class);
+    // Looking a student up stays open to every staff role (Refer Student needs
+    // it); changing student records is limited to the roles that own the
+    // Students module, enforced here and not just by the frontend.
+    Route::apiResource('students', StudentController::class)->only(['index', 'show']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
-    Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
-    Route::post('students/import', [StudentController::class, 'import']);
-    Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
-    Route::post('students/import-preview', [StudentController::class, 'importPreview']);
-    Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
-    Route::get('students/{student}/temp-password',  [StudentController::class, 'viewTempPassword']);
-    Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
+    Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff')->group(function () {
+        Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
+        Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
+        Route::post('students/import', [StudentController::class, 'import']);
+        Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
+        Route::post('students/import-preview', [StudentController::class, 'importPreview']);
+        Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
+        Route::get('students/{student}/temp-password',  [StudentController::class, 'viewTempPassword']);
+        Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
+    });
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
 
