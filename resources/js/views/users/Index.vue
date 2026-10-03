@@ -880,9 +880,21 @@ async function openView(u) {
   }
 }
 
-function openEditFromView() {
+async function openEditFromView() {
   showViewModal.value = false;
-  openEdit(viewedUser.value);
+  // B260: always edit from a guaranteed-complete record. viewedUser can
+  // briefly hold the row-listing data (set synchronously in openView())
+  // before its own userAPI.show() call resolves - if Edit is clicked in
+  // that window, it would previously open with whatever that partial
+  // object had, risking college/department (or anything else) looking
+  // empty and then getting wiped on save. Re-fetch fresh here instead of
+  // trusting whatever is currently in viewedUser.
+  try {
+    const res = await userAPI.show(viewedUser.value.id);
+    openEdit(res.data);
+  } catch (e) {
+    openEdit(viewedUser.value);
+  }
 }
 
 function resetPassword(u) {

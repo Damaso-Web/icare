@@ -28,6 +28,7 @@ class User extends Authenticatable
         'suffix',
         'temp_password',
         'must_change_password',
+        'last_login_at',
     ];
 
     protected $hidden = [
