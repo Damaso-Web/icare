@@ -83,23 +83,59 @@ class AuthController extends Controller
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
+    // My Account: a staff member updating their own profile. Role, unit,
+    // college, department and employee ID stay Admin-only (User Management).
     public function updateProfile(Request $request)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
+        $name = ['string', 'min:2', 'max:255', "regex:/^[a-zA-Z\\s'.-]+$/"];
 
-    $validated = $request->validate([
-        'first_name'     => 'sometimes|string|max:255',
-        'last_name'      => 'sometimes|string|max:255',
-        'middle_name'    => 'nullable|string|max:255',
-        'email'          => 'sometimes|email|unique:users,email,' . $user->id,
-        'contact_number' => 'nullable|string|max:11',
-    ]);
+        $validated = $request->validate([
+            'first_name'       => ['required', ...$name],
+            'last_name'        => ['required', ...$name],
+            'middle_name'      => ['nullable', ...$name],
+            'suffix'           => 'nullable|string|max:20',
+            'email'            => 'required|email|max:255|unique:users,email,' . $user->id,
+            'contact_number'   => ['nullable', 'regex:/^09\d{9}$/'],
+            'current_password' => 'nullable|string',
+        ], [
+            'first_name.regex'     => 'Names may only contain letters, spaces, apostrophes, periods and hyphens.',
+            'last_name.regex'      => 'Names may only contain letters, spaces, apostrophes, periods and hyphens.',
+            'middle_name.regex'    => 'Names may only contain letters, spaces, apostrophes, periods and hyphens.',
+            'contact_number.regex' => 'Contact number must be 11 digits starting with 09 (e.g. 09171234567).',
+        ]);
 
-    $user->update($validated);
+        // The email is the login username, so changing it needs the current password.
+        $emailChanged = strcasecmp($validated['email'], $user->email) !== 0;
+        if ($emailChanged) {
+            if (strtolower($user->email) === DevController::TESTER_EMAIL) {
+                return response()->json(['message' => "The tester account's email can't be changed - the role switcher is tied to it."], 422);
+            }
+            if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
+                return response()->json(['message' => 'Current password is incorrect. Your email was not changed.'], 422);
+            }
+        }
+        unset($validated['current_password']);
 
-    return response()->json($user->only([
-        'id', 'name', 'first_name', 'middle_name', 'last_name',
-        'email', 'role', 'unit', 'college', 'department', 'contact_number', 'employee_id'
-    ]));
-}
+        $old = $user->only(array_keys($validated));
+        $user->fill($validated);
+        $changed = array_keys($user->getDirty());
+        $changed = array_values(array_diff($changed, ['name']));
+
+        if ($changed) {
+            $user->save();
+            AuditLog::record(
+                'profile_updated',
+                "User {$user->name} updated their own profile (" . implode(', ', $changed) . ").",
+                $user,
+                array_intersect_key($old, array_flip($changed)),
+                $user->only($changed)
+            );
+        }
+
+        return response()->json($user->only([
+            'id', 'name', 'first_name', 'middle_name', 'last_name', 'suffix',
+            'email', 'role', 'unit', 'college', 'department', 'contact_number', 'employee_id'
+        ]));
+    }
 }
