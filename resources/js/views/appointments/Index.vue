@@ -6,7 +6,7 @@
            Appointment" on the Referral Details page), this carries a
            return_to query so staff can get back to exactly where they were,
            instead of having to re-find the case afterward. -->
-      <button v-if="returnTo" class="ibtn ibtn-o ibtn-sm" @click="$router.push(returnTo)">
+      <button v-if="returnTo" class="ibtn ibtn-o ibtn-sm" @click="goBackToSif">
         <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
       <div>
@@ -358,6 +358,25 @@ const route  = useRoute();
 // B241 - present only when this page was reached from a Student Information
 // File action (see the return_to query param those links now attach).
 const returnTo = computed(() => (typeof route.query.return_to === 'string' ? route.query.return_to : ''));
+
+// This used to be $router.push(returnTo), which PUSHES a brand new history
+// entry onto the stack instead of undoing the one that got here - so the
+// stack became [SIF, Calendar, SIF-again]. Pressing the browser's own Back
+// button afterward then stepped through that leftover middle entry (back to
+// Calendar first, then back to SIF again) instead of just leaving straight
+// away, which is the "back takes me to calendar then back to SIF" bug.
+// router.back() undoes the single forward navigation that got here (the
+// "Schedule Appointment" link push), so this button and the browser's own
+// Back button now agree. Falls back to push only if there's nowhere in the
+// SPA's own history to go back to (e.g. this page was opened directly via a
+// bookmarked/reloaded URL that happens to carry a return_to).
+function goBackToSif() {
+  if (window.history.state && window.history.state.back) {
+    router.back();
+  } else {
+    router.push(returnTo.value);
+  }
+}
 
 const loading    = ref(true);
 const appointments = ref([]);
