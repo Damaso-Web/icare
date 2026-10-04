@@ -1035,7 +1035,19 @@
               <p>No appointments have been scheduled for this referral.</p>
             </div>
             <div v-else>
-              <div v-for="a in referralAppointments" :key="a.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px">
+              <!-- Clicking the card opens the Appointment Details modal below
+                   (openApptDetail) so staff can confirm/check-in/no-show/
+                   cancel right here, without leaving the SIF for the
+                   Appointments page - requested so there's at least a choice
+                   instead of always having to go to the sidebar. The
+                   existing No-Show button keeps working on its own
+                   (@click.stop so it doesn't also pop the modal open). -->
+              <div
+                v-for="a in referralAppointments"
+                :key="a.id"
+                style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px;cursor:pointer"
+                @click="openApptDetail(a)"
+              >
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <div>
                     <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
@@ -1045,7 +1057,7 @@
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                 </div>
                 <div style="font-size:11px;color:var(--fog)">With {{ a.staff?.name || '-' }}</div>
-                <button v-if="isGCU && a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start" @click="openCaseNoShowModal(a)">No-Show</button>
+                <button v-if="isGCU && a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start" @click.stop="openCaseNoShowModal(a)">No-Show</button>
               </div>
             </div>
           </div>
@@ -1439,6 +1451,83 @@
               <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitCaseNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
               <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="submitCaseNoShow('call_slip')">Issue Call Slip (Escalate to Dean's Secretary)</button>
               <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Never Mind</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appointment Details Modal - opened by clicking an appointment card
+           in the SIF's Appointments list above (openApptDetail). Lets staff
+           confirm / mark attended / no-show / cancel right from the SIF,
+           same actions as appointments/Index.vue's detail modal, so they
+           have a choice instead of always needing to go to the Appointments
+           sidebar/page. -->
+      <div v-if="apptDetailTarget" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="apptDetailTarget = null">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Appointment Details</div>
+              <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ apptDetailTarget.appointment_code }}</div>
+            </div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="apptDetailTarget = null">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
+                <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(apptDetailTarget.appointment_type) }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+                <span class="ibadge" :class="'ibadge-' + apptDetailTarget.status">{{ toTitleCase(apptDetailTarget.status) }}</span>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
+                <div style="font-size:13px;color:var(--ink)">{{ formatDate(apptDetailTarget.appointment_date) }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Time</div>
+                <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.start_time }} - {{ apptDetailTarget.end_time }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Unit</div>
+                <span class="ibadge" :class="'unit-' + apptDetailTarget.unit?.toLowerCase()">{{ apptDetailTarget.unit }}</span>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Staff</div>
+                <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.staff?.name || 'TBA' }}</div>
+              </div>
+            </div>
+            <div v-if="apptDetailTarget.location">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Location</div>
+              <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.location }}</div>
+            </div>
+            <div v-if="apptDetailTarget.required_documents">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
+              <div style="font-size:13px;color:var(--ink);background:var(--snow);padding:8px 10px;border-radius:var(--r-sm)">{{ apptDetailTarget.required_documents }}</div>
+            </div>
+            <div v-if="apptDetailTarget.notes">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Notes</div>
+              <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.notes }}</div>
+            </div>
+
+            <!-- Cancel reason, shown only once "Cancel Appointment" is
+                 pressed below, instead of a separate modal on top of this
+                 one. -->
+            <div v-if="apptCancelling" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px">
+              <label class="ifl">Reason for Cancellation <span style="color:var(--red)">*</span></label>
+              <textarea v-model="apptCancelReason" class="ifta" style="min-height:70px" placeholder="Why is this appointment being cancelled?"></textarea>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="confirmApptCancel">Yes, Cancel Appointment</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptCancelling = false">Never Mind</button>
+              </div>
+            </div>
+
+            <div v-else-if="isGCU && !['cancelled','completed'].includes(apptDetailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
+              <button v-if="apptDetailTarget.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click="confirmApptFromDetail">Confirm Appointment</button>
+              <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkInApptFromDetail">Student Attended</button>
+              <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openCaseNoShowModal(apptDetailTarget); apptDetailTarget = null">No-Show</button>
+              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="apptCancelling = true; apptCancelReason = ''">Cancel Appointment</button>
             </div>
           </div>
         </div>
@@ -2211,6 +2300,69 @@ async function submitCaseNoShow(action) {
     showCaseNoShowModal.value = false;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
+  }
+}
+
+// Appointment Details modal - opened by clicking an appointment card in the
+// SIF's own Appointments list, so staff can act (confirm/check-in/no-show/
+// cancel) without leaving the SIF for the Appointments page.
+const apptDetailTarget = ref(null);
+const apptCancelling = ref(false);
+const apptCancelReason = ref('');
+
+function openApptDetail(a) {
+  apptDetailTarget.value = a;
+  apptCancelling.value = false;
+  apptCancelReason.value = '';
+}
+
+// Re-fetches the whole referral (same pattern as sendFeedback above) so the
+// referral's status badge, the Appointments list, and anything gated on
+// hasAttendedAppointment/canEditSif all reflect what actually got persisted,
+// rather than guessing at a local merge.
+async function refreshReferralAfterApptChange() {
+  const fresh = await referralAPI.show(referral.value.id);
+  referral.value = fresh.data;
+}
+
+async function confirmApptFromDetail() {
+  if (!apptDetailTarget.value) return;
+  try {
+    await appointmentAPI.confirm(apptDetailTarget.value.id, {});
+    toast?.success('Appointment confirmed.');
+    apptDetailTarget.value = null;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to confirm appointment.');
+  }
+}
+
+async function checkInApptFromDetail() {
+  if (!apptDetailTarget.value) return;
+  try {
+    await appointmentAPI.checkIn(apptDetailTarget.value.id);
+    toast?.success('Marked as attended.');
+    apptDetailTarget.value = null;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to mark as attended.');
+  }
+}
+
+async function confirmApptCancel() {
+  if (!apptDetailTarget.value) return;
+  if (!apptCancelReason.value.trim()) {
+    toast?.error('Please give a reason for cancelling.');
+    return;
+  }
+  try {
+    await appointmentAPI.cancel(apptDetailTarget.value.id, { cancellation_reason: apptCancelReason.value });
+    toast?.success('Appointment cancelled.');
+    apptDetailTarget.value = null;
+    apptCancelling.value = false;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to cancel appointment.');
   }
 }
 
