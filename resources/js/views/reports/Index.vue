@@ -205,6 +205,7 @@
               <tr>
                 <th>Unit</th>
                 <th>Total</th>
+                <th>Pending</th>
                 <th>Confirmed</th>
                 <th>Completed</th>
                 <th>Cancelled</th>
@@ -215,13 +216,14 @@
               <tr v-for="row in apptSummary" :key="row.unit">
                 <td><span class="ibadge" :class="'unit-' + row.unit.toLowerCase()">{{ row.unit }}</span></td>
                 <td style="font-weight:600">{{ row.total }}</td>
+                <td>{{ row.pending }}</td>
                 <td>{{ row.confirmed }}</td>
                 <td>{{ row.completed }}</td>
                 <td>{{ row.cancelled }}</td>
                 <td>{{ row.no_show }}</td>
               </tr>
               <tr v-if="!apptSummary.length">
-                <td colspan="6" style="text-align:center;color:var(--fog)">No data</td>
+                <td colspan="7" style="text-align:center;color:var(--fog)">No data</td>
               </tr>
             </tbody>
           </table>
@@ -296,16 +298,18 @@ const maxMonthlyCount = computed(() => {
 
 const apptSummary = computed(() => {
   const byUnit = apptData.value.by_unit || [];
-  const byStatus = apptData.value.by_status || [];
+  const byUnitStatus = apptData.value.by_unit_status || [];
   return ['GCU', 'SDU', 'TMDU'].map(unit => {
     const unitData = byUnit.find(u => u.unit === unit);
+    const count = status => byUnitStatus.find(s => s.unit === unit && s.status === status)?.count || 0;
     return {
       unit,
       total:     unitData?.count || 0,
-      confirmed: byStatus.find(s => s.status === 'confirmed')?.count || 0,
-      completed: byStatus.find(s => s.status === 'completed')?.count || 0,
-      cancelled: byStatus.find(s => s.status === 'cancelled')?.count || 0,
-      no_show:   byStatus.find(s => s.status === 'no_show')?.count || 0,
+      pending:   count('pending'),
+      confirmed: count('confirmed'),
+      completed: count('completed'),
+      cancelled: count('cancelled'),
+      no_show:   count('no_show'),
     };
   }).filter(r => r.total > 0);
 });
