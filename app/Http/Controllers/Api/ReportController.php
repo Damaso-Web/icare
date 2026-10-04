@@ -117,6 +117,11 @@ class ReportController extends Controller
             'by_unit'        => $query->clone()->groupBy('unit')
                                     ->select('unit', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
+            // Status counts per unit - the Appointment Summary table needs
+            // each unit's own breakdown, not the all-unit by_status totals.
+            'by_unit_status' => $query->clone()->groupBy('unit', 'status')
+                                    ->select('unit', 'status', DB::raw('count(*) as count'))
+                                    ->get()->toArray(),
             'by_type'        => $query->clone()->groupBy('appointment_type')
                                     ->select('appointment_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),

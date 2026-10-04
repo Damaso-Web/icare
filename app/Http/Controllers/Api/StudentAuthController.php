@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Student;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
@@ -25,10 +26,12 @@ class StudentAuthController extends Controller
             ->first();
 
         if (!$student) {
+            AuditLog::record('login_failed', "Failed student login: no active account with Student ID {$request->student_id}.");
             return response()->json(['message' => 'No active student account was found with that Student ID.'], 401);
         }
 
         if (!$student->password || !Hash::check($request->password, $student->password)) {
+            AuditLog::record('login_failed', "Failed student login for {$student->student_id}: incorrect password.", $student, [], [], $student);
             return response()->json(['message' => 'Incorrect password.'], 401);
         }
 
@@ -41,6 +44,8 @@ class StudentAuthController extends Controller
         ]);
         $token = $student->createToken('student-token', ['student'])->plainTextToken;
 
+        AuditLog::record('login', "Student {$student->student_id} logged in.", $student, [], [], $student);
+
         return response()->json([
             'token'   => $token,
             'student' => $student->only([
@@ -52,7 +57,9 @@ class StudentAuthController extends Controller
 
     public function logout(Request $request)
     {
-        $request->user('student')->currentAccessToken()->delete();
+        $student = $request->user('student');
+        AuditLog::record('logout', "Student {$student->student_id} logged out.", $student);
+        $student->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
@@ -79,6 +86,7 @@ class StudentAuthController extends Controller
             'temp_password'         => null,
             'must_change_password'  => false,
         ]);
+        AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
@@ -146,7 +154,20 @@ public function updateProfile(Request $request)
         'college_year_graduated'          => 'nullable|string|max:4',
     ]);
 
-    $student->update($validated);
+    $student->fill($validated);
+    $changed = array_keys($student->getDirty());
+
+    if ($changed) {
+        $old = array_intersect_key($student->getOriginal(), array_flip($changed));
+        $student->save();
+        AuditLog::record(
+            'profile_updated',
+            "Student {$student->student_id} updated their own profile (" . implode(', ', $changed) . ").",
+            $student,
+            $old,
+            $student->only($changed)
+        );
+    }
 
     return response()->json($student->only([
         'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'suffix',

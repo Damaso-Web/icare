@@ -54,6 +54,11 @@ return [
             'unix_socket' => env('DB_SOCKET', ''),
             'charset' => 'utf8mb4',
             'collation' => 'utf8mb4_unicode_ci',
+            // Must match config('app.timezone') (Asia/Manila). Every date-time
+            // column is a MySQL TIMESTAMP, which is stored as UTC and converted
+            // through the session time zone - so rows written back when the
+            // app ran on UTC still read as the correct Philippine time.
+            'timezone' => '+08:00',
             'prefix' => '',
             'prefix_indexes' => true,
             'strict' => true,

@@ -91,6 +91,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { studentAppointmentAPI } from '../../api/index';
+import { localDateStr } from '../../utils/validators';
 
 const CONCERNS = [
   { value: 'academic',     label: 'Academic concerns' },
@@ -120,7 +121,7 @@ const form = ref({
 });
 
 const today = new Date();
-const minDate = computed(() => today.toISOString().split('T')[0]);
+const minDate = computed(() => localDateStr(today));
 
 const canSubmit = computed(() =>
   !!form.value.concern &&

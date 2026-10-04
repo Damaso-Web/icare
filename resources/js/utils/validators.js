@@ -55,3 +55,10 @@ export function toTitleCase(str) {
   if (!str) return '';
   return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
+
+// YYYY-MM-DD in the device's own time zone. toISOString() gives the UTC date,
+// which is still "yesterday" until 8:00 AM in the Philippines.
+export function localDateStr(date = new Date()) {
+  const pad = n => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}

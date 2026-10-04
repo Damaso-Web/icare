@@ -36,25 +36,29 @@ class AuditLog extends Model
     // Relationships
     public function user() { return $this->belongsTo(User::class); }
 
-    // Static logger
-    public static function record(string $action, string $description, $model = null, array $old = [], array $new = []): void
+    // Static logger. $actor is for requests where nobody is authenticated yet
+    // (login attempts) - everywhere else the logged-in staff user or student
+    // is picked up automatically.
+    public static function record(string $action, string $description, $model = null, array $old = [], array $new = [], $actor = null): void
 {
-    $user = auth()->user() ?: auth('student')->user();
+    $user = $actor ?: (auth()->user() ?: auth('student')->user());
     $isStaffUser = $user instanceof \App\Models\User;
+    // Students have no single "name" column.
+    $name = $user ? ($user->name ?: trim("{$user->first_name} {$user->last_name}")) : null;
 
     static::create([
         'user_id'     => $isStaffUser ? $user->id : null,
-        'user_name'   => $user?->name,
+        'user_name'   => $name,
         'user_role'   => $isStaffUser ? $user->role : ($user ? 'student' : null),
         'ip_address'  => request()->ip(),
-        'user_agent'  => request()->userAgent(),
+        'user_agent'  => mb_substr((string) request()->userAgent(), 0, 255),
         'action'      => $action,
         'model_type'  => $model ? get_class($model) : null,
         'model_id'    => $model?->id,
         'description' => $description,
         'old_values'  => $old,
         'new_values'  => $new,
-        'url'         => request()->fullUrl(),
+        'url'         => mb_substr(request()->fullUrl(), 0, 255),
         'method'      => request()->method(),
         'created_at'  => now(),
     ]);

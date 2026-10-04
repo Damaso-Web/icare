@@ -7,3 +7,4 @@
 .phpunit.result.cache
 .env.backup
 ca.pem
+/public/build/

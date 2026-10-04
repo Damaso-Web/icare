@@ -12,15 +12,14 @@
       <input v-model="dateFrom" type="date" class="ifi" style="width:160px" />
       <span style="font-size:12px;color:var(--stone)">to</span>
       <input v-model="dateTo" type="date" class="ifi" style="width:160px" />
-      <button class="ibtn ibtn-p ibtn-sm" @click="fetchAll">
-        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      <button class="ibtn ibtn-p ibtn-sm" title="Reload the report figures for the selected date range" @click="fetchAll">
         Generate
       </button>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportReport('pdf')">
+      <button class="ibtn ibtn-o ibtn-sm" :disabled="!!exporting" @click="exportReport('pdf')">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         {{ exporting === 'pdf' ? 'Exporting...' : 'Export PDF' }}
       </button>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportReport('excel')">
+      <button class="ibtn ibtn-o ibtn-sm" :disabled="!!exporting" @click="exportReport('excel')">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         {{ exporting === 'excel' ? 'Exporting...' : 'Export Excel' }}
       </button>
@@ -205,6 +204,7 @@
               <tr>
                 <th>Unit</th>
                 <th>Total</th>
+                <th>Pending</th>
                 <th>Confirmed</th>
                 <th>Completed</th>
                 <th>Cancelled</th>
@@ -215,13 +215,14 @@
               <tr v-for="row in apptSummary" :key="row.unit">
                 <td><span class="ibadge" :class="'unit-' + row.unit.toLowerCase()">{{ row.unit }}</span></td>
                 <td style="font-weight:600">{{ row.total }}</td>
+                <td>{{ row.pending }}</td>
                 <td>{{ row.confirmed }}</td>
                 <td>{{ row.completed }}</td>
                 <td>{{ row.cancelled }}</td>
                 <td>{{ row.no_show }}</td>
               </tr>
               <tr v-if="!apptSummary.length">
-                <td colspan="6" style="text-align:center;color:var(--fog)">No data</td>
+                <td colspan="7" style="text-align:center;color:var(--fog)">No data</td>
               </tr>
             </tbody>
           </table>
@@ -236,7 +237,7 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { reportAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const toast = inject('toast');
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -261,7 +262,7 @@ async function exportReport(format) {
     const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `iCARE-Report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    link.download = `iCARE-Report-${localDateStr()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -296,16 +297,18 @@ const maxMonthlyCount = computed(() => {
 
 const apptSummary = computed(() => {
   const byUnit = apptData.value.by_unit || [];
-  const byStatus = apptData.value.by_status || [];
+  const byUnitStatus = apptData.value.by_unit_status || [];
   return ['GCU', 'SDU', 'TMDU'].map(unit => {
     const unitData = byUnit.find(u => u.unit === unit);
+    const count = status => byUnitStatus.find(s => s.unit === unit && s.status === status)?.count || 0;
     return {
       unit,
       total:     unitData?.count || 0,
-      confirmed: byStatus.find(s => s.status === 'confirmed')?.count || 0,
-      completed: byStatus.find(s => s.status === 'completed')?.count || 0,
-      cancelled: byStatus.find(s => s.status === 'cancelled')?.count || 0,
-      no_show:   byStatus.find(s => s.status === 'no_show')?.count || 0,
+      pending:   count('pending'),
+      confirmed: count('confirmed'),
+      completed: count('completed'),
+      cancelled: count('cancelled'),
+      no_show:   count('no_show'),
     };
   }).filter(r => r.total > 0);
 });
