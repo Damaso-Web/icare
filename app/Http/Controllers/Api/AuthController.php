@@ -23,21 +23,25 @@ class AuthController extends Controller
         $user = User::where('email', $request->email)->first();
 
         if (!$user) {
+            AuditLog::record('login_failed', "Failed staff login: no account with email {$request->email}.");
             return response()->json(['message' => 'No BSU Personnel account was found with that email address.'], 401);
         }
 
         if (!$user->is_active) {
+            AuditLog::record('login_failed', "Failed staff login for {$user->name}: account is deactivated.", $user, [], [], $user);
             return response()->json(['message' => 'This account has been deactivated. Please contact the OSS administrator.'], 401);
         }
 
         if (!Hash::check($request->password, $user->password)) {
+            AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password.", $user, [], [], $user);
             return response()->json(['message' => 'Incorrect password. Please try again.'], 401);
         }
 
         $user->update(['last_login_at' => now()]);
         $token = $user->createToken('icare-token')->plainTextToken;
 
-        AuditLog::record('login', "User {$user->name} logged in.");
+        // Nobody is authenticated yet during login, so name the user explicitly.
+        AuditLog::record('login', "User {$user->name} logged in.", $user, [], [], $user);
 
         return response()->json([
         'token' => $token,

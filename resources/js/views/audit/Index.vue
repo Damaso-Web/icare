@@ -15,7 +15,9 @@
       <select v-model="filters.action" class="fsm" @change="fetchLogs">
         <option value="">All Actions</option>
         <option value="login">Login</option>
+        <option value="login_failed">Login Failed</option>
         <option value="logout">Logout</option>
+        <option value="password_change">Password Change</option>
         <option value="created">Created</option>
         <option value="updated">Updated</option>
         <option value="profile_updated">Profile Updated</option>
@@ -235,7 +237,8 @@ function resetFilters() {
 function actionStyle(action) {
   const styles = {
     login:          'background:var(--mist);color:var(--moss)',
-    logout:         'background:var(--cloud);color:var(--stone)',
+    login_failed:   'background:var(--red-lt);color:var(--red)',
+    logout:       'background:var(--cloud);color:var(--stone)',
     created:        'background:var(--blue-lt);color:var(--blue)',
     updated:        'background:var(--amber-lt);color:var(--amber)',
     deleted:        'background:var(--red-lt);color:var(--red)',
@@ -258,6 +261,8 @@ function roleLabel(role) {
     tmdu_staff:     'TMDU Staff',
     faculty:        'Faculty',
     dean_secretary: "Dean's Secretary",
+    system_admin:   'System Admin',
+    student:        'Student',
   };
   return labels[role] || role;
 }
