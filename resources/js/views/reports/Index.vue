@@ -12,8 +12,7 @@
       <input v-model="dateFrom" type="date" class="ifi" style="width:160px" />
       <span style="font-size:12px;color:var(--stone)">to</span>
       <input v-model="dateTo" type="date" class="ifi" style="width:160px" />
-      <button class="ibtn ibtn-p ibtn-sm" @click="fetchAll">
-        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      <button class="ibtn ibtn-p ibtn-sm" title="Reload the report figures for the selected date range" @click="fetchAll">
         Generate
       </button>
       <button class="ibtn ibtn-o ibtn-sm" :disabled="!!exporting" @click="exportReport('pdf')">
