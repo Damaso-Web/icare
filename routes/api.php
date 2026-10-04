@@ -62,9 +62,10 @@ Route::middleware('auth:sanctum')->group(function () {
     // it); changing student records is limited to the roles that own the
     // Students module, enforced here and not just by the frontend.
     Route::apiResource('students', StudentController::class)->only(['index', 'show']);
-    Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
     Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff')->group(function () {
+        // A student's referrals, cases, appointments and testing records
+        Route::get('students/{student}/history', [StudentController::class, 'history']);
         Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
         Route::post('students/import', [StudentController::class, 'import']);
@@ -173,8 +174,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('notifications/read-all',    [NotificationController::class, 'markAllRead']);
     Route::get('notification-logs',          [NotificationController::class, 'logs']);
 
-    // Reports
-    Route::prefix('reports')->group(function () {
+    // Reports - same roles as the Reports page (Admin / GCU Head, GCU Staff)
+    Route::prefix('reports')->middleware('role:admin,gcu_staff')->group(function () {
         Route::get('referrals',    [ReportController::class, 'referrals']);
         Route::get('appointments', [ReportController::class, 'appointments']);
         Route::get('cases',        [ReportController::class, 'cases']);
