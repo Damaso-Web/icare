@@ -99,9 +99,7 @@ class SessionNoteController extends Controller
         // pipeline to "In Progress" - only a forward move, so a referral
         // already past this point (referred out, completed, closed) never
         // gets bumped backward by a later session note.
-        if (in_array($referral->status, ['submitted', 'acknowledged', 'in_review', 'scheduled'])) {
-            $referral->update(['status' => 'in_progress']);
-        }
+        $referral->advanceStatusTo('in_progress');
 
         AuditLog::record('created', "Logged session #{$sessionNumber} for referral {$referral->referral_code}.", $note);
         return response()->json($note->load('recordedBy'), 201);

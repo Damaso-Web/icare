@@ -363,7 +363,12 @@ class ReferralController extends Controller
             $referral->update(['case_id' => $case->id]);
         }
 
-        $referral->update(['status' => 'in_review']);
+        // B275: previously jumped straight to 'in_review' here, before any
+        // appointment even existed - confusing, and redundant with
+        // 'in_progress'. Status now stays 'acknowledged' until the student's
+        // appointment is actually confirmed (-> 'scheduled', set in
+        // AppointmentController::confirm()) and then attended (->
+        // 'in_progress', set in AppointmentController::checkIn()).
         $referral->refresh();
 
         // A GCU/SDU referral gets a self-schedulable "Initial Counseling"
@@ -372,9 +377,16 @@ class ReferralController extends Controller
         // testing referral does NOT get this at all: TMDU sets the actual
         // test-taking date/time directly on the Testing Record Details page
         // (TestingRecordController::scheduleTesting()), with no appointment
-        // of any kind created here. Reuse whatever's already
-        // pending/confirmed for this case instead of piling up duplicate
-        // appointments, for the GCU/SDU case.
+        // of any kind created here. Reuse whatever's already pending/
+        // confirmed for THIS referral (not just any past referral on the
+        // same case) instead of piling up duplicate appointments - scoping
+        // by referral_id, not just case+type+unit, matters because a case
+        // can have several referrals over time, and reusing an old,
+        // already-superseded appointment from a previous referral silently
+        // skipped creating a new scheduling link for this one (the referral
+        // never showed up for the student to self-schedule). 'rescheduled'
+        // appointments are excluded too, since those are superseded rows in
+        // a reschedule chain, not the active one.
         $appointment     = null;
         $schedulingLink  = null;
 
@@ -382,9 +394,10 @@ class ReferralController extends Controller
             $appointmentType = \App\Models\Referral::appointmentTypeFor($referral->referral_type);
 
             $appointment = $case->appointments()
+                ->where('referral_id', $referral->id)
                 ->where('appointment_type', $appointmentType)
                 ->where('unit', $unit)
-                ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
+                ->whereNotIn('status', ['cancelled', 'completed', 'no_show', 'rescheduled'])
                 ->latest()
                 ->first();
 
@@ -490,7 +503,7 @@ class ReferralController extends Controller
         $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $request->validate([
-            'status' => 'required|in:submitted,acknowledged,in_review,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
+            'status' => 'required|in:submitted,acknowledged,scheduled,in_progress,referred_tmdu,referred_external,completed,closed'
         ]);
 
         // "Resolve Referral" goes through this same endpoint (status =
@@ -501,6 +514,11 @@ class ReferralController extends Controller
         // other status move in the normal workflow is unaffected.
         if ($request->status === 'completed' && !$referral->canEditSif()) {
             abort(422, 'This referral must be acknowledged and have an appointment set and attended before it can be resolved.');
+        }
+
+        // Statuses cannot go backward - see Referral::canMoveStatusTo().
+        if (!$referral->canMoveStatusTo($request->status)) {
+            abort(422, 'Referral status cannot move backward.');
         }
 
         $old = ['status' => $referral->status];

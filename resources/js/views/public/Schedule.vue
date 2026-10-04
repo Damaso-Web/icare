@@ -144,7 +144,6 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import { localDateStr } from '../../utils/validators';
 
 const route = useRoute();
 const token = route.params.token;
@@ -171,7 +170,7 @@ const form = ref({
 });
 
 const today = new Date();
-const minDate = computed(() => localDateStr(today));
+const minDate = computed(() => today.toISOString().split('T')[0]);
 
 const calYear  = ref(today.getFullYear());
 const calMonth = ref(today.getMonth());

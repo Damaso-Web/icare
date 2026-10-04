@@ -235,7 +235,6 @@ export const devAPI = {
 
 export const auditAPI = {
     index: (params) => api.get('/audit-logs', { params }),
-    filterOptions: () => api.get('/audit-logs/filter-options'),
     show:  (id)     => api.get(`/audit-logs/${id}`),
 };
 

@@ -692,8 +692,13 @@
 
         </div>
 
-        <!-- Right -->
-        <div style="display:flex;flex-direction:column;gap:16px">
+        <!-- Right - floating/sticky so the Case Action buttons and the
+             Appointments card (Student Attended / No-Show / Request
+             Reschedule, etc.) stay reachable while scrolling the much
+             longer left column, instead of scrolling out of view. Caps its
+             own height and scrolls internally if it's ever taller than the
+             viewport, so it never gets stuck unreachable itself. -->
+        <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto">
 
           <!-- Acknowledge - visible to Admin and GCU Staff for ordinary
                referrals; a psychological_testing referral (the shared
@@ -1490,7 +1495,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { toTitleCase, localDateStr } from '../../utils/validators';
+import { toTitleCase } from '../../utils/validators';
 
 const route   = useRoute();
 const router  = useRouter();
@@ -1766,12 +1771,11 @@ const pipeline = [
   { key: 'submitted',    label: 'Submitted' },
   { key: 'acknowledged', label: 'Acknowledged' },
   { key: 'scheduled',   label: 'Scheduled' },
-  { key: 'in_review',   label: 'In Review' },
   { key: 'in_progress', label: 'In Progress' },
   { key: 'completed',   label: 'Completed' },
 ];
 
-const statusOrder = ['submitted', 'acknowledged', 'scheduled', 'in_review', 'in_progress', 'completed', 'closed'];
+const statusOrder = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'completed', 'closed'];
 
 function isStepDone(key) {
   const current = statusOrder.indexOf(referral.value.status);
@@ -1891,7 +1895,7 @@ async function logSession() {
     const payload = {
       ...sessionForm.value,
       observations: sessionForm.value.interventions,
-      session_date: localDateStr(now),
+      session_date: now.toISOString().split('T')[0],
       session_start_time: now.toTimeString().slice(0, 5),
     };
     const res = await sessionNoteAPI.storeByReferral(referral.value.id, payload);
@@ -1900,7 +1904,7 @@ async function logSession() {
     // server-side bump to "In Progress" - only move the badge forward here
     // too, so it doesn't visually override a status that's already moved on
     // (referred out, completed, closed) until the next full reload.
-    if (['submitted', 'acknowledged', 'in_review', 'scheduled'].includes(referral.value.status)) {
+    if (['submitted', 'acknowledged', 'scheduled'].includes(referral.value.status)) {
       referral.value.status = 'in_progress';
     }
     showSessionModal.value = false;
@@ -2268,7 +2272,7 @@ async function saveFollowUpNotes() {
 }
 
 // B252: never allow picking a day that's already gone.
-const todayStr = localDateStr();
+const todayStr = new Date().toISOString().split('T')[0];
 
 const showFollowUpConfirm = ref(false);
 

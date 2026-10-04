@@ -235,8 +235,12 @@ class AppointmentController extends Controller
             ...(!empty($requiredDocuments) ? ['required_documents' => $requiredDocuments] : []),
         ]);
 
+        // B275: confirming the appointment moves the referral to 'scheduled'
+        // - not straight to 'in_progress'. 'in_progress' is reserved for the
+        // student actually attending (set in checkIn() below). Forward-only
+        // via advanceStatusTo(), so this can't undo a later status.
         if ($appointment->case?->latestReferral) {
-            $appointment->case->latestReferral->update(['status' => 'in_progress']);
+            $appointment->case->latestReferral->advanceStatusTo('scheduled');
         }
 
         AuditLog::record('confirmed', "Confirmed appointment {$appointment->appointment_code}.", $appointment);
@@ -420,7 +424,7 @@ class AppointmentController extends Controller
         // referral too, so the Student Profile shows "Cancelled" instead of a stale
         // "Scheduled" label (B193).
         if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
-            $appointment->case->latestReferral->update(['status' => 'cancelled']);
+            $appointment->case->latestReferral->advanceStatusTo('cancelled');
         }
 
         AuditLog::record('cancelled', "Cancelled appointment {$appointment->appointment_code}.", $appointment);
@@ -446,7 +450,7 @@ class AppointmentController extends Controller
         ]);
 
         if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
-            $appointment->case->latestReferral->update(['status' => 'cancelled']);
+            $appointment->case->latestReferral->advanceStatusTo('cancelled');
         }
 
         AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->cancellation_reason}", $appointment);
@@ -542,8 +546,16 @@ public function checkConflictByStudent(Request $request)
             'status'                => 'completed',
         ]);
 
+        // B275: "Student Attended" is what actually moves the referral to
+        // 'in_progress' - this is the point the SIF unlocks (see
+        // Referral::canEditSif(), which also requires an attended
+        // appointment). Forward-only via advanceStatusTo().
+        if ($appointment->case?->latestReferral) {
+            $appointment->case->latestReferral->advanceStatusTo('in_progress');
+        }
+
         AuditLog::record('checked_in', "Student checked in for appointment {$appointment->appointment_code}.", $appointment);
-        return response()->json($appointment);
+        return response()->json($appointment->load('case.latestReferral'));
     }
 
     // FR 2.6: Mark a no-show. Whether this escalates to the Dean's

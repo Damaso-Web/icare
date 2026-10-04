@@ -965,12 +965,12 @@ const newReferralStatus       = ref('');
 const referralPipeline = [
   { key: 'submitted',    label: 'Submitted' },
   { key: 'acknowledged', label: 'Acknowledged' },
-  { key: 'in_review',    label: 'In Review' },
+  { key: 'scheduled',    label: 'Scheduled' },
   { key: 'in_progress',  label: 'In Progress' },
   { key: 'completed',    label: 'Completed' },
 ];
 
-const referralStatusOrder = ['submitted', 'acknowledged', 'in_review', 'in_progress', 'completed', 'closed'];
+const referralStatusOrder = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'completed', 'closed'];
 
 function isReferralStatusSelectable(key) {
   const current = referralStatusOrder.indexOf(caseFile.value.latest_referral?.status);

@@ -119,8 +119,10 @@
 
       </div>
 
-      <!-- Right: Mini Calendar -->
-      <div style="display:flex;flex-direction:column;gap:16px">
+      <!-- Right: Mini Calendar - floating/sticky to match the SIF's
+           Appointments card, so it (and the day-filter) stay reachable
+           while scrolling a long appointments list. -->
+      <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto">
         <div class="icard">
           <div class="icard-header">
             <span class="icard-title">{{ currentMonthLabel }}</span>

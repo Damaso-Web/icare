@@ -23,7 +23,7 @@
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
         <option value="acknowledged">Acknowledged</option>
-        <option value="in_review">In Review</option>
+        <option value="scheduled">Scheduled</option>
         <option value="in_progress">In Progress</option>
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>

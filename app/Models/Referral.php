@@ -141,6 +141,47 @@ class Referral extends Model
         return $this->status !== 'submitted' && $this->hasAttendedAppointment();
     }
 
+    // The referral's main pipeline, in order. 'in_review' is retired (B275 -
+    // a referral used to jump straight to "In Review" on acknowledge, before
+    // any appointment even existed, which was confusing and redundant with
+    // "In Progress"). referred_tmdu/referred_external are branch exits, not
+    // on this line, so they're deliberately left out here.
+    private const STATUS_ORDER = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'completed', 'closed'];
+
+    /**
+     * Whether moving this referral's status to $status is a legal forward
+     * move. A status cannot go backward once set. Branch destinations
+     * (referred_tmdu, referred_external) aren't on the linear path above -
+     * they're allowed as long as the referral hasn't already reached a
+     * terminal state (completed/closed) or another branch.
+     */
+    public function canMoveStatusTo(string $status): bool
+    {
+        $currentIndex = array_search($this->status, self::STATUS_ORDER);
+        $targetIndex  = array_search($status, self::STATUS_ORDER);
+
+        if ($targetIndex === false) {
+            return $this->status !== 'completed' && $this->status !== 'closed';
+        }
+
+        return $currentIndex === false || $targetIndex > $currentIndex;
+    }
+
+    /**
+     * Moves the status forward to $status, but only if canMoveStatusTo()
+     * allows it - a no-op (returns false) otherwise, so callers along the
+     * main pipeline (acknowledge -> confirm -> check-in) can't accidentally
+     * move a referral backward just by re-running in the wrong order.
+     */
+    public function advanceStatusTo(string $status): bool
+    {
+        if (!$this->canMoveStatusTo($status)) {
+            return false;
+        }
+        $this->update(['status' => $status]);
+        return true;
+    }
+
     /**
      * The documents a student must bring/prepare for a given referral type,
      * shown to them before they confirm an appointment (OSS requirement).
