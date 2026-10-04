@@ -8,28 +8,29 @@
 
     <!-- Filter Bar -->
     <div class="filter-bar">
-      <select v-model="filters.user_id" class="fsm" @change="fetchLogs">
+      <div class="sw">
+        <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          v-model="filters.search"
+          type="text"
+          class="sin"
+          placeholder="Search name or description..."
+          style="width:220px"
+          maxlength="100"
+          @input="onSearchInput"
+        />
+      </div>
+      <select v-model="filters.user_id" class="fsm" @change="fetchLogs()">
         <option value="">All Users</option>
         <option v-for="u in userList" :key="u.id" :value="u.id">{{ u.name }}</option>
       </select>
-      <select v-model="filters.action" class="fsm" @change="fetchLogs">
+      <select v-model="filters.action" class="fsm" @change="fetchLogs()">
         <option value="">All Actions</option>
-        <option value="login">Login</option>
-        <option value="login_failed">Login Failed</option>
-        <option value="logout">Logout</option>
-        <option value="password_change">Password Change</option>
-        <option value="created">Created</option>
-        <option value="updated">Updated</option>
-        <option value="profile_updated">Profile Updated</option>
-        <option value="deleted">Deleted</option>
-        <option value="viewed">Viewed</option>
-        <option value="acknowledged">Acknowledged</option>
-        <option value="assigned">Assigned</option>
-        <option value="status_updated">Status Updated</option>
-        <option value="closed">Closed</option>
-        <option value="exported">Exported</option>
+        <option v-for="a in actionList" :key="a" :value="a">{{ toTitleCase(a) }}</option>
       </select>
-      <input v-model="filters.date_from" type="date" class="ifi" style="width:160px" @change="fetchLogs" />
+      <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" title="From date" :max="filters.date_to || undefined" @change="fetchLogs()" />
+      <span style="font-size:12px;color:var(--stone)">to</span>
+      <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" title="To date" :min="filters.date_from || undefined" @change="fetchLogs()" />
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <select v-model="exportFormat" class="fsm" style="margin-left:auto">
         <option value="pdf">PDF</option>
@@ -152,7 +153,7 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue';
 import axios from 'axios';
-import { auditAPI, userAPI } from '../../api/index';
+import { auditAPI } from '../../api/index';
 import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const toast = inject('toast');
@@ -193,25 +194,44 @@ const logs        = ref([]);
 const pagination  = ref({});
 const selectedLog = ref(null);
 const userList    = ref([]);
-const filters     = ref({ user_id: '', action: '', date_from: '' });
+const actionList  = ref([]);
+const emptyFilters = () => ({ search: '', user_id: '', action: '', date_from: '', date_to: '' });
+const filters     = ref(emptyFilters());
+
+// Only the latest request may update the table - a slow earlier search must
+// not overwrite the results of a newer one.
+let requestSeq = 0;
 
 async function fetchLogs(page = 1) {
+  const seq = ++requestSeq;
   loading.value = true;
   try {
     const res = await auditAPI.index({ ...filters.value, page });
+    if (seq !== requestSeq) return;
     logs.value       = res.data.data;
     pagination.value = res.data;
   } catch (e) {
     console.error(e);
   } finally {
-    loading.value = false;
+    if (seq === requestSeq) loading.value = false;
   }
 }
 
-async function fetchUsers() {
+let searchTimer = null;
+function onSearchInput() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => fetchLogs(), 400);
+}
+
+// Dropdown choices come from the log itself, so every recorded action and
+// every user with activity can be filtered on. The core account actions are
+// always offered, even before the first such entry exists.
+const BASE_ACTIONS = ['login', 'login_failed', 'logout', 'password_change', 'profile_updated', 'created', 'updated', 'deleted', 'viewed'];
+async function fetchFilterOptions() {
   try {
-    const res = await userAPI.index();
-    userList.value = res.data.data || [];
+    const res = await auditAPI.filterOptions();
+    userList.value   = res.data.users || [];
+    actionList.value = [...new Set([...BASE_ACTIONS, ...(res.data.actions || [])])].sort();
   } catch (e) {
     console.error(e);
   }
@@ -230,7 +250,8 @@ function formatTimestamp(value) {
 function changePage(page) { fetchLogs(page); }
 
 function resetFilters() {
-  filters.value = { user_id: '', action: '', date_from: '' };
+  clearTimeout(searchTimer);
+  filters.value = emptyFilters();
   fetchLogs();
 }
 
@@ -285,6 +306,6 @@ function initials(name) {
 
 onMounted(() => {
   fetchLogs();
-  fetchUsers();
+  fetchFilterOptions();
 });
 </script>

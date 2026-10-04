@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -36,10 +37,25 @@ class AuditLogController extends Controller
             ->when($request->model_type, fn($q) => $q->where('model_type', $request->model_type))
             ->when($request->date_from,  fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->date_to,    fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
-            ->when($request->search,     fn($q) =>
-                $q->where('description', 'like', "%{$request->search}%")
-                  ->orWhere('user_name', 'like', "%{$request->search}%")
-            );
+            // Grouped, so the OR can't bypass the other filters.
+            ->when($request->search,     fn($q) => $q->where(fn($sq) =>
+                $sq->where('description', 'like', "%{$request->search}%")
+                   ->orWhere('user_name', 'like', "%{$request->search}%")
+            ));
+    }
+
+    /**
+     * Choices for the Audit Trail filter dropdowns, taken from the log itself
+     * so every action that has actually been recorded can be filtered on.
+     */
+    public function filterOptions()
+    {
+        return response()->json([
+            'actions' => AuditLog::query()->distinct()->orderBy('action')->pluck('action'),
+            'users'   => User::whereIn('id', AuditLog::query()->select('user_id')->whereNotNull('user_id'))
+                            ->orderBy('name')
+                            ->get(['id', 'name', 'role']),
+        ]);
     }
 
     public function exportPdf(Request $request)

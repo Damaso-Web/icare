@@ -205,6 +205,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
         Route::post('users/import', [UserController::class, 'import']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
+        Route::get('audit-logs/filter-options', [AuditLogController::class, 'filterOptions']);
         Route::get('audit-logs/export/pdf',   [AuditLogController::class, 'exportPdf']);
         Route::get('audit-logs/export/excel', [AuditLogController::class, 'exportExcel']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);
