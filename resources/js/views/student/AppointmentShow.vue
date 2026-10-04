@@ -269,6 +269,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { localDateStr } from '../../utils/validators';
 
 const route = useRoute();
 const router = useRouter();
@@ -390,7 +391,7 @@ async function fetchMonthAvailability() {
     // The backend response has been seen marking past dates as still
     // "available" — this always forces any date before today back to
     // "past" client-side, regardless of what the API returned (B232).
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = localDateStr();
     calDays.value = (res.data.days || []).map(day =>
       day.date < todayStr ? { ...day, status: 'past' } : day
     );

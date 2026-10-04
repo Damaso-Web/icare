@@ -236,7 +236,7 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { reportAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const toast = inject('toast');
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -261,7 +261,7 @@ async function exportReport(format) {
     const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `iCARE-Report-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    link.download = `iCARE-Report-${localDateStr()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     link.remove();

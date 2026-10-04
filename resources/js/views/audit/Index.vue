@@ -67,7 +67,7 @@
               style="cursor:pointer"
               @click="openLog(log)"
             >
-              <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">{{ log.created_at }}</td>
+              <td style="font-family:var(--mono);font-size:11px;white-space:nowrap">{{ formatTimestamp(log.created_at) }}</td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
                   <div class="iav" style="width:24px;height:24px;font-size:9px">{{ initials(log.user_name) }}</div>
@@ -109,7 +109,7 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Timestamp</div>
-            <div style="font-family:var(--mono);font-size:13px">{{ selectedLog.created_at }}</div>
+            <div style="font-family:var(--mono);font-size:13px">{{ formatTimestamp(selectedLog.created_at) }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">User</div>
@@ -151,7 +151,7 @@
 import { ref, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { auditAPI, userAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const toast = inject('toast');
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -174,7 +174,7 @@ async function exportLogs() {
     const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `iCARE-Audit-Trail-${new Date().toISOString().slice(0, 10)}.${ext}`;
+    link.download = `iCARE-Audit-Trail-${localDateStr()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -216,6 +216,14 @@ async function fetchUsers() {
 }
 
 function openLog(log) { selectedLog.value = log; }
+
+// The API sends timestamps in UTC; show them as local date and time.
+function formatTimestamp(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d)) return value;
+  return `${localDateStr(d)} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+}
 
 function changePage(page) { fetchLogs(page); }
 

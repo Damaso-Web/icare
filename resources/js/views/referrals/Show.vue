@@ -1399,7 +1399,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const route   = useRoute();
 const router  = useRouter();
@@ -1800,7 +1800,7 @@ async function logSession() {
     const payload = {
       ...sessionForm.value,
       observations: sessionForm.value.interventions,
-      session_date: now.toISOString().split('T')[0],
+      session_date: localDateStr(now),
       session_start_time: now.toTimeString().slice(0, 5),
     };
     const res = await sessionNoteAPI.storeByReferral(referral.value.id, payload);
@@ -2136,7 +2136,7 @@ async function saveFollowUpNotes() {
 }
 
 // B252: never allow picking a day that's already gone.
-const todayStr = new Date().toISOString().split('T')[0];
+const todayStr = localDateStr();
 
 const showFollowUpConfirm = ref(false);
 
