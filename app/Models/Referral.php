@@ -140,4 +140,55 @@ class Referral extends Model
     {
         return $this->status !== 'submitted' && $this->hasAttendedAppointment();
     }
+
+    /**
+     * The documents a student must bring/prepare for a given referral type,
+     * shown to them before they confirm an appointment (OSS requirement).
+     * Returns null when nothing additional needs to be brought (e.g. a
+     * counseling/psychological-testing referral - the Referral Slip is
+     * already on the system, so there's nothing extra to prepare).
+     */
+    public static function requiredDocumentsFor(?string $referralType): ?string
+    {
+        return match ($referralType) {
+            'class_attendance' => "1. Original letter of explanation duly signed by the parent, guardian, or concerned teacher in relation to absences and tardiness, if applicable - 1 original copy\n"
+                . "2. Valid ID of the Guardian or Parent, if applicable - 1 photocopy\n"
+                . "3. One photocopy of ANY of the following supporting documents (original copy for verification), whichever is applicable: Verified Medical Certificate; Approved Travel Order; Death Certificate / Obituary / Barangay Certification of Death of Deceased Relative; Invitation letters or programs with the name of the student indicated; Marriage Certificate; Baptismal Certificate; or Wedding Invitation/Baptism indicating the student's name as sponsor.",
+
+            'academic_deficiency' => "1. Validated BSU ID or Enrollment Form with another valid ID.",
+
+            'leave_of_absence', 'withdrawal', 'readmission', 'shifting' => "1. Client Intake Form (QF-OSS-GCU-01)\n"
+                . "2. Forms from the Registrar.",
+
+            // Counseling / psychological testing: the Referral Slip is
+            // already on the system, so there's nothing additional to bring.
+            'counseling', 'psychological_testing' => null,
+
+            default => null,
+        };
+    }
+
+    /**
+     * Which Appointment::appointment_type the first GCU/SDU appointment for
+     * this referral should actually be created as - previously this was
+     * hardcoded to 'initial_counseling' for every referral type, so a
+     * class-attendance or academic-deficiency referral's appointment showed
+     * "Initial Counseling" as its Service even though that's not the
+     * service being given. Mapped onto the existing appointment_type enum
+     * (widened in 2026_09_28_193000_widen_appointment_type_enum_on_appointments_table)
+     * rather than adding new values, so no further migration is needed.
+     */
+    public static function appointmentTypeFor(?string $referralType): string
+    {
+        return match ($referralType) {
+            'counseling'          => 'initial_counseling',
+            'academic_deficiency' => 'academic_coaching',
+            'disciplinary'        => 'disciplinary_conference',
+            // Class attendance and LOA/withdrawal/readmission/shifting are
+            // all a sit-down with OSS to go over documents/forms, not a
+            // counseling session - closest existing fit is 'consultation'.
+            'class_attendance', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting' => 'consultation',
+            default => 'initial_counseling',
+        };
+    }
 }

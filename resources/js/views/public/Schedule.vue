@@ -122,6 +122,12 @@
             {{ submitError }}
           </div>
 
+          <!-- Required Documents (shown before the student confirms their appointment) -->
+          <div v-if="appointment.required_documents" style="background:var(--snow);border-radius:var(--r-sm);padding:14px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Required Documents - Please Prepare Before Your Appointment</div>
+            <div style="font-size:12.5px;color:var(--ink);line-height:1.6;white-space:pre-line">{{ appointment.required_documents }}</div>
+          </div>
+
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="submitSchedule" :disabled="!canSubmit || submitting">
             <span v-if="submitting" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
             {{ submitting ? 'Submitting...' : 'Request Appointment' }}

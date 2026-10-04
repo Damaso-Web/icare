@@ -397,6 +397,23 @@
                 <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 Handoff Case
               </button>
+              <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openParentConferenceModal">
+                <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Issue Parent Conference Slip
+              </button>
+            </div>
+          </div>
+
+          <!-- Parent Conference Slip History -->
+          <div class="icard" v-if="caseFile.parent_conference_slips?.length">
+            <div class="icard-header"><span class="icard-title">Parent Conference Slip History</span></div>
+            <div>
+              <div v-for="s in caseFile.parent_conference_slips" :key="s.id" style="padding:12px 16px;border-bottom:1px solid var(--cloud)">
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ s.conference_time }}</div>
+                <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
+                <div v-if="s.remarks" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ s.remarks }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:4px">Issued by {{ s.issued_by?.name }} · {{ formatDate(s.issued_at) }}</div>
+              </div>
             </div>
           </div>
 
@@ -470,6 +487,47 @@
                 <div style="display:flex;gap:8px">
                   <button class="ibtn ibtn-p" @click="submitIntervention">Save</button>
                   <button class="ibtn ibtn-o" @click="showInterventionModal = false">Cancel</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Issue Parent Conference Slip Modal - just a record of issuance;
+               the slip itself is handed to the parent/guardian face-to-face. -->
+          <div v-if="showParentConferenceModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showParentConferenceModal = false">
+            <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+              <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:15px;font-weight:600;color:var(--ink)">Issue Parent Conference Slip</div>
+                <button class="ibtn ibtn-g ibtn-sm" @click="showParentConferenceModal = false">✕</button>
+              </div>
+              <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+                <div style="font-size:12px;color:var(--stone);line-height:1.5">
+                  This records that a slip was issued. Print/hand it to the parent or guardian in person.
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                  <div>
+                    <label class="ifl">Date <span style="color:var(--red)">*</span></label>
+                    <input v-model="parentConferenceForm.conference_date" type="date" class="ifi" style="width:100%" />
+                  </div>
+                  <div>
+                    <label class="ifl">Time <span style="color:var(--red)">*</span></label>
+                    <input v-model="parentConferenceForm.conference_time" type="time" class="ifi" style="width:100%" />
+                  </div>
+                </div>
+                <div>
+                  <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
+                  <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." />
+                </div>
+                <div>
+                  <label class="ifl">Remarks</label>
+                  <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..."></textarea>
+                </div>
+                <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
+                <div style="display:flex;gap:8px">
+                  <button class="ibtn ibtn-p" @click="submitParentConferenceSlip" :disabled="savingParentConference">
+                    {{ savingParentConference ? 'Saving...' : 'Issue Slip' }}
+                  </button>
+                  <button class="ibtn ibtn-o" @click="showParentConferenceModal = false">Cancel</button>
                 </div>
               </div>
             </div>
@@ -767,6 +825,11 @@ const showInterventionModal = ref(false);
 const interventionForm = ref({ type: 'previous_intervention', referral_id: '', excused: null, description: '' });
 const interventionError = ref('');
 
+const showParentConferenceModal = ref(false);
+const parentConferenceForm = ref({ conference_date: '', conference_time: '', reason: '', remarks: '' });
+const parentConferenceError = ref('');
+const savingParentConference = ref(false);
+
 const interventionShowsExcused = computed(() => {
   if (!interventionForm.value.referral_id) return false;
   const r = caseFile.value.referrals?.find(r => r.id === interventionForm.value.referral_id);
@@ -808,6 +871,32 @@ async function submitIntervention() {
     toast?.success('Intervention recorded.');
   } catch (e) {
     interventionError.value = e.response?.data?.message || 'Failed to save intervention.';
+  }
+}
+
+function openParentConferenceModal() {
+  parentConferenceForm.value = { conference_date: '', conference_time: '', reason: '', remarks: '' };
+  parentConferenceError.value = '';
+  showParentConferenceModal.value = true;
+}
+
+async function submitParentConferenceSlip() {
+  parentConferenceError.value = '';
+  if (!parentConferenceForm.value.conference_date || !parentConferenceForm.value.conference_time || !parentConferenceForm.value.reason) {
+    parentConferenceError.value = 'Please fill in date, time, and reason.';
+    return;
+  }
+  savingParentConference.value = true;
+  try {
+    const res = await caseAPI.issueParentConferenceSlip(caseFile.value.id, parentConferenceForm.value);
+    if (!caseFile.value.parent_conference_slips) caseFile.value.parent_conference_slips = [];
+    caseFile.value.parent_conference_slips.unshift(res.data);
+    showParentConferenceModal.value = false;
+    toast?.success('Parent Conference Slip issued. Print/hand it to the parent or guardian in person.');
+  } catch (e) {
+    parentConferenceError.value = e.response?.data?.message || 'Failed to issue slip.';
+  } finally {
+    savingParentConference.value = false;
   }
 }
 

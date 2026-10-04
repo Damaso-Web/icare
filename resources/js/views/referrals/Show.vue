@@ -1005,6 +1005,15 @@
                     <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     Resolve Referral
                   </button>
+
+                  <button
+                    class="ibtn ibtn-o"
+                    style="width:100%;justify-content:center"
+                    @click="openParentConferenceModal"
+                  >
+                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Issue Parent Conference Slip
+                  </button>
                 </template>
               </template>
             </div>
@@ -1031,7 +1040,26 @@
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                 </div>
                 <div style="font-size:11px;color:var(--fog)">With {{ a.staff?.name || '-' }}</div>
-                <button v-if="isGCU && a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start" @click="markCaseAppointmentNoShow(a)">No-Show</button>
+                <button v-if="isGCU && a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start" @click="openCaseNoShowModal(a)">No-Show</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Parent Conference (scoped to the case, same as Appointments) -
+               Student Information Files only. Removed entirely for an
+               Incident Report. -->
+          <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
+            <div class="icard-header"><span class="icard-title">Parent Conference</span></div>
+            <div v-if="!referral.case?.parent_conference_slips?.length" class="empty-state">
+              <h3>No parent conference slips yet</h3>
+              <p>No Parent Conference Slip has been issued for this case.</p>
+            </div>
+            <div v-else>
+              <div v-for="s in referral.case.parent_conference_slips" :key="s.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ s.conference_time }}</div>
+                <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
+                <div v-if="s.remarks" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ s.remarks }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:4px">Issued by {{ s.issued_by?.name }} · {{ formatDate(s.issued_at) }}</div>
               </div>
             </div>
           </div>
@@ -1384,6 +1412,69 @@
             <div style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" @click="transferUnit">Endorse</button>
               <button class="ibtn ibtn-o" @click="showTransferModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No-Show Modal - GCU's own call on Call Slip vs. just marking it,
+           same as appointments/Index.vue, not an automatic threshold. -->
+      <div v-if="showCaseNoShowModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCaseNoShowModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as No-Show</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:13px;color:var(--slate);line-height:1.6">
+              Marking this appointment as a no-show.
+              <span v-if="referral.case?.no_show_count">This case has {{ referral.case.no_show_count }} prior no-show{{ referral.case.no_show_count > 1 ? 's' : '' }}.</span>
+              Choose how to handle it:
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitCaseNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
+              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="submitCaseNoShow('call_slip')">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Never Mind</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue Parent Conference Slip Modal - just a record of issuance;
+           the slip itself is handed to the parent/guardian face-to-face. -->
+      <div v-if="showParentConferenceModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showParentConferenceModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Issue Parent Conference Slip</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showParentConferenceModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:12px;color:var(--stone);line-height:1.5">
+              This records that a slip was issued. Print/hand it to the parent or guardian in person.
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <label class="ifl">Date <span style="color:var(--red)">*</span></label>
+                <input v-model="parentConferenceForm.conference_date" type="date" class="ifi" style="width:100%" />
+              </div>
+              <div>
+                <label class="ifl">Time <span style="color:var(--red)">*</span></label>
+                <input v-model="parentConferenceForm.conference_time" type="time" class="ifi" style="width:100%" />
+              </div>
+            </div>
+            <div>
+              <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
+              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." />
+            </div>
+            <div>
+              <label class="ifl">Remarks</label>
+              <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..."></textarea>
+            </div>
+            <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="submitParentConferenceSlip" :disabled="savingParentConference">
+                {{ savingParentConference ? 'Saving...' : 'Issue Slip' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="showParentConferenceModal = false">Cancel</button>
             </div>
           </div>
         </div>
@@ -2099,13 +2190,54 @@ async function transferUnit() {
   }
 }
 
-async function markCaseAppointmentNoShow(a) {
+const showCaseNoShowModal = ref(false);
+const caseNoShowTarget = ref(null);
+
+function openCaseNoShowModal(a) {
+  caseNoShowTarget.value = a;
+  showCaseNoShowModal.value = true;
+}
+
+async function submitCaseNoShow(action) {
+  if (!caseNoShowTarget.value) return;
   try {
-    await appointmentAPI.escalateNoShow(a.id);
-    a.status = 'no_show';
-    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    const res = await appointmentAPI.escalateNoShow(caseNoShowTarget.value.id, action);
+    caseNoShowTarget.value.status = 'no_show';
+    toast?.success(res.data.message || 'Marked as no-show.');
+    showCaseNoShowModal.value = false;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
+  }
+}
+
+const showParentConferenceModal = ref(false);
+const parentConferenceForm = ref({ conference_date: '', conference_time: '', reason: '', remarks: '' });
+const parentConferenceError = ref('');
+const savingParentConference = ref(false);
+
+function openParentConferenceModal() {
+  parentConferenceForm.value = { conference_date: '', conference_time: '', reason: '', remarks: '' };
+  parentConferenceError.value = '';
+  showParentConferenceModal.value = true;
+}
+
+async function submitParentConferenceSlip() {
+  parentConferenceError.value = '';
+  if (!parentConferenceForm.value.conference_date || !parentConferenceForm.value.conference_time || !parentConferenceForm.value.reason) {
+    parentConferenceError.value = 'Please fill in date, time, and reason.';
+    return;
+  }
+  savingParentConference.value = true;
+  try {
+    const res = await caseAPI.issueParentConferenceSlip(referral.value.case.id, parentConferenceForm.value);
+    if (!referral.value.case.parent_conference_slips) referral.value.case.parent_conference_slips = [];
+    referral.value.case.parent_conference_slips.unshift(res.data);
+    showParentConferenceModal.value = false;
+    toast?.success('Parent Conference Slip issued. Print/hand it to the parent or guardian in person.');
+  } catch (e) {
+    parentConferenceError.value = e.response?.data?.message || 'Failed to issue slip.';
+  } finally {
+    savingParentConference.value = false;
   }
 }
 

@@ -117,6 +117,7 @@ class CaseController extends Controller
                 'handoffs.fromUser',
                 'handoffs.toUser',
                 'documents',
+                'parentConferenceSlips.issuedBy',
             ])->toArray(),
             'client_status'        => $referralCount > 1 ? 'existing' : 'new',
             'prior_referral_count' => max(0, $referralCount - 1),
@@ -445,5 +446,35 @@ class CaseController extends Controller
         AuditLog::record('follow_up_resolved', "Follow-up flag cleared for case {$case->case_number}.", $case, $old, $case->toArray());
 
         return response()->json($case);
+    }
+
+    // "Issue Parent Conference Slip" case action. The slip itself is handed
+    // to the parent/guardian face-to-face to go over with them - it isn't
+    // emailed or routed anywhere in-system - so this just records that GCU
+    // issued one: when the conference is for, why, and any remarks. Each
+    // issuance is its own immutable history row (same pattern as
+    // Referral::feedbackSlips()), so a case can have more than one over
+    // time without overwriting the previous record.
+    public function issueParentConferenceSlip(Request $request, CaseFile $case)
+    {
+        $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
+
+        $validated = $request->validate([
+            'conference_date' => 'required|date',
+            'conference_time' => 'required',
+            'reason'          => 'required|string|max:255',
+            'remarks'         => 'nullable|string',
+        ]);
+
+        $slip = $case->parentConferenceSlips()->create([
+            ...$validated,
+            'issued_by_user_id' => $request->user()->id,
+            'issued_at'         => now(),
+        ]);
+
+        AuditLog::record('parent_conference_slip_issued', "Parent Conference Slip issued for case {$case->case_number}.", $case);
+
+        return response()->json($slip->load('issuedBy'));
     }
 }

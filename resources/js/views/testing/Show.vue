@@ -189,6 +189,18 @@
           <div class="icard" v-if="canManage && stage === 'awaiting_results'">
             <div class="icard-header"><span class="icard-title">Attach Psychological Assessment Records (PAR)</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+              <!-- PAR copy pickup is face-to-face, not handled by the system -
+                   this is just an indication of whether the student came for
+                   their printed copy, taken from the PAR release appointment. -->
+              <div v-if="parReleaseAppointment?.status === 'no_show'" style="background:var(--red-lt);border:1px solid #f0a8a8;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
+                ⚠ PAR copy held — the student did not come for the scheduled face-to-face release on {{ formatDate(parReleaseAppointment.appointment_date) }}.
+              </div>
+              <div v-else-if="parReleaseAppointment?.checked_in" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--moss)">
+                ✓ PAR copy released to the student in person on {{ formatDate(parReleaseAppointment.appointment_date) }}.
+              </div>
+              <div v-else-if="parReleaseAppointment" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
+                PAR release scheduled for {{ formatDate(parReleaseAppointment.appointment_date) }} — not yet marked attended or no-show.
+              </div>
               <div>
                 <label class="ifl">PAR / Result File</label>
                 <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" @change="handleFileUpload" />
@@ -384,7 +396,7 @@
                   v-if="canManage && a.status === 'pending'"
                   class="ibtn ibtn-sm"
                   style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start"
-                  @click="markAppointmentNoShow(a)"
+                  @click="openNoShowModal(a)"
                 >
                   No-Show
                 </button>
@@ -412,6 +424,28 @@
             <div style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" @click="assignTester">Assign</button>
               <button class="ibtn ibtn-o" @click="showAssignModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- No-Show Modal - GCU's own call on Call Slip vs. just marking it,
+           same as appointments/Index.vue, not an automatic threshold. -->
+      <div v-if="showNoShowModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showNoShowModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as No-Show</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:13px;color:var(--slate);line-height:1.6">
+              Marking this appointment as a no-show.
+              <span v-if="record.case?.no_show_count">This case has {{ record.case.no_show_count }} prior no-show{{ record.case.no_show_count > 1 ? 's' : '' }}.</span>
+              Choose how to handle it:
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
+              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="submitNoShow('call_slip')">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
             </div>
           </div>
         </div>
@@ -698,11 +732,32 @@ const testTakingAttended = computed(() =>
   tmduAppointments.value.some(a => a.appointment_type === 'psychological_testing' && a.checked_in)
 );
 
-async function markAppointmentNoShow(a) {
+// The PAR copy release is a face-to-face pickup, not something the system
+// hands out itself - this just surfaces whether the student actually came
+// for it (released) or didn't (held), based on the par_release
+// appointment's own status, same as markAppointmentNoShow()/checkIn() below
+// already set from Manage Queue. Latest one wins if it was ever rescheduled.
+const parReleaseAppointment = computed(() =>
+  tmduAppointments.value
+    .filter(a => a.appointment_type === 'par_release')
+    .sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))[0]
+);
+
+const showNoShowModal = ref(false);
+const noShowTarget = ref(null);
+
+function openNoShowModal(a) {
+  noShowTarget.value = a;
+  showNoShowModal.value = true;
+}
+
+async function submitNoShow(action) {
+  if (!noShowTarget.value) return;
   try {
-    await appointmentAPI.escalateNoShow(a.id);
-    a.status = 'no_show';
-    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    const res = await appointmentAPI.escalateNoShow(noShowTarget.value.id, action);
+    noShowTarget.value.status = 'no_show';
+    toast?.success(res.data.message || 'Marked as no-show.');
+    showNoShowModal.value = false;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
   }

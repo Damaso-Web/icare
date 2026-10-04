@@ -120,6 +120,7 @@ export const caseAPI = {
     flagFollowUp:    (id, data) => api.post(`/cases/${id}/flag-follow-up`, data),
     resolveFollowUp: (id)       => api.post(`/cases/${id}/resolve-follow-up`),
     addIntervention: (id, data) => api.post(`/cases/${id}/interventions`, data),
+    issueParentConferenceSlip: (id, data) => api.post(`/cases/${id}/parent-conference-slip`, data),
     completeIntervention: (interventionId) => api.post(`/interventions/${interventionId}/complete`),
     deleteIntervention:   (interventionId) => api.delete(`/interventions/${interventionId}`),
 };
@@ -152,7 +153,7 @@ export const appointmentAPI = {
     reschedule:     (id, data) => api.post(`/appointments/${id}/reschedule`, data),
     cancel:         (id, data) => api.post(`/appointments/${id}/cancel`, data),
     checkIn:        (id)       => api.post(`/appointments/${id}/check-in`),
-    escalateNoShow: (id)       => api.post(`/appointments/${id}/escalate-no-show`),
+    escalateNoShow: (id, action) => api.post(`/appointments/${id}/escalate-no-show`, { action }),
     availability:   (params)   => api.get('/appointments/availability', { params }),
     checkConflict:  (data)     => api.post('/appointments/check-conflict', data),
 };

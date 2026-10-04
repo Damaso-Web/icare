@@ -112,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cases/{case}/flag-unreachable',            [CaseController::class, 'flagUnreachable']);
     Route::post('cases/{case}/flag-follow-up',               [CaseController::class, 'flagFollowUp']);
     Route::post('cases/{case}/resolve-follow-up',             [CaseController::class, 'resolveFollowUp']);
+    Route::post('cases/{case}/parent-conference-slip',        [CaseController::class, 'issueParentConferenceSlip']);
     Route::post('cases/{case}/interventions',                 [CaseInterventionController::class, 'store']);
     Route::post('interventions/{intervention}/complete',      [CaseInterventionController::class, 'complete']);
     Route::delete('interventions/{intervention}',              [CaseInterventionController::class, 'destroy']);

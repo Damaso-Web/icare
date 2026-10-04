@@ -83,6 +83,15 @@
                   <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
                     {{ a.reschedule_reason ? 'Rescheduling' : 'Awaiting Student' }}
                   </span>
+                  <!-- rescheduled_from_id stays set once the student picks a
+                       new date/time (request_status moves off
+                       awaiting_student), so this keeps the "this is a
+                       reschedule" signal visible even after that point,
+                       instead of disappearing once it's no longer waiting
+                       on the student. -->
+                  <span v-if="a.rescheduled_from_id && a.request_status !== 'awaiting_student'" class="ibadge" style="background:var(--blue-lt);color:var(--blue)" title="This appointment was created from a reschedule request.">
+                    🔁 Rescheduled
+                  </span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
@@ -186,6 +195,7 @@
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
               <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ toTitleCase(detailTarget.status) }}</span>
+              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">🔁 Rescheduled</span>
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
@@ -300,21 +310,28 @@
       </div>
     </div>
 
-    <!-- No-Show Confirmation Modal -->
+    <!-- No-Show Confirmation Modal - GCU's own call on whether this gets a
+         Call Slip (escalated to Dean's Secretary) or is just marked so the
+         student can be asked to reschedule, not an automatic threshold. -->
     <div v-if="showNoShowModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showNoShowModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as No-Show?</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Mark as No-Show</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            This will mark <strong>{{ noShowTarget?.student?.last_name }}, {{ noShowTarget?.student?.first_name }}</strong>'s appointment as a no-show and escalate it to the Dean's Secretary.
+            Marking <strong>{{ noShowTarget?.student?.last_name }}, {{ noShowTarget?.student?.first_name }}</strong>'s appointment as a no-show.
+            <span v-if="noShowTarget?.case?.no_show_count">This case has {{ noShowTarget.case.no_show_count }} prior no-show{{ noShowTarget.case.no_show_count > 1 ? 's' : '' }}.</span>
+            Choose how to handle it:
           </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow">
-              {{ submittingNoShow ? 'Marking...' : 'Yes, Mark No-Show' }}
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">
+              {{ submittingNoShow ? 'Marking...' : 'Mark & Ask Student to Reschedule' }}
             </button>
-            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showNoShowModal = false">Never Mind</button>
+            <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">
+              {{ submittingNoShow ? 'Marking...' : 'Issue Call Slip (Escalate to Dean\'s Secretary)' }}
+            </button>
+            <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
           </div>
         </div>
       </div>
@@ -555,14 +572,14 @@ function openNoShow(a) {
   showNoShowModal.value = true;
 }
 
-async function submitNoShow() {
+async function submitNoShow(action) {
   if (!noShowTarget.value) return;
   submittingNoShow.value = true;
   try {
-    await appointmentAPI.escalateNoShow(noShowTarget.value.id);
+    const res = await appointmentAPI.escalateNoShow(noShowTarget.value.id, action);
     noShowTarget.value.status = 'no_show';
-    noShowTarget.value.no_show_escalated = true;
-    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    noShowTarget.value.no_show_escalated = !!res.data.appointment?.no_show_escalated;
+    toast?.success(res.data.message || 'Marked as no-show.');
     showNoShowModal.value = false;
     fetchAllAppointments();
   } catch (e) {

@@ -43,6 +43,7 @@ class CaseFile extends Model
         'unreachable_notes',
         'status_changed_at',
         'follow_up_due_date',
+        'no_show_count',
     ];
 
     protected $casts = [
@@ -92,6 +93,10 @@ class CaseFile extends Model
     public function testingRecord() { return $this->hasOne(TestingRecord::class, 'case_id')->latestOfMany(); }
     public function handoffs()      { return $this->hasMany(CaseHandoff::class, 'case_id'); }
     public function documents()     { return $this->morphMany(Document::class, 'documentable'); }
+    // Immutable history of every Parent Conference Slip issued for this
+    // case - the slip is handed to the parent/guardian face-to-face, so
+    // this is just GCU's own record of each issuance. Newest first.
+    public function parentConferenceSlips() { return $this->hasMany(ParentConferenceSlip::class, 'case_id')->latest('issued_at'); }
 
     public function isOpen(): bool  { return !in_array($this->status, ['resolved', 'closed']); }
 

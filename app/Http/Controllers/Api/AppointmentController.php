@@ -19,6 +19,7 @@ class AppointmentController extends Controller
     // A reschedule limit any higher stops functioning as a limit at all.
     private const RESCHEDULE_LIMIT = 3;
 
+
     // Auto-filled into required_documents on confirm() for a class_attendance
     // referral's appointment, when staff doesn't type their own text -
     // mirrors TestingRecordController::TESTING_REMINDER's pattern for the
@@ -84,6 +85,33 @@ class AppointmentController extends Controller
 
         if ($conflictFound) {
             return response()->json(['message' => 'Scheduling conflict: staff or unit is unavailable at this time.'], 422);
+        }
+
+        // StaffAvailability was previously only informational (shown on the
+        // frontend via availability() below) - nothing actually stopped a
+        // direct API call from booking a staff member outside their
+        // declared hours. Only enforced when a specific staff member was
+        // requested (not TBA/auto-assign) AND that staff has at least one
+        // availability row for that day - staff who haven't configured
+        // their availability yet aren't blocked outright, to avoid locking
+        // out every booking for anyone who simply never filled this in.
+        if (!empty($validated['staff_user_id'])) {
+            $dayOfWeek = Carbon::parse($validated['appointment_date'])->format('l');
+            $dayRows = StaffAvailability::where('user_id', $validated['staff_user_id'])
+                ->where('day_of_week', $dayOfWeek)
+                ->get();
+
+            if ($dayRows->isNotEmpty()) {
+                $fits = $dayRows->contains(fn ($row) =>
+                    $row->is_available
+                    && $validated['start_time'] >= $row->start_time
+                    && $validated['end_time'] <= $row->end_time
+                );
+
+                if (!$fits) {
+                    return response()->json(['message' => 'This staff member is not available at the selected date/time.'], 422);
+                }
+            }
         }
 
         // Fallback to the creating user if TBA/auto-assign was chosen (column is NOT NULL)
@@ -164,6 +192,30 @@ class AppointmentController extends Controller
             $appointment->id
         )) {
             return response()->json(['message' => 'This staff member already has a conflicting appointment at this time.'], 422);
+        }
+
+        // Same StaffAvailability gate as store() - this is the actual
+        // "GCU determines if time is available" step for a student's
+        // self-picked slot, so it needs the same real enforcement, not just
+        // a conflict check. Only enforced when that staff has configured
+        // availability for the day at all (see store() for why).
+        if ($staffToAssign) {
+            $dayOfWeek = Carbon::parse($appointment->appointment_date->format('Y-m-d'))->format('l');
+            $dayRows = StaffAvailability::where('user_id', $staffToAssign)
+                ->where('day_of_week', $dayOfWeek)
+                ->get();
+
+            if ($dayRows->isNotEmpty()) {
+                $fits = $dayRows->contains(fn ($row) =>
+                    $row->is_available
+                    && $appointment->start_time >= $row->start_time
+                    && $appointment->end_time <= $row->end_time
+                );
+
+                if (!$fits) {
+                    return response()->json(['message' => 'This staff member is not available at the selected date/time. Ask the student to reschedule.'], 422);
+                }
+            }
         }
 
         // Class Attendance appointments always need the Admission Slip
@@ -494,23 +546,44 @@ public function checkConflictByStudent(Request $request)
         return response()->json($appointment);
     }
 
-    // FR 2.6: Escalate No-Show to Dean's Secretary
+    // FR 2.6: Mark a no-show. Whether this escalates to the Dean's
+    // Secretary (Call Slip) or just gets marked so staff can ask the
+    // student to reschedule is GCU's own call, made explicitly per
+    // no-show via the `action` param - not an automatic threshold. The
+    // case's no_show_count is still tracked and returned so staff have
+    // that history in front of them when deciding, but it no longer
+    // drives the decision itself.
     public function escalateNoShow(Request $request, Appointment $appointment)
     {
-        $appointment->update([
-            'status'               => 'no_show',
-            'no_show_escalated'    => true,
-            'no_show_escalated_at' => now(),
-            ...(!$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
+        $validated = $request->validate([
+            'action' => 'required|in:call_slip,reschedule',
         ]);
 
-        $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
+        if ($appointment->case_id) {
+            $appointment->case->increment('no_show_count');
+        }
 
-        AuditLog::record('no_show_escalated', "No-show escalated for appointment {$appointment->appointment_code} to Dean's Secretary.", $appointment);
+        $callSlip = $validated['action'] === 'call_slip';
+
+        $appointment->update([
+            'status'               => 'no_show',
+            'no_show_escalated'    => $callSlip,
+            'no_show_escalated_at' => $callSlip ? now() : null,
+            ...($callSlip && !$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
+        ]);
+
+        if ($callSlip) {
+            $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
+            AuditLog::record('no_show_escalated', "No-show for appointment {$appointment->appointment_code}; GCU issued a Call Slip, escalated to Dean's Secretary.", $appointment);
+            $message = "Marked as no-show and escalated to Dean's Secretary via Call Slip.";
+        } else {
+            AuditLog::record('no_show_marked', "Marked no-show for appointment {$appointment->appointment_code}; GCU chose to ask the student to reschedule.", $appointment);
+            $message = 'Marked as no-show. Ask the student to reschedule.';
+        }
 
         return response()->json([
-            'message'    => 'No-show escalated to Dean\'s Secretary.',
-            'appointment'=> $appointment,
+            'message'     => $message,
+            'appointment' => $appointment->load('case'),
         ]);
     }
 

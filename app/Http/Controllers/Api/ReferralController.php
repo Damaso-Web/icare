@@ -209,6 +209,7 @@ class ReferralController extends Controller
             'case.handoffs.fromUser', 'case.handoffs.toUser',
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
             'case.counselor', 'case.referrals', 'case.appointments.staff',
+            'case.parentConferenceSlips.issuedBy',
             // A "Refer to TMDU" creates a separate, sibling Referral row
             // (referral_type psychological_testing) on this same case - see
             // CaseController::referToTmdu(). Loading its TestingRecord (and
@@ -378,7 +379,7 @@ class ReferralController extends Controller
         $schedulingLink  = null;
 
         if (!$isTmduTesting) {
-            $appointmentType = 'initial_counseling';
+            $appointmentType = \App\Models\Referral::appointmentTypeFor($referral->referral_type);
 
             $appointment = $case->appointments()
                 ->where('appointment_type', $appointmentType)
@@ -418,6 +419,9 @@ class ReferralController extends Controller
                     'appointment_date'    => $placeholderDate->format('Y-m-d'),
                     'start_time'          => '08:00',
                     'end_time'            => '09:00',
+                    // Shown to the student on their scheduling page / appointment
+                    // details page before they confirm, based on referral type.
+                    'required_documents'  => \App\Models\Referral::requiredDocumentsFor($referral->referral_type),
                 ]);
                 $schedulingLink = url("/schedule/{$token}");
             }
