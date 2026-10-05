@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\AuditLog;
 use App\Models\Student;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
@@ -11,6 +10,15 @@ use Illuminate\Support\Facades\Hash;
 
 class StudentAuthController extends Controller
 {
+    // Same shared patterns as StudentController - kept in sync there.
+    // Only ever applied to plain <input> fields, never to free-text
+    // <textarea>-backed fields (which need normal punctuation).
+    private const NAME_REGEX  = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
+    private const TEXT_REGEX  = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+    private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
+    private const YEAR_REGEX  = '/^[0-9]{4}$/';
+    private const AGE_REGEX   = '/^[0-9]{1,3}$/';
+
     public function login(Request $request)
     {
         $request->validate([
@@ -26,12 +34,10 @@ class StudentAuthController extends Controller
             ->first();
 
         if (!$student) {
-            AuditLog::record('login_failed', "Failed student login: no active account with Student ID {$request->student_id}.");
             return response()->json(['message' => 'No active student account was found with that Student ID.'], 401);
         }
 
         if (!$student->password || !Hash::check($request->password, $student->password)) {
-            AuditLog::record('login_failed', "Failed student login for {$student->student_id}: incorrect password.", $student, [], [], $student);
             return response()->json(['message' => 'Incorrect password.'], 401);
         }
 
@@ -44,8 +50,6 @@ class StudentAuthController extends Controller
         ]);
         $token = $student->createToken('student-token', ['student'])->plainTextToken;
 
-        AuditLog::record('login', "Student {$student->student_id} logged in.", $student, [], [], $student);
-
         return response()->json([
             'token'   => $token,
             'student' => $student->only([
@@ -57,9 +61,7 @@ class StudentAuthController extends Controller
 
     public function logout(Request $request)
     {
-        $student = $request->user('student');
-        AuditLog::record('logout', "Student {$student->student_id} logged out.", $student);
-        $student->currentAccessToken()->delete();
+        $request->user('student')->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out successfully.']);
     }
 
@@ -86,7 +88,6 @@ class StudentAuthController extends Controller
             'temp_password'         => null,
             'must_change_password'  => false,
         ]);
-        AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
@@ -115,59 +116,46 @@ public function updateProfile(Request $request)
     $student = $request->user('student');
 
     $validated = $request->validate([
-        'first_name'     => 'sometimes|string|max:255',
-        'last_name'      => 'sometimes|string|max:255',
-        'middle_name'    => 'nullable|string|max:255',
-        'suffix'         => 'nullable|string|max:20',
+        'first_name'     => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'email'          => 'nullable|email',
-        'contact_number' => 'nullable|string|max:11',
+        'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Family Information - names split into first/middle/last, same as
         // the student's own name and the guardian_first_name/middle/last
         // columns, rather than one plain "name" string.
-        'father_first_name'       => 'nullable|string|max:255',
-        'father_middle_name'      => 'nullable|string|max:255',
-        'father_last_name'        => 'nullable|string|max:255',
-        'father_occupation'       => 'nullable|string|max:255',
-        'father_contact_number'   => 'nullable|string|max:11',
-        'mother_first_name'       => 'nullable|string|max:255',
-        'mother_middle_name'      => 'nullable|string|max:255',
-        'mother_last_name'        => 'nullable|string|max:255',
-        'mother_occupation'       => 'nullable|string|max:255',
-        'mother_contact_number'   => 'nullable|string|max:11',
+        'father_first_name'       => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'father_middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'father_last_name'        => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'father_occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'father_contact_number'   => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
+        'mother_first_name'       => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'mother_middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'mother_last_name'        => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'mother_occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'mother_contact_number'   => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Siblings Information - a repeatable list filled in by the student,
         // same first/middle/last split per sibling.
         'siblings'                    => 'nullable|array',
-        'siblings.*.first_name'       => 'required|string|max:255',
-        'siblings.*.middle_name'      => 'nullable|string|max:255',
-        'siblings.*.last_name'        => 'required|string|max:255',
-        'siblings.*.age'              => 'nullable|string|max:3',
-        'siblings.*.occupation'       => 'nullable|string|max:255',
+        'siblings.*.first_name'       => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'siblings.*.middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'siblings.*.last_name'        => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'siblings.*.age'              => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        'siblings.*.occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
 
         // Educational Attainment (school history)
-        'elementary_school'               => 'nullable|string|max:255',
-        'elementary_year_graduated'       => 'nullable|string|max:4',
-        'high_school'                     => 'nullable|string|max:255',
-        'high_school_year_graduated'      => 'nullable|string|max:4',
-        'college_school'                  => 'nullable|string|max:255',
-        'college_year_graduated'          => 'nullable|string|max:4',
+        'elementary_school'               => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'elementary_year_graduated'       => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'high_school'                     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'high_school_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'college_school'                  => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'college_year_graduated'          => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
     ]);
 
-    $student->fill($validated);
-    $changed = array_keys($student->getDirty());
-
-    if ($changed) {
-        $old = array_intersect_key($student->getOriginal(), array_flip($changed));
-        $student->save();
-        AuditLog::record(
-            'profile_updated',
-            "Student {$student->student_id} updated their own profile (" . implode(', ', $changed) . ").",
-            $student,
-            $old,
-            $student->only($changed)
-        );
-    }
+    $student->update($validated);
 
     return response()->json($student->only([
         'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'suffix',

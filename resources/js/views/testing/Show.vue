@@ -208,11 +208,11 @@
               </div>
               <div>
                 <label class="ifl">Assessment Summary</label>
-                <textarea v-model="parForm.assessment_summary" class="ifta" placeholder="Summarize the assessment results..."></textarea>
+                <textarea v-model="parForm.assessment_summary" class="ifta" placeholder="Summarize the assessment results..." maxlength="3000"></textarea>
               </div>
               <div>
                 <label class="ifl">Recommended Actions</label>
-                <textarea v-model="parForm.recommendations" class="ifta" placeholder="Recommended actions based on the assessment..."></textarea>
+                <textarea v-model="parForm.recommendations" class="ifta" placeholder="Recommended actions based on the assessment..." maxlength="3000"></textarea>
               </div>
               <button class="ibtn ibtn-blue ibtn-sm" style="align-self:flex-start" @click="attachPar" :disabled="saving">
                 {{ saving ? 'Sending...' : 'Attach PAR & Release Results to GCU' }}

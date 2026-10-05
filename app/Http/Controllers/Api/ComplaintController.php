@@ -17,6 +17,11 @@ use Illuminate\Support\Facades\Storage;
 
 class ComplaintController extends Controller
 {
+    // Only for plain <input> fields with a constrained, name/label-like
+    // shape (not addresses, which legitimately use "#" and "/"; not the
+    // <textarea>-backed description, which just gets a max length).
+    private const TEXT_REGEX = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+
     public function index(Request $request)
     {
         $query = Complaint::with(['complainee', 'filedBy'])->latest();
@@ -43,13 +48,13 @@ class ComplaintController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'complainant_name'       => 'required|string|max:255',
+            'complainant_name'       => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainant_address'    => 'required|string|max:255',
             'complainee_student_id'  => 'required|exists:students,id',
-            'complainee_position'    => 'nullable|string|max:255',
+            'complainee_position'    => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainee_college'     => 'nullable|string|max:255',
             'complainee_department'  => 'nullable|string|max:255',
-            'complainee_office'      => 'nullable|string|max:255',
+            'complainee_office'      => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainee_address'     => 'nullable|string|max:255',
             'violation_type'         => 'required|string|max:255',
             'incident_date'          => 'required|date',

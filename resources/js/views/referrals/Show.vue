@@ -312,7 +312,7 @@
               <!-- Add entry (GCU only) - Person-In-Charge is always the logged-in staff account -->
               <div v-if="isGCU && !isResolved && canEditSif">
                 <label class="ifl">Intervention</label>
-                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..."></textarea>
+                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..." maxlength="2000"></textarea>
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px;margin-bottom:16px" @click="addIntervention">Save Entry</button>
               </div>
               <div v-else-if="isGCU && isResolved" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
@@ -421,7 +421,7 @@
                   </label>
                 </div>
                 <label class="ifl">Remarks</label>
-                <textarea v-model="admissionForm.admission_remarks" class="ifta" placeholder="Remarks for the admission slip..."></textarea>
+                <textarea v-model="admissionForm.admission_remarks" class="ifta" placeholder="Remarks for the admission slip..." maxlength="1000"></textarea>
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="saveAdmissionSlip">Save Admission Slip</button>
               </template>
               <template v-else>
@@ -449,7 +449,7 @@
             <div class="icard-body">
               <div v-if="canManageIncidentReport" style="margin-bottom:16px">
                 <label class="ifl">Sanction</label>
-                <textarea v-model="sanctionForm.text" class="ifta" style="min-height:70px" placeholder="Describe the sanction given..."></textarea>
+                <textarea v-model="sanctionForm.text" class="ifta" style="min-height:70px" placeholder="Describe the sanction given..." maxlength="2000"></textarea>
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px" @click="addSanction">Save Entry</button>
               </div>
               <div v-if="!sanctionsForReferral.length" style="font-size:13px;color:var(--stone)">No sanctions recorded yet.</div>
@@ -476,7 +476,7 @@
             <div class="icard-body">
               <div v-if="canManageIncidentReport" style="margin-bottom:16px">
                 <label class="ifl">Report Entry</label>
-                <textarea v-model="detailedReportForm.text" class="ifta" style="min-height:80px" placeholder="Write a detailed report entry..."></textarea>
+                <textarea v-model="detailedReportForm.text" class="ifta" style="min-height:80px" placeholder="Write a detailed report entry..." maxlength="3000"></textarea>
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px" @click="addDetailedReport">Save Entry</button>
               </div>
               <div v-if="!detailedReportsForReferral.length" style="font-size:13px;color:var(--stone)">No detailed report entries yet.</div>
@@ -549,7 +549,7 @@
                 </div>
 
                 <label class="ifl">Remarks</label>
-                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..."></textarea>
+                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..." maxlength="3000"></textarea>
 
                 <div style="font-size:11px;color:var(--fog);margin-top:10px">
                   Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
@@ -695,10 +695,13 @@
         <!-- Right - floating/sticky so the Case Action buttons and the
              Appointments card (Student Attended / No-Show / Request
              Reschedule, etc.) stay reachable while scrolling the much
-             longer left column, instead of scrolling out of view. Caps its
-             own height and scrolls internally if it's ever taller than the
-             viewport, so it never gets stuck unreachable itself. -->
-        <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto">
+             longer left column, instead of scrolling out of view. No
+             max-height/overflow-y here on purpose - that combination made
+             this column scroll internally on top of the page's own scroll,
+             which felt like the sidebar "stops and moves again" instead of
+             a single smooth scroll. Plain sticky lets it scroll normally
+             with the page until it reaches top:16px, then hold there. -->
+        <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start">
 
           <!-- Acknowledge - visible to Admin and GCU Staff for ordinary
                referrals; a psychological_testing referral (the shared
@@ -765,6 +768,94 @@
               <div v-if="referral.student?.program">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
                 <div style="font-size:13px;color:var(--ink)">{{ referral.student?.program }}</div>
+              </div>
+
+              <div style="height:1px;background:var(--cloud);margin:2px 0"></div>
+
+              <!-- Family Information / Siblings / Educational Attainment -
+                   right here on the Student Information card itself, not
+                   only inside the separate Student Profile modal (opened
+                   via the "Profile" button above) - same collapsible-group
+                   data/pattern, reusing profileDetailGroups/
+                   expandedProfileGroups/profileSiblings/fullName already
+                   defined below for that modal. -->
+              <div v-for="group in profileDetailGroups" :key="group.key">
+                <div
+                  style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
+                  @click="toggleProfileGroup(group.key)"
+                >
+                  <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s;flex-shrink:0" :style="{ transform: expandedProfileGroups[group.key] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+                  <div style="font-size:11.5px;font-weight:700;color:var(--ink)">{{ group.label }}</div>
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.count }}</span>
+                </div>
+                <div v-if="expandedProfileGroups[group.key]" style="padding:4px 0 10px 22px;display:flex;flex-direction:column;gap:10px">
+
+                  <!-- Family Information -->
+                  <template v-if="group.key === 'family'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.father_last_name, referral.student?.father_first_name, referral.student?.father_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_contact_number || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.mother_last_name, referral.student?.mother_first_name, referral.student?.mother_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_contact_number || '-' }}</div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Siblings Information -->
+                  <template v-else-if="group.key === 'siblings'">
+                    <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
+                    <div class="ts" v-else>
+                      <table class="itable">
+                        <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
+                        <tbody>
+                          <tr v-for="(s, i) in profileSiblings" :key="i">
+                            <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
+                            <td style="font-size:12px">{{ s.age || '-' }}</td>
+                            <td style="font-size:12px">{{ s.occupation || '-' }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+
+                  <!-- Educational Attainment -->
+                  <template v-else-if="group.key === 'education'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_school || '-' }} <span v-if="referral.student?.elementary_year_graduated" style="color:var(--stone)">({{ referral.student?.elementary_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school || '-' }} <span v-if="referral.student?.high_school_year_graduated" style="color:var(--stone)">({{ referral.student?.high_school_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.college_school || '-' }} <span v-if="referral.student?.college_year_graduated" style="color:var(--stone)">({{ referral.student?.college_year_graduated }})</span></div>
+                      </div>
+                    </div>
+                  </template>
+
+                </div>
               </div>
             </div>
           </div>
@@ -955,7 +1046,7 @@
                (scheduling, referring to TMDU, or re-resolving) is available. -->
           <div class="icard" v-if="isGCU && referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Case Action</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:12px;padding:18px">
               <div v-if="isResolved" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                 ✓ This referral has been resolved. It is now view-only.
               </div>
@@ -1011,14 +1102,20 @@
                     Resolve Referral
                   </button>
 
-                  <button
-                    class="ibtn ibtn-o"
-                    style="width:100%;justify-content:center"
-                    @click="openParentConferenceModal"
-                  >
-                    <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    Issue Parent Conference Slip
-                  </button>
+                  <!-- Own section, not just another button in the same
+                       stack - a divider and some breathing room so it
+                       reads as a separate, deliberate action instead of
+                       being crammed in at the bottom of the card. -->
+                  <div style="border-top:1px solid var(--cloud);margin-top:4px;padding-top:14px">
+                    <button
+                      class="ibtn ibtn-o"
+                      style="width:100%;justify-content:center;padding:12px 16px"
+                      @click="openParentConferenceModal"
+                    >
+                      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                      Issue Parent Conference Slip
+                    </button>
+                  </div>
                 </template>
               </template>
             </div>
@@ -1051,7 +1148,18 @@
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <div>
                     <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
-                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                    <!-- Acknowledging a referral creates this row right away
+                         as a placeholder carrying a scheduling link - it has
+                         a real appointment_date/start_time in the database
+                         (has to, it's a non-null column) but the student
+                         hasn't actually picked anything yet while
+                         request_status is still 'awaiting_student'. Showing
+                         that placeholder date as if it were real made it
+                         look like an appointment was already set. -->
+                    <div v-if="a.request_status === 'awaiting_student'" style="font-size:11px;color:var(--amber);margin-top:2px">
+                      Waiting for Student to Pick a Schedule
+                    </div>
+                    <div v-else style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
                     <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()" style="margin-top:4px;display:inline-block">{{ a.unit }}</span>
                   </div>
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
@@ -1421,7 +1529,7 @@
             </div>
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-              <textarea v-model="transferForm.reason" class="ifta" style="min-height:60px" placeholder="Why is this case being transferred?"></textarea>
+              <textarea v-model="transferForm.reason" class="ifta" style="min-height:60px" placeholder="Why is this case being transferred?" maxlength="1000"></textarea>
             </div>
             <div v-if="transferError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
               {{ transferError }}
@@ -1483,11 +1591,16 @@
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
-                <div style="font-size:13px;color:var(--ink)">{{ formatDate(apptDetailTarget.appointment_date) }}</div>
+                <!-- Blank, not the placeholder row's date, until the
+                     student actually picks one (see the card-list comment
+                     above for why the DB row has a date already). -->
+                <div v-if="apptDetailTarget.request_status === 'awaiting_student'" style="font-size:13px;color:var(--stone)">Not set yet</div>
+                <div v-else style="font-size:13px;color:var(--ink)">{{ formatDate(apptDetailTarget.appointment_date) }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Time</div>
-                <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.start_time }} - {{ apptDetailTarget.end_time }}</div>
+                <div v-if="apptDetailTarget.request_status === 'awaiting_student'" style="font-size:13px;color:var(--stone)">Not set yet</div>
+                <div v-else style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.start_time }} - {{ apptDetailTarget.end_time }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Unit</div>
@@ -1516,15 +1629,66 @@
                  one. -->
             <div v-if="apptCancelling" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px">
               <label class="ifl">Reason for Cancellation <span style="color:var(--red)">*</span></label>
-              <textarea v-model="apptCancelReason" class="ifta" style="min-height:70px" placeholder="Why is this appointment being cancelled?"></textarea>
+              <textarea v-model="apptCancelReason" class="ifta" style="min-height:70px" placeholder="Why is this appointment being cancelled?" maxlength="1000"></textarea>
               <div style="display:flex;gap:8px">
                 <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="confirmApptCancel">Yes, Cancel Appointment</button>
                 <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptCancelling = false">Never Mind</button>
               </div>
             </div>
 
+            <!-- Confirmation step for "Confirm Appointment" - asks before
+                 acting instead of just firing the request and relying on
+                 the toast afterward. -->
+            <div v-else-if="apptConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px">
+              <div style="font-size:13px;color:var(--slate);line-height:1.6">
+                Confirm this appointment for {{ formatDate(apptDetailTarget.appointment_date) }}, {{ apptDetailTarget.start_time }}-{{ apptDetailTarget.end_time }}?
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmApptFromDetail">Yes, Confirm Appointment</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptConfirming = false">Never Mind</button>
+              </div>
+            </div>
+
+            <!-- Reason step for "Reschedule Appointment" - same pattern as
+                 Cancel above, asks for a reason before actually sending a
+                 new scheduling link to the student. -->
+            <div v-else-if="apptRescheduling" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px">
+              <label class="ifl">Reason for Rescheduling <span style="color:var(--red)">*</span></label>
+              <textarea v-model="apptRescheduleReason" class="ifta" style="min-height:70px" placeholder="Why does this need to be rescheduled?" maxlength="1000"></textarea>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn" style="flex:1;justify-content:center;background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="confirmApptReschedule">Yes, Request Reschedule</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptRescheduling = false">Never Mind</button>
+              </div>
+            </div>
+
             <div v-else-if="isGCU && !['cancelled','completed'].includes(apptDetailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
-              <button v-if="apptDetailTarget.status === 'pending'" class="ibtn ibtn-p ibtn-sm" @click="confirmApptFromDetail">Confirm Appointment</button>
+              <!-- Confirm/Reschedule/Send Call-Slip are always shown so
+                   staff can see their choices, but stay disabled (greyed
+                   out) while request_status is still 'awaiting_student' -
+                   there's no date yet to confirm or reschedule, and nothing
+                   to escalate as a no-show. -->
+              <button
+                v-if="apptDetailTarget.status === 'pending'"
+                class="ibtn ibtn-p ibtn-sm"
+                :disabled="apptDetailTarget.request_status === 'awaiting_student'"
+                :title="apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : ''"
+                @click="apptConfirming = true"
+              >Confirm Appointment</button>
+              <button
+                v-if="['pending','confirmed'].includes(apptDetailTarget.status)"
+                class="ibtn ibtn-sm"
+                style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)"
+                :disabled="apptDetailTarget.request_status === 'awaiting_student'"
+                :title="apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : ''"
+                @click="apptRescheduling = true; apptRescheduleReason = ''"
+              >Reschedule Appointment</button>
+              <button
+                class="ibtn ibtn-sm"
+                style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8"
+                :disabled="apptDetailTarget.request_status === 'awaiting_student'"
+                :title="apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : ''"
+                @click="sendCallSlipFromDetail"
+              >Send Call-Slip</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkInApptFromDetail">Student Attended</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openCaseNoShowModal(apptDetailTarget); apptDetailTarget = null">No-Show</button>
               <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="apptCancelling = true; apptCancelReason = ''">Cancel Appointment</button>
@@ -1557,11 +1721,11 @@
             </div>
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." />
+              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Remarks</label>
-              <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..."></textarea>
+              <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000"></textarea>
             </div>
             <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
             <div style="display:flex;gap:8px">
@@ -2309,11 +2473,17 @@ async function submitCaseNoShow(action) {
 const apptDetailTarget = ref(null);
 const apptCancelling = ref(false);
 const apptCancelReason = ref('');
+const apptConfirming = ref(false);
+const apptRescheduling = ref(false);
+const apptRescheduleReason = ref('');
 
 function openApptDetail(a) {
   apptDetailTarget.value = a;
   apptCancelling.value = false;
   apptCancelReason.value = '';
+  apptConfirming.value = false;
+  apptRescheduling.value = false;
+  apptRescheduleReason.value = '';
 }
 
 // Re-fetches the whole referral (same pattern as sendFeedback above) so the
@@ -2331,6 +2501,7 @@ async function confirmApptFromDetail() {
     await appointmentAPI.confirm(apptDetailTarget.value.id, {});
     toast?.success('Appointment confirmed.');
     apptDetailTarget.value = null;
+    apptConfirming.value = false;
     await refreshReferralAfterApptChange();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to confirm appointment.');
@@ -2363,6 +2534,39 @@ async function confirmApptCancel() {
     await refreshReferralAfterApptChange();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to cancel appointment.');
+  }
+}
+
+async function confirmApptReschedule() {
+  if (!apptDetailTarget.value) return;
+  if (!apptRescheduleReason.value.trim()) {
+    toast?.error('Please give a reason for rescheduling.');
+    return;
+  }
+  try {
+    await appointmentAPI.reschedule(apptDetailTarget.value.id, { reschedule_reason: apptRescheduleReason.value });
+    toast?.success('Reschedule request sent to student.');
+    apptDetailTarget.value = null;
+    apptRescheduling.value = false;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to request reschedule.');
+  }
+}
+
+// Sends a Call-Slip directly (same backend action as the existing No-Show
+// modal's "Issue Call Slip" option, just without that modal's extra
+// "ask student to reschedule instead" choice, since Reschedule Appointment
+// right next to it covers that already).
+async function sendCallSlipFromDetail() {
+  if (!apptDetailTarget.value) return;
+  try {
+    const res = await appointmentAPI.escalateNoShow(apptDetailTarget.value.id, 'call_slip');
+    toast?.success(res.data.message || 'Call-Slip sent.');
+    apptDetailTarget.value = null;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to send Call-Slip.');
   }
 }
 

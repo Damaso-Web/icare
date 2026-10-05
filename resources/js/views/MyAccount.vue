@@ -32,7 +32,7 @@
               </div>
               <div>
                 <label class="ifl">Suffix</label>
-                <input v-model="profileForm.suffix" class="ifi" placeholder="e.g. Jr., III" maxlength="20" />
+                <input v-model="profileForm.suffix" class="ifi" placeholder="e.g. Jr., III" maxlength="20" @input="profileForm.suffix = String(profileForm.suffix ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
               </div>
             </div>
             <div>

@@ -252,7 +252,7 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6">This cannot be undone. If you still need help, you'll need to submit a new request.</div>
           <div>
             <label class="ifl">Reason for cancelling <span style="color:var(--red)">*</span></label>
-            <textarea v-model="cancelReason" class="ifi" rows="3" placeholder="Let us know why you're cancelling..."></textarea>
+            <textarea v-model="cancelReason" class="ifi" rows="3" placeholder="Let us know why you're cancelling..." maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="cancellingAppointment || !cancelReason.trim()" @click="cancelAppointment">

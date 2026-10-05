@@ -14,6 +14,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
+          maxlength="50"
           placeholder="Search student name or case number..."
           style="width:240px"
           @keypress="blockSpecialKeypress"

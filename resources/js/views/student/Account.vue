@@ -70,21 +70,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="255" @input="backgroundForm.father_last_name = String(backgroundForm.father_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="255" @input="backgroundForm.father_first_name = String(backgroundForm.father_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="255" @input="backgroundForm.father_middle_name = String(backgroundForm.father_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="255" @input="backgroundForm.father_occupation = String(backgroundForm.father_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -96,21 +96,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="255" @input="backgroundForm.mother_last_name = String(backgroundForm.mother_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="255" @input="backgroundForm.mother_first_name = String(backgroundForm.mother_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="255" @input="backgroundForm.mother_middle_name = String(backgroundForm.mother_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="255" @input="backgroundForm.mother_occupation = String(backgroundForm.mother_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -133,15 +133,15 @@
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="sib.last_name" class="ifi" maxlength="255" />
+                <input v-model="sib.last_name" class="ifi" maxlength="255" @input="sib.last_name = String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="sib.first_name" class="ifi" maxlength="255" />
+                <input v-model="sib.first_name" class="ifi" maxlength="255" @input="sib.first_name = String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="sib.middle_name" class="ifi" maxlength="255" />
+                <input v-model="sib.middle_name" class="ifi" maxlength="255" @input="sib.middle_name = String(sib.middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
               </div>
             </div>
             <div style="display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:end">
@@ -151,7 +151,7 @@
               </div>
               <div>
                 <label class="ifl">Occupation / School</label>
-                <input v-model="sib.occupation" class="ifi" maxlength="255" />
+                <input v-model="sib.occupation" class="ifi" maxlength="255" @input="sib.occupation = String(sib.occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
               </div>
               <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="removeSibling(idx)">Remove</button>
             </div>
@@ -163,7 +163,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Elementary School</label>
-              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="255" @input="backgroundForm.elementary_school = String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
@@ -171,7 +171,7 @@
             </div>
             <div>
               <label class="ifl">High School</label>
-              <input v-model="backgroundForm.high_school" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.high_school" class="ifi" maxlength="255" @input="backgroundForm.high_school = String(backgroundForm.high_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
@@ -179,7 +179,7 @@
             </div>
             <div>
               <label class="ifl">College / University</label>
-              <input v-model="backgroundForm.college_school" class="ifi" maxlength="255" />
+              <input v-model="backgroundForm.college_school" class="ifi" maxlength="255" @input="backgroundForm.college_school = String(backgroundForm.college_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>

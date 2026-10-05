@@ -50,7 +50,7 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
             <label class="ifl">Notes</label>
-            <textarea v-model="modalNotes" class="ifta" style="min-height:80px" placeholder="Details about contact attempt or reason for escalation..."></textarea>
+            <textarea v-model="modalNotes" class="ifta" style="min-height:80px" placeholder="Details about contact attempt or reason for escalation..." maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitModal">Confirm</button>

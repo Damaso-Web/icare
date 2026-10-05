@@ -83,11 +83,11 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
             <label class="ifl">Position / Role</label>
-            <input v-model="form.complainee_position" type="text" class="ifi" placeholder="e.g. Org Officer, if applicable" maxlength="255" />
+            <input v-model="form.complainee_position" type="text" class="ifi" placeholder="e.g. Org Officer, if applicable" maxlength="255" @input="form.complainee_position = String(form.complainee_position ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
           </div>
           <div>
             <label class="ifl">Office</label>
-            <input v-model="form.complainee_office" type="text" class="ifi" placeholder="e.g. Student Council Office, if applicable" maxlength="255" />
+            <input v-model="form.complainee_office" type="text" class="ifi" placeholder="e.g. Student Council Office, if applicable" maxlength="255" @input="form.complainee_office = String(form.complainee_office ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
           </div>
         </div>
 

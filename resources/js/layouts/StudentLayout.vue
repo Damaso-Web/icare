@@ -1,7 +1,11 @@
 <template>
   <div style="display:flex;min-height:100vh">
-    <!-- Sidebar -->
-    <div style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0">
+    <!-- Sidebar - pinned to the viewport (sticky + its own height/scroll)
+         instead of stretching with the main content column. Without this,
+         a long page (e.g. "My Appointments" with many rows) made this
+         flex child grow to match the content's height, pushing the
+         logout button far down the page instead of staying reachable. -->
+    <div style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
       <div style="padding:20px;display:flex;align-items:center;gap:10px">
         <img :src="'/icare-logo.png'" alt="iCARE" style="width:32px;height:32px;background:#fff;border-radius:8px;padding:3px;object-fit:contain;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)" />
         <div>

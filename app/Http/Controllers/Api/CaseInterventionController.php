@@ -46,7 +46,7 @@ class CaseInterventionController extends Controller
         $validated = $request->validate([
             'referral_id' => 'nullable|exists:referrals,id',
             'type'        => 'required|in:previous_intervention,follow_up,parent_conference,home_visit,referral_external,sanction,detailed_report,other',
-            'description' => 'required|string',
+            'description' => 'required|string|max:2000',
         ]);
 
         $this->authorizeInterventionAccess($validated['type']);

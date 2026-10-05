@@ -235,7 +235,7 @@
           </div>
           <div>
             <label class="ifl">Reason for Cancellation <span style="color:var(--red)">*</span></label>
-            <textarea v-model="cancelForm.cancellation_reason" class="ifta" style="min-height:80px" placeholder="Why is this appointment being cancelled?"></textarea>
+            <textarea v-model="cancelForm.cancellation_reason" class="ifta" style="min-height:80px" placeholder="Why is this appointment being cancelled?" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="submitCancel">Yes, Cancel Appointment</button>
@@ -277,7 +277,7 @@
           </div>
           <div>
             <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
-            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
+            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>

@@ -94,7 +94,7 @@
             <div style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
               <div style="position:relative">
                 <svg viewBox="0 0 24 24" style="width:15px;height:15px;position:absolute;left:10px;top:50%;transform:translateY(-50%);stroke:var(--fog);fill:none;stroke-width:2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input v-model="referralSearch" class="ifi" style="padding-left:32px" maxlength="50" placeholder="Search referral no." />
+                <input v-model="referralSearch" class="ifi" style="padding-left:32px" maxlength="50" placeholder="Search referral no." @input="referralSearch = String(referralSearch ?? '').replace(/[^a-zA-Z0-9\- ]/g, '')" />
               </div>
             </div>
             <div v-if="!visibleReferrals.length" class="empty-state">
@@ -247,6 +247,7 @@
                   <div style="font-size:13px;color:var(--ink)">{{ student.guardian_contact || '-' }}</div>
                 </div>
               </div>
+
             </div>
           </div>
 
@@ -387,7 +388,7 @@
               </div>
               <div>
                 <label class="ifl">Contact Number</label>
-                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number)" />
+                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number); editForm.contact_number = String(editForm.contact_number ?? '').replace(/[^0-9+\- ]/g, '')" />
               </div>
             </div>
 
@@ -411,7 +412,7 @@
               </div>
               <div>
                 <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
-                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact)" />
+                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact); editForm.guardian_contact = String(editForm.guardian_contact ?? '').replace(/[^0-9+\- ]/g, '')" />
               </div>
               <div>
                 <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>

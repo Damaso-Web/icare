@@ -180,7 +180,7 @@ class AppointmentController extends Controller
     {
         $validated = $request->validate([
             'staff_user_id'       => 'nullable|exists:users,id',
-            'required_documents'  => 'nullable|string',
+            'required_documents'  => 'nullable|string|max:1000',
         ]);
 
         $staffToAssign = $validated['staff_user_id'] ?? $appointment->staff_user_id;
@@ -265,7 +265,7 @@ class AppointmentController extends Controller
     public function reschedule(Request $request, Appointment $appointment)
 {
     $request->validate([
-        'reschedule_reason' => 'required|string',
+        'reschedule_reason' => 'required|string|max:1000',
     ]);
 
     $newToken = \Illuminate\Support\Str::random(48);
@@ -408,7 +408,7 @@ class AppointmentController extends Controller
 
     public function cancel(Request $request, Appointment $appointment)
 {
-    $request->validate(['cancellation_reason' => 'required|string']);
+    $request->validate(['cancellation_reason' => 'required|string|max:1000']);
 
     $appointment->update([
         'status'               => 'cancelled',
@@ -441,7 +441,7 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'This appointment can no longer be cancelled.'], 422);
         }
 
-        $request->validate(['cancellation_reason' => 'required|string']);
+        $request->validate(['cancellation_reason' => 'required|string|max:1000']);
 
         $appointment->update([
             'status'              => 'cancelled',

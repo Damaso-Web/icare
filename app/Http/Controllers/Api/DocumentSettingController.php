@@ -24,9 +24,9 @@ class DocumentSettingController extends Controller
     public function update(Request $request, string $code)
     {
         $validated = $request->validate([
-            'revision_no'       => 'required|string|max:20',
+            'revision_no'       => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\-\s]+$/'],
             'effectivity_date'  => 'required|date',
-            'ctrl_no_year'      => 'required|string|max:4',
+            'ctrl_no_year'      => ['required', 'string', 'max:4', 'regex:/^[0-9]{1,4}$/'],
             'ctrl_no_term'      => 'required|in:1,2,S',
         ]);
 

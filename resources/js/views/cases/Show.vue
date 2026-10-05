@@ -481,7 +481,7 @@
                 </div>
                 <div>
                   <label class="ifl">Description</label>
-                  <textarea v-model="interventionForm.description" class="ifta" style="min-height:80px" placeholder="Describe what was done..."></textarea>
+                  <textarea v-model="interventionForm.description" class="ifta" style="min-height:80px" placeholder="Describe what was done..." maxlength="2000"></textarea>
                 </div>
                 <div v-if="interventionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ interventionError }}</div>
                 <div style="display:flex;gap:8px">
@@ -516,11 +516,11 @@
                 </div>
                 <div>
                   <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-                  <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." />
+                  <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
                 </div>
                 <div>
                   <label class="ifl">Remarks</label>
-                  <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..."></textarea>
+                  <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000"></textarea>
                 </div>
                 <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
                 <div style="display:flex;gap:8px">
@@ -558,11 +558,11 @@
                 </div>
                 <div>
                   <label class="ifl">Reason</label>
-                  <textarea v-model="handoffForm.reason" class="ifta" style="min-height:70px"></textarea>
+                  <textarea v-model="handoffForm.reason" class="ifta" style="min-height:70px" maxlength="1000"></textarea>
                 </div>
                 <div>
                   <label class="ifl">Notes</label>
-                  <textarea v-model="handoffForm.notes" class="ifta" style="min-height:60px"></textarea>
+                  <textarea v-model="handoffForm.notes" class="ifta" style="min-height:60px" maxlength="1000"></textarea>
                 </div>
                 <div style="display:flex;gap:8px">
                   <button class="ibtn ibtn-p" @click="submitHandoff">Send Handoff</button>
@@ -579,12 +579,15 @@
               <button class="ibtn ibtn-g ibtn-sm" @click="showStatusModal = false">✕</button>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <!-- Only these 4 are meant to be picked manually here.
+                   awaiting_testing/awaiting_external/on_hold/resolved are
+                   still valid statuses (set by other flows: referring to
+                   TMDU, resolving a referral, etc.) - they just aren't
+                   choices on this dropdown anymore. -->
               <select v-model="newStatus" class="ifse">
                 <option value="open">Open</option>
                 <option value="in_progress">In Progress</option>
-                <option value="awaiting_testing">Awaiting Testing</option>
-                <option value="on_hold">On Hold</option>
-                <option value="resolved">Resolved</option>
+                <option value="on_observation">On Observation</option>
                 <option value="closed">Closed</option>
               </select>
               <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateStatus">
@@ -647,6 +650,92 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
                 <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.program }}</div>
               </div>
+
+              <div style="height:1px;background:var(--cloud);margin:2px 0"></div>
+
+              <!-- Family Information / Siblings / Educational Attainment -
+                   right here on the Student Information card itself, not
+                   only inside the separate Student Profile modal (opened
+                   via the "Profile" button above) - same collapsible-group
+                   pattern as referrals/Show.vue. -->
+              <div v-for="group in profileDetailGroups" :key="group.key">
+                <div
+                  style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
+                  @click="toggleProfileGroup(group.key)"
+                >
+                  <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s;flex-shrink:0" :style="{ transform: expandedProfileGroups[group.key] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+                  <div style="font-size:11.5px;font-weight:700;color:var(--ink)">{{ group.label }}</div>
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.count }}</span>
+                </div>
+                <div v-if="expandedProfileGroups[group.key]" style="padding:4px 0 10px 22px;display:flex;flex-direction:column;gap:10px">
+
+                  <!-- Family Information -->
+                  <template v-if="group.key === 'family'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(caseFile.student?.father_last_name, caseFile.student?.father_first_name, caseFile.student?.father_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.father_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.father_contact_number || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(caseFile.student?.mother_last_name, caseFile.student?.mother_first_name, caseFile.student?.mother_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.mother_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.mother_contact_number || '-' }}</div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Siblings Information -->
+                  <template v-else-if="group.key === 'siblings'">
+                    <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
+                    <div class="ts" v-else>
+                      <table class="itable">
+                        <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
+                        <tbody>
+                          <tr v-for="(s, i) in profileSiblings" :key="i">
+                            <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
+                            <td style="font-size:12px">{{ s.age || '-' }}</td>
+                            <td style="font-size:12px">{{ s.occupation || '-' }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+
+                  <!-- Educational Attainment -->
+                  <template v-else-if="group.key === 'education'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.elementary_school || '-' }} <span v-if="caseFile.student?.elementary_year_graduated" style="color:var(--stone)">({{ caseFile.student?.elementary_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.high_school || '-' }} <span v-if="caseFile.student?.high_school_year_graduated" style="color:var(--stone)">({{ caseFile.student?.high_school_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.college_school || '-' }} <span v-if="caseFile.student?.college_year_graduated" style="color:var(--stone)">({{ caseFile.student?.college_year_graduated }})</span></div>
+                      </div>
+                    </div>
+                  </template>
+
+                </div>
+              </div>
             </div>
           </div>
 
@@ -697,19 +786,19 @@
             </div>
             <div>
               <label class="ifl">Observations <span style="color:var(--red)">*</span></label>
-              <textarea v-model="sessionForm.observations" class="ifta" placeholder="What did you observe during this session?"></textarea>
+              <textarea v-model="sessionForm.observations" class="ifta" placeholder="What did you observe during this session?" maxlength="5000"></textarea>
             </div>
             <div>
               <label class="ifl">Interventions Applied</label>
-              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" placeholder="What interventions were applied?"></textarea>
+              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" placeholder="What interventions were applied?" maxlength="5000"></textarea>
             </div>
             <div>
               <label class="ifl">Student Response</label>
-              <textarea v-model="sessionForm.student_response" class="ifta" style="min-height:60px" placeholder="How did the student respond?"></textarea>
+              <textarea v-model="sessionForm.student_response" class="ifta" style="min-height:60px" placeholder="How did the student respond?" maxlength="5000"></textarea>
             </div>
             <div>
               <label class="ifl">Next Steps</label>
-              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" placeholder="Recommended next steps?"></textarea>
+              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" placeholder="Recommended next steps?" maxlength="2000"></textarea>
             </div>
             <div style="display:flex;gap:8px;padding-top:8px">
               <button class="ibtn ibtn-p" @click="logSession">
@@ -732,19 +821,19 @@
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Interventions Applied <span style="color:var(--red)">*</span></label>
-              <textarea v-model="closeForm.interventions_applied" class="ifta" placeholder="Summarize interventions applied..."></textarea>
+              <textarea v-model="closeForm.interventions_applied" class="ifta" placeholder="Summarize interventions applied..." maxlength="3000"></textarea>
             </div>
             <div>
               <label class="ifl">Outcomes <span style="color:var(--red)">*</span></label>
-              <textarea v-model="closeForm.outcomes" class="ifta" placeholder="What were the outcomes?"></textarea>
+              <textarea v-model="closeForm.outcomes" class="ifta" placeholder="What were the outcomes?" maxlength="3000"></textarea>
             </div>
             <div>
               <label class="ifl">Recommendations</label>
-              <textarea v-model="closeForm.recommendations" class="ifta" style="min-height:60px" placeholder="Any recommendations for follow-up?"></textarea>
+              <textarea v-model="closeForm.recommendations" class="ifta" style="min-height:60px" placeholder="Any recommendations for follow-up?" maxlength="2000"></textarea>
             </div>
             <div>
               <label class="ifl">Closure Summary <span style="color:var(--red)">*</span></label>
-              <textarea v-model="closeForm.closure_summary" class="ifta" placeholder="Brief closure summary..."></textarea>
+              <textarea v-model="closeForm.closure_summary" class="ifta" placeholder="Brief closure summary..." maxlength="3000"></textarea>
             </div>
             <div style="display:flex;gap:8px">
               <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="confirmCloseCase">Close Case</button>
@@ -1128,6 +1217,49 @@ function initials(first, last) {
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '—';
 }
+
+// Family/Siblings/Educational Attainment on the Student Information card
+// collapse behind a dropdown toggle, same pattern as referrals/Show.vue.
+const expandedProfileGroups = ref({});
+function toggleProfileGroup(key) {
+  expandedProfileGroups.value = {
+    ...expandedProfileGroups.value,
+    [key]: !expandedProfileGroups.value[key],
+  };
+}
+
+// siblings is stored as JSON on the backend; axios/the API may hand it back
+// already parsed (array) or as a raw string depending on the DB driver, so
+// handle both rather than assuming one shape.
+const profileSiblings = computed(() => {
+  const raw = caseFile.value.student?.siblings;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+});
+
+// Builds "Last, First Middle" the same way the existing Guardian block
+// does, returning '-' when none of the name parts are filled in.
+function fullName(last, first, middle) {
+  if (![last, first, middle].filter(Boolean).length) return '-';
+  return `${last || ''}, ${first || ''} ${middle || ''}`.trim();
+}
+
+const profileDetailGroups = computed(() => {
+  const s = caseFile.value.student || {};
+  const familyCount = [s.father_last_name, s.mother_last_name].filter(Boolean).length;
+  const educationCount = [s.elementary_school, s.high_school, s.college_school].filter(Boolean).length;
+  return [
+    { key: 'family', label: 'Family Information', count: familyCount },
+    { key: 'siblings', label: 'Siblings Information', count: profileSiblings.value.length },
+    { key: 'education', label: 'Educational Attainment', count: educationCount },
+  ];
+});
 
 function formatReferralSource(source) {
   const labels = {

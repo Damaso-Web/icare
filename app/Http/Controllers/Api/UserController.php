@@ -11,6 +11,11 @@ use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
+    // Plain <input> fields only. Email and password are intentionally exempt.
+    private const NAME_REGEX  = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
+    private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
+    private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
+
     /**
      * Roles the currently authenticated actor may assign.
      * system_admin can assign anything; admin (GCU Head) cannot grant system_admin.
@@ -50,16 +55,16 @@ class UserController extends Controller
         public function store(Request $request)
     {
         $validated = $request->validate([
-            'first_name'            => 'required|string|max:255',
-            'middle_name'           => 'nullable|string|max:255',
-            'last_name'             => 'required|string|max:255',
-            'suffix'                => 'nullable|string|max:20',
+            'first_name'            => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+            'middle_name'           => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+            'last_name'             => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+            'suffix'                => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'                 => 'required|email|unique:users,email',
-            'employee_id'           => 'nullable|string|max:50',
+            'employee_id'           => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
             'role'                  => ['required', \Illuminate\Validation\Rule::in($this->assignableRoles())],
-            'college'               => 'nullable|string',
-            'department'            => 'nullable|string',
-            'contact_number'        => 'nullable|string|max:11',
+            'college'               => 'nullable|string|max:255',
+            'department'            => 'nullable|string|max:255',
+            'contact_number'        => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
             'password'              => ['required', 'confirmed', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
         ]);
 
@@ -85,16 +90,16 @@ class UserController extends Controller
         public function update(Request $request, User $user)
 {
     $validated = $request->validate([
-        'first_name'     => 'sometimes|string|max:255',
-        'middle_name'    => 'nullable|string|max:255',
-        'last_name'      => 'sometimes|string|max:255',
-        'suffix'         => 'nullable|string|max:20',
+        'first_name'     => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'email'          => 'sometimes|email|unique:users,email,' . $user->id,
-        'employee_id'    => 'nullable|string|max:50',
+        'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
         'role'           => ['sometimes', \Illuminate\Validation\Rule::in($this->assignableRoles())],
-        'college'        => 'nullable|string',
-        'department'     => 'nullable|string',
-        'contact_number' => 'nullable|string|max:11',
+        'college'        => 'nullable|string|max:255',
+        'department'     => 'nullable|string|max:255',
+        'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
     ]);
 
     // Prevent a user from changing their own role (self-escalation guard).

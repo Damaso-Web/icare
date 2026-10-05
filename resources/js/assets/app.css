@@ -77,6 +77,11 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 
 /* ── BUTTONS ── */
 .ibtn{display:inline-flex;align-items:center;gap:6px;padding:8px 15px;border-radius:var(--r-sm);border:none;font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;transition:background .13s,box-shadow .13s;white-space:nowrap}
+/* No .ibtn variant had a disabled look before - buttons with inline
+   background colors (confirm/reschedule/call-slip on an appointment still
+   awaiting the student) need this to actually look greyed out rather than
+   just silently not responding to clicks. */
+.ibtn:disabled,.ibtn[disabled]{background:var(--cloud)!important;color:var(--fog)!important;border-color:var(--cloud)!important;cursor:not-allowed;box-shadow:none}
 .ibtn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .ibtn-p{background:var(--moss);color:#fff}
 .ibtn-p:hover{background:var(--pine);box-shadow:0 4px 12px rgba(30,110,67,.25)}

@@ -8,6 +8,12 @@ use Illuminate\Http\Request;
 
 class ManagementFormOptionController extends Controller
 {
+    // Plain <input> labels/names only (never <textarea>-backed fields): letters, numbers,
+    // spaces and . , ' - & ( ). No other special characters. On EDIT the check is skipped when
+    // the value is unchanged, so existing records saved before this rule (e.g. seeded labels
+    // that contain a slash) can still have their other fields updated.
+    private const LABEL_REGEX = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+
     const CATEGORIES = ['referral_type', 'referral_source', 'act_of_misconduct'];
 
     public function index(Request $request)
@@ -23,8 +29,8 @@ class ManagementFormOptionController extends Controller
     {
         $validated = $request->validate([
             'category'   => 'required|string|in:' . implode(',', self::CATEGORIES),
-            'value'      => 'required|string|max:100',
-            'label'      => 'required|string|max:255',
+            'value'      => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_]+$/'],
+            'label'      => ['required', 'string', 'max:255', 'regex:' . self::LABEL_REGEX],
             'sort_order' => 'nullable|integer',
         ]);
         $exists = ReferralFormOption::where('category', $validated['category'])->where('value', $validated['value'])->exists();
@@ -39,8 +45,11 @@ class ManagementFormOptionController extends Controller
     // Only the display label and ordering can change; retire+recreate for a real rename.
     public function update(Request $request, ReferralFormOption $formOption)
     {
+        $labelRules = ['required', 'string', 'max:255'];
+        if ($request->input('label') !== $formOption->label) $labelRules[] = 'regex:' . self::LABEL_REGEX;
+
         $validated = $request->validate([
-            'label'      => 'required|string|max:255',
+            'label'      => $labelRules,
             'sort_order' => 'nullable|integer',
         ]);
         $formOption->update($validated);

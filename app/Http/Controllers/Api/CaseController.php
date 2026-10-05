@@ -13,11 +13,17 @@ use App\Notifications\CaseHandoffNotification;
 use App\Notifications\HandoffAcknowledgedNotification;
 use App\Notifications\TestingReferralNotification;
 use App\Notifications\ReferredToTmduNotification;
+use App\Notifications\UnreachableStudentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 
 class CaseController extends Controller
 {
+    // Only for plain <input> fields (e.g. Issue Parent Conference Slip's
+    // "reason"), never for free-text <textarea>-backed fields, which just
+    // get a max length below and keep normal punctuation.
+    private const TEXT_REGEX = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+
     private function authorizeStaffAccess(): void
     {
         $user = request()->user();
@@ -164,10 +170,10 @@ class CaseController extends Controller
         $this->authorizeCaseWriter();
 
         $request->validate([
-            'interventions_applied' => 'required|string',
-            'outcomes'              => 'required|string',
-            'recommendations'       => 'nullable|string',
-            'closure_summary'       => 'required|string',
+            'interventions_applied' => 'required|string|max:3000',
+            'outcomes'              => 'required|string|max:3000',
+            'recommendations'       => 'nullable|string|max:2000',
+            'closure_summary'       => 'required|string|max:3000',
         ]);
 
         $case->update([
@@ -206,7 +212,7 @@ class CaseController extends Controller
         // one referral instead of sharing it across every referral on the
         // case. See $sourceReferral below.
         $request->validate([
-            'reason'      => 'required|string',
+            'reason'      => 'required|string|max:1000',
             'referral_id' => 'required|exists:referrals,id',
         ]);
 
@@ -337,8 +343,8 @@ class CaseController extends Controller
         $this->authorizeCaseWriter();
 
         $request->validate([
-            'destination' => 'required|string',
-            'reason'      => 'required|string',
+            'destination' => 'required|string|max:255',
+            'reason'      => 'required|string|max:1000',
         ]);
 
         $case->update([
@@ -359,8 +365,8 @@ class CaseController extends Controller
         $request->validate([
             'to_user_id'  => 'required|exists:users,id',
             'to_unit'     => 'required|in:GCU,SDU,TMDU',
-            'reason'      => 'required|string',
-            'notes'       => 'nullable|string',
+            'reason'      => 'required|string|max:1000',
+            'notes'       => 'nullable|string|max:1000',
             // Which of the case's referrals this endorsement was made from
             // (Show.vue sends the referral it's currently viewing). Optional
             // and validated loosely to this case, so an older caller that
@@ -413,13 +419,54 @@ class CaseController extends Controller
         return response()->json($handoff->load(['fromUser', 'toUser']));
     }
 
+    // "Flag Unreachable" (cases/Show.vue). Marks the case's student as
+    // unreachable and notifies the active Dean's Secretary(ies) of the
+    // student's college so they can help locate/contact the student.
+    // The route and the notification class already existed, but this
+    // controller method did not - so the button errored out.
+    public function flagUnreachable(Request $request, CaseFile $case)
+    {
+        $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
+
+        $validated = $request->validate([
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        $case->loadMissing('student');
+        $notes = $validated['notes'] ?? '';
+
+        $old = $case->toArray();
+        $case->update([
+            'student_unreachable'    => true,
+            'unreachable_flagged_at' => now(),
+            'unreachable_flagged_by' => $request->user()->id,
+            'unreachable_notes'      => $notes !== '' ? $notes : null,
+        ]);
+
+        AuditLog::record('flagged_unreachable', "Flagged student on case {$case->case_number} as unreachable.", $case, $old, $case->toArray());
+
+        if ($case->student) {
+            $deanSecretaries = User::where('role', 'dean_secretary')
+                ->where('college', $case->student->college)
+                ->where('is_active', true)
+                ->get();
+
+            if ($deanSecretaries->isNotEmpty()) {
+                Notification::send($deanSecretaries, new UnreachableStudentNotification($case, $notes));
+            }
+        }
+
+        return response()->json($case);
+    }
+
     public function flagFollowUp(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
         $this->authorizeCaseWriter();
 
         $request->validate([
-            'notes' => 'nullable|string',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $old = $case->toArray();
@@ -463,8 +510,8 @@ class CaseController extends Controller
         $validated = $request->validate([
             'conference_date' => 'required|date',
             'conference_time' => 'required',
-            'reason'          => 'required|string|max:255',
-            'remarks'         => 'nullable|string',
+            'reason'          => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+            'remarks'         => 'nullable|string|max:1000',
         ]);
 
         $slip = $case->parentConferenceSlips()->create([

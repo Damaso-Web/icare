@@ -121,8 +121,11 @@
 
       <!-- Right: Mini Calendar - floating/sticky to match the SIF's
            Appointments card, so it (and the day-filter) stay reachable
-           while scrolling a long appointments list. -->
-      <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto">
+           while scrolling a long appointments list. No max-height/
+           overflow-y here - that made this column scroll internally on
+           top of the page's own scroll, which felt like a glitchy double
+           scroll instead of one smooth motion. -->
+      <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start">
         <div class="icard">
           <div class="icard-header">
             <span class="icard-title">{{ currentMonthLabel }}</span>
@@ -280,7 +283,7 @@
           </div>
           <div>
             <label class="ifl">Required Documents (leave blank if none)</label>
-            <textarea v-model="confirmRequiredDocuments" class="ifta" style="min-height:60px" placeholder="e.g. Valid ID, parent consent form"></textarea>
+            <textarea v-model="confirmRequiredDocuments" class="ifta" style="min-height:60px" placeholder="e.g. Valid ID, parent consent form" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitConfirm">Confirm Appointment</button>
@@ -302,7 +305,7 @@
           </div>
           <div>
             <label class="ifl">Reason for Cancellation <span style="color:var(--red)">*</span></label>
-            <textarea v-model="cancelForm.cancellation_reason" class="ifta" style="min-height:80px" placeholder="Why is this appointment being cancelled?"></textarea>
+            <textarea v-model="cancelForm.cancellation_reason" class="ifta" style="min-height:80px" placeholder="Why is this appointment being cancelled?" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="submitCancel">Yes, Cancel Appointment</button>
@@ -350,7 +353,7 @@
           </div>
           <div>
             <label class="ifl">Reason for Reschedule <span style="color:var(--red)">*</span></label>
-            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?"></textarea>
+            <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>

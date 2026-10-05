@@ -180,9 +180,9 @@ class TestingRecordController extends Controller
             'tests_administered'      => 'nullable|array',
             'testing_date'            => 'nullable|date',
             'report_date'             => 'nullable|date',
-            'assessment_summary'      => 'nullable|string',
-            'findings'                => 'nullable|string',
-            'recommendations'         => 'nullable|string',
+            'assessment_summary'      => 'nullable|string|max:3000',
+            'findings'                => 'nullable|string|max:3000',
+            'recommendations'         => 'nullable|string|max:3000',
         ]);
 
         $old = $testingRecord->toArray();
@@ -457,9 +457,9 @@ class TestingRecordController extends Controller
         $this->ensureTesterAssigned($testingRecord);
 
         $request->validate([
-            'assessment_summary' => 'required|string',
-            'findings'           => 'nullable|string',
-            'recommendations'    => 'required|string',
+            'assessment_summary' => 'required|string|max:3000',
+            'findings'           => 'nullable|string|max:3000',
+            'recommendations'    => 'required|string|max:3000',
             'report_file'        => 'nullable|file|max:10240',
         ]);
 

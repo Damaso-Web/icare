@@ -362,7 +362,7 @@
                 placeholder="09XXXXXXXXX"
                 maxlength="11"
                 :style="editErrorStyle('contact_number')"
-                @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number); clearEditFieldError('contact_number')"
+                @input="editForm.contact_number = contactNumberBlockingNonZero(editForm.contact_number); clearEditFieldError('contact_number'); editForm.contact_number = String(editForm.contact_number ?? '').replace(/[^0-9+\- ]/g, '')"
               />
               <div v-if="editErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ editErrors.contact_number }}
@@ -410,7 +410,7 @@
                 placeholder="09XXXXXXXXX"
                 maxlength="11"
                 :style="editErrorStyle('guardian_contact')"
-                @input="editForm.guardian_contact = contactNumberBlockingNonZero(editForm.guardian_contact); clearEditFieldError('guardian_contact')"
+                @input="editForm.guardian_contact = contactNumberBlockingNonZero(editForm.guardian_contact); clearEditFieldError('guardian_contact'); editForm.guardian_contact = String(editForm.guardian_contact ?? '').replace(/[^0-9+\- ]/g, '')"
               />
               <div v-if="editErrors.guardian_contact" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ editErrors.guardian_contact }}
@@ -626,7 +626,7 @@
                 placeholder="09XXXXXXXXX"
                 maxlength="11"
                 :style="errorStyle('contact_number')"
-                @input="addForm.contact_number = contactNumberBlockingNonZero(addForm.contact_number); clearFieldError('contact_number')"
+                @input="addForm.contact_number = contactNumberBlockingNonZero(addForm.contact_number); clearFieldError('contact_number'); addForm.contact_number = String(addForm.contact_number ?? '').replace(/[^0-9+\- ]/g, '')"
               />
               <div v-if="addErrors.contact_number" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ addErrors.contact_number }}
@@ -674,7 +674,7 @@
                 placeholder="09XXXXXXXXX"
                 maxlength="11"
                 :style="errorStyle('guardian_contact')"
-                @input="addForm.guardian_contact = contactNumberBlockingNonZero(addForm.guardian_contact); clearFieldError('guardian_contact')"
+                @input="addForm.guardian_contact = contactNumberBlockingNonZero(addForm.guardian_contact); clearFieldError('guardian_contact'); addForm.guardian_contact = String(addForm.guardian_contact ?? '').replace(/[^0-9+\- ]/g, '')"
               />
               <div v-if="addErrors.guardian_contact" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ addErrors.guardian_contact }}
@@ -996,7 +996,7 @@
           </div>
           <div v-if="graduateReason === 'other'">
             <label class="ifl">Please specify</label>
-            <input v-model="graduateNotes" class="ifi" placeholder="Reason details" />
+            <input v-model="graduateNotes" class="ifi" placeholder="Reason details" maxlength="255" @input="graduateNotes = String(graduateNotes ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F'.,\x26()\- ]/g, '')" />
           </div>
           <div style="display:flex;gap:8px">
             <button

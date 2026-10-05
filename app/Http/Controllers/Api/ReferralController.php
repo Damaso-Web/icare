@@ -128,11 +128,11 @@ class ReferralController extends Controller
         $validated = $request->validate([
             'student_id'          => 'required|exists:students,id',
             'referral_type'       => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
-            'nature_of_concern'   => 'required|string|min:10',
+            'nature_of_concern'   => 'required|string|min:10|max:1000',
             'is_self_referred'    => 'boolean',
-            'referrer_source'     => 'nullable|string',
-            'violation_type'      => 'nullable|string',
-            'incident_description'=> 'nullable|string',
+            'referrer_source'     => 'nullable|string|max:255',
+            'violation_type'      => 'nullable|string|max:255',
+            'incident_description'=> 'nullable|string|max:2000',
             'incident_date'       => 'nullable|date',
         ]);
 
@@ -549,7 +549,7 @@ class ReferralController extends Controller
         }
 
         $validated = $request->validate([
-            'feedback_notes'               => 'required|string',
+            'feedback_notes'               => 'required|string|max:3000',
             'feedback_checklist'           => 'nullable|array',
             'feedback_checklist.*'         => 'string|in:interview,counseling,psychological_testing,referred_scholarship,referred_other,others',
             'feedback_referred_other_text' => 'nullable|string|max:255',
@@ -614,7 +614,7 @@ class ReferralController extends Controller
             'admission_time_in'  => 'nullable|date_format:H:i',
             'admission_time_out' => 'nullable|date_format:H:i',
             'admission_excused'  => 'nullable|boolean',
-            'admission_remarks'  => 'nullable|string',
+            'admission_remarks'  => 'nullable|string|max:1000',
         ]);
 
         $referral->update([

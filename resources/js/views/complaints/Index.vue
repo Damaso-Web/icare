@@ -12,6 +12,7 @@
           v-model="filters.search"
           type="text"
           class="sin"
+          maxlength="50"
           placeholder="Search complainee name..."
           style="width:100%"
           @keypress="blockSpecialKeypress"

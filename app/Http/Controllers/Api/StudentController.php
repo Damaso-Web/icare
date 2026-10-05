@@ -12,6 +12,15 @@ use Illuminate\Support\Str;
 
 class StudentController extends Controller
 {
+    // Shared character-restriction patterns for plain <input> fields (never
+    // applied to free-text <textarea>-backed fields like notes/remarks,
+    // which need normal punctuation). Letters include basic Latin-1/Latin
+    // Extended-A so accented names (e.g. "Peña", "Dela Cruz") still work.
+    private const NAME_REGEX  = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
+    private const TEXT_REGEX  = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+    private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
+    private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
+
     public function index(Request $request)
     {
         // "name_only" is opt-in: the Complaint form's complainee search passes
@@ -58,23 +67,23 @@ class StudentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'student_id'             => 'required|string|unique:students,student_id',
-            'first_name'             => 'required|string|min:2|max:255',
-            'last_name'              => 'required|string|min:2|max:255',
-            'middle_name'            => 'nullable|string|min:2|max:255',
-            'suffix'                 => 'nullable|string|max:20',
+            'student_id'             => ['required', 'string', 'regex:' . self::ID_REGEX, 'unique:students,student_id'],
+            'first_name'             => ['required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'last_name'              => ['required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'middle_name'            => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'suffix'                 => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
             'email'                  => 'nullable|email',
-            'contact_number'         => 'nullable|string|max:11',
+            'contact_number'         => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
             'college'                => 'nullable|string',
             'program'                => 'nullable|string',
             'year_level'             => 'nullable|string',
-            'section'                => 'nullable|string|max:1',
-            'guardian_first_name'    => 'nullable|string|min:2|max:255',
-            'guardian_middle_name'   => 'nullable|string|min:2|max:255',
-            'guardian_last_name'     => 'nullable|string|min:2|max:255',
-            'guardian_contact'       => 'nullable|string|max:11',
-            'guardian_relationship'  => 'nullable|string',
+            'section'                => ['nullable', 'string', 'max:1', 'regex:' . self::ID_REGEX],
+            'guardian_first_name'    => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_middle_name'   => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_last_name'     => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_contact'       => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
+            'guardian_relationship'  => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         ]);
 
         $tempPassword = Str::random(10);
@@ -103,23 +112,23 @@ class StudentController extends Controller
     public function update(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'student_id'             => 'sometimes|required|string|unique:students,student_id,' . $student->id,
-            'first_name'             => 'sometimes|required|string|min:2|max:255',
-            'last_name'              => 'sometimes|required|string|min:2|max:255',
-            'middle_name'            => 'nullable|string|min:2|max:255',
-            'suffix'                 => 'nullable|string|max:20',
+            'student_id'             => ['sometimes', 'required', 'string', 'regex:' . self::ID_REGEX, 'unique:students,student_id,' . $student->id],
+            'first_name'             => ['sometimes', 'required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'last_name'              => ['sometimes', 'required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'middle_name'            => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'suffix'                 => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'sex'                    => 'nullable|in:Male,Female,Prefer not to say',
             'email'                  => 'nullable|email',
-            'contact_number'         => 'nullable|string|max:11',
+            'contact_number'         => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
             'college'                => 'sometimes|required|string',
             'program'                => 'nullable|string',
             'year_level'             => 'sometimes|required|string',
-            'section'                => 'nullable|string|max:1',
-            'guardian_first_name'    => 'nullable|string|min:2|max:255',
-            'guardian_middle_name'   => 'nullable|string|min:2|max:255',
-            'guardian_last_name'     => 'nullable|string|min:2|max:255',
-            'guardian_contact'       => 'nullable|string|max:11',
-            'guardian_relationship'  => 'nullable|string',
+            'section'                => ['nullable', 'string', 'max:1', 'regex:' . self::ID_REGEX],
+            'guardian_first_name'    => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_middle_name'   => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_last_name'     => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
+            'guardian_contact'       => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
+            'guardian_relationship'  => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         ]);
 
         // Nullable fields only ever mean "leave as-is" when submitted blank - an
@@ -162,7 +171,7 @@ class StudentController extends Controller
     {
         $validated = $request->validate([
             'deactivation_reason' => 'required|in:no_longer_enrolled,leave_of_absence,disciplinary_suspension,other',
-            'deactivation_notes'  => 'nullable|string|required_if:deactivation_reason,other',
+            'deactivation_notes'  => ['nullable', 'string', 'max:255', 'required_if:deactivation_reason,other', 'regex:' . self::TEXT_REGEX],
         ]);
 
         $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
@@ -182,11 +191,6 @@ class StudentController extends Controller
 
         public function history(Student $student)
     {
-        // The Student Profile page always loads this, and it is what returns
-        // the student's referrals, cases, appointments and testing records -
-        // so this is where opening a profile is logged (once per open).
-        AuditLog::record('viewed', "Viewed student profile and records for {$student->first_name} {$student->last_name} ({$student->student_id}).", $student);
-
         return response()->json([
             'cases'           => $student->cases()->with('counselor')->latest()->get(),
             'referrals'       => $student->referrals()->with('case:id,status')->latest()->get(),

@@ -219,7 +219,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div>
               <label class="ifl">Revision No.</label>
-              <input v-model="referralDoc.revision_no" class="ifi" placeholder="e.g. 01" :disabled="!isAdmin" />
+              <input v-model="referralDoc.revision_no" class="ifi" placeholder="e.g. 01" maxlength="20" @input="referralDoc.revision_no = String(referralDoc.revision_no ?? '').replace(/[^A-Za-z0-9\- ]/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Effectivity Date</label>
@@ -227,7 +227,7 @@
             </div>
             <div>
               <label class="ifl">Ctrl No. - Year</label>
-              <input v-model="referralDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" :disabled="!isAdmin" />
+              <input v-model="referralDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="referralDoc.ctrl_no_year = String(referralDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Ctrl No. - Term</label>
@@ -253,7 +253,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div>
               <label class="ifl">Revision No.</label>
-              <input v-model="feedbackDoc.revision_no" class="ifi" placeholder="e.g. 01" :disabled="!isAdmin" />
+              <input v-model="feedbackDoc.revision_no" class="ifi" placeholder="e.g. 01" maxlength="20" @input="feedbackDoc.revision_no = String(feedbackDoc.revision_no ?? '').replace(/[^A-Za-z0-9\- ]/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Effectivity Date</label>
@@ -261,7 +261,7 @@
             </div>
             <div>
               <label class="ifl">Ctrl No. - Year</label>
-              <input v-model="feedbackDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" :disabled="!isAdmin" />
+              <input v-model="feedbackDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="feedbackDoc.ctrl_no_year = String(feedbackDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Ctrl No. - Term</label>
@@ -287,7 +287,7 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
             <div>
               <label class="ifl">Revision No.</label>
-              <input v-model="tmduDoc.revision_no" class="ifi" placeholder="e.g. 01" :disabled="!isAdmin" />
+              <input v-model="tmduDoc.revision_no" class="ifi" placeholder="e.g. 01" maxlength="20" @input="tmduDoc.revision_no = String(tmduDoc.revision_no ?? '').replace(/[^A-Za-z0-9\- ]/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Effectivity Date</label>
@@ -295,7 +295,7 @@
             </div>
             <div>
               <label class="ifl">Ctrl No. - Year</label>
-              <input v-model="tmduDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" :disabled="!isAdmin" />
+              <input v-model="tmduDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="tmduDoc.ctrl_no_year = String(tmduDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
             </div>
             <div>
               <label class="ifl">Ctrl No. - Term</label>
@@ -324,12 +324,12 @@
           <div v-if="collegeError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ collegeError }}</div>
           <div>
             <label class="ifl">Name <span style="color:var(--red)">*</span></label>
-            <input v-model="collegeForm.name" class="ifi" maxlength="150" placeholder="e.g. College of Engineering (CE)" />
+            <input v-model="collegeForm.name" class="ifi" maxlength="150" placeholder="e.g. College of Engineering (CE)" @input="collegeForm.name = String(collegeForm.name ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             <div v-if="!collegeForm.name.trim() && collegeTouched" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div>
             <label class="ifl">Abbreviation</label>
-            <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" />
+            <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" @input="collegeForm.abbrev = String(collegeForm.abbrev ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; saveCollege()">
@@ -358,7 +358,7 @@
           </div>
           <div>
             <label class="ifl">Program Name <span style="color:var(--red)">*</span></label>
-            <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" />
+            <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" @input="programForm.name = String(programForm.name ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             <div v-if="programTouched && !programForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="programTouched && !programForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
@@ -389,7 +389,7 @@
           </div>
           <div>
             <label class="ifl">Department Name <span style="color:var(--red)">*</span></label>
-            <input v-model="departmentForm.name" class="ifi" maxlength="150" placeholder="e.g. Information Technology" />
+            <input v-model="departmentForm.name" class="ifi" maxlength="150" placeholder="e.g. Information Technology" @input="departmentForm.name = String(departmentForm.name ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             <div v-if="departmentTouched && !departmentForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="departmentTouched && !departmentForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
@@ -413,7 +413,7 @@
           <div v-if="formOptionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ formOptionError }}</div>
           <div>
             <label class="ifl">Label <span style="color:var(--red)">*</span></label>
-            <input v-model="formOptionForm.label" class="ifi" maxlength="150" placeholder="What staff will see in the dropdown" />
+            <input v-model="formOptionForm.label" class="ifi" maxlength="150" placeholder="What staff will see in the dropdown" @input="formOptionForm.label = String(formOptionForm.label ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             <div v-if="formOptionTouched && !formOptionForm.label.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div v-if="activeTab === 'wellness'">
