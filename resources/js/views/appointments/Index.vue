@@ -553,7 +553,7 @@ async function submitConfirm() {
     fetchAppointments();
     fetchAllAppointments();
   } catch (e) {
-    toast?.error('Failed to confirm appointment.');
+    toast?.error(e.response?.data?.message || 'Failed to confirm appointment.');
   }
 }
 
@@ -564,7 +564,7 @@ async function checkIn(a) {
     toast?.success('Student checked in.');
     fetchAllAppointments();
   } catch (e) {
-    toast?.error('Failed to check in.');
+    toast?.error(e.response?.data?.message || 'Failed to check in.');
   }
 }
 
@@ -612,7 +612,7 @@ async function submitCancel() {
     toast?.success('Appointment cancelled.');
     fetchAllAppointments();
   } catch (e) {
-    toast?.error('Failed to cancel appointment.');
+    toast?.error(e.response?.data?.message || 'Failed to cancel appointment.');
   }
 }
 
@@ -634,7 +634,7 @@ async function submitReschedule() {
     fetchAppointments();
     fetchAllAppointments();
   } catch (e) {
-    toast?.error('Failed to send reschedule request.');
+    toast?.error(e.response?.data?.message || 'Failed to send reschedule request.');
   }
 }
 

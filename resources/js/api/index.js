@@ -32,6 +32,88 @@ api.interceptors.response.use(
     }
 );
 
+
+// ---------------------------------------------------------------------------
+// Request guard (applies to every save/confirm/upload/submit/delete action)
+//
+// 1. While any write request (POST/PUT/PATCH/DELETE) is in flight, <body>
+//    gets the "is-busy" class. app.css greys out and disables every button
+//    while it is set, so a second click (or a click on a different button
+//    in the same modal) can't fire while the first request is processing.
+// 2. As a backstop for things the CSS can't stop (pressing Enter twice, a
+//    double-fired handler), an identical write request that is already in
+//    flight is not sent again - the second caller just receives the same
+//    response as the first.
+// ---------------------------------------------------------------------------
+const WRITE_METHODS = ['post', 'put', 'patch', 'delete'];
+// Background housekeeping calls that shouldn't lock the screen.
+const GUARD_IGNORE = [/notifications/i];
+const BUSY_FAILSAFE_MS = 60000;
+
+const inflightWrites = new Map();
+const busyIds = new Set();
+let busySeq = 0;
+
+function setBusyClass() {
+    if (typeof document === 'undefined') return;
+    document.body.classList.toggle('is-busy', busyIds.size > 0);
+}
+
+function writeKey(config) {
+    let body = '';
+    try {
+        if (typeof config.data === 'string') {
+            body = config.data;
+        } else if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+            body = [...config.data.entries()]
+                .map(([k, v]) => `${k}=${typeof v === 'string' ? v : `${v.name}:${v.size}`}`)
+                .join('&');
+        } else if (config.data) {
+            body = JSON.stringify(config.data);
+        }
+    } catch (e) {
+        body = '';
+    }
+    return `${(config.method || 'get').toLowerCase()} ${config.baseURL || ''}${config.url || ''} ${body}`;
+}
+
+function installRequestGuard(instance) {
+    instance.interceptors.request.use((config) => {
+        const method = (config.method || 'get').toLowerCase();
+        if (!WRITE_METHODS.includes(method)) return config;
+        if (GUARD_IGNORE.some((re) => re.test(config.url || ''))) return config;
+
+        const key = writeKey(config);
+        const baseAdapter = axios.getAdapter(config.adapter || instance.defaults.adapter);
+
+        config.adapter = (cfg) => {
+            if (inflightWrites.has(key)) return inflightWrites.get(key);
+
+            const id = ++busySeq;
+            busyIds.add(id);
+            setBusyClass();
+            const release = () => {
+                inflightWrites.delete(key);
+                busyIds.delete(id);
+                setBusyClass();
+            };
+            // Never leave the screen locked if a request hangs forever.
+            const watchdog = setTimeout(release, BUSY_FAILSAFE_MS);
+
+            const promise = baseAdapter(cfg).finally(() => {
+                clearTimeout(watchdog);
+                release();
+            });
+            inflightWrites.set(key, promise);
+            return promise;
+        };
+
+        return config;
+    });
+}
+
+installRequestGuard(api);
+
 export default api;
 
 // Separate axios instance for student-authenticated requests, so a failed
@@ -43,6 +125,8 @@ export const studentApi = axios.create({
         'Content-Type': 'application/json',
     },
 });
+
+installRequestGuard(studentApi);
 
 studentApi.interceptors.request.use((config) => {
     const token = localStorage.getItem('student_token');

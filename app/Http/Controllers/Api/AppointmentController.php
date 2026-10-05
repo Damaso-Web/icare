@@ -11,6 +11,7 @@ use App\Notifications\AppointmentConfirmedNotification;
 use App\Notifications\NoShowEscalationNotification;
 use App\Notifications\DocumentsRequiredNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Carbon\Carbon;
 
@@ -184,14 +185,19 @@ class AppointmentController extends Controller
         ]);
 
         $staffToAssign = $validated['staff_user_id'] ?? $appointment->staff_user_id;
-        if ($staffToAssign && Appointment::hasConflict(
+        $conflict = $staffToAssign ? Appointment::findConflict(
             $staffToAssign,
             $appointment->appointment_date->format('Y-m-d'),
             $appointment->start_time,
             $appointment->end_time,
-            $appointment->id
-        )) {
-            return response()->json(['message' => 'This staff member already has a conflicting appointment at this time.'], 422);
+            $this->rescheduleChainIds($appointment)
+        ) : null;
+
+        if ($conflict) {
+            $who = $conflict->student ? " ({$conflict->student->last_name}, {$conflict->student->first_name})" : '';
+            return response()->json([
+                'message' => "This staff member already has a conflicting appointment at this time: {$conflict->appointment_code}{$who}, {$conflict->start_time}-{$conflict->end_time}, status {$conflict->status}.",
+            ], 422);
         }
 
         // Same StaffAvailability gate as store() - this is the actual
@@ -263,51 +269,79 @@ class AppointmentController extends Controller
     // appointment while still being kept around as a record. This lets the
     // whole chain of an appointment's reschedules be counted and traced.
     public function reschedule(Request $request, Appointment $appointment)
-{
-    $request->validate([
-        'reschedule_reason' => 'required|string|max:1000',
-    ]);
+    {
+        $request->validate([
+            'reschedule_reason' => 'required|string|max:1000',
+        ]);
 
-    $newToken = \Illuminate\Support\Str::random(48);
+        $newToken = \Illuminate\Support\Str::random(48);
 
-    $newAppointment = Appointment::create([
-        'case_id'             => $appointment->case_id,
-        'referral_id'         => $appointment->referral_id,
-        'student_id'          => $appointment->student_id,
-        'staff_user_id'       => $appointment->staff_user_id,
-        'created_by_user_id'  => $request->user()->id,
-        'unit'                => $appointment->unit,
-        'appointment_type'    => $appointment->appointment_type,
-        'appointment_date'    => $appointment->appointment_date,
-        'start_time'          => $appointment->start_time,
-        'end_time'            => $appointment->end_time,
-        'duration_minutes'    => $appointment->duration_minutes,
-        'location'            => $appointment->location,
-        'notes'               => $appointment->notes,
-        'required_documents'  => $appointment->required_documents,
-        'rescheduled_from_id' => $appointment->id,
-        'request_status'      => 'awaiting_student',
-        'status'              => 'pending',
-        'scheduling_token'    => $newToken,
-        'token_expires_at'    => now()->addDays(7),
-        'reschedule_reason'   => $request->reschedule_reason,
-        'reschedule_count'    => $appointment->reschedule_count,
-    ]);
+        // Both writes or neither: previously the new row was created first
+        // and the original update failed afterwards, which left the old
+        // appointment active in the same slot as its replacement and made
+        // the replacement un-confirmable ("staff already has a conflicting
+        // appointment").
+        $newAppointment = DB::transaction(function () use ($request, $appointment, $newToken) {
+            $new = Appointment::create([
+                'case_id'             => $appointment->case_id,
+                'referral_id'         => $appointment->referral_id,
+                'student_id'          => $appointment->student_id,
+                'staff_user_id'       => $appointment->staff_user_id,
+                'created_by_user_id'  => $request->user()->id,
+                'unit'                => $appointment->unit,
+                'appointment_type'    => $appointment->appointment_type,
+                'appointment_date'    => $appointment->appointment_date,
+                'start_time'          => $appointment->start_time,
+                'end_time'            => $appointment->end_time,
+                'duration_minutes'    => $appointment->duration_minutes,
+                'location'            => $appointment->location,
+                'notes'               => $appointment->notes,
+                'required_documents'  => $appointment->required_documents,
+                'rescheduled_from_id' => $appointment->id,
+                'request_status'      => 'awaiting_student',
+                'status'              => 'pending',
+                'scheduling_token'    => $newToken,
+                'token_expires_at'    => now()->addDays(7),
+                'reschedule_reason'   => $request->reschedule_reason,
+                'reschedule_count'    => $appointment->reschedule_count,
+            ]);
 
-    $appointment->update([
-        'status'         => 'rescheduled',
-        'request_status' => 'superseded',
-    ]);
+            // 'rescheduled' is a valid request_status value; the old
+            // 'superseded' is not in the column's enum and made this 500.
+            $appointment->update([
+                'status'         => 'rescheduled',
+                'request_status' => 'rescheduled',
+            ]);
 
-    AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reschedule_reason}", $appointment);
+            return $new;
+        });
 
-    return response()->json([
-        'message'               => 'Reschedule request sent to student.',
-        'appointment'           => $newAppointment,
-        'previous_appointment'  => $appointment,
-        'scheduling_link'       => url("/schedule/{$newToken}"),
-    ]);
-}
+        AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reschedule_reason}", $appointment);
+
+        return response()->json([
+            'message'               => 'Reschedule request sent to student.',
+            'appointment'           => $newAppointment,
+            'previous_appointment'  => $appointment,
+            'scheduling_link'       => url("/schedule/{$newToken}"),
+        ]);
+    }
+
+    // The appointment itself plus every earlier appointment it was
+    // rescheduled from. Those earlier rows are replaced by this one, so they
+    // must never count as a conflicting booking against it.
+    private function rescheduleChainIds(Appointment $appointment): array
+    {
+        $ids = [$appointment->id];
+        $current = $appointment;
+        while ($current->rescheduled_from_id && !in_array($current->rescheduled_from_id, $ids, true)) {
+            $ids[] = $current->rescheduled_from_id;
+            $current = Appointment::find($current->rescheduled_from_id);
+            if (!$current) {
+                break;
+            }
+        }
+        return $ids;
+    }
 
     // Student self-service reschedule - this is the only path that tracks
     // reschedule_count / RESCHEDULE_LIMIT; a staff-initiated reschedule()
@@ -354,35 +388,40 @@ class AppointmentController extends Controller
         // Same B234 change as the staff-initiated reschedule() above: create
         // a new, linked Appointment row for the new slot instead of mutating
         // this one, and mark this row 'rescheduled' so it's kept as a record
-        // without still counting as an open appointment.
-        $newAppointment = Appointment::create([
-            'case_id'             => $appointment->case_id,
-            'referral_id'         => $appointment->referral_id,
-            'student_id'          => $appointment->student_id,
-            'staff_user_id'       => $appointment->staff_user_id,
-            'created_by_user_id'  => $appointment->created_by_user_id,
-            'unit'                => $appointment->unit,
-            'appointment_type'    => $appointment->appointment_type,
-            'appointment_date'    => $appointment->appointment_date,
-            'start_time'          => $appointment->start_time,
-            'end_time'            => $appointment->end_time,
-            'duration_minutes'    => $appointment->duration_minutes,
-            'location'            => $appointment->location,
-            'notes'               => $appointment->notes,
-            'required_documents'  => $appointment->required_documents,
-            'rescheduled_from_id' => $appointment->id,
-            'request_status'      => 'awaiting_student',
-            'status'              => 'pending',
-            'scheduling_token'    => $newToken,
-            'token_expires_at'    => now()->addDays(7),
-            'reschedule_reason'   => $request->reason,
-            'reschedule_count'    => $newCount,
-        ]);
+        // without still counting as an open appointment. Done in one
+        // transaction so a failure can't leave both rows active.
+        $newAppointment = DB::transaction(function () use ($appointment, $newToken, $request, $newCount) {
+            $new = Appointment::create([
+                'case_id'             => $appointment->case_id,
+                'referral_id'         => $appointment->referral_id,
+                'student_id'          => $appointment->student_id,
+                'staff_user_id'       => $appointment->staff_user_id,
+                'created_by_user_id'  => $appointment->created_by_user_id,
+                'unit'                => $appointment->unit,
+                'appointment_type'    => $appointment->appointment_type,
+                'appointment_date'    => $appointment->appointment_date,
+                'start_time'          => $appointment->start_time,
+                'end_time'            => $appointment->end_time,
+                'duration_minutes'    => $appointment->duration_minutes,
+                'location'            => $appointment->location,
+                'notes'               => $appointment->notes,
+                'required_documents'  => $appointment->required_documents,
+                'rescheduled_from_id' => $appointment->id,
+                'request_status'      => 'awaiting_student',
+                'status'              => 'pending',
+                'scheduling_token'    => $newToken,
+                'token_expires_at'    => now()->addDays(7),
+                'reschedule_reason'   => $request->reason,
+                'reschedule_count'    => $newCount,
+            ]);
 
-        $appointment->update([
-            'status'         => 'rescheduled',
-            'request_status' => 'superseded',
-        ]);
+            $appointment->update([
+                'status'         => 'rescheduled',
+                'request_status' => 'rescheduled',
+            ]);
+
+            return $new;
+        });
 
         AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reason}", $appointment);
 
@@ -402,7 +441,14 @@ class AppointmentController extends Controller
             ->get();
 
         foreach ($deanSecretaries as $secretary) {
-            $secretary->notify($notification);
+            // The action itself (no-show, call slip) has already been saved
+            // by the time this runs, so a mail/SMTP failure must not turn
+            // the whole request into a 500.
+            try {
+                $secretary->notify($notification);
+            } catch (\Throwable $e) {
+                report($e);
+            }
         }
     }
 

@@ -248,6 +248,91 @@
                 </div>
               </div>
 
+              <!-- Family Information / Siblings Information / Educational
+                   Attainment - collapsible, shown here inside the Student
+                   Information File only (not on Referral Details). -->
+              <template v-if="fromCases">
+              <div style="height:1px;background:var(--cloud);margin:4px 0"></div>
+              <div v-for="group in profileDetailGroups" :key="group.key">
+                <div
+                  style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
+                  @click="toggleProfileGroup(group.key)"
+                >
+                  <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s;flex-shrink:0" :style="{ transform: expandedProfileGroups[group.key] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+                  <div style="font-size:11.5px;font-weight:700;color:var(--ink)">{{ group.label }}</div>
+                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.count }}</span>
+                </div>
+                <div v-if="expandedProfileGroups[group.key]" style="padding:4px 0 10px 22px;display:flex;flex-direction:column;gap:10px">
+
+                  <!-- Family Information -->
+                  <template v-if="group.key === 'family'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(student.father_last_name, student.father_first_name, student.father_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.father_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.father_contact_number || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Name</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ fullName(student.mother_last_name, student.mother_first_name, student.mother_middle_name) }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Occupation</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.mother_occupation || '-' }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Contact</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.mother_contact_number || '-' }}</div>
+                      </div>
+                    </div>
+                  </template>
+
+                  <!-- Siblings Information -->
+                  <template v-else-if="group.key === 'siblings'">
+                    <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
+                    <div class="ts" v-else>
+                      <table class="itable">
+                        <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
+                        <tbody>
+                          <tr v-for="(s, i) in profileSiblings" :key="i">
+                            <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
+                            <td style="font-size:12px">{{ s.age || '-' }}</td>
+                            <td style="font-size:12px">{{ s.occupation || '-' }}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </template>
+
+                  <!-- Educational Attainment -->
+                  <template v-else-if="group.key === 'education'">
+                    <div style="display:flex;flex-direction:column;gap:10px">
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.elementary_school || '-' }} <span v-if="student.elementary_year_graduated" style="color:var(--stone)">({{ student.elementary_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.high_school || '-' }} <span v-if="student.high_school_year_graduated" style="color:var(--stone)">({{ student.high_school_year_graduated }})</span></div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.college_school || '-' }} <span v-if="student.college_year_graduated" style="color:var(--stone)">({{ student.college_year_graduated }})</span></div>
+                      </div>
+                    </div>
+                  </template>
+
+                </div>
+              </div>
+              </template>
+
             </div>
           </div>
 
@@ -452,12 +537,18 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:8px">
             <select v-model="newCaseStatus" class="ifse">
+              <!-- Only these 4 are meant to be picked manually. Other statuses
+                   (awaiting_testing, on_hold, resolved...) are still set by
+                   other flows (referring to TMDU, resolving a referral), so
+                   if the case is currently on one of them it is shown here
+                   as a greyed-out, unselectable current value instead of
+                   leaving the dropdown blank. -->
+              <option v-if="!['open','on_observation','in_progress','closed'].includes(newCaseStatus) && newCaseStatus" :value="newCaseStatus" disabled>
+                {{ String(newCaseStatus).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }} (current)
+              </option>
               <option value="open">Open</option>
               <option value="on_observation">On Observation</option>
               <option value="in_progress">In Progress</option>
-              <option value="awaiting_testing">Awaiting Testing</option>
-              <option value="on_hold">On Hold</option>
-              <option value="resolved">Resolved</option>
               <option value="closed">Closed</option>
             </select>
             <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateCaseStatus">Save Status</button>
@@ -545,6 +636,47 @@ function toggleConcernGroup(type) {
 // Student/Client links in with no ctx. This page is shared by both, so the
 // flag decides which actions are allowed here.
 const fromCases = computed(() => route.query.ctx === 'cases');
+
+// Family / Siblings / Educational Attainment dropdown groups for the
+// Student Information card (SIF only, see the fromCases gate in the template).
+const expandedProfileGroups = ref({});
+function toggleProfileGroup(key) {
+  expandedProfileGroups.value = {
+    ...expandedProfileGroups.value,
+    [key]: !expandedProfileGroups.value[key],
+  };
+}
+
+// siblings is stored as JSON; the API may hand it back already parsed
+// (array) or as a raw string, so handle both.
+const profileSiblings = computed(() => {
+  const raw = student.value?.siblings;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+});
+
+function fullName(last, first, middle) {
+  if (![last, first, middle].filter(Boolean).length) return '-';
+  return `${last || ''}, ${first || ''} ${middle || ''}`.trim();
+}
+
+const profileDetailGroups = computed(() => {
+  const s = student.value || {};
+  const familyCount = [s.father_last_name, s.mother_last_name].filter(Boolean).length;
+  const educationCount = [s.elementary_school, s.high_school, s.college_school].filter(Boolean).length;
+  return [
+    { key: 'family', label: 'Family Information', count: familyCount },
+    { key: 'siblings', label: 'Siblings Information', count: profileSiblings.value.length },
+    { key: 'education', label: 'Educational Attainment', count: educationCount },
+  ];
+});
+
 
 // Carry the module context forward into Referral Details so that page - and the
 // sidebar highlight in MainLayout - knows where the user actually came from.

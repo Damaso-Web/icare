@@ -523,10 +523,19 @@
                   <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000"></textarea>
                 </div>
                 <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
-                <div style="display:flex;gap:8px">
-                  <button class="ibtn ibtn-p" @click="submitParentConferenceSlip" :disabled="savingParentConference">
-                    {{ savingParentConference ? 'Saving...' : 'Issue Slip' }}
-                  </button>
+                <div v-if="parentConferenceConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+                  <div style="font-size:13px;color:var(--slate);line-height:1.6">
+                    Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ parentConferenceForm.conference_time }}</strong>? The student will be notified.
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="submitParentConferenceSlip" :disabled="savingParentConference">
+                      {{ savingParentConference ? 'Issuing...' : 'Yes, Issue Slip' }}
+                    </button>
+                    <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="parentConferenceConfirming = false" :disabled="savingParentConference">Go Back</button>
+                  </div>
+                </div>
+                <div v-else style="display:flex;gap:8px">
+                  <button class="ibtn ibtn-p" @click="confirmParentConferenceSlip">Issue Slip</button>
                   <button class="ibtn ibtn-o" @click="showParentConferenceModal = false">Cancel</button>
                 </div>
               </div>
@@ -918,6 +927,7 @@ const showParentConferenceModal = ref(false);
 const parentConferenceForm = ref({ conference_date: '', conference_time: '', reason: '', remarks: '' });
 const parentConferenceError = ref('');
 const savingParentConference = ref(false);
+const parentConferenceConfirming = ref(false);
 
 const interventionShowsExcused = computed(() => {
   if (!interventionForm.value.referral_id) return false;
@@ -966,7 +976,19 @@ async function submitIntervention() {
 function openParentConferenceModal() {
   parentConferenceForm.value = { conference_date: '', conference_time: '', reason: '', remarks: '' };
   parentConferenceError.value = '';
+  parentConferenceConfirming.value = false;
   showParentConferenceModal.value = true;
+}
+
+// Step 1: validate, then ask for confirmation in the same floating modal
+// before anything is actually issued/sent to the student.
+function confirmParentConferenceSlip() {
+  parentConferenceError.value = '';
+  if (!parentConferenceForm.value.conference_date || !parentConferenceForm.value.conference_time || !parentConferenceForm.value.reason) {
+    parentConferenceError.value = 'Please fill in date, time, and reason.';
+    return;
+  }
+  parentConferenceConfirming.value = true;
 }
 
 async function submitParentConferenceSlip() {
@@ -981,9 +1003,10 @@ async function submitParentConferenceSlip() {
     if (!caseFile.value.parent_conference_slips) caseFile.value.parent_conference_slips = [];
     caseFile.value.parent_conference_slips.unshift(res.data);
     showParentConferenceModal.value = false;
-    toast?.success('Parent Conference Slip issued. Print/hand it to the parent or guardian in person.');
+    toast?.success('Parent Conference Slip issued. The student has been notified - print/hand the slip to the parent or guardian in person.');
   } catch (e) {
     parentConferenceError.value = e.response?.data?.message || 'Failed to issue slip.';
+    parentConferenceConfirming.value = false;
   } finally {
     savingParentConference.value = false;
   }

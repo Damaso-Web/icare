@@ -770,93 +770,6 @@
                 <div style="font-size:13px;color:var(--ink)">{{ referral.student?.program }}</div>
               </div>
 
-              <div style="height:1px;background:var(--cloud);margin:2px 0"></div>
-
-              <!-- Family Information / Siblings / Educational Attainment -
-                   right here on the Student Information card itself, not
-                   only inside the separate Student Profile modal (opened
-                   via the "Profile" button above) - same collapsible-group
-                   data/pattern, reusing profileDetailGroups/
-                   expandedProfileGroups/profileSiblings/fullName already
-                   defined below for that modal. -->
-              <div v-for="group in profileDetailGroups" :key="group.key">
-                <div
-                  style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
-                  @click="toggleProfileGroup(group.key)"
-                >
-                  <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;transition:transform .15s;flex-shrink:0" :style="{ transform: expandedProfileGroups[group.key] ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
-                  <div style="font-size:11.5px;font-weight:700;color:var(--ink)">{{ group.label }}</div>
-                  <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ group.count }}</span>
-                </div>
-                <div v-if="expandedProfileGroups[group.key]" style="padding:4px 0 10px 22px;display:flex;flex-direction:column;gap:10px">
-
-                  <!-- Family Information -->
-                  <template v-if="group.key === 'family'">
-                    <div style="display:flex;flex-direction:column;gap:10px">
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.father_last_name, referral.student?.father_first_name, referral.student?.father_middle_name) }}</div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Occupation</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_occupation || '-' }}</div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Contact</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.father_contact_number || '-' }}</div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Name</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.mother_last_name, referral.student?.mother_first_name, referral.student?.mother_middle_name) }}</div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Occupation</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_occupation || '-' }}</div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Mother's Contact</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.mother_contact_number || '-' }}</div>
-                      </div>
-                    </div>
-                  </template>
-
-                  <!-- Siblings Information -->
-                  <template v-else-if="group.key === 'siblings'">
-                    <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
-                    <div class="ts" v-else>
-                      <table class="itable">
-                        <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
-                        <tbody>
-                          <tr v-for="(s, i) in profileSiblings" :key="i">
-                            <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
-                            <td style="font-size:12px">{{ s.age || '-' }}</td>
-                            <td style="font-size:12px">{{ s.occupation || '-' }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  </template>
-
-                  <!-- Educational Attainment -->
-                  <template v-else-if="group.key === 'education'">
-                    <div style="display:flex;flex-direction:column;gap:10px">
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_school || '-' }} <span v-if="referral.student?.elementary_year_graduated" style="color:var(--stone)">({{ referral.student?.elementary_year_graduated }})</span></div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school || '-' }} <span v-if="referral.student?.high_school_year_graduated" style="color:var(--stone)">({{ referral.student?.high_school_year_graduated }})</span></div>
-                      </div>
-                      <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-                        <div style="font-size:13px;color:var(--ink)">{{ referral.student?.college_school || '-' }} <span v-if="referral.student?.college_year_graduated" style="color:var(--stone)">({{ referral.student?.college_year_graduated }})</span></div>
-                      </div>
-                    </div>
-                  </template>
-
-                </div>
-              </div>
             </div>
           </div>
 
@@ -1728,10 +1641,19 @@
               <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000"></textarea>
             </div>
             <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="submitParentConferenceSlip" :disabled="savingParentConference">
-                {{ savingParentConference ? 'Saving...' : 'Issue Slip' }}
-              </button>
+            <div v-if="parentConferenceConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:13px;color:var(--slate);line-height:1.6">
+                Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ parentConferenceForm.conference_time }}</strong>? The student will be notified.
+              </div>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="submitParentConferenceSlip" :disabled="savingParentConference">
+                  {{ savingParentConference ? 'Issuing...' : 'Yes, Issue Slip' }}
+                </button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="parentConferenceConfirming = false" :disabled="savingParentConference">Go Back</button>
+              </div>
+            </div>
+            <div v-else style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="confirmParentConferenceSlip">Issue Slip</button>
               <button class="ibtn ibtn-o" @click="showParentConferenceModal = false">Cancel</button>
             </div>
           </div>
@@ -2574,11 +2496,24 @@ const showParentConferenceModal = ref(false);
 const parentConferenceForm = ref({ conference_date: '', conference_time: '', reason: '', remarks: '' });
 const parentConferenceError = ref('');
 const savingParentConference = ref(false);
+const parentConferenceConfirming = ref(false);
 
 function openParentConferenceModal() {
   parentConferenceForm.value = { conference_date: '', conference_time: '', reason: '', remarks: '' };
   parentConferenceError.value = '';
+  parentConferenceConfirming.value = false;
   showParentConferenceModal.value = true;
+}
+
+// Step 1: validate, then ask for confirmation in the same floating modal
+// before anything is actually issued/sent to the student.
+function confirmParentConferenceSlip() {
+  parentConferenceError.value = '';
+  if (!parentConferenceForm.value.conference_date || !parentConferenceForm.value.conference_time || !parentConferenceForm.value.reason) {
+    parentConferenceError.value = 'Please fill in date, time, and reason.';
+    return;
+  }
+  parentConferenceConfirming.value = true;
 }
 
 async function submitParentConferenceSlip() {
@@ -2593,9 +2528,10 @@ async function submitParentConferenceSlip() {
     if (!referral.value.case.parent_conference_slips) referral.value.case.parent_conference_slips = [];
     referral.value.case.parent_conference_slips.unshift(res.data);
     showParentConferenceModal.value = false;
-    toast?.success('Parent Conference Slip issued. Print/hand it to the parent or guardian in person.');
+    toast?.success('Parent Conference Slip issued. The student has been notified - print/hand the slip to the parent or guardian in person.');
   } catch (e) {
     parentConferenceError.value = e.response?.data?.message || 'Failed to issue slip.';
+    parentConferenceConfirming.value = false;
   } finally {
     savingParentConference.value = false;
   }

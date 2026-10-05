@@ -93,19 +93,28 @@ class Appointment extends Model
     public function checkedInBy()       { return $this->belongsTo(User::class, 'checked_in_by_user_id'); }
     public function rescheduledFrom()   { return $this->belongsTo(Appointment::class, 'rescheduled_from_id'); }
 
-    public static function hasConflict(int $staffId, string $date, string $start, string $end, ?int $excludeId = null): bool
-{
-    return static::where('staff_user_id', $staffId)
-        ->where('appointment_date', $date)
-        // A superseded appointment (B234: replaced by a new linked row on
-        // reschedule) no longer holds its old slot, same as a cancelled one.
-        ->whereNotIn('status', ['cancelled', 'rescheduled'])
-        ->where('request_status', '!=', 'awaiting_student')
-        ->where('start_time', '<', $end)
-        ->where('end_time', '>', $start)
-        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
-        ->exists();
-}
+    // The first other appointment that overlaps this staff member's slot, or
+    // null. Split out from hasConflict() so callers can tell the user WHICH
+    // appointment is in the way instead of a bare "conflict".
+    public static function findConflict(int $staffId, string $date, string $start, string $end, int|array|null $excludeId = null): ?self
+    {
+        return static::where('staff_user_id', $staffId)
+            ->where('appointment_date', $date)
+            // A superseded appointment (B234: replaced by a new linked row on
+            // reschedule) no longer holds its old slot, same as a cancelled one.
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
+            ->where('request_status', '!=', 'awaiting_student')
+            ->where('start_time', '<', $end)
+            ->where('end_time', '>', $start)
+            ->when($excludeId, fn($q) => $q->whereNotIn('id', (array) $excludeId))
+            ->with('student')
+            ->first();
+    }
+
+    public static function hasConflict(int $staffId, string $date, string $start, string $end, int|array|null $excludeId = null): bool
+    {
+        return static::findConflict($staffId, $date, $start, $end, $excludeId) !== null;
+    }
 
 public static function hasUnitConflict(string $unit, string $date, string $start, string $end, ?int $excludeId = null): bool
 {

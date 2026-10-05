@@ -13,6 +13,7 @@ use App\Notifications\CaseHandoffNotification;
 use App\Notifications\HandoffAcknowledgedNotification;
 use App\Notifications\TestingReferralNotification;
 use App\Notifications\ReferredToTmduNotification;
+use App\Notifications\ParentConferenceSlipNotification;
 use App\Notifications\UnreachableStudentNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -508,7 +509,7 @@ class CaseController extends Controller
         $this->authorizeCaseWriter();
 
         $validated = $request->validate([
-            'conference_date' => 'required|date',
+            'conference_date' => 'required|date|after_or_equal:today',
             'conference_time' => 'required',
             'reason'          => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'remarks'         => 'nullable|string|max:1000',
@@ -521,6 +522,17 @@ class CaseController extends Controller
         ]);
 
         AuditLog::record('parent_conference_slip_issued', "Parent Conference Slip issued for case {$case->case_number}.", $case);
+
+        // Like an appointment, the student has to be told about it. The
+        // slip is already saved by now, so a notification failure must not
+        // turn the request into an error.
+        if ($case->student) {
+            try {
+                Notification::send($case->student, new ParentConferenceSlipNotification($slip));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
 
         return response()->json($slip->load('issuedBy'));
     }

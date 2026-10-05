@@ -169,3 +169,9 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 .sin:focus{border-color:var(--moss);box-shadow:0 0 0 3px rgba(30,110,67,.08)}
 .sw{position:relative}
 .sw-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;stroke:var(--fog);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+
+/* While a save/confirm/upload/submit request is in flight (see the request
+   guard in api/index.js), every button is greyed out and unclickable so
+   nothing else can be triggered until it finishes. */
+body.is-busy .ibtn,
+body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progress}

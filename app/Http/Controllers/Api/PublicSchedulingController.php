@@ -51,7 +51,7 @@ class PublicSchedulingController extends Controller
         $conflict = Appointment::where('unit', $appointment->unit)
             ->where('appointment_date', $request->appointment_date)
             ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
             ->where('request_status', '!=', 'awaiting_student')
             ->where('start_time', '<', $request->end_time)
             ->where('end_time', '>', $request->start_time)
@@ -74,7 +74,7 @@ class PublicSchedulingController extends Controller
         $booked = Appointment::where('unit', $appointment->unit)
             ->where('id', '!=', $appointment->id)
             ->whereBetween('appointment_date', [$start->toDateString(), $end->toDateString()])
-            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
             ->where('request_status', '!=', 'awaiting_student')
             ->get(['appointment_date', 'start_time', 'end_time']);
 
@@ -144,7 +144,7 @@ class PublicSchedulingController extends Controller
         $conflict = Appointment::where('unit', $appointment->unit)
             ->where('appointment_date', $request->appointment_date)
             ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled'])
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
             ->where('request_status', '!=', 'awaiting_student')
             ->where('start_time', '<', $request->end_time)
             ->where('end_time', '>', $request->start_time)
