@@ -207,12 +207,12 @@
                  Ctrl No. are edited in Management by admin, not here. -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
-                <div><strong>Document Code:</strong> QF-OSS-01</div>
-                <div><strong>Revision No.:</strong> {{ referralDoc.revision_no || '01' }}</div>
+                <div><strong>Document Code:</strong> {{ useTmduDoc ? 'QF-OSS-GCU-05' : 'QF-OSS-01' }}</div>
+                <div><strong>Revision No.:</strong> {{ headerDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(referralDoc.effectivity_date) }}</div>
-                <div><strong>Ctrl No.:</strong> {{ referralDoc.ctrl_no || '-' }}</div>
+                <div><strong>Effectivity:</strong> {{ formatDocDate(headerDoc.effectivity_date || (useTmduDoc ? '2023-07-04' : null)) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ headerDoc.ctrl_no || (useTmduDoc ? '26-1' : '-') }}</div>
               </div>
             </div>
 
@@ -682,7 +682,7 @@
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(fu.appointment_date) }} · {{ fu.start_time }}-{{ fu.end_time }}</div>
                   <div style="font-size:12px;color:var(--stone);margin-top:2px">With {{ fu.staff?.name || 'TBA' }}</div>
                   <div v-if="fu.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ fu.notes }}</div>
-                  <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">No notes yet - click to add</div>
+                  <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">{{ isGCU && !isResolved ? 'No notes yet - click to add' : 'No notes recorded' }}</div>
                   <div v-if="fu.created_by" style="font-size:10.5px;color:var(--fog);margin-top:4px">Recorded by {{ fu.created_by?.name }}</div>
                 </div>
                 <span class="ibadge" :class="'ibadge-' + fu.status">{{ toTitleCase(fu.status) }}</span>
@@ -1087,16 +1087,31 @@
                Student Information Files only. Removed entirely for an
                Incident Report. -->
           <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Parent Conference</span></div>
+            <div class="icard-header">
+              <span class="icard-title">Parent Conference</span>
+              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="openParentConferenceModal">
+                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Issue Slip
+              </button>
+            </div>
             <div v-if="!referral.case?.parent_conference_slips?.length" class="empty-state">
               <h3>No parent conference slips yet</h3>
               <p>No Parent Conference Slip has been issued for this case.</p>
             </div>
             <div v-else>
-              <div v-for="s in referral.case.parent_conference_slips" :key="s.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud)">
+              <div
+                v-for="s in referral.case.parent_conference_slips"
+                :key="s.id"
+                style="padding:12px 18px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='transparent'"
+                @click="viewParentConference(s)"
+              >
                 <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ s.conference_time }}</div>
                 <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
                 <div v-if="s.remarks" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ s.remarks }}</div>
+                <div v-if="s.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ s.notes }}</div>
+                <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">{{ isGCU && !isResolved ? 'No notes yet - click to add' : 'No notes recorded' }}</div>
                 <div style="font-size:11px;color:var(--fog);margin-top:4px">Issued by {{ s.issued_by?.name }} · {{ formatDate(s.issued_at) }}</div>
               </div>
             </div>
@@ -1318,23 +1333,27 @@
             <div v-if="isGCU && !selectedFollowUp.checked_in" style="background:var(--red-lt);border:1px solid var(--red);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
               The student has not yet attended this follow-up session. Notes can be added once attendance is confirmed.
             </div>
-            <div v-if="isGCU">
+            <div v-if="isGCU && followUpNotesEditable">
               <label class="ifl">Notes</label>
-              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Add or update notes for this follow-up session..." :disabled="!selectedFollowUp.checked_in"></textarea>
+              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Add notes for this follow-up session. Notes cannot be edited once saved." :disabled="!selectedFollowUp.checked_in"></textarea>
             </div>
             <div v-else>
-              <!-- B254: same presentation as Session Notes' Observations block -->
+              <!-- Read-only: notes are write-once and cannot be edited after saving. -->
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Notes</div>
               <div v-if="selectedFollowUp.notes" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedFollowUp.notes }}</div>
               <div v-else style="font-size:13px;color:var(--stone)">No notes recorded yet.</div>
             </div>
             <div v-if="selectedFollowUp.created_by" style="font-size:11px;color:var(--fog)">Recorded by {{ selectedFollowUp.created_by?.name }}</div>
-            <div v-if="isGCU" style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="saveFollowUpNotes" :disabled="!selectedFollowUp.checked_in">
+            <div v-if="isGCU && followUpNotesEditable" style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" @click="saveFollowUpNotes" :disabled="!selectedFollowUp.checked_in || !followUpNotesForm.trim()">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 Save Notes
               </button>
               <button class="ibtn ibtn-o" @click="closeFollowUpDetail">Cancel</button>
+            </div>
+            <div v-else style="display:flex;gap:8px;align-items:center">
+              <button class="ibtn ibtn-o" @click="closeFollowUpDetail">Close</button>
+              <span v-if="selectedFollowUp.notes" style="font-size:11px;color:var(--fog)">Saved notes can no longer be edited.</span>
             </div>
           </div>
         </div>
@@ -1360,8 +1379,8 @@
               <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
             </div>
             <div style="font-size:11px;color:var(--stone);text-align:right">
-              <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date) }}</div>
-              <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '-' }}</div>
+              <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date || '2023-07-04') }}</div>
+              <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '26-1' }}</div>
             </div>
           </div>
 
@@ -1470,7 +1489,7 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitCaseNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
-              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="submitCaseNoShow('call_slip')">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" v-if="!caseNoShowTarget?.no_show_escalated" @click="requestCallSlip(caseNoShowTarget)">Issue Call Slip (Escalate to Dean's Secretary)</button>
               <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Never Mind</button>
             </div>
           </div>
@@ -1598,13 +1617,84 @@
               <button
                 class="ibtn ibtn-sm"
                 style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8"
-                :disabled="apptDetailTarget.request_status === 'awaiting_student'"
-                :title="apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : ''"
-                @click="sendCallSlipFromDetail"
-              >Send Call-Slip</button>
+                :disabled="apptDetailTarget.request_status === 'awaiting_student' || apptDetailTarget.no_show_escalated"
+                :title="apptDetailTarget.no_show_escalated ? 'A Call-Slip was already sent for this appointment' : (apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : '')"
+                @click="requestCallSlip(apptDetailTarget)"
+              >{{ apptDetailTarget.no_show_escalated ? 'Call-Slip Sent' : 'Send Call-Slip' }}</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkInApptFromDetail">Student Attended</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openCaseNoShowModal(apptDetailTarget); apptDetailTarget = null">No-Show</button>
               <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="apptCancelling = true; apptCancelReason = ''">Cancel Appointment</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Call Slip confirmation - a Call Slip can only be sent once per
+           appointment, so it always asks first. -->
+      <div v-if="callSlipTarget" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="callSlipTarget = null">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Send Call-Slip?</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+            <div style="font-size:13px;color:var(--slate);line-height:1.6">
+              This will escalate the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="ibtn ibtn-o" :disabled="sendingCallSlip" @click="callSlipTarget = null">Cancel</button>
+              <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="sendingCallSlip" @click="confirmCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parent Conference Details / Notes floating modal - same behaviour
+           as the Follow-up Session modal: notes are written once, then
+           read-only. -->
+      <div v-if="selectedParentConference" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeParentConferenceDetail">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Parent Conference</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedParentConference.conference_date) }} · {{ selectedParentConference.conference_time }}</div>
+            </div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="closeParentConferenceDetail">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Issued By</div>
+                <div style="font-size:13px;color:var(--ink)">{{ selectedParentConference.issued_by?.name || '-' }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Reason</div>
+                <div style="font-size:13px;color:var(--ink)">{{ selectedParentConference.reason }}</div>
+              </div>
+            </div>
+            <div v-if="selectedParentConference.remarks">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Remarks</div>
+              <div style="font-size:13px;color:var(--slate)">{{ selectedParentConference.remarks }}</div>
+            </div>
+            <div v-if="parentConferenceNotesEditable">
+              <label class="ifl">Notes</label>
+              <textarea v-model="parentConferenceNotesForm" class="ifta" style="min-height:90px" maxlength="3000" placeholder="Add notes for this parent conference. Notes cannot be edited once saved."></textarea>
+            </div>
+            <div v-else>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Notes</div>
+              <div v-if="selectedParentConference.notes" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedParentConference.notes }}</div>
+              <div v-else style="font-size:13px;color:var(--stone)">No notes recorded.</div>
+              <div v-if="selectedParentConference.notes_recorded_by" style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ selectedParentConference.notes_recorded_by?.name }}</div>
+            </div>
+            <div v-if="parentConferenceNotesEditable" style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" :disabled="!parentConferenceNotesForm.trim() || savingParentConferenceNotes" @click="saveParentConferenceNotes">
+                <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                {{ savingParentConferenceNotes ? 'Saving...' : 'Save Notes' }}
+              </button>
+              <button class="ibtn ibtn-o" @click="closeParentConferenceDetail">Cancel</button>
+            </div>
+            <div v-else style="display:flex;gap:8px;align-items:center">
+              <button class="ibtn ibtn-o" @click="closeParentConferenceDetail">Close</button>
+              <span v-if="selectedParentConference.notes" style="font-size:11px;color:var(--fog)">Saved notes can no longer be edited.</span>
             </div>
           </div>
         </div>
@@ -1796,7 +1886,7 @@ const canEditSif = computed(() => referral.value.status !== 'submitted' && hasAt
 // Session, and Previous Interventions all stop offering their edit/add
 // actions (see each section's isResolved checks). There is no "reopen"
 // path anymore now that Update Status has been removed.
-const isResolved = computed(() => referral.value.status === 'completed');
+const isResolved = computed(() => ['completed', 'closed'].includes(referral.value.status));
 
 // Shown in the Resolve Referral confirmation modal - only for whichever of
 // these three is actually still empty at the moment of resolving, since
@@ -1920,6 +2010,13 @@ watch([() => followUpForm.value.staff_user_id, () => followUpForm.value.appointm
 
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 const isSDUHead = computed(() => auth.user?.role === 'sdu_head');
+// TMDU testing referrals (and anything TMDU staff open) use the TMDU form
+// header QF-OSS-GCU-05 instead of the general referral slip QF-OSS-01.
+const useTmduDoc = computed(() =>
+  referral.value?.referral_type === 'psychological_testing'
+  || !!referral.value?.testing_record
+  || auth.user?.role === 'tmdu_staff');
+const headerDoc = computed(() => (useTmduDoc.value ? tmduDoc.value : referralDoc.value) || {});
 const isTMDUStaff = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
 
 // Who can acknowledge THIS referral: GCU for ordinary referrals, TMDU staff
@@ -2316,13 +2413,8 @@ async function loadUnitStaff(unit) {
   unitStaffList.value = [];
   if (!unit) return;
   try {
-    const res = await userAPI.index({ is_active: 1, unit });
-    let list = (res.data.data || res.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
-    if (list.length === 0) {
-      const fallback = await userAPI.index({ is_active: 1 });
-      list = (fallback.data.data || fallback.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
-    }
-    unitStaffList.value = list;
+    const res = await userAPI.roster();
+    unitStaffList.value = (res.data.data || res.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
   } catch (e) {
     // Non-fatal - dropdown just stays empty.
   }
@@ -2378,7 +2470,7 @@ function openCaseNoShowModal(a) {
 }
 
 async function submitCaseNoShow(action) {
-  if (!caseNoShowTarget.value) return;
+  if (!caseNoShowTarget.value || action === 'call_slip') return;
   try {
     const res = await appointmentAPI.escalateNoShow(caseNoShowTarget.value.id, action);
     caseNoShowTarget.value.status = 'no_show';
@@ -2480,15 +2572,32 @@ async function confirmApptReschedule() {
 // modal's "Issue Call Slip" option, just without that modal's extra
 // "ask student to reschedule instead" choice, since Reschedule Appointment
 // right next to it covers that already).
-async function sendCallSlipFromDetail() {
-  if (!apptDetailTarget.value) return;
+const callSlipTarget = ref(null);
+const sendingCallSlip = ref(false);
+
+function requestCallSlip(a) {
+  if (!a || a.no_show_escalated) return;
+  callSlipTarget.value = a;
+}
+
+async function confirmCallSlip() {
+  const a = callSlipTarget.value;
+  if (!a || sendingCallSlip.value || a.no_show_escalated) return;
+  sendingCallSlip.value = true;
   try {
-    const res = await appointmentAPI.escalateNoShow(apptDetailTarget.value.id, 'call_slip');
+    const res = await appointmentAPI.escalateNoShow(a.id, 'call_slip');
+    a.status = 'no_show';
+    a.no_show_escalated = true;
     toast?.success(res.data.message || 'Call-Slip sent.');
+    callSlipTarget.value = null;
+    showCaseNoShowModal.value = false;
     apptDetailTarget.value = null;
     await refreshReferralAfterApptChange();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to send Call-Slip.');
+    callSlipTarget.value = null;
+  } finally {
+    sendingCallSlip.value = false;
   }
 }
 
@@ -2497,6 +2606,37 @@ const parentConferenceForm = ref({ conference_date: '', conference_time: '', rea
 const parentConferenceError = ref('');
 const savingParentConference = ref(false);
 const parentConferenceConfirming = ref(false);
+
+const selectedParentConference = ref(null);
+const parentConferenceNotesForm = ref('');
+const savingParentConferenceNotes = ref(false);
+const parentConferenceNotesEditable = computed(() =>
+  isGCU.value && !!selectedParentConference.value
+  && !String(selectedParentConference.value.notes || '').trim() && !isResolved.value);
+
+function viewParentConference(slip) {
+  selectedParentConference.value = slip;
+  parentConferenceNotesForm.value = '';
+}
+function closeParentConferenceDetail() {
+  selectedParentConference.value = null;
+  parentConferenceNotesForm.value = '';
+}
+async function saveParentConferenceNotes() {
+  const slip = selectedParentConference.value;
+  if (!slip || !parentConferenceNotesEditable.value || !parentConferenceNotesForm.value.trim() || savingParentConferenceNotes.value) return;
+  savingParentConferenceNotes.value = true;
+  try {
+    const res = await caseAPI.saveParentConferenceNotes(slip.id, { notes: parentConferenceNotesForm.value });
+    Object.assign(slip, res.data);
+    toast?.success('Parent conference notes saved.');
+    closeParentConferenceDetail();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to save parent conference notes.');
+  } finally {
+    savingParentConferenceNotes.value = false;
+  }
+}
 
 function openParentConferenceModal() {
   parentConferenceForm.value = { conference_date: '', conference_time: '', reason: '', remarks: '' };
@@ -2537,6 +2677,11 @@ async function submitParentConferenceSlip() {
   }
 }
 
+// Follow-up notes are write-once: editable only until first saved, and never
+// on a closed SIF.
+const followUpNotesEditable = computed(() =>
+  !!selectedFollowUp.value && !String(selectedFollowUp.value.notes || '').trim() && !isResolved.value);
+
 function viewFollowUp(fu) {
   selectedFollowUp.value  = fu;
   followUpNotesForm.value = fu.notes || '';
@@ -2549,7 +2694,7 @@ function closeFollowUpDetail() {
 
 async function saveFollowUpNotes() {
   const fu = selectedFollowUp.value;
-  if (!fu) return;
+  if (!fu || !followUpNotesEditable.value || !followUpNotesForm.value.trim()) return;
   try {
     const res = await appointmentAPI.update(fu.id, { notes: followUpNotesForm.value });
     const updated = res?.data || { ...fu, notes: followUpNotesForm.value };
@@ -2634,7 +2779,7 @@ onMounted(async () => {
       sessionNotes.value = notesRes.data;
 
       try {
-        const staffRes = await userAPI.index({ is_active: 1 });
+        const staffRes = await userAPI.roster();
         staffList.value = (staffRes.data.data || staffRes.data).filter(u => ['admin', 'gcu_staff'].includes(u.role));
       } catch (e) {
         // Non-fatal - staff dropdowns just fall back to empty.

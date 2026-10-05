@@ -20,14 +20,19 @@ class ParentConferenceSlip extends Model
         'conference_time',
         'reason',
         'remarks',
+        'notes',
+        'notes_recorded_by_user_id',
+        'notes_recorded_at',
         'issued_at',
     ];
 
     protected $casts = [
         'conference_date' => 'date',
         'issued_at'        => 'datetime',
+        'notes_recorded_at' => 'datetime',
     ];
 
     public function caseFile() { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function issuedBy() { return $this->belongsTo(User::class, 'issued_by_user_id'); }
+    public function notesRecordedBy() { return $this->belongsTo(User::class, 'notes_recorded_by_user_id'); }
 }

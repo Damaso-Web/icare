@@ -181,7 +181,7 @@ const routes = [
                 path: 'cases',
                 name: 'cases',
                 component: Cases,
-                meta: { roles: STAFF_ROLES },
+                meta: { roles: ['admin', 'gcu_staff', 'sdu_head'] },
             },
             {
                 path: 'appointments',
@@ -264,7 +264,7 @@ const routes = [
         path: '/cases/:id/study-report',
         name: 'case-study-report',
         component: () => import('../views/cases/StudyReport.vue'),
-        meta: { requiresAuth: true, roles: STAFF_ROLES },
+        meta: { requiresAuth: true, roles: ['admin', 'gcu_staff', 'sdu_head'] },
     },
     {
         path: '/call-slips/:id/print',

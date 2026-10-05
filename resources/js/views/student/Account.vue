@@ -54,7 +54,7 @@
             @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11); profileError = ''"
           />
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged" @click="saveProfile">Save Changes</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged" @click="requestSave('profile')">Save Changes</button>
         </div>
       </div>
 
@@ -118,6 +118,10 @@
             </div>
           </div>
 
+          <div style="display:flex;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isFamilyUnchanged || savingFamily" @click="requestSave('family')">{{ savingFamily ? 'Saving...' : 'Save Family Information' }}</button>
+          </div>
+
           <div style="height:1px;background:var(--cloud)"></div>
 
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -157,6 +161,10 @@
             </div>
           </div>
 
+          <div style="display:flex;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isSiblingsUnchanged || savingSiblings" @click="requestSave('siblings')">{{ savingSiblings ? 'Saving...' : 'Save Siblings Information' }}</button>
+          </div>
+
           <div style="height:1px;background:var(--cloud)"></div>
 
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Educational Attainment</div>
@@ -187,7 +195,9 @@
             </div>
           </div>
 
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isBackgroundUnchanged" @click="saveBackground">Save Changes</button>
+          <div style="display:flex;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isEducationUnchanged || savingEducation" @click="requestSave('education')">{{ savingEducation ? 'Saving...' : 'Save Educational Attainment' }}</button>
+          </div>
         </div>
       </div>
 
@@ -221,6 +231,26 @@
         </div>
       </div>
 
+    </div>
+
+    <!-- Save confirmation -->
+    <div v-if="confirmAction" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="confirmAction = null">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Save changes?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--slate)">Are you sure you want to save your changes to <strong>{{ CONFIRM_LABELS[confirmAction] }}</strong>?</div>
+          <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;background:var(--foam);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px">
+            <input type="checkbox" v-model="consentChecked" style="margin-top:3px;flex-shrink:0" />
+            <span style="font-size:12px;line-height:1.5;color:var(--slate)">I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Guidance and Counseling Unit (GCU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Guidance and Counseling Unit (GCU) necessary and relevant data pertaining to my personal data. I certify that the information I am saving is true and correct.</span>
+          </label>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-o" @click="confirmAction = null">Cancel</button>
+            <button type="button" class="ibtn ibtn-p" :disabled="!consentChecked" @click="confirmSave">Yes, Save</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -273,8 +303,78 @@ function emptyBackgroundForm() {
 const backgroundForm = ref(emptyBackgroundForm());
 const backgroundSnapshot = ref('');
 const isBackgroundUnchanged = computed(() => JSON.stringify(backgroundForm.value) === backgroundSnapshot.value);
+const FAMILY_KEYS = [
+  'father_first_name', 'father_middle_name', 'father_last_name', 'father_occupation', 'father_contact_number',
+  'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_occupation', 'mother_contact_number',
+];
+const pickFamily = (src) => Object.fromEntries(FAMILY_KEYS.map(k => [k, src?.[k] ?? '']));
+const isFamilyUnchanged = computed(() => {
+  try {
+    const snap = backgroundSnapshot.value ? JSON.parse(backgroundSnapshot.value) : {};
+    return JSON.stringify(pickFamily(backgroundForm.value)) === JSON.stringify(pickFamily(snap));
+  } catch (e) { return false; }
+});
+const savingFamily = ref(false);
+const EDUCATION_KEYS = [
+  'elementary_school', 'elementary_year_graduated',
+  'high_school', 'high_school_year_graduated',
+  'college_school', 'college_year_graduated',
+];
+const pickEducation = (src) => Object.fromEntries(EDUCATION_KEYS.map(k => [k, src?.[k] ?? '']));
+const pickSiblings = (src) => (src?.siblings || []).map(x => ({
+  first_name: x.first_name ?? '', middle_name: x.middle_name ?? '', last_name: x.last_name ?? '',
+  age: x.age ?? '', occupation: x.occupation ?? '',
+}));
+const snapOf = () => { try { return backgroundSnapshot.value ? JSON.parse(backgroundSnapshot.value) : {}; } catch (e) { return {}; } };
+const isSiblingsUnchanged = computed(() => JSON.stringify(pickSiblings(backgroundForm.value)) === JSON.stringify(pickSiblings(snapOf())));
+const isEducationUnchanged = computed(() => JSON.stringify(pickEducation(backgroundForm.value)) === JSON.stringify(pickEducation(snapOf())));
+const savingSiblings = ref(false);
+const savingEducation = ref(false);
 const backgroundError = ref('');
 const backgroundSuccess = ref('');
+
+// Every save goes through a confirmation modal first.
+const CONFIRM_LABELS = {
+  profile: 'Profile Information',
+  family: 'Family Information',
+  siblings: 'Siblings Information',
+  education: 'Educational Attainment',
+};
+const confirmAction = ref(null);
+const consentChecked = ref(false);
+
+function requestSave(kind) {
+  backgroundError.value = '';
+  backgroundSuccess.value = '';
+  if (kind === 'profile') {
+    profileError.value = '';
+    profileSuccess.value = '';
+    if (profileForm.value.contact_number && !/^09\d{9}$/.test(profileForm.value.contact_number)) {
+      profileError.value = 'Contact number must start with 09 and be 11 digits long.';
+      return;
+    }
+  }
+  if (kind === 'siblings') {
+    for (const sib of backgroundForm.value.siblings) {
+      if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
+        backgroundError.value = 'Please fill in a first and last name for every sibling, or remove the empty row.';
+        return;
+      }
+    }
+  }
+  consentChecked.value = false;
+  confirmAction.value = kind;
+}
+
+async function confirmSave() {
+  if (!consentChecked.value) return;
+  const kind = confirmAction.value;
+  confirmAction.value = null;
+  if (kind === 'profile') await saveProfile();
+  else if (kind === 'family') await saveFamily();
+  else if (kind === 'siblings') await saveSiblings();
+  else if (kind === 'education') await saveEducation();
+}
 
 function addSibling() {
   backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', age: '', occupation: '' });
@@ -307,7 +407,27 @@ async function saveProfile() {
   }
 }
 
-async function saveBackground() {
+// Saves just the Father/Mother fields, independent of Siblings and
+// Educational Attainment.
+async function saveFamily() {
+  backgroundError.value = '';
+  backgroundSuccess.value = '';
+  savingFamily.value = true;
+  try {
+    const payload = pickFamily(backgroundForm.value);
+    await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
+    const snap = backgroundSnapshot.value ? JSON.parse(backgroundSnapshot.value) : {};
+    backgroundSnapshot.value = JSON.stringify({ ...snap, ...payload });
+    backgroundSuccess.value = 'Family information updated successfully.';
+  } catch (e) {
+    backgroundError.value = firstApiError(e, 'Failed to update your family information.');
+  } finally {
+    savingFamily.value = false;
+  }
+}
+
+// Saves just the Siblings list, independent of Family and Education.
+async function saveSiblings() {
   backgroundError.value = '';
   backgroundSuccess.value = '';
 
@@ -318,16 +438,33 @@ async function saveBackground() {
     }
   }
 
+  savingSiblings.value = true;
   try {
-    // The profile endpoint's response only echoes a trimmed set of basic
-    // fields (same ones stored in localStorage), not the background fields,
-    // so there's nothing useful to merge back - the form already holds
-    // exactly what was just saved.
-    await axios.put(`${API_BASE}/student/profile`, backgroundForm.value, authHeaders());
-    backgroundSnapshot.value = JSON.stringify(backgroundForm.value);
-    backgroundSuccess.value = 'Family and educational background updated successfully.';
+    const payload = { siblings: pickSiblings(backgroundForm.value) };
+    await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
+    backgroundSnapshot.value = JSON.stringify({ ...snapOf(), ...payload });
+    backgroundSuccess.value = 'Siblings information updated successfully.';
   } catch (e) {
-    backgroundError.value = firstApiError(e, 'Failed to update your family and educational background.');
+    backgroundError.value = firstApiError(e, 'Failed to update your siblings information.');
+  } finally {
+    savingSiblings.value = false;
+  }
+}
+
+// Saves just the Educational Attainment fields.
+async function saveEducation() {
+  backgroundError.value = '';
+  backgroundSuccess.value = '';
+  savingEducation.value = true;
+  try {
+    const payload = pickEducation(backgroundForm.value);
+    await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
+    backgroundSnapshot.value = JSON.stringify({ ...snapOf(), ...payload });
+    backgroundSuccess.value = 'Educational attainment updated successfully.';
+  } catch (e) {
+    backgroundError.value = firstApiError(e, 'Failed to update your educational attainment.');
+  } finally {
+    savingEducation.value = false;
   }
 }
 

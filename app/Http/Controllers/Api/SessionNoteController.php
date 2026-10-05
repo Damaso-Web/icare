@@ -56,6 +56,8 @@ class SessionNoteController extends Controller
             abort(403, 'Access denied.');
         }
 
+        $referral->abortIfLocked();
+
         $validated = $request->validate([
             'session_date'       => 'required|date',
             'session_start_time' => 'nullable|date_format:H:i',
@@ -160,9 +162,18 @@ class SessionNoteController extends Controller
         return response()->json($sessionNote->load(['recordedBy', 'student']));
     }
 
+    // A session note belongs to a referral's SIF; once that SIF is
+    // Resolved/closed none of its notes may be edited or removed.
+    private function abortIfNoteLocked(SessionNote $sessionNote): void
+    {
+        $sessionNote->loadMissing('referral');
+        $sessionNote->referral?->abortIfLocked();
+    }
+
     public function update(Request $request, SessionNote $sessionNote)
     {
         $this->authorizeCounselor();
+        $this->abortIfNoteLocked($sessionNote);
 
         $old = $sessionNote->toArray();
 
@@ -181,6 +192,7 @@ class SessionNoteController extends Controller
     public function destroy(SessionNote $sessionNote)
     {
         $this->authorizeCounselor();
+        $this->abortIfNoteLocked($sessionNote);
 
         AuditLog::record('deleted', "Deleted session note #{$sessionNote->session_number}.", $sessionNote);
         $sessionNote->delete();

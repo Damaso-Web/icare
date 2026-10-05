@@ -114,9 +114,16 @@ class TestingRecordController extends Controller
 
         $query = TestingRecord::with(['student', 'referredBy', 'tester', 'case'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->when($user->isTMDUStaff(), fn($q) => $q->where(
-                'assigned_tester_user_id', $user->id
-            ));
+            // TMDU's Testing Records is where an acknowledged GCU referral
+            // lands: records assigned to this tester, plus unclaimed records
+            // whose referral TMDU has already acknowledged.
+            ->when($user->isTMDUStaff(), fn($q) => $q->where(function ($qq) use ($user) {
+                $qq->where('assigned_tester_user_id', $user->id)
+                   ->orWhere(function ($un) {
+                       $un->whereNull('assigned_tester_user_id')
+                          ->whereHas('referral', fn($r) => $r->whereNotNull('acknowledged_at'));
+                   });
+            }));
 
         return response()->json($query->latest()->paginate(20));
     }

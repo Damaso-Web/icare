@@ -25,6 +25,15 @@
     </div>
   </div>
 
+    <div v-if="parentConferenceSlips.length" class="icard" style="border:2px solid var(--amber);margin-bottom:20px">
+      <div class="icard-header"><span class="icard-title">Parent Conference Slip</span></div>
+      <div v-for="slip in parentConferenceSlips" :key="slip.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">Your parent/guardian is asked to come to the office on {{ formatSlipDate(slip.conference_date) }}<span v-if="slip.conference_time"> at {{ slip.conference_time }}</span>.</div>
+        <div style="font-size:12px;color:var(--slate);margin-top:3px">Reason: {{ slip.reason }}</div>
+        <div v-if="slip.remarks" style="font-size:11.5px;color:var(--stone);margin-top:3px;font-style:italic">{{ slip.remarks }}</div>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="icard">
         <div class="icard-header"><span class="icard-title">Recent Appointments</span></div>
@@ -75,6 +84,8 @@ const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
 const loading = ref(true);
 const appointments = ref([]);
 const referrals = ref([]);
+const parentConferenceSlips = ref([]);
+function formatSlipDate(d) { return d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; }
 const pendingAppointments = ref([]);
 
 const scheduleAppointmentId = computed(() => pendingAppointments.value[0]?.id || null);
@@ -98,6 +109,7 @@ async function fetchData() {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     referrals.value = res.data.referrals || [];
+    parentConferenceSlips.value = res.data.parent_conference_slips || [];
     // Matches the same fallback used in the student Appointments list - if the
     // API ever sends the singular `pending_appointment` instead of the plural
     // array, this banner shouldn't just silently disappear.

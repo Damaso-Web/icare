@@ -205,6 +205,7 @@ export const caseAPI = {
     resolveFollowUp: (id)       => api.post(`/cases/${id}/resolve-follow-up`),
     addIntervention: (id, data) => api.post(`/cases/${id}/interventions`, data),
     issueParentConferenceSlip: (id, data) => api.post(`/cases/${id}/parent-conference-slip`, data),
+    saveParentConferenceNotes: (slipId, data) => api.post(`/parent-conference-slips/${slipId}/notes`, data),
     completeIntervention: (interventionId) => api.post(`/interventions/${interventionId}/complete`),
     deleteIntervention:   (interventionId) => api.delete(`/interventions/${interventionId}`),
 };
@@ -279,6 +280,8 @@ export const userAPI = {
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
+    // Non-admin staff roster for the Reassign / Transfer dropdowns.
+    roster:        (params)   => api.get('/staff-roster', { params }),
 };
 
 export const callSlipAPI = {

@@ -329,12 +329,19 @@
             <span v-if="noShowTarget?.case?.no_show_count">This case has {{ noShowTarget.case.no_show_count }} prior no-show{{ noShowTarget.case.no_show_count > 1 ? 's' : '' }}.</span>
             Choose how to handle it:
           </div>
+          <div v-if="callSlipConfirming" style="border:1px solid #f0a8a8;background:var(--red-lt);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn" style="flex:1;justify-content:center;background:#fff;color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">{{ submittingNoShow ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="submittingNoShow" @click="callSlipConfirming = false">Go Back</button>
+            </div>
+          </div>
           <div style="display:flex;flex-direction:column;gap:8px">
-            <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">
+            <button v-if="!callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">
               {{ submittingNoShow ? 'Marking...' : 'Mark & Ask Student to Reschedule' }}
             </button>
-            <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">
-              {{ submittingNoShow ? 'Marking...' : 'Issue Call Slip (Escalate to Dean\'s Secretary)' }}
+            <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="callSlipConfirming = true">
+              Issue Call Slip (Escalate to Dean\'s Secretary)
             </button>
             <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
           </div>
@@ -572,13 +579,17 @@ const showNoShowModal   = ref(false);
 const noShowTarget      = ref(null);
 const submittingNoShow  = ref(false);
 
+const callSlipConfirming = ref(false);
+
 function openNoShow(a) {
   noShowTarget.value = a;
+  callSlipConfirming.value = false;
   showNoShowModal.value = true;
 }
 
 async function submitNoShow(action) {
-  if (!noShowTarget.value) return;
+  if (!noShowTarget.value || submittingNoShow.value) return;
+  if (action === 'call_slip' && noShowTarget.value.no_show_escalated) return;
   submittingNoShow.value = true;
   try {
     const res = await appointmentAPI.escalateNoShow(noShowTarget.value.id, action);
@@ -589,6 +600,7 @@ async function submitNoShow(action) {
     fetchAllAppointments();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
+    callSlipConfirming.value = false;
   } finally {
     submittingNoShow.value = false;
   }

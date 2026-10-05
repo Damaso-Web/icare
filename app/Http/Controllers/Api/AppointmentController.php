@@ -171,6 +171,16 @@ class AppointmentController extends Controller
             abort(422, 'The student has not yet attended this follow-up session.');
         }
 
+        // Follow-up notes are write-once: after they are saved they can no
+        // longer be changed, and nothing on a closed SIF can be edited.
+        if (array_key_exists('notes', $validated)
+            && $appointment->appointment_type === 'follow_up_session') {
+            if (trim((string) $appointment->notes) !== '' && $validated['notes'] !== $appointment->notes) {
+                abort(422, 'Follow-up notes were already saved and can no longer be edited.');
+            }
+            $appointment->referral?->abortIfLocked();
+        }
+
         $old = $appointment->toArray();
         $appointment->update($validated);
         AuditLog::record('updated', "Updated appointment {$appointment->appointment_code}.", $appointment, $old, $appointment->toArray());
@@ -617,11 +627,17 @@ public function checkConflictByStudent(Request $request)
             'action' => 'required|in:call_slip,reschedule',
         ]);
 
-        if ($appointment->case_id) {
-            $appointment->case->increment('no_show_count');
+        // A Call Slip can only ever be sent once per appointment.
+        if ($appointment->no_show_escalated) {
+            abort(422, 'A Call Slip was already sent for this appointment.');
         }
 
         $callSlip = $validated['action'] === 'call_slip';
+
+        // Count the no-show only the first time it is marked.
+        if ($appointment->case_id && $appointment->status !== 'no_show') {
+            $appointment->case->increment('no_show_count');
+        }
 
         $appointment->update([
             'status'               => 'no_show',

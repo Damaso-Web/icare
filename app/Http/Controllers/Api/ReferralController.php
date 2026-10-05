@@ -210,6 +210,7 @@ class ReferralController extends Controller
             'case.interventions.personInCharge', 'case.interventions.recordedBy', 'case.interventions.referral', 'case.interventions.completedBy',
             'case.counselor', 'case.referrals', 'case.appointments.staff',
             'case.parentConferenceSlips.issuedBy',
+            'case.parentConferenceSlips.notesRecordedBy',
             // A "Refer to TMDU" creates a separate, sibling Referral row
             // (referral_type psychological_testing) on this same case - see
             // CaseController::referToTmdu(). Loading its TestingRecord (and
@@ -247,6 +248,7 @@ class ReferralController extends Controller
     {
         $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
+        $referral->abortIfLocked();
         $old = $referral->toArray();
         $referral->update($request->only([
             'nature_of_concern',
@@ -535,6 +537,7 @@ class ReferralController extends Controller
     public function sendFeedback(Request $request, Referral $referral)
     {
         $this->authorizeReferralWriter($request, $referral);
+        $referral->abortIfLocked();
         $user = $request->user();
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');
@@ -585,6 +588,7 @@ class ReferralController extends Controller
     public function saveAdmissionSlip(Request $request, Referral $referral)
     {
         $this->authorizeReferralWriter($request, $referral);
+        $referral->abortIfLocked();
         $user = $request->user();
         if (!$user->canCounsel()) {
             abort(403, 'Access denied.');

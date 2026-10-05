@@ -141,6 +141,24 @@ class Referral extends Model
         return $this->status !== 'submitted' && $this->hasAttendedAppointment();
     }
 
+    // A SIF whose referral is Resolved ('completed') or 'closed' is final -
+    // none of its contents (session notes, follow-ups, interventions,
+    // feedback/admission slips, parent conference, referral info) may be
+    // changed any more. Mirrors referrals/Show.vue's isResolved computed so
+    // the frontend lock and this backend lock can't drift; the frontend one
+    // is UX only, this is what actually refuses a direct API call.
+    public function isLocked(): bool
+    {
+        return in_array($this->status, ['completed', 'closed'], true);
+    }
+
+    public function abortIfLocked(): void
+    {
+        if ($this->isLocked()) {
+            abort(422, 'This Student Information File is closed and can no longer be edited.');
+        }
+    }
+
     // The referral's main pipeline, in order. 'in_review' is retired (B275 -
     // a referral used to jump straight to "In Review" on acknowledge, before
     // any appointment even existed, which was confusing and redundant with

@@ -1,10 +1,10 @@
 <template>
-  <div style="max-width:820px;margin:0 auto;padding:32px 24px;background:#fff;font-family:var(--sans, sans-serif)">
+  <div class="sr-page">
     <div class="no-print" style="display:flex;justify-content:space-between;margin-bottom:20px">
       <button class="ibtn ibtn-o ibtn-sm" @click="$router.back()">
         <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
-      <button class="ibtn ibtn-p ibtn-sm" @click="window.print()">
+      <button class="ibtn ibtn-p ibtn-sm" @click="printReport">
         <svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
         Print
       </button>
@@ -15,83 +15,109 @@
     </div>
 
     <template v-else>
-      <div style="text-align:center;border-bottom:2px solid var(--forest);padding-bottom:16px;margin-bottom:20px">
-        <div style="font-size:11px;color:var(--stone)">Benguet State University - Office of Student Services</div>
-        <h1 style="margin:6px 0 2px;font-size:20px;color:var(--forest)">Student Case Study Report</h1>
-        <div style="font-size:12px;color:var(--stone)">Generated {{ formatDate(new Date()) }}</div>
+      <div style="text-align:center;border-bottom:2px solid var(--forest);padding-bottom:14px;margin-bottom:20px">
+        <div style="font-size:11px;color:var(--stone)">Batangas State University - Office of Student Services</div>
+        <h1 style="margin:6px 0 2px;font-size:20px;color:var(--forest)">Case Study Report</h1>
       </div>
 
-      <section style="margin-bottom:18px">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Case Information</h2>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
-          <div><strong>Case Number:</strong> {{ caseFile.case_number }}</div>
-          <div><strong>Status:</strong> {{ toTitleCase(caseFile.status) }}</div>
-          <div><strong>Student:</strong> {{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }}</div>
-          <div><strong>Student ID:</strong> {{ caseFile.student?.student_id }}</div>
-          <div><strong>College / Program:</strong> {{ caseFile.student?.college }} - {{ caseFile.student?.program }}</div>
-          <div><strong>Year / Section:</strong> {{ caseFile.student?.year_level }} {{ caseFile.student?.section }}</div>
-          <div><strong>Counselor:</strong> {{ caseFile.counselor?.name || '-' }}</div>
-          <div><strong>Opened:</strong> {{ formatDate(caseFile.opened_date) }}</div>
-          <div v-if="caseFile.closed_date"><strong>Closed:</strong> {{ formatDate(caseFile.closed_date) }}</div>
+      <!-- Student Info -->
+      <section class="sr-sec">
+        <h2>Student Info</h2>
+        <div class="sr-grid">
+          <div><strong>ID:</strong> {{ student.student_id || '-' }}</div>
+          <div><strong>Full Name:</strong> {{ fullName }}</div>
+          <div><strong>College:</strong> {{ student.college || '-' }}</div>
+          <div><strong>Program:</strong> {{ student.program || '-' }}</div>
+          <div><strong>Year and Section:</strong> {{ yearSection }}</div>
         </div>
       </section>
 
-      <section style="margin-bottom:18px" v-if="caseFile.presenting_concern">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Presenting Concern</h2>
-        <p style="font-size:13px;line-height:1.6;white-space:pre-line">{{ caseFile.presenting_concern }}</p>
+      <!-- Family Information -->
+      <section class="sr-sec">
+        <h2>Family Information</h2>
+        <div class="sr-grid">
+          <div>
+            <div class="sr-sub">Father</div>
+            <div><strong>Name:</strong> {{ parentName('father') }}</div>
+            <div><strong>Occupation:</strong> {{ student.father_occupation || '-' }}</div>
+            <div><strong>Contact No.:</strong> {{ student.father_contact_number || '-' }}</div>
+          </div>
+          <div>
+            <div class="sr-sub">Mother</div>
+            <div><strong>Name:</strong> {{ parentName('mother') }}</div>
+            <div><strong>Occupation:</strong> {{ student.mother_occupation || '-' }}</div>
+            <div><strong>Contact No.:</strong> {{ student.mother_contact_number || '-' }}</div>
+          </div>
+        </div>
       </section>
 
-      <section style="margin-bottom:18px" v-if="caseFile.referrals?.length">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Referral History ({{ caseFile.referrals.length }})</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <!-- Siblings Information -->
+      <section class="sr-sec">
+        <h2>Siblings Information</h2>
+        <div v-if="!siblings.length" class="sr-muted">No siblings recorded.</div>
+        <table v-else class="sr-table">
           <thead>
-            <tr style="text-align:left;border-bottom:1px solid var(--cloud)">
-              <th style="padding:4px 6px">Date</th>
-              <th style="padding:4px 6px">Type</th>
-              <th style="padding:4px 6px">Concern</th>
-              <th style="padding:4px 6px">Status</th>
-            </tr>
+            <tr><th>Name</th><th style="width:60px">Age</th><th>Occupation / School</th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in caseFile.referrals" :key="r.id" style="border-bottom:1px solid var(--cloud)">
-              <td style="padding:4px 6px">{{ formatDate(r.created_at) }}</td>
-              <td style="padding:4px 6px">{{ toTitleCase(r.referral_type) }}</td>
-              <td style="padding:4px 6px">{{ r.nature_of_concern }}</td>
-              <td style="padding:4px 6px">{{ toTitleCase(r.status) }}</td>
+            <tr v-for="(s, i) in siblings" :key="i">
+              <td>{{ [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ') }}</td>
+              <td>{{ s.age || '-' }}</td>
+              <td>{{ s.occupation || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </section>
 
-      <section style="margin-bottom:18px" v-if="caseFile.session_notes?.length">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Session Notes ({{ caseFile.session_notes.length }})</h2>
-        <div v-for="n in caseFile.session_notes" :key="n.id" style="margin-bottom:10px;font-size:12.5px">
-          <div style="font-weight:600">Session #{{ n.session_number }} - {{ toTitleCase(n.session_type) }} ({{ formatDate(n.session_date) }})</div>
-          <div style="margin-top:2px"><strong>Observations:</strong> {{ n.observations }}</div>
-          <div v-if="n.interventions" style="margin-top:2px"><strong>Interventions:</strong> {{ n.interventions }}</div>
-          <div v-if="n.next_steps" style="margin-top:2px"><strong>Next Steps:</strong> {{ n.next_steps }}</div>
+      <!-- Educational Attainment -->
+      <section class="sr-sec">
+        <h2>Educational Attainment</h2>
+        <table class="sr-table">
+          <thead>
+            <tr><th>Level</th><th>School</th><th style="width:120px">Year Graduated</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Elementary</td>
+              <td>{{ student.elementary_school || '-' }}</td>
+              <td>{{ student.elementary_year_graduated || '-' }}</td>
+            </tr>
+            <tr>
+              <td>High School</td>
+              <td>{{ student.high_school || '-' }}</td>
+              <td>{{ student.high_school_year_graduated || '-' }}</td>
+            </tr>
+            <tr>
+              <td>College</td>
+              <td>{{ student.college_school || '-' }}</td>
+              <td>{{ student.college_year_graduated || 'Ongoing' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Sessions -->
+      <section class="sr-sec">
+        <h2>Sessions</h2>
+        <div v-if="!sessions.length" class="sr-muted">No session notes recorded yet.</div>
+        <div v-for="n in sessions" :key="n.id" class="sr-session">
+          <div class="sr-grid">
+            <div><strong>Date:</strong> {{ monthYear(n.session_date) }}</div>
+            <div><strong>Initial Concern (Service):</strong> {{ initialConcern(n) }}</div>
+          </div>
+          <div class="sr-block">
+            <div class="sr-label">Session Notes</div>
+            <div class="sr-text">{{ sessionNotesText(n) }}</div>
+          </div>
+          <div class="sr-block">
+            <div class="sr-label">Remarks</div>
+            <div class="sr-text">{{ remarksText(n) }}</div>
+          </div>
+          <div class="sr-block">
+            <div class="sr-label">Conducted by</div>
+            <div class="sr-text">{{ n.recorded_by?.name || '-' }}</div>
+          </div>
         </div>
-      </section>
-
-      <section style="margin-bottom:18px" v-if="caseFile.handoffs?.length">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Unit Handoffs</h2>
-        <div v-for="h in caseFile.handoffs" :key="h.id" style="font-size:12.5px;margin-bottom:6px">
-          {{ h.from_unit }} → {{ h.to_unit }} on {{ formatDate(h.created_at) }} - {{ h.reason }}
-          <span v-if="h.acknowledged" style="color:var(--moss)"> (receipt confirmed)</span>
-        </div>
-      </section>
-
-      <section style="margin-bottom:18px" v-if="caseFile.testing_record">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Psychological Testing</h2>
-        <div style="font-size:12.5px">Status: {{ toTitleCase(caseFile.testing_record.status) }}</div>
-      </section>
-
-      <section style="margin-bottom:18px" v-if="caseFile.interventions_applied || caseFile.outcomes || caseFile.recommendations || caseFile.closure_summary">
-        <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Case Closure</h2>
-        <div v-if="caseFile.interventions_applied" style="font-size:13px;margin-bottom:6px"><strong>Interventions Applied:</strong> {{ caseFile.interventions_applied }}</div>
-        <div v-if="caseFile.outcomes" style="font-size:13px;margin-bottom:6px"><strong>Outcomes:</strong> {{ caseFile.outcomes }}</div>
-        <div v-if="caseFile.recommendations" style="font-size:13px;margin-bottom:6px"><strong>Recommendations:</strong> {{ caseFile.recommendations }}</div>
-        <div v-if="caseFile.closure_summary" style="font-size:13px;margin-bottom:6px"><strong>Closure Summary:</strong> {{ caseFile.closure_summary }}</div>
       </section>
 
       <div style="margin-top:40px;font-size:11px;color:var(--stone);text-align:center;border-top:1px solid var(--cloud);padding-top:10px">
@@ -102,7 +128,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { caseAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
@@ -111,8 +137,65 @@ const route = useRoute();
 const loading = ref(true);
 const caseFile = ref({});
 
-function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '-';
+const student = computed(() => caseFile.value.student || {});
+
+const fullName = computed(() => {
+  const s = student.value;
+  return [s.first_name, s.middle_name, s.last_name, s.suffix].filter(Boolean).join(' ') || '-';
+});
+
+const yearSection = computed(() => {
+  const s = student.value;
+  return [s.year_level, s.section].filter(Boolean).join(' - ') || '-';
+});
+
+function parentName(who) {
+  const s = student.value;
+  return [s[`${who}_first_name`], s[`${who}_middle_name`], s[`${who}_last_name`]].filter(Boolean).join(' ') || '-';
+}
+
+const siblings = computed(() => {
+  let list = student.value.siblings;
+  if (typeof list === 'string') {
+    try { list = JSON.parse(list); } catch (e) { list = []; }
+  }
+  return Array.isArray(list) ? list : [];
+});
+
+// Oldest first, so the report reads in the order the sessions happened.
+const sessions = computed(() =>
+  [...(caseFile.value.session_notes || [])].sort(
+    (a, b) => new Date(a.session_date) - new Date(b.session_date) || a.id - b.id
+  )
+);
+
+function monthYear(date) {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d)) return '-';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function initialConcern(n) {
+  const ref = n.referral
+    || (caseFile.value.referrals || []).find(r => r.id === n.referral_id);
+  const service = ref?.referral_type ? toTitleCase(ref.referral_type) : null;
+  const concern = ref?.nature_of_concern || caseFile.value.presenting_concern;
+  return [service, concern].filter(Boolean).join(' | ') || '-';
+}
+
+function sessionNotesText(n) {
+  return [n.observations, n.interventions && `Interventions: ${n.interventions}`]
+    .filter(Boolean).join('\n') || '-';
+}
+
+function remarksText(n) {
+  return [n.student_response && `Student response: ${n.student_response}`, n.next_steps && `Next steps: ${n.next_steps}`]
+    .filter(Boolean).join('\n') || '-';
+}
+
+function printReport() {
+  window.print();
 }
 
 onMounted(async () => {
@@ -128,6 +211,18 @@ onMounted(async () => {
 </script>
 
 <style>
+.sr-page { max-width: 820px; margin: 0 auto; padding: 32px 24px; background: #fff; font-family: var(--sans, sans-serif); }
+.sr-sec { margin-bottom: 18px; }
+.sr-sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--forest); border-bottom: 1px solid var(--cloud); padding-bottom: 4px; margin: 0 0 8px; }
+.sr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13px; }
+.sr-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--fog); margin-bottom: 3px; }
+.sr-muted { font-size: 12.5px; color: var(--fog); }
+.sr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.sr-table th, .sr-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--cloud); }
+.sr-session { border: 1px solid var(--cloud); border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; page-break-inside: avoid; }
+.sr-block { margin-top: 10px; font-size: 13px; }
+.sr-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--fog); margin-bottom: 2px; }
+.sr-text { white-space: pre-line; line-height: 1.55; }
 @media print {
   .no-print { display: none !important; }
 }

@@ -28,8 +28,10 @@ class CaseController extends Controller
     private function authorizeStaffAccess(): void
     {
         $user = request()->user();
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
-            abort(403, 'Unauthorized. Only OSS staff may access case files.');
+        // TMDU has no Student Information File access - they work from the
+        // Testing Records module instead.
+        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head'])) {
+            abort(403, 'Unauthorized. Only GCU/SDU staff may access case files.');
         }
     }
 
@@ -125,6 +127,7 @@ class CaseController extends Controller
                 'handoffs.toUser',
                 'documents',
                 'parentConferenceSlips.issuedBy',
+                'parentConferenceSlips.notesRecordedBy',
             ])->toArray(),
             'client_status'        => $referralCount > 1 ? 'existing' : 'new',
             'prior_referral_count' => max(0, $referralCount - 1),
@@ -195,8 +198,10 @@ class CaseController extends Controller
         return response()->json($case->load([
             'student',
             'counselor',
-            'referrals',
-            'sessionNotes',
+            'referrals.sessionNotes.recordedBy',
+            'referrals.referredBy',
+            'sessionNotes.recordedBy',
+            'sessionNotes.referral',
             'testingRecord',
             'handoffs',
         ]));
@@ -523,17 +528,47 @@ class CaseController extends Controller
 
         AuditLog::record('parent_conference_slip_issued', "Parent Conference Slip issued for case {$case->case_number}.", $case);
 
-        // Like an appointment, the student has to be told about it. The
-        // slip is already saved by now, so a notification failure must not
-        // turn the request into an error.
-        if ($case->student) {
+        // The student has to be told about it. The slip is already saved by
+        // now, so a notification failure must not turn the request into an
+        // error - but it is logged so it can actually be diagnosed.
+        $student = $case->student ?? \App\Models\Student::find($case->student_id);
+        if ($student) {
             try {
-                Notification::send($case->student, new ParentConferenceSlipNotification($slip));
+                Notification::send($student, new ParentConferenceSlipNotification($slip));
             } catch (\Throwable $e) {
-                report($e);
+                \Log::error('Parent conference slip notification failed: ' . $e->getMessage(), ['slip_id' => $slip->id]);
             }
         }
 
         return response()->json($slip->load('issuedBy'));
+    }
+
+    // Parent Conference notes are written once (like follow-up notes) and are
+    // read-only afterwards; they also can't be added to a closed SIF.
+    public function saveParentConferenceNotes(Request $request, \App\Models\ParentConferenceSlip $slip)
+    {
+        $this->authorizeStaffAccess();
+        $this->authorizeCaseWriter();
+
+        $validated = $request->validate([
+            'notes' => 'required|string|max:3000',
+        ]);
+
+        if (trim((string) $slip->notes) !== '') {
+            abort(422, 'Parent conference notes were already saved and can no longer be edited.');
+        }
+
+        $case = $slip->caseFile;
+        $case?->referrals()->latest()->first()?->abortIfLocked();
+
+        $slip->update([
+            'notes'                     => trim($validated['notes']),
+            'notes_recorded_by_user_id' => $request->user()->id,
+            'notes_recorded_at'         => now(),
+        ]);
+
+        AuditLog::record('parent_conference_notes_saved', "Parent Conference notes recorded for case {$case?->case_number}.", $case);
+
+        return response()->json($slip->load(['issuedBy', 'notesRecordedBy']));
     }
 }

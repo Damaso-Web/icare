@@ -83,6 +83,18 @@
                (older records created before the referral link existed won't). -->
           <div class="icard" v-if="record.referral">
             <div class="icard-header"><span class="icard-title">Referral Information</span></div>
+
+            <!-- TMDU form header - read only (edited in Management). -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-OSS-GCU-05</div>
+                <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date || '2023-07-04') }}</div>
+                <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '26-1' }}</div>
+              </div>
+            </div>
             <div class="icard-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
                 <div>
@@ -416,13 +428,13 @@
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
-              <select v-model="assignForm.to_user_id" class="ifse">
-                <option value="" disabled>Select TMDU staff member...</option>
+              <select v-model.number="assignForm.to_user_id" class="ifse" :disabled="assignLoading">
+                <option value="" disabled>{{ assignLoading ? 'Loading...' : 'Select TMDU staff member...' }}</option>
                 <option v-for="u in assignStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="assignTester">Assign</button>
+              <button class="ibtn ibtn-p" :disabled="assigning || assignLoading" @click="assignTester">{{ assigning ? 'Assigning...' : 'Assign' }}</button>
               <button class="ibtn ibtn-o" @click="showAssignModal = false">Cancel</button>
             </div>
           </div>
@@ -442,9 +454,16 @@
               <span v-if="record.case?.no_show_count">This case has {{ record.case.no_show_count }} prior no-show{{ record.case.no_show_count > 1 ? 's' : '' }}.</span>
               Choose how to handle it:
             </div>
+            <div v-if="callSlipConfirming" style="border:1px solid #f0a8a8;background:var(--red-lt);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
+              <div style="display:flex;gap:8px">
+                <button class="ibtn" style="flex:1;justify-content:center;background:#fff;color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">{{ submittingNoShow ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="submittingNoShow" @click="callSlipConfirming = false">Go Back</button>
+              </div>
+            </div>
             <div style="display:flex;flex-direction:column;gap:8px">
-              <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
-              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="submitNoShow('call_slip')">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button v-if="!callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
+              <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="callSlipConfirming = true">Issue Call Slip (Escalate to Dean's Secretary)</button>
               <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
             </div>
           </div>
@@ -458,6 +477,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
+import axios from 'axios';
 import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
@@ -527,21 +547,26 @@ const TMDU_ROLES = ['admin', 'tmdu_staff'];
 const showAssignModal = ref(false);
 const assignForm      = ref({ to_user_id: '' });
 const assignStaffList = ref([]);
+const assignLoading   = ref(false);
+const assigning       = ref(false);
 
 async function loadAssignStaff() {
   assignStaffList.value = [];
+  assignLoading.value = true;
   try {
-    const res = await userAPI.index({ is_active: 1 });
+    const res = await testingAPI.availableTesters();
     assignStaffList.value = (res.data.data || res.data).filter(u => TMDU_ROLES.includes(u.role));
   } catch (e) {
-    // Non-fatal - dropdown just stays empty.
+    toast?.error('Could not load staff list.');
+  } finally {
+    assignLoading.value = false;
   }
 }
 
-function openAssignModal() {
+async function openAssignModal() {
+  await loadAssignStaff();
   assignForm.value = { to_user_id: record.value.assigned_tester_user_id || '' };
   showAssignModal.value = true;
-  loadAssignStaff();
 }
 
 async function assignTester() {
@@ -549,14 +574,19 @@ async function assignTester() {
     toast?.error('Please select a staff member.');
     return;
   }
+  if (assigning.value) return;
+  assigning.value = true;
   try {
-    const res = await testingAPI.update(record.value.id, { assigned_tester_user_id: assignForm.value.to_user_id });
-    record.value.tester = res.data.tester || assignStaffList.value.find(u => u.id === Number(assignForm.value.to_user_id));
-    record.value.assigned_tester_user_id = assignForm.value.to_user_id;
+    const id = Number(assignForm.value.to_user_id);
+    const res = await testingAPI.assign(record.value.id, { tester_user_id: id });
+    record.value.tester = res.data.tester || assignStaffList.value.find(u => u.id === id);
+    record.value.assigned_tester_user_id = id;
     showAssignModal.value = false;
     toast?.success('Test administrator reassigned.');
   } catch (e) {
-    toast?.error('Failed to reassign test administrator.');
+    toast?.error(e.response?.data?.message || 'Failed to reassign test administrator.');
+  } finally {
+    assigning.value = false;
   }
 }
 
@@ -746,20 +776,30 @@ const parReleaseAppointment = computed(() =>
 const showNoShowModal = ref(false);
 const noShowTarget = ref(null);
 
+const callSlipConfirming = ref(false);
+const submittingNoShow = ref(false);
+
 function openNoShowModal(a) {
   noShowTarget.value = a;
+  callSlipConfirming.value = false;
   showNoShowModal.value = true;
 }
 
 async function submitNoShow(action) {
-  if (!noShowTarget.value) return;
+  if (!noShowTarget.value || submittingNoShow.value) return;
+  if (action === 'call_slip' && noShowTarget.value.no_show_escalated) return;
+  submittingNoShow.value = true;
   try {
     const res = await appointmentAPI.escalateNoShow(noShowTarget.value.id, action);
     noShowTarget.value.status = 'no_show';
+    noShowTarget.value.no_show_escalated = !!res.data.appointment?.no_show_escalated;
     toast?.success(res.data.message || 'Marked as no-show.');
     showNoShowModal.value = false;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to mark as no-show.');
+    callSlipConfirming.value = false;
+  } finally {
+    submittingNoShow.value = false;
   }
 }
 
@@ -785,7 +825,21 @@ async function loadRecord() {
   selectedFile.value = null;
 }
 
+const tmduDoc = ref({});
+function formatDocDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+}
+async function fetchTmduDoc() {
+  try {
+    const base = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+    const res = await axios.get(`${base}/document-settings/QF-OSS-GCU-05`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    tmduDoc.value = res.data;
+  } catch (e) { /* header falls back to the defaults */ }
+}
+
 onMounted(async () => {
+  fetchTmduDoc();
   try {
     await loadRecord();
   } catch (e) {

@@ -81,7 +81,7 @@
                    next to the linked referrals it covers, not repeated on
                    every one of them. -->
               <router-link
-                v-if="primaryCase"
+                v-if="primaryCase && auth.user?.role !== 'tmdu_staff'"
                 :to="{ name: 'case-study-report', params: { id: primaryCase.id } }"
                 target="_blank"
                 class="ibtn ibtn-o ibtn-sm"
@@ -565,13 +565,13 @@
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
               <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
-              <select v-model="assignForm.to_user_id" class="ifse">
-                <option value="" disabled>Select staff member...</option>
+              <select v-model.number="assignForm.to_user_id" class="ifse" :disabled="assignLoading">
+                <option value="" disabled>{{ assignLoading ? 'Loading...' : 'Select staff member...' }}</option>
                 <option v-for="u in assignStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
               </select>
             </div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="assignCounselor">Assign</button>
+              <button class="ibtn ibtn-p" :disabled="assigning || assignLoading" @click="assignCounselor">{{ assigning ? 'Assigning...' : 'Assign' }}</button>
               <button class="ibtn ibtn-o" @click="showAssignModal = false">Cancel</button>
             </div>
           </div>
@@ -692,28 +692,30 @@ const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head
 const showAssignModal = ref(false);
 const assignForm       = ref({ to_user_id: '' });
 const assignStaffList  = ref([]);
+const assignLoading    = ref(false);
+const assigning        = ref(false);
 
 async function loadAssignStaff(unit) {
-  assignForm.value.to_user_id = '';
   assignStaffList.value = [];
-  if (!unit) return;
+  assignLoading.value = true;
   try {
-    const res = await userAPI.index({ is_active: 1, unit });
-    let list = (res.data.data || res.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
-    if (list.length === 0) {
-      const fallback = await userAPI.index({ is_active: 1 });
-      list = (fallback.data.data || fallback.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
-    }
-    assignStaffList.value = list;
+    const res = await userAPI.roster();
+    const allowed = COUNSELING_ROLES[unit] || ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
+    assignStaffList.value = (res.data.data || res.data).filter(u => allowed.includes(u.role));
   } catch (e) {
-    // Non-fatal - dropdown just stays empty.
+    toast?.error('Could not load staff list.');
+  } finally {
+    assignLoading.value = false;
   }
 }
 
-function openAssignModal() {
+// Load the list first, then open - the dropdown never re-renders under the
+// user's cursor while options stream in.
+async function openAssignModal() {
   assignForm.value = { to_user_id: '' };
+  await loadAssignStaff(primaryCase.value?.current_unit);
+  assignForm.value.to_user_id = primaryCase.value?.primary_counselor_id || '';
   showAssignModal.value = true;
-  loadAssignStaff(primaryCase.value?.current_unit);
 }
 
 async function assignCounselor() {
@@ -721,14 +723,19 @@ async function assignCounselor() {
     toast?.error('Please select a staff member.');
     return;
   }
+  if (assigning.value) return;
+  assigning.value = true;
   try {
-    const res = await caseAPI.update(primaryCase.value.id, { primary_counselor_id: assignForm.value.to_user_id });
-    primaryCase.value.counselor = res.data.counselor || assignStaffList.value.find(u => u.id === Number(assignForm.value.to_user_id));
-    primaryCase.value.primary_counselor_id = assignForm.value.to_user_id;
+    const id = Number(assignForm.value.to_user_id);
+    const res = await caseAPI.update(primaryCase.value.id, { primary_counselor_id: id });
+    primaryCase.value.counselor = res.data.counselor || assignStaffList.value.find(u => u.id === id);
+    primaryCase.value.primary_counselor_id = id;
     showAssignModal.value = false;
     toast?.success('Case reassigned.');
   } catch (e) {
-    toast?.error('Failed to reassign case.');
+    toast?.error(e.response?.data?.message || 'Failed to reassign case.');
+  } finally {
+    assigning.value = false;
   }
 }
 

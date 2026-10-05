@@ -64,6 +64,9 @@ class CaseInterventionController extends Controller
                 abort(422, 'This referral does not belong to this case.');
             }
 
+            // A Resolved/closed SIF is final - no new entries of any kind.
+            $referral->abortIfLocked();
+
             // Session Notes/Follow-up/Previous Interventions all require the
             // referral to be acknowledged and have an attended appointment,
             // same broader SIF edit gate the rest of the referral enforces.
@@ -90,6 +93,8 @@ class CaseInterventionController extends Controller
     {
         $user = $request->user();
         $this->authorizeInterventionAccess($intervention->type);
+        $intervention->loadMissing('referral');
+        $intervention->referral?->abortIfLocked();
 
         $intervention->update([
             'is_completed'         => true,
@@ -106,6 +111,8 @@ class CaseInterventionController extends Controller
     {
         $user = $request->user();
         $this->authorizeInterventionAccess($intervention->type);
+        $intervention->loadMissing('referral');
+        $intervention->referral?->abortIfLocked();
 
         AuditLog::record('deleted', "Deleted a previous intervention entry for case #{$intervention->case_id}.", $intervention, $intervention->toArray());
         $intervention->delete();

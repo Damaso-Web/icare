@@ -29,6 +29,23 @@ class UserController extends Controller
             : array_values(array_diff($all, ['system_admin']));
     }
 
+    // Lightweight, read-only staff list for the Reassign dropdowns. Unlike
+    // index() this is open to every OSS staff role (the Users route group is
+    // admin-only, which is why those dropdowns used to 403 and glitch).
+    public function roster(Request $request)
+    {
+        abort_unless(in_array($request->user()->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'], true), 403, 'Unauthorized.');
+
+        return response()->json(
+            User::where('is_active', true)
+                ->when($request->role, fn($q) => $q->whereIn('role', (array) $request->role))
+                ->when($request->unit, fn($q) => $q->where('unit', $request->unit))
+                ->whereIn('role', ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])
+                ->orderBy('name')
+                ->get(['id', 'name', 'role', 'unit'])
+        );
+    }
+
     public function index(Request $request)
     {
         $query = User::query()

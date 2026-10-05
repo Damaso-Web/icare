@@ -116,7 +116,20 @@ class StudentAuthController extends Controller
         'referrals'             => $student->referrals()->latest()->get(),
         'pending_appointments'  => $pendingAppointments,
         'pending_appointment'   => $pendingAppointments->first(),
+        'parent_conference_slips' => $this->studentParentConferenceSlips($student),
     ]);
+}
+
+public function parentConferenceSlips(Request $request)
+{
+    return response()->json($this->studentParentConferenceSlips($request->user('student')));
+}
+
+private function studentParentConferenceSlips($student)
+{
+    return \App\Models\ParentConferenceSlip::whereIn('case_id', $student->cases()->pluck('id'))
+        ->latest('issued_at')
+        ->get(['id', 'case_id', 'conference_date', 'conference_time', 'reason', 'remarks', 'issued_at']);
 }
 
 public function updateProfile(Request $request)

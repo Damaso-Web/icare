@@ -371,7 +371,7 @@ async function fetchAllAppointments() {
 function goToStudent(a) {
   const studentId = a.student_id || a.student?.id;
   if (studentId) {
-    router.push({ name: 'student-show', params: { id: studentId }, query: { ctx: 'cases' } });
+    router.push({ name: 'student-show', params: { id: studentId } });
   } else {
     toast?.error('No linked student found for this appointment.');
   }
@@ -414,7 +414,7 @@ async function submitNoShow() {
   if (!noShowTarget.value) return;
   submittingNoShow.value = true;
   try {
-    await appointmentAPI.escalateNoShow(noShowTarget.value.id);
+    await appointmentAPI.escalateNoShow(noShowTarget.value.id, 'call_slip');
     noShowTarget.value.status = 'no_show';
     noShowTarget.value.no_show_escalated = true;
     toast?.success("Marked as no-show and escalated to Dean's Secretary.");

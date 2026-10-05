@@ -75,6 +75,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
     });
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
+    Route::get('student/parent-conference-slips', [StudentAuthController::class, 'parentConferenceSlips']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);
 
 
@@ -113,6 +114,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('cases/{case}/flag-follow-up',               [CaseController::class, 'flagFollowUp']);
     Route::post('cases/{case}/resolve-follow-up',             [CaseController::class, 'resolveFollowUp']);
     Route::post('cases/{case}/parent-conference-slip',        [CaseController::class, 'issueParentConferenceSlip']);
+    Route::post('parent-conference-slips/{slip}/notes',       [CaseController::class, 'saveParentConferenceNotes']);
+    Route::get('staff-roster',                                [UserController::class, 'roster']);
     Route::post('cases/{case}/interventions',                 [CaseInterventionController::class, 'store']);
     Route::post('interventions/{intervention}/complete',      [CaseInterventionController::class, 'complete']);
     Route::delete('interventions/{intervention}',              [CaseInterventionController::class, 'destroy']);
