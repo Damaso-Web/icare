@@ -191,6 +191,11 @@ class StudentController extends Controller
 
         public function history(Student $student)
     {
+        // The Student Profile page always loads this, and it is what returns
+        // the student's referrals, cases, appointments and testing records -
+        // so this is where opening a profile is logged (once per open).
+        AuditLog::record('viewed', "Viewed student profile and records for {$student->first_name} {$student->last_name} ({$student->student_id}).", $student);
+
         return response()->json([
             'cases'           => $student->cases()->with('counselor')->latest()->get(),
             'referrals'       => $student->referrals()->with('case:id,status')->latest()->get(),
