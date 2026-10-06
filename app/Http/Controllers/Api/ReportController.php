@@ -84,9 +84,6 @@ class ReportController extends Controller
             'by_type'         => $query->clone()->groupBy('referral_type')
                                     ->select('referral_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
-            'by_urgency'      => $query->clone()->groupBy('urgency_level')
-                                    ->select('urgency_level', DB::raw('count(*) as count'))
-                                    ->get()->toArray(),
             'by_college'      => $query->clone()->groupBy('referrer_college')
                                     ->select('referrer_college', DB::raw('count(*) as count'))
                                     ->get()->toArray(),

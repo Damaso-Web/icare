@@ -30,6 +30,15 @@
       <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
     </div>
 
+    <!-- Load failure -->
+    <div v-else-if="loadError" class="icard">
+      <div class="empty-state">
+        <h3>Couldn't load the report</h3>
+        <p>The server or the database did not respond. Check your internet connection, then try again.</p>
+        <button class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" @click="fetchAll">Try Again</button>
+      </div>
+    </div>
+
     <template v-else>
       <!-- Summary Stats -->
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
@@ -45,7 +54,7 @@
       </div>
 
       <!-- Charts Row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="margin-bottom:16px">
 
         <!-- Referrals by Type -->
         <div class="icard">
@@ -59,23 +68,6 @@
               </div>
               <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
                 <div :style="{ width: pct(item.count, referralData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Referrals by Urgency -->
-        <div class="icard">
-          <div class="icard-header"><span class="icard-title">Referrals by Urgency</span></div>
-          <div class="icard-body">
-            <div v-if="!referralData.by_urgency?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-            <div v-for="item in referralData.by_urgency" :key="item.urgency_level" style="margin-bottom:11px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
-                <span>{{ item.urgency_level }}</span>
-                <span style="color:var(--stone)">{{ item.count }}</span>
-              </div>
-              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
-                <div :style="{ width: pct(item.count, referralData.total) + '%', background: urgencyColor(item.urgency_level), height: '100%', borderRadius: '4px' }"></div>
               </div>
             </div>
           </div>
@@ -246,6 +238,7 @@ function authHeaders() {
 }
 
 const loading  = ref(true);
+const loadError = ref(false);
 const dateFrom = ref('');
 const dateTo   = ref('');
 const exporting = ref('');
@@ -315,6 +308,7 @@ const apptSummary = computed(() => {
 
 async function fetchAll() {
   loading.value = true;
+  loadError.value = false;
   try {
     const params = { date_from: dateFrom.value, date_to: dateTo.value };
     const [r, c, a, d, rc] = await Promise.all([
@@ -331,6 +325,8 @@ async function fetchAll() {
     recurringData.value = rc.data;
   } catch (e) {
     console.error(e);
+    // Say so, rather than leaving a page of zeros that reads as "no records".
+    loadError.value = true;
   } finally {
     loading.value = false;
   }
@@ -343,10 +339,6 @@ function pct(count, total) {
 
 function monthLabel(month) {
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month - 1] || month;
-}
-
-function urgencyColor(level) {
-  return { critical: 'var(--red)', high: 'var(--amber)', medium: 'var(--blue)', low: 'var(--sage)' }[level] || 'var(--moss)';
 }
 
 function unitColor(unit) {
