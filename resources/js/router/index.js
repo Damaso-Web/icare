@@ -25,11 +25,12 @@ import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
 import CallSlips from '../views/callslips/Index.vue';
 import Management from '../views/management/Index.vue';
+import Faculty from '../views/faculty/Index.vue';
 import CaseReferrals from '../views/caseReferrals/Index.vue';
 import CaseReferralShow from '../views/caseReferrals/Show.vue';
 
 // Role definitions
-const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
+const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'];
 const STAFF_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
 const GCU_ROLES = ['admin', 'gcu_staff'];
 const ADMIN_ONLY = ['admin'];
@@ -38,7 +39,10 @@ const SYSTEM_ADMIN_ONLY = ['system_admin'];
 // Programs, Departments, Referral Form Options). System Admin still has no
 // access to students/referrals/cases/Users - only Admin has both.
 const MANAGEMENT_ROLES = ['admin', 'system_admin'];
-const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_secretary'];
+// Refer Student is open to every role that has a Dashboard.
+const REFERRAL_SUBMITTERS = ALL_ROLES;
+// Faculty page: Dean (whole college) and Dept Chair (own department).
+const FACULTY_ROLES = ['admin', 'dean', 'dept_chair'];
 // Testing Records (TMDU): shared with the GCU staff who referred the
 // student, since the Testing Record Details page displays their original
 // referral information too (a "shared case" the referring GCU staff can
@@ -135,19 +139,19 @@ const routes = [
                 path: 'students',
                 name: 'students',
                 component: Students,
-                meta: { roles: STAFF_ROLES },
+                meta: { roles: GCU_ROLES },
             },
             {
                 path: 'students/:id',
                 name: 'student-show',
                 component: StudentShow,
-                meta: { roles: STAFF_ROLES },
+                meta: { roles: GCU_ROLES },
             },
             {
                 path: 'referrals',
                 name: 'referrals',
                 component: Referrals,
-                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'] },
+                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'] },
             },
             {
                 path: 'referrals/create',
@@ -195,7 +199,7 @@ const routes = [
                 path: 'cases',
                 name: 'cases',
                 component: Cases,
-                meta: { roles: ['admin', 'gcu_staff', 'sdu_head'] },
+                meta: { roles: GCU_ROLES },
             },
             {
                 path: 'appointments',
@@ -239,14 +243,14 @@ const routes = [
             {
                 path: 'faculty',
                 name: 'faculty-directory',
-                component: Users,
-                meta: { roles: ADMIN_ONLY },
+                component: Faculty,
+                meta: { roles: FACULTY_ROLES },
             },
             {
                 path: 'my-account',
                 name: 'my-account',
                 component: MyAccount,
-                meta: { roles: ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'] },
+                meta: { roles: ALL_ROLES },
             },
             {
                 path: 'audit',
@@ -278,7 +282,7 @@ const routes = [
         path: '/cases/:id/study-report',
         name: 'case-study-report',
         component: () => import('../views/cases/StudyReport.vue'),
-        meta: { requiresAuth: true, roles: ['admin', 'gcu_staff', 'sdu_head'] },
+        meta: { requiresAuth: true, roles: GCU_ROLES },
     },
     {
         path: '/call-slips/:id/print',

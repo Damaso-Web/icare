@@ -20,9 +20,9 @@ class UserController extends Controller
      * Roles the currently authenticated actor may assign.
      * system_admin can assign anything; admin (GCU Head) cannot grant system_admin.
      */
-    private function assignableRoles(): array
+    protected function assignableRoles(): array
     {
-        $all = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary', 'system_admin'];
+        $all = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary', 'system_admin'];
 
         return request()->user()?->isSystemAdmin()
             ? $all
@@ -295,7 +295,7 @@ class UserController extends Controller
      * Column-header map for the Faculty/Employee masterlist templates,
      * mirroring StudentController's studentHeaderMap() pattern.
      */
-    private function employeeHeaderMap(): array
+    protected function employeeHeaderMap(): array
     {
         return [
             'last name'      => 'last_name',
@@ -317,7 +317,7 @@ class UserController extends Controller
      * associative rows, keyed by the mapped field names in $headerMap.
      * Same parsing logic already used inline by import(), just reusable.
      */
-    private function parseFile($file, string $ext, array $headerMap): array
+    protected function parseFile($file, string $ext, array $headerMap): array
     {
         $rows = [];
 
@@ -360,7 +360,7 @@ class UserController extends Controller
      * Validates a single parsed masterlist row for the Faculty/Employee import,
      * mirroring StudentController's validateImportRow() pattern.
      */
-    private function validateImportRow(array $row, array $validRoles): array
+    protected function validateImportRow(array $row, array $validRoles): array
     {
         $reasons = [];
 
@@ -385,6 +385,15 @@ class UserController extends Controller
         }
 
         return $reasons;
+    }
+
+    /**
+     * Hook for subclasses (FacultyController) to force/validate each row
+     * before it is previewed or saved. Returns [row, extraReasons].
+     */
+    protected function scopeImportRow(array $row, ?User $existing): array
+    {
+        return [$row, []];
     }
 
     /**
@@ -425,7 +434,8 @@ class UserController extends Controller
 
         foreach ($rows as $i => $row) {
             $row['role']  = strtolower(trim($row['role'] ?? ''));
-            $reasons      = $this->validateImportRow($row, $validRoles);
+            [$row, $scopeReasons] = $this->scopeImportRow($row, $existingUsers->get($row['email'] ?? ''));
+            $reasons      = array_merge($this->validateImportRow($row, $validRoles), $scopeReasons);
             $isDuplicate  = !empty($row['email']) && isset($existingEmails[$row['email']]);
 
             if ($isDuplicate) {
@@ -504,7 +514,8 @@ class UserController extends Controller
             }
 
             $row['role'] = strtolower(trim($row['role'] ?? ''));
-            $reasons = $this->validateImportRow($row, $validRoles);
+            [$row, $scopeReasons] = $this->scopeImportRow($row, $existing->get($row['email'] ?? ''));
+            $reasons = array_merge($this->validateImportRow($row, $validRoles), $scopeReasons);
             if (!empty($reasons)) {
                 $skipped++;
                 $errors[] = 'Row ' . ($i + 2) . ': ' . implode(' ', $reasons);

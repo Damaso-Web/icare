@@ -283,6 +283,19 @@ export const caseReferralAPI = {
     downloadDocument: (id) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
 };
 
+// Faculty module (Dean = whole college, Dept Chair = own department; scoped on the server).
+export const facultyAPI = {
+    index:          (params)   => api.get('/faculty', { params }),
+    store:          (data)     => api.post('/faculty', data),
+    update:         (id, data) => api.put(`/faculty/${id}`, data),
+    toggleActive:   (id)       => api.post(`/faculty/${id}/toggle-active`),
+    resetPassword:  (id)       => api.post(`/faculty/${id}/reset-password`),
+    assignChair:    (id, data) => api.post(`/faculty/${id}/assign-chair`, data),
+    removeChair:    (id)       => api.post(`/faculty/${id}/remove-chair`),
+    importPreview:  (formData) => api.post('/faculty/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importConfirm:  (data)     => api.post('/faculty/import-confirm', data),
+};
+
 export const userAPI = {
     index:         (params)   => api.get('/users', { params }),
     store:         (data)     => api.post('/users', data),

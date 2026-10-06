@@ -17,10 +17,12 @@ export const useAuthStore = defineStore('auth', {
         isGCUStaff:      (state) => state.user?.role === 'gcu_staff',
         isSDUHead:       (state) => state.user?.role === 'sdu_head',
         isTMDUStaff:     (state) => state.user?.role === 'tmdu_staff',
-        isFaculty:       (state) => state.user?.role === 'faculty',
+        isFaculty:       (state) => ['faculty', 'dean', 'dept_chair'].includes(state.user?.role),
+        isDean:          (state) => state.user?.role === 'dean',
+        isDeptChair:     (state) => state.user?.role === 'dept_chair',
         isDeanSecretary: (state) => state.user?.role === 'dean_secretary',
         canCounsel:      (state) => ['admin', 'gcu_staff'].includes(state.user?.role),
-        canViewCases:    (state) => !['faculty', 'dean_secretary'].includes(state.user?.role),
+        canViewCases:    (state) => !['faculty', 'dean', 'dept_chair', 'dean_secretary'].includes(state.user?.role),
     },
 
     actions: {

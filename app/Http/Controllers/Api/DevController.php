@@ -21,6 +21,8 @@ class DevController extends Controller
         'sdu_head'       => ['unit' => 'SDU',  'college' => null,  'department' => null],
         'tmdu_staff'     => ['unit' => 'TMDU', 'college' => null,  'department' => null],
         'faculty'        => ['unit' => null,   'college' => 'CIT', 'department' => 'Information Technology'],
+        'dean'           => ['unit' => null,   'college' => 'CIT', 'department' => null],
+        'dept_chair'     => ['unit' => null,   'college' => 'CIT', 'department' => 'Information Technology'],
         'dean_secretary' => ['unit' => null,   'college' => 'CIT', 'department' => null],
         'system_admin'   => ['unit' => null,   'college' => null,  'department' => null],
     ];

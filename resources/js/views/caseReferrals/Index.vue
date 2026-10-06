@@ -7,7 +7,7 @@
 
     <div class="icard">
       <div style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap">
-        <input v-model="search" class="ifi" style="max-width:260px" placeholder="Search student or referral code..." @input="onSearch" />
+        <input v-model="search" class="ifi" style="max-width:260px" placeholder="Search student name or ID..." @input="onSearch" />
         <select v-model="status" class="fsm" @change="fetchItems">
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>
@@ -29,22 +29,16 @@
         <table class="itable">
           <thead>
             <tr>
-              <th>Referral No.</th>
-              <th>Student</th>
-              <th>Reason</th>
-              <th>Status</th>
-              <th>PAR</th>
-              <th>Date Referred</th>
+              <th>Student ID</th>
+              <th>Name</th>
+              <th>Date</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in items" :key="r.id" style="cursor:pointer" @click="selected = r">
-              <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
-              <td>{{ r.student?.last_name }}, {{ r.student?.first_name }}<div style="font-size:11px;color:var(--fog)">{{ r.student?.student_id }}</div></td>
-              <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.reason }}</td>
-              <td><span class="ibadge" :class="badge(r).cls">{{ badge(r).label }}</span></td>
-              <td style="font-size:12px">{{ r.testing_record?.par_document ? 'Attached' : (r.testing_record?.status === 'test_results_issued' ? 'Released' : '-') }}</td>
+              <td style="font-family:var(--mono);font-size:12px">{{ r.student?.student_id }}</td>
+              <td>{{ r.student?.last_name }}, {{ r.student?.first_name }}</td>
               <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
               <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
             </tr>

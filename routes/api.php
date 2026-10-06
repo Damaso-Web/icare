@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\ManagementProgramController;
 use App\Http\Controllers\Api\ManagementDepartmentController;
 use App\Http\Controllers\Api\ManagementFormOptionController;
 use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\DocumentSettingController;
 
 // Public routes
@@ -65,7 +66,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::apiResource('students', StudentController::class)->only(['index', 'show']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
-    Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff')->group(function () {
+    Route::middleware('role:admin,gcu_staff')->group(function () {
         Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
         Route::post('students/import', [StudentController::class, 'import']);
@@ -86,7 +87,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);
     Route::post('referrals/{referral}/archive',   [ReferralController::class, 'archive']);
     Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);
-    Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign']);
+    Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign'])->middleware('role:admin'); // reassigning: GCU Head only
     Route::patch('referrals/{referral}/status',     [ReferralController::class, 'updateStatus']);
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);
     Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
@@ -219,7 +220,22 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // both Refer a Student and the Referral Details page display it.
     Route::get('document-settings/{code}', [DocumentSettingController::class, 'show']);
 
-       // Admin only
+       // Faculty module - Dean (college-wide) and Dept Chair (own department).
+    // FacultyController scopes every query/write to the caller's college/department.
+    Route::middleware('role:admin,dean,dept_chair')->prefix('faculty')->group(function () {
+        Route::get('/',                             [FacultyController::class, 'index']);
+        Route::post('/',                            [FacultyController::class, 'store']);
+        Route::post('import-preview',               [FacultyController::class, 'importPreview']);
+        Route::post('import-confirm',               [FacultyController::class, 'importConfirm']);
+        Route::put('{user}',                        [FacultyController::class, 'update']);
+        Route::post('{user}/toggle-active',         [FacultyController::class, 'toggle']);
+        Route::post('{user}/reset-password',        [FacultyController::class, 'resetPassword']);
+        Route::get('{user}/temp-password',          [FacultyController::class, 'tempPassword']);
+        Route::post('{user}/assign-chair',          [FacultyController::class, 'assignChair']);
+        Route::post('{user}/remove-chair',          [FacultyController::class, 'removeChair']);
+    });
+
+    // Admin only
     Route::middleware('role:admin')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);

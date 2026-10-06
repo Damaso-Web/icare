@@ -52,7 +52,8 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Case Status
           </button>
-          <button v-if="isGCU && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
+          <!-- Reassigning a case is for the GCU Head only -->
+          <button v-if="auth.user?.role === 'admin' && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Reassign
           </button>

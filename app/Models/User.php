@@ -62,7 +62,11 @@ class User extends Authenticatable
     public function isGCUStaff(): bool     { return $this->role === 'gcu_staff'; }
     public function isSDUHead(): bool      { return $this->role === 'sdu_head'; }
     public function isTMDUStaff(): bool    { return $this->role === 'tmdu_staff'; }
-    public function isFaculty(): bool      { return $this->role === 'faculty'; }
+    // Deans and Department Chairs are faculty-level accounts for everything
+    // except the Faculty page: they refer students and see their own referrals.
+    public function isFaculty(): bool      { return in_array($this->role, ['faculty', 'dean', 'dept_chair'], true); }
+    public function isDean(): bool         { return $this->role === 'dean'; }
+    public function isDeptChair(): bool    { return $this->role === 'dept_chair'; }
     public function isDeanSecretary(): bool{ return $this->role === 'dean_secretary'; }
     public function canCounsel(): bool     { return in_array($this->role, ['admin', 'gcu_staff']); }
 

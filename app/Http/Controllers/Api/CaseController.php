@@ -140,6 +140,13 @@ class CaseController extends Controller
         $this->authorizeCaseWriter();
         $this->authorizeUnitAccess($case);
 
+        // Reassigning a case to another counselor is for the GCU Head only.
+        if ($request->has('primary_counselor_id')
+            && (int) $request->primary_counselor_id !== (int) $case->primary_counselor_id
+            && !$request->user()->isAdmin()) {
+            abort(403, 'Only the GCU Head can reassign a case.');
+        }
+
         $old = $case->toArray();
         $case->update($request->only([
             'primary_counselor_id',
