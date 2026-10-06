@@ -42,6 +42,7 @@ Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'subm
 // External cron endpoints (secured via X-Cron-Secret header, checked inside the controller)
 Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders'])->middleware('throttle:public-form');
 Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows'])->middleware('throttle:public-form');
+Route::post('cron/backup',              [CronController::class, 'backup'])->middleware('throttle:public-form');
 
 // Authenticated routes
 Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
