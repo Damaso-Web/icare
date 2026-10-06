@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { ref, provide } from 'vue';
+import { ref, provide, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import Toast from './components/Toast.vue';
@@ -37,6 +37,13 @@ provide('toast', {
   error:   (msg) => toast.value?.show(msg, 'error'),
   warning: (msg) => toast.value?.show(msg, 'warning'),
 });
+
+// Notices raised outside the component tree (see notifyFailure in api/index.js).
+function showNotice(event) {
+  toast.value?.show(event.detail.message, event.detail.type || 'error');
+}
+onMounted(() => window.addEventListener('icare:notice', showNotice));
+onBeforeUnmount(() => window.removeEventListener('icare:notice', showNotice));
 </script>
 
 <style scoped>

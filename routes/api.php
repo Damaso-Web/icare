@@ -82,7 +82,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
 
     // Referrals
-    Route::apiResource('referrals', ReferralController::class);
+    // Referrals are archived, never deleted.
+    Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);
     Route::post('referrals/{referral}/archive',   [ReferralController::class, 'archive']);
@@ -102,7 +103,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('complaints', [ComplaintController::class, 'store']);
 
     // Cases
-    Route::apiResource('cases', CaseController::class);
+    // Cases are opened by acknowledging a referral and are closed, not deleted.
+    Route::apiResource('cases', CaseController::class)->except(['store', 'destroy']);
     Route::patch('cases/{case}/status',        [CaseController::class, 'updateStatus']);
     Route::post('cases/{case}/close',          [CaseController::class, 'close']);
     Route::get('cases/{case}/summary',         [CaseController::class, 'summary']);
@@ -133,7 +135,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         ->middleware('role:admin,gcu_staff');
 
     // Appointments
-    Route::apiResource('appointments', AppointmentController::class);
+    // Appointments are cancelled, not deleted.
+    Route::apiResource('appointments', AppointmentController::class)->except(['destroy']);
     Route::post('appointments/{appointment}/confirm',    [AppointmentController::class, 'confirm']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{appointment}/cancel',     [AppointmentController::class, 'cancel']);
@@ -157,7 +160,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // Testing Records, PAR release and the TMDU tester roster belong to TMDU only.
     Route::middleware('role:tmdu_staff')->group(function () {
         Route::get('testing-records/available-testers', [TestingRecordController::class, 'availableTesters']);
-        Route::apiResource('testing-records', TestingRecordController::class);
+        // Testing records come from a Refer-to-TMDU action and are never deleted.
+        Route::apiResource('testing-records', TestingRecordController::class)->except(['store', 'destroy']);
         Route::post('testing-records/{testingRecord}/assign',            [TestingRecordController::class, 'assign']);
         Route::patch('testing-records/{testingRecord}/status',           [TestingRecordController::class, 'updateStatus']);
         Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);

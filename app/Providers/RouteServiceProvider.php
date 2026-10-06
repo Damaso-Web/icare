@@ -37,7 +37,16 @@ class RouteServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
+            $user = $request->user();
+
+            // The shared tester account is open on several computers at once
+            // while the system is being tested, and a single page load is 5-10
+            // requests, so it gets more room. Remove this together with the
+            // tester account and its role switcher (DevController) at deployment.
+            $isTester = $user instanceof \App\Models\User
+                && strtolower((string) $user->email) === \App\Http\Controllers\Api\DevController::TESTER_EMAIL;
+
+            return Limit::perMinute($isTester ? 240 : 60)->by($user?->id ?: $request->ip());
         });
 
         $this->routes(function () {

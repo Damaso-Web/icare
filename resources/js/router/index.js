@@ -293,16 +293,9 @@ const routes = [
     {
         path: '/unauthorized',
         name: 'unauthorized',
-        component: {
-            template: `
-                <div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;background:var(--cloud)">
-                    <div style="font-size:48px">🔒</div>
-                    <div style="font-size:20px;font-weight:600;color:var(--forest)">Access Denied</div>
-                    <div style="font-size:14px;color:var(--stone)">You don't have permission to view this page.</div>
-                    <button onclick="history.back()" style="padding:10px 20px;background:var(--moss);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px">Go Back</button>
-                </div>
-            `,
-        },
+        // A real component: the built app has no runtime template compiler, so
+        // an inline `template` string rendered as a blank page.
+        component: () => import('../views/Unauthorized.vue'),
     },
     {
         path: '/:pathMatch(.*)*',

@@ -126,7 +126,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
@@ -134,6 +134,7 @@ import api, { notificationAPI, devAPI } from '../api/index';
 const router = useRouter();
 const route  = useRoute();
 const auth   = useAuthStore();
+const toast  = inject('toast');
 
 const isTester = computed(() => auth.user?.email?.toLowerCase() === 'genrytester@bsu.edu.ph');
 const devRole  = ref(auth.user?.role || 'admin');
@@ -154,6 +155,11 @@ async function handleDevSwitch() {
     router.push({ name: 'dashboard' });
   } catch (e) {
     console.error(e);
+    // Put the dropdown back on the real role and say why nothing happened.
+    devRole.value = auth.user?.role || 'admin';
+    toast?.error(e.response?.status === 404
+      ? 'Role switching is turned off on this site.'
+      : (e.response?.data?.message || 'Could not switch role. Please try again.'));
   } finally {
     switching.value = false;
   }

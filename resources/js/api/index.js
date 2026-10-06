@@ -2,6 +2,46 @@ import axios from 'axios';
 
 const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
 
+// ---- Failed requests the pages can't explain on their own ----
+// Most pages only log a failed load to the console, which leaves an empty
+// screen that reads as "no records". This puts a message on screen for the
+// cases no page can do anything about: the server unreachable, the server
+// failing while loading data, or the request limit being hit.
+let lastNoticeAt = 0;
+function notifyFailure(error) {
+    if (axios.isCancel(error)) return;
+
+    const status = error.response?.status;
+    const method = (error.config?.method || 'get').toLowerCase();
+    const url    = error.config?.url || '';
+    if (/\/(login|otp)/.test(url)) return;            // the login pages show their own message
+
+    let message = null;
+    if (status === 429) {
+        message = 'Too many requests at once. Please wait a moment, then try again.';
+    } else if (!error.response) {
+        message = "Couldn't reach the server. Check your internet connection and try again.";
+    } else if (status >= 500 && method === 'get') {
+        message = 'The server had a problem loading this page. Please try again.';
+    }
+    if (!message) return;
+
+    // A page fires several requests together - one message is enough.
+    const now = Date.now();
+    if (now - lastNoticeAt < 4000) return;
+    lastNoticeAt = now;
+
+    window.dispatchEvent(new CustomEvent('icare:notice', {
+        detail: { message, type: status === 429 ? 'warning' : 'error' },
+    }));
+}
+
+// Pages that call axios directly (not through `api`) get the same message.
+axios.interceptors.response.use((response) => response, (error) => {
+    notifyFailure(error);
+    return Promise.reject(error);
+});
+
 const api = axios.create({
     baseURL: `${API_ROOT}/api`,
     headers: {
@@ -23,6 +63,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
+        notifyFailure(error);
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -139,6 +180,7 @@ studentApi.interceptors.request.use((config) => {
 studentApi.interceptors.response.use(
     (response) => response,
     (error) => {
+        notifyFailure(error);
         if (error.response?.status === 401) {
             localStorage.removeItem('student_token');
             localStorage.removeItem('student');
@@ -330,9 +372,6 @@ export const studentNotificationAPI = {
     markAllRead: ()   => studentApi.post('/student/notifications/read-all'),
 };
 
-export const monitoringAPI = {
-    index: () => api.get('/monitoring'),
-};
 
 export const backupAPI = {
     index:         (params) => api.get('/backups', { params }),
