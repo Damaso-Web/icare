@@ -68,7 +68,7 @@
       </div>
 
       <!-- Charts Row -->
-      <div style="margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
         <!-- Referrals by Type -->
         <div class="icard">
@@ -87,6 +87,47 @@
           </div>
         </div>
 
+        <!-- Referrals by College (college of the referred student) -->
+        <div class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Referrals by College</span>
+            <span v-if="topCollege" class="ibadge" style="background:var(--mist);color:var(--moss)">Highest: {{ collegeShort(topCollege.college) }} ({{ topCollege.count }})</span>
+          </div>
+          <div class="icard-body">
+            <div v-if="!collegeRows.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in collegeRows" :key="item.college" style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+                <span>{{ item.college }}</span>
+                <span style="color:var(--stone)">{{ item.count }}</span>
+              </div>
+              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+                <div :style="{ width: pct(item.count, referralData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Services Rendered - what the office delivered, as opposed to referrals received -->
+      <div class="icard" style="margin-bottom:16px">
+        <div class="icard-header"><span class="icard-title">Services Rendered</span></div>
+        <div class="ts">
+          <table class="itable">
+            <thead>
+              <tr><th>Service</th><th style="width:140px">Count</th></tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in servicesData" :key="row.service">
+                <td>{{ row.service }}</td>
+                <td style="font-weight:600">{{ row.count }}</td>
+              </tr>
+              <tr v-if="!servicesData.length">
+                <td colspan="2" style="text-align:center;color:var(--fog)">No data</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
@@ -263,9 +304,9 @@ const dateTo   = ref('');
 const AY_START_MONTH = 8;
 const PERIODS = [
   { value: 'year',    label: 'Whole Academic Year', from: [8, 1],            to: [7, 31, 'next'] },
-  { value: 'first',   label: '1st Semester',        from: [8, 1],            to: [12, 31] },
-  { value: 'second',  label: '2nd Semester',        from: [1, 1, 'next'],    to: [5, 31, 'next'] },
-  { value: 'midyear', label: 'Midyear',             from: [6, 1, 'next'],    to: [7, 31, 'next'] },
+  { value: 'first',   label: '1st Semester',        from: [8, 1],            to: [12, 31],          code: 1 },
+  { value: 'second',  label: '2nd Semester',        from: [1, 1, 'next'],    to: [5, 31, 'next'],   code: 2 },
+  { value: 'midyear', label: 'Midyear',             from: [6, 1, 'next'],    to: [7, 31, 'next'],   code: 3 },
 ];
 
 const today = new Date();
@@ -290,7 +331,10 @@ const period       = ref(startPeriod.value);
 
 const periodLabel = computed(() => {
   const p = PERIODS.find(x => x.value === period.value);
-  return p ? `${p.label}, A.Y. ${academicYear.value}–${academicYear.value + 1}` : '';
+  if (!p) return '';
+  // Short term code, e.g. "26-1" = A.Y. 2026-2027, 1st Semester.
+  const code = p.code ? `${String(academicYear.value).slice(-2)}-${p.code} · ` : '';
+  return `${code}${p.label}, A.Y. ${academicYear.value}–${academicYear.value + 1}`;
 });
 
 function prettyDate(str) {
@@ -345,6 +389,14 @@ const caseData      = ref({});
 const apptData      = ref({});
 const dashData      = ref({});
 const recurringData = ref({});
+const servicesData  = ref([]);
+
+const collegeRows = computed(() => referralData.value.by_student_college || []);
+const topCollege  = computed(() => collegeRows.value.find(c => c.count > 0) || null);
+// "College of Nursing (CN)" -> "CN"
+function collegeShort(name) {
+  return name.match(/\(([^)]+)\)\s*$/)?.[1] || name;
+}
 
 const summaryStats = computed(() => [
   { label: 'Total Referrals',    value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
@@ -384,18 +436,20 @@ async function fetchAll() {
   loadError.value = false;
   try {
     const params = { date_from: dateFrom.value, date_to: dateTo.value };
-    const [r, c, a, d, rc] = await Promise.all([
+    const [r, c, a, d, rc, sv] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
       reportAPI.appointments(params),
       reportAPI.dashboard(),
       reportAPI.recurringConcerns(params),
+      reportAPI.services(params),
     ]);
     referralData.value  = r.data;
     caseData.value      = c.data;
     apptData.value      = a.data;
     dashData.value      = d.data;
     recurringData.value = rc.data;
+    servicesData.value  = sv.data;
   } catch (e) {
     console.error(e);
     // Say so, rather than leaving a page of zeros that reads as "no records".

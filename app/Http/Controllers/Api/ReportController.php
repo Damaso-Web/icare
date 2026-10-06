@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Appointment;
 use App\Models\CaseFile;
+use App\Models\College;
+use App\Models\FeedbackSlip;
 use App\Models\Referral;
+use App\Models\SessionNote;
 use App\Models\Student;
+use App\Models\TestingRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -56,6 +60,16 @@ class ReportController extends Controller
         return response()->json($this->buildRecurringReport($request));
     }
 
+    public function services(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to'   => 'nullable|date',
+        ]);
+
+        return response()->json($this->buildServicesReport($request));
+    }
+
     public function dashboardStats()
     {
         return response()->json([
@@ -84,6 +98,7 @@ class ReportController extends Controller
             'by_type'         => $query->clone()->groupBy('referral_type')
                                     ->select('referral_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
+            'by_student_college' => $this->buildCollegeBreakdown($request),
             'by_college'      => $query->clone()->groupBy('referrer_college')
                                     ->select('referrer_college', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
@@ -97,6 +112,52 @@ class ReportController extends Controller
                                     ->orderBy('year')
                                     ->orderBy('month')
                                     ->get()->toArray(),
+        ];
+    }
+
+    /**
+     * Referrals per college of the referred student, highest first. Every
+     * college in the Management list is included, even with no referrals.
+     */
+    private function buildCollegeBreakdown(Request $request): array
+    {
+        $counts = Referral::query()
+            ->join('students', 'students.id', '=', 'referrals.student_id')
+            ->when($request->date_from, fn($q) => $q->whereDate('referrals.created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('referrals.created_at', '<=', $request->date_to))
+            ->groupBy('students.college')
+            ->select('students.college', DB::raw('count(*) as count'))
+            ->pluck('count', 'college');
+
+        $rows = College::orderBy('name')->pluck('name')
+            ->merge($counts->keys())
+            ->unique()
+            ->map(fn($name) => ['college' => $name ?: 'Not specified', 'count' => (int) ($counts[$name] ?? 0)])
+            ->values()
+            ->all();
+
+        usort($rows, fn($a, $b) => [$b['count'], $a['college']] <=> [$a['count'], $b['college']]);
+
+        return $rows;
+    }
+
+    /**
+     * What the office actually delivered in the period, as opposed to the
+     * referrals it received.
+     */
+    private function buildServicesReport(Request $request): array
+    {
+        $between = fn($query, string $column) => $query
+            ->when($request->date_from, fn($q) => $q->whereDate($column, '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate($column, '<=', $request->date_to));
+
+        return [
+            ['service' => 'Counseling sessions conducted',     'count' => $between(SessionNote::query(), 'session_date')->count()],
+            ['service' => 'Appointments completed',            'count' => $between(Appointment::where('status', 'completed'), 'appointment_date')->count()],
+            ['service' => 'Class admission slips issued',      'count' => $between(Referral::whereNotNull('admission_issued_at'), 'admission_issued_at')->count()],
+            ['service' => 'Feedback slips sent to referrers',  'count' => $between(FeedbackSlip::query(), 'sent_at')->count()],
+            ['service' => 'Psychological tests administered',  'count' => $between(TestingRecord::whereNotNull('tests_administered'), 'testing_date')->count()],
+            ['service' => 'Test results issued to GCU',        'count' => $between(TestingRecord::whereNotNull('report_sent_at'), 'report_sent_at')->count()],
         ];
     }
 
@@ -238,6 +299,7 @@ class ReportController extends Controller
             'cases'        => $this->buildCasesReport($request),
             'appointments' => $this->buildAppointmentsReport($request),
             'recurring'    => $this->buildRecurringReport($request),
+            'services'     => $this->buildServicesReport($request),
         ];
 
         $pdf = Pdf::loadView('reports.export-pdf', $data)->setPaper('a4', 'portrait');
@@ -313,6 +375,18 @@ class ReportController extends Controller
         $sheet->setCellValue("A{$row}", 'By Status');
         $sheet->fromArray(['Status', 'Count'], null, 'A' . ($row + 1));
         $this->writeRows($sheet, $appointments['by_status'], ['status', 'count'], $row + 2);
+
+        // ----- By College sheet -----
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('By College');
+        $sheet->fromArray(['College (of the referred student)', 'Referrals'], null, 'A1');
+        $this->writeRows($sheet, $referrals['by_student_college'], ['college', 'count'], 2);
+
+        // ----- Services Rendered sheet -----
+        $sheet = $spreadsheet->createSheet();
+        $sheet->setTitle('Services Rendered');
+        $sheet->fromArray(['Service', 'Count'], null, 'A1');
+        $this->writeRows($sheet, $this->buildServicesReport($request), ['service', 'count'], 2);
 
         // ----- Recurring Concerns sheet -----
         $sheet = $spreadsheet->createSheet();

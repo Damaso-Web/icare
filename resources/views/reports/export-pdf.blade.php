@@ -59,6 +59,24 @@
         @endforelse
     </table>
 
+    <h2>Referrals by College</h2>
+    <table>
+        <tr><th>College (of the referred student)</th><th>Referrals</th></tr>
+        @forelse ($referrals['by_student_college'] as $row)
+            <tr><td>{{ $row['college'] }}</td><td>{{ $row['count'] }}</td></tr>
+        @empty
+            <tr><td colspan="2">No data</td></tr>
+        @endforelse
+    </table>
+
+    <h2>Services Rendered</h2>
+    <table>
+        <tr><th>Service</th><th>Count</th></tr>
+        @foreach ($services as $row)
+            <tr><td>{{ $row['service'] }}</td><td>{{ $row['count'] }}</td></tr>
+        @endforeach
+    </table>
+
     <h2>Cases by Status</h2>
     <table>
         <tr><th>Status</th><th>Count</th></tr>

@@ -183,6 +183,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('appointments', [ReportController::class, 'appointments']);
         Route::get('cases',        [ReportController::class, 'cases']);
         Route::get('recurring-concerns', [ReportController::class, 'recurringConcerns']);
+        Route::get('services',     [ReportController::class, 'services']);
         Route::get('dashboard',    [ReportController::class, 'dashboardStats']);
         Route::get('export/pdf',   [ReportController::class, 'exportPdf']);
         Route::get('export/excel', [ReportController::class, 'exportExcel']);

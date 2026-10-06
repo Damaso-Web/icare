@@ -267,6 +267,7 @@ export const reportAPI = {
     appointments: (params) => api.get('/reports/appointments', { params }),
     cases:        (params) => api.get('/reports/cases', { params }),
     recurringConcerns: (params) => api.get('/reports/recurring-concerns', { params }),
+    services:     (params) => api.get('/reports/services', { params }),
     dashboard:    ()       => api.get('/reports/dashboard'),
 };
 
