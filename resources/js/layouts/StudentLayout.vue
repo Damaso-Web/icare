@@ -5,7 +5,8 @@
          a long page (e.g. "My Appointments" with many rows) made this
          flex child grow to match the content's height, pushing the
          logout button far down the page instead of staying reachable. -->
-    <div style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
+    <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
+    <div class="stu-sidebar" :class="{ open: menuOpen }" style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
       <div style="padding:20px;display:flex;align-items:center;gap:10px">
         <img :src="'/icare-logo.png'" alt="iCARE" style="width:32px;height:32px;background:#fff;border-radius:8px;padding:3px;object-fit:contain;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)" />
         <div>
@@ -52,8 +53,11 @@
 
     <!-- Main content -->
     <div style="flex:1;background:var(--snow);min-width:0">
-      <div style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:relative">
-        <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
+      <div class="stu-topbar" style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:relative">
+        <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+          <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
+        </div>
         <div style="display:flex;align-items:center;gap:16px">
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
             <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block">
@@ -92,7 +96,7 @@
           </div>
         </div>
       </div>
-      <div style="padding:24px">
+      <div class="stu-content" style="padding:24px">
         <router-view />
       </div>
     </div>
@@ -100,12 +104,16 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
 const route  = useRoute();
 const router = useRouter();
+
+// Phone menu: closed by default, and closes again after choosing a page.
+const menuOpen = ref(false);
+watch(() => route.fullPath, () => { menuOpen.value = false; });
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
