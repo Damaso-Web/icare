@@ -1,8 +1,9 @@
 <template>
   <div style="display:flex;height:100vh;overflow:hidden">
 
-    <!-- Sidebar -->
-    <div class="sidebar">
+    <!-- Sidebar (slides in over the page on phones) -->
+    <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
+    <div class="sidebar" :class="{ open: menuOpen }">
       <div class="sb-head">
         <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
         <div>
@@ -40,6 +41,8 @@
             <option value="sdu_head" style="color:#000">SDU Head</option>
             <option value="tmdu_staff" style="color:#000">TMDU Staff</option>
             <option value="faculty" style="color:#000">Faculty Member</option>
+            <option value="dean" style="color:#000">Dean</option>
+            <option value="dept_chair" style="color:#000">Department Chair</option>
             <option value="dean_secretary" style="color:#000">Dean's Secretary</option>
             <option value="system_admin" style="color:#000">System Admin (Management)</option>
             <option value="student" style="color:#000">Student (Portal)</option>
@@ -67,9 +70,10 @@
 
       <!-- Topbar -->
       <div class="topbar" style="position:relative">
+        <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
-          <span style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
+          <span class="tb-email" style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
 
           <!-- Notification Bell -->
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
@@ -122,7 +126,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
@@ -167,6 +171,10 @@ async function syncUser() {
     if (roleChanged && route.name !== 'dashboard') router.replace({ name: 'dashboard' });
   } catch (e) { /* keep the cached user */ }
 }
+
+// Phone menu: closed by default, and closes again after choosing a page.
+const menuOpen = ref(false);
+watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
 const notifications = ref([]);
@@ -236,6 +244,8 @@ const roleLabel = computed(() => {
     sdu_head:       'SDU Head',
     tmdu_staff:     'TMDU Staff',
     faculty:        'Faculty',
+    dean:           'Dean',
+    dept_chair:     'Department Chair',
     dean_secretary: "Dean's Secretary",
     system_admin:   'System Admin',
   };
@@ -278,35 +288,35 @@ const menuItems = computed(() => {
       name:    'dashboard',
       label:   'Dashboard',
       icon:    '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
       section: 'Main',
     },
     {
       name:    'students',
       label:   'Students',
       icon:    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'],
+      roles:   ['admin', 'gcu_staff'],
       section: null,
     },
     {
       name:    'faculty-directory',
       label:   'Faculty',
       icon:    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-      roles:   ['admin'],
+      roles:   ['admin', 'dean', 'dept_chair'],
       section: null,
     },
     {
       name:    'referral-create',
       label:   'Refer Student',
       icon:    '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
       section: null,
     },
         {
       name:    'referrals',
       label:   role === 'tmdu_staff' ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-      roles:   ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'],
+      roles:   ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'],
       section: null,
     },
     {
@@ -390,7 +400,7 @@ const menuItems = computed(() => {
       name:    'my-account',
       label:   'My Account',
       icon:    '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
-      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'],
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
       section: null,
     },
     {

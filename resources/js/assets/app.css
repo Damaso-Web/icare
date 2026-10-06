@@ -175,3 +175,68 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
    nothing else can be triggered until it finishes. */
 body.is-busy .ibtn,
 body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progress}
+
+/* ============ PHONE LAYOUT ============ */
+/* Tables scroll sideways inside their card instead of squeezing. */
+.ts{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.menu-btn{display:none;background:none;border:none;cursor:pointer;padding:7px;margin-left:-7px;color:var(--slate);border-radius:var(--r-sm);flex-shrink:0}
+.menu-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;display:block}
+.sb-backdrop{display:none}
+
+@media (max-width:860px){
+  /* The menu becomes a panel that slides in from the left. */
+  .menu-btn{display:inline-flex}
+  .sidebar,.stu-sidebar{position:fixed !important;top:0;left:0;height:100vh !important;height:100dvh !important;z-index:200;transform:translateX(-105%);transition:transform .22s ease,box-shadow .22s ease;box-shadow:none;max-width:84vw}
+  /* The shadow only exists while the menu is open (it used to bleed in from the left edge). */
+  .sidebar.open,.stu-sidebar.open{transform:none;box-shadow:0 0 40px rgba(0,0,0,.35)}
+  .sb-backdrop{display:block;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:190}
+
+  .topbar{padding:0 12px}
+  .tb-email{display:none}
+  .content-area{padding:14px 12px}
+  .stu-topbar{padding:12px 14px !important}
+  .stu-content{padding:14px 12px !important}
+  .ph h1{font-size:22px}
+
+  /* Side-by-side columns written inline in the pages stack into one column.
+     Grids built with repeat() (calendars, tile rows) keep their own layout. */
+  [style*="grid-template-columns"]:not([style*="repeat("]){grid-template-columns:minmax(0,1fr) !important}
+  /* A column must not stay sticky once it sits above or below its neighbour. */
+  .content-area [style*="position:sticky"],.stu-content [style*="position:sticky"]{position:static !important}
+
+  /* Filters: one control per line, full width. */
+  .filter-bar>.sw,.filter-bar>.fsm,.filter-bar>.ifi,.filter-bar>select,.filter-bar>input{flex:1 1 100%;width:100% !important}
+  .filter-bar .sin{width:100% !important}
+  .filter-bar>.ifi,.filter-bar>select,.filter-bar>input{max-width:none !important}
+  .filter-bar>.ibtn{flex:1 1 auto;justify-content:center}
+  .content-area input[style*="width"],.content-area select[style*="width"],.stu-content input[style*="width"],.stu-content select[style*="width"]{max-width:100%}
+
+  /* Wide tables keep readable columns and scroll within the card. */
+  .ts>.itable{min-width:620px}
+  .itable thead th,.itable tbody td{padding-left:12px;padding-right:12px}
+
+  /* Card headers with a title and a badge or button wrap instead of overflowing. */
+  .icard-header{flex-wrap:wrap}
+
+  /* 16px inputs stop iPhones from zooming the page when a field is tapped. */
+  .ifi,.ifse,.ifta,.sin,.fsm,input,select,textarea{font-size:16px !important}
+  /* Scroll hint: a soft edge shows when a table has more columns off-screen. */
+  .ts{background:
+      linear-gradient(to right,#fff 30%,rgba(255,255,255,0)) left center / 28px 100% no-repeat local,
+      linear-gradient(to left,#fff 30%,rgba(255,255,255,0)) right center / 28px 100% no-repeat local,
+      radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.14),rgba(0,0,0,0)) left center / 10px 100% no-repeat scroll,
+      radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.14),rgba(0,0,0,0)) right center / 10px 100% no-repeat scroll}
+
+  /* Grids that ask for a 340px column would overflow narrow phones. */
+  [style*="minmax(340px"]{grid-template-columns:minmax(0,1fr) !important}
+
+  /* Bigger tap targets for small buttons; keep the notch / home bar clear. */
+  .ibtn-sm{min-height:36px}
+  .content-area,.stu-content{padding-bottom:calc(14px + env(safe-area-inset-bottom)) !important}
+
+  /* Floating modals: never wider than the screen, always scrollable. */
+  [style*="position:fixed"][style*="inset:0"]>div{max-width:100% !important;max-height:92vh !important;overflow-y:auto}
+
+  /* Notification panel fits the screen. */
+  .topbar [style*="width:320px"],.stu-topbar [style*="width:320px"]{width:calc(100vw - 24px) !important;right:12px !important}
+}

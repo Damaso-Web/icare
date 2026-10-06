@@ -211,6 +211,19 @@
         Only Admin can edit document headers. You can view the current values below.
       </div>
 
+      <!-- Each unit manages its own document headers -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button v-for="u in docUnits" :key="u.key" class="ibtn ibtn-sm" :class="docUnit === u.key ? 'ibtn-p' : 'ibtn-o'" @click="docUnit = u.key">{{ u.label }}</button>
+      </div>
+
+      <div v-if="docUnit !== 'GCU'" class="icard">
+        <div class="icard-header"><span class="icard-title">{{ docUnit === 'TMDU' ? 'Testing and Monitoring Development Unit (TMDU)' : 'Student Discipline Unit (SDU)' }}</span></div>
+        <div class="icard-body" style="font-size:13px;color:var(--stone)">
+          The {{ docUnit }} document headers will be added here later.
+        </div>
+      </div>
+
+      <template v-if="docUnit === 'GCU'">
       <!-- Referral Slip (QF-OSS-01) -->
       <div class="icard">
         <div class="icard-header"><span class="icard-title">Referral Slip / Form (QF-OSS-01)</span></div>
@@ -312,6 +325,7 @@
           </button>
         </div>
       </div>
+      </template>
     </div>
 
     <!-- ============ College Modal ============ -->
@@ -492,6 +506,14 @@ function authHeaders() {
 // Document Headers are admin-only to edit (route:role:admin on the backend);
 // system_admin can view Management but not save these.
 const isAdmin = computed(() => auth.user?.role === 'admin');
+
+// Document Headers are grouped per unit; TMDU and SDU headers come later.
+const docUnits = [
+  { key: 'GCU',  label: 'GCU' },
+  { key: 'TMDU', label: 'TMDU' },
+  { key: 'SDU',  label: 'SDU' },
+];
+const docUnit = ref('GCU');
 
 const tabs = [
   { key: 'colleges',     label: 'Colleges' },

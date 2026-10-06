@@ -470,7 +470,7 @@ const studentSearchLoading = ref(false);
 let studentSearchTimeout = null;
 
 const isFacultyOrDean = computed(() =>
-  auth.user?.role === 'faculty' || auth.user?.role === 'dean_secretary'
+  ['faculty', 'dean', 'dept_chair', 'dean_secretary'].includes(auth.user?.role)
 );
 
 const availablePrograms = computed(() => programsByCollege.value[form.value.college] || []);
@@ -502,7 +502,7 @@ const form = ref({
   referrer_first_name:   '',
   referrer_middle_name:  '',
   referral_type:         '',
-  referral_source:       auth.user?.role || 'faculty',
+  referral_source:       (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty',
   nature_of_concern:     '',
 });
 
@@ -662,7 +662,7 @@ function clearForm() {
     referrer_last_name:   auth.user?.last_name || '',
     referrer_first_name:  auth.user?.first_name || '',
     referrer_middle_name: auth.user?.middle_name || '',
-    referral_type: '', referral_source: auth.user?.role || 'faculty', nature_of_concern: '',
+    referral_type: '', referral_source: (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty', nature_of_concern: '',
   };
   fieldErrors.value = {};
 }
@@ -676,7 +676,7 @@ onMounted(() => {
   form.value.referrer_last_name   = auth.user?.last_name || '';
   form.value.referrer_first_name  = auth.user?.first_name || '';
   form.value.referrer_middle_name = auth.user?.middle_name || '';
-  form.value.referral_source      = auth.user?.role || 'faculty';
+  form.value.referral_source      = (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty';
   fetchManagementData();
   fetchFormOptions();
   fetchDocSettings();
