@@ -5,9 +5,33 @@
       <p>Fill in your Personal, Family, Siblings and Educational information, and update your password.</p>
     </div>
 
-    <div style="max-width:680px;display:flex;flex-direction:column;gap:16px">
+    <!-- Profile header, then one section at a time behind tabs, in a column of
+         comfortable width - the full form is far too long to show at once. -->
+    <div style="max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
-      <div class="icard">
+      <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
+        <div style="min-width:0">
+          <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ student.first_name }} {{ student.last_name }}</div>
+          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ headerDetails }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">
+        <button
+          v-for="t in TABS"
+          :key="t.value"
+          type="button"
+          class="ibtn ibtn-sm"
+          :class="tab === t.value ? 'ibtn-p' : 'ibtn-o'"
+          style="flex-shrink:0"
+          @click="tab = t.value"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+
+      <div v-show="tab === 'personal'" class="icard">
         <div class="icard-header"><span class="icard-title">Personal Information</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="profileError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileError }}</div>
@@ -107,12 +131,13 @@
         </div>
       </div>
 
-      <div class="icard">
-        <div class="icard-header"><span class="icard-title">Family &amp; Educational Background</span></div>
+      <div v-show="tab === 'family' || tab === 'education'" class="icard">
+        <div class="icard-header"><span class="icard-title">{{ tab === 'education' ? 'Educational Background' : 'Family Background' }}</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
           <div v-if="backgroundError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundError }}</div>
           <div v-if="backgroundSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundSuccess }}</div>
 
+          <div v-show="tab === 'family'" style="display:flex;flex-direction:column;gap:16px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Family Information</div>
 
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Father</div>
@@ -284,9 +309,10 @@
           <div style="display:flex;justify-content:flex-end">
             <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isSiblingsUnchanged || savingSiblings" @click="requestSave('siblings')">{{ savingSiblings ? 'Saving...' : 'Save Siblings Information' }}</button>
           </div>
+          </div>
 
-          <div style="height:1px;background:var(--cloud)"></div>
 
+          <div v-show="tab === 'education'" style="display:flex;flex-direction:column;gap:16px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Educational Attainment</div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Senior High School</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
@@ -348,10 +374,11 @@
           <div style="display:flex;justify-content:flex-end">
             <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isEducationUnchanged || savingEducation" @click="requestSave('education')">{{ savingEducation ? 'Saving...' : 'Save Educational Attainment' }}</button>
           </div>
+          </div>
         </div>
       </div>
 
-      <div class="icard">
+      <div v-show="tab === 'password'" class="icard">
         <div class="icard-header"><span class="icard-title">Change Password</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pwError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwError }}</div>
@@ -412,6 +439,25 @@ import axios from 'axios';
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
+
+// ---- Tabs ----
+const TABS = [
+  { value: 'personal',  label: 'Personal' },
+  { value: 'family',    label: 'Family' },
+  { value: 'education', label: 'Education' },
+  { value: 'password',  label: 'Password' },
+];
+// A student still on a temporary password lands on the Password tab.
+const tab = ref(student.value.must_change_password ? 'password' : 'personal');
+
+const headerInitials = computed(() =>
+  `${student.value.first_name?.[0] || ''}${student.value.last_name?.[0] || ''}`.toUpperCase() || '?'
+);
+const headerDetails = computed(() => {
+  const s = student.value;
+  const year = s.year_level ? (/year/i.test(s.year_level) ? s.year_level : `Year ${s.year_level}`) : '';
+  return [s.student_id, [s.program, year].filter(Boolean).join(' - '), s.college].filter(Boolean).join(' · ');
+});
 const CIVIL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
 const todayStr = new Date().toISOString().split('T')[0];
 const profileForm = ref({

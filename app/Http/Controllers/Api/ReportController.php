@@ -17,8 +17,7 @@ use App\Models\TestingRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Support\ReportWorkbook;
 
 class ReportController extends Controller
 {
@@ -427,148 +426,164 @@ class ReportController extends Controller
             'period_label' => 'nullable|string|max:100',
         ]);
 
-        if ($this->unit($request) === 'SDU') {
-            return $this->exportSduExcel($request);
-        }
+        $unit = $this->unit($request);
+        $unitNames = [
+            'GCU'  => 'Guidance and Counseling Unit',
+            'TMDU' => 'Testing and Measurement Development Unit',
+            'SDU'  => 'Student Discipline Unit',
+        ];
+        $range = ($request->date_from ? date('F j, Y', strtotime($request->date_from)) : 'Start of records')
+               . ' to ' . ($request->date_to ? date('F j, Y', strtotime($request->date_to)) : 'present');
+        $period = ($request->period_label ? $request->period_label . '  |  ' : '') . $range;
 
+        $book = new ReportWorkbook($unitNames[$unit], "{$unit} Accomplishment Report", $period, now()->format('F j, Y g:i A'));
+
+        $unit === 'SDU' ? $this->fillSduWorkbook($book, $request) : $this->fillUnitWorkbook($book, $request, $unit);
+
+        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.xlsx';
+
+        return response()->download($book->save($filename), $filename)->deleteFileAfterSend(true);
+    }
+
+    /** "in_review" -> "In Review" */
+    private function label(?string $value): string
+    {
+        return $value ? ucwords(str_replace('_', ' ', $value)) : 'Not specified';
+    }
+
+    /** GCU and TMDU workbook: summary, breakdowns and the detailed referral list. */
+    private function fillUnitWorkbook(ReportWorkbook $book, Request $request, string $unit): void
+    {
         $referrals    = $this->buildReferralsReport($request);
         $cases        = $this->buildCasesReport($request);
         $appointments = $this->buildAppointmentsReport($request);
         $recurring    = $this->buildRecurringReport($request);
+        $services     = $this->buildServicesReport($request);
 
-        $spreadsheet = new Spreadsheet();
+        $total = max(1, $referrals['total']);
+        $share = fn(int $count) => $referrals['total'] ? $count / $total : 0;
+        $byType = array_map(fn($r) => [$this->label($r['referral_type']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_type']);
+        usort($byType, fn($a, $b) => $b[1] <=> $a[1]);
 
-        // ----- Summary sheet -----
-        $summary = $spreadsheet->getActiveSheet();
-        $summary->setTitle('Summary');
-        $summary->fromArray([
-            ['iCARE ' . $this->unit($request) . ' Report'],
-            ['Generated: ' . now()->format('F j, Y g:i A')],
-            [($request->period_label ? 'Period: ' . $request->period_label . ' | ' : '') . 'Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
-            [],
-            ['Metric', 'Value'],
-            ['Total Referrals', $referrals['total']],
-            ['Total Cases', $cases['total']],
-            ['Pending Cases', $cases['pending']],
-            ['Avg. Days to Close', $cases['avg_days_to_close']],
-            ['Total Appointments', $appointments['total']],
-            ['Cases referred to TMDU', $cases['referred_tmdu']],
-            ['Students with Recurring Referrals', $recurring['total_recurring_students']],
-        ], null, 'A1');
+        // ----- Summary -----
+        $figures = [
+            ['Total referrals received', (int) $referrals['total']],
+            ['Total cases handled', (int) $cases['total']],
+            ['Pending cases', (int) $cases['pending']],
+            ['Average days to close a case', (float) $cases['avg_days_to_close']],
+            ['Total appointments', (int) $appointments['total']],
+            ['Students with recurring referrals', (int) $recurring['total_recurring_students']],
+        ];
+        if ($unit === 'GCU') {
+            $figures[] = ['Cases referred to TMDU for testing', (int) $cases['referred_tmdu']];
+        }
 
-        // ----- Referrals sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Referrals');
-        $sheet->fromArray(['By Status'], null, 'A1');
-        $sheet->fromArray(['Status', 'Count'], null, 'A2');
-        $this->writeRows($sheet, $referrals['by_status'], ['status', 'count'], 3);
+        $book->sheet('Summary', 'Summary of Accomplishments', [46, 16, 16])
+            ->section('A. Key Figures')
+            ->table(['Indicator', 'Number', ''], array_map(fn($r) => [$r[0], $r[1], ''], $figures), ['center' => [1]])
+            ->section('B. Referrals Received, by Type')
+            ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('C. Services Rendered')
+            ->table(['Service', 'Number', ''], array_map(fn($r) => [$r['service'], (int) $r['count'], ''], $services), ['center' => [1]])
+            ->signatures();
 
-        $row = 3 + count($referrals['by_status']) + 2;
-        $sheet->setCellValue("A{$row}", 'By Type');
-        $sheet->fromArray(['Referral Type', 'Count'], null, 'A' . ($row + 1));
-        $this->writeRows($sheet, $referrals['by_type'], ['referral_type', 'count'], $row + 2);
+        // ----- Referrals -----
+        $months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        $book->sheet('Referrals', 'Referrals Received', [46, 16, 16])
+            ->section('A. By Type of Referral')
+            ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('B. By Status')
+            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('C. By Month')
+            ->table(['Month', 'Year', 'Number'], array_map(fn($r) => [$months[(int) $r['month']], (int) $r['year'], (int) $r['count']], $referrals['monthly_trend']), ['total' => [2], 'center' => [1, 2]]);
 
-        // ----- Cases sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Cases');
-        $sheet->fromArray(['By Status'], null, 'A1');
-        $sheet->fromArray(['Status', 'Count'], null, 'A2');
-        $this->writeRows($sheet, $cases['by_status'], ['status', 'count'], 3);
+        // ----- By College -----
+        $book->sheet('By College', 'Referrals by College of the Student', [56, 16, 16])
+            ->table(['College', 'Number', '% of Total'], array_map(fn($r) => [$r['college'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_student_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
 
-        $row = 3 + count($cases['by_status']) + 2;
-        $sheet->setCellValue("A{$row}", 'By Unit');
-        $sheet->fromArray(['Unit', 'Count'], null, 'A' . ($row + 1));
-        $this->writeRows($sheet, $cases['by_unit'], ['current_unit', 'count'], $row + 2);
+        // ----- Cases and Appointments -----
+        $statusCount = fn(string $status) => (int) (collect($appointments['by_status'])->firstWhere('status', $status)['count'] ?? 0);
+        $book->sheet('Cases & Appointments', 'Cases and Appointments', [46, 16, 16])
+            ->section('A. Cases by Status')
+            ->table(['Status', 'Number', ''], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], ''], $cases['by_status']), ['total' => [1], 'center' => [1]])
+            ->section('B. Appointments by Status')
+            ->table(['Status', 'Number', ''], array_map(fn($s) => [$this->label($s), $statusCount($s), ''], ['pending', 'confirmed', 'completed', 'cancelled', 'no_show']), ['total' => [1], 'center' => [1]])
+            ->section('C. Appointments by Type')
+            ->table(['Type of Appointment', 'Number', ''], array_map(fn($r) => [$this->label($r['appointment_type']), (int) $r['count'], ''], $appointments['by_type']), ['total' => [1], 'center' => [1]]);
 
-        // ----- Appointments sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Appointments');
-        $sheet->fromArray(['By Unit'], null, 'A1');
-        $sheet->fromArray(['Unit', 'Count'], null, 'A2');
-        $this->writeRows($sheet, $appointments['by_unit'], ['unit', 'count'], 3);
+        // ----- Recurring Concerns -----
+        $book->sheet('Recurring Concerns', 'Recurring Concerns', [40, 16, 18, 20])
+            ->table(['Type of Referral', 'Total Referrals', 'Distinct Students', 'Students Referred More Than Once'],
+                array_map(fn($r) => [$this->label($r['referral_type']), (int) $r['total_referrals'], (int) $r['distinct_students'], (int) $r['recurring_students']], $recurring['by_type']),
+                ['total' => [1], 'center' => [1, 2, 3]]);
 
-        $row = 3 + count($appointments['by_unit']) + 2;
-        $sheet->setCellValue("A{$row}", 'By Status');
-        $sheet->fromArray(['Status', 'Count'], null, 'A' . ($row + 1));
-        $this->writeRows($sheet, $appointments['by_status'], ['status', 'count'], $row + 2);
+        // ----- Detailed list -----
+        // One row per referral. Student names and ID numbers are left out on
+        // purpose: this file leaves the office, and guidance records are confidential.
+        $rows = $this->forUnit(Referral::with('student'), $unit)
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->orderBy('created_at')
+            ->get()
+            ->values()
+            ->map(fn($r, $i) => [
+                $i + 1,
+                $r->referral_code,
+                $r->created_at?->format('M j, Y'),
+                $r->student?->college ?: 'Not specified',
+                $r->student?->program ?: 'Not specified',
+                $r->student?->year_level ?: '-',
+                $r->student?->sex ?: '-',
+                $this->label($r->referral_type),
+                $this->label($r->status),
+            ])->all();
 
-        // ----- By College sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('By College');
-        $sheet->fromArray(['College (of the referred student)', 'Referrals'], null, 'A1');
-        $this->writeRows($sheet, $referrals['by_student_college'], ['college', 'count'], 2);
-
-        // ----- Services Rendered sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Services Rendered');
-        $sheet->fromArray(['Service', 'Count'], null, 'A1');
-        $this->writeRows($sheet, $this->buildServicesReport($request), ['service', 'count'], 2);
-
-        // ----- Recurring Concerns sheet -----
-        $sheet = $spreadsheet->createSheet();
-        $sheet->setTitle('Recurring Concerns');
-        $sheet->fromArray(['Referral Type', 'Total Referrals', 'Distinct Students', 'Recurring Students'], null, 'A1');
-        $this->writeRows($sheet, $recurring['by_type'], ['referral_type', 'total_referrals', 'distinct_students', 'recurring_students'], 2);
-
-        $spreadsheet->setActiveSheetIndex(0);
-
-        $filename = 'iCARE-Report-' . now()->format('Y-m-d') . '.xlsx';
-        $tmpPath = storage_path('app/' . $filename);
-        (new Xlsx($spreadsheet))->save($tmpPath);
-
-        return response()->download($tmpPath, $filename)->deleteFileAfterSend(true);
+        $book->sheet('Referral List', 'Detailed List of Referrals', [6, 18, 14, 38, 38, 12, 10, 24, 16])
+            ->landscape()
+            ->table(['No.', 'Referral No.', 'Date Received', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true]);
     }
 
-    private function exportSduExcel(Request $request)
+    /** SDU workbook: complaint counts and the detailed complaint list. */
+    private function fillSduWorkbook(ReportWorkbook $book, Request $request): void
     {
         $complaints = $this->buildComplaintsReport($request);
+        $total = max(1, $complaints['total']);
+        $share = fn(int $count) => $complaints['total'] ? $count / $total : 0;
+        $counted = fn(array $rows) => array_map(fn($r) => [$r['label'], (int) $r['count'], $share((int) $r['count'])], $rows);
 
-        $spreadsheet = new Spreadsheet();
-        $summary = $spreadsheet->getActiveSheet();
-        $summary->setTitle('Summary');
-        $summary->fromArray(array_merge([
-            ['iCARE SDU Report'],
-            ['Generated: ' . now()->format('F j, Y g:i A')],
-            [($request->period_label ? 'Period: ' . $request->period_label . ' | ' : '') . 'Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
-            [],
-            ['Metric', 'Value'],
-            ['Total Complaints', $complaints['total']],
-        ], array_map(fn($row) => [$row['label'], $row['count']], $complaints['by_status'])), null, 'A1');
+        $book->sheet('Summary', 'Summary of Complaints Received', [50, 16, 16])
+            ->section('A. Complaints by Status')
+            ->table(['Status', 'Number', '% of Total'], $counted($complaints['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('B. Complaints by Misconduct')
+            ->table(['Misconduct', 'Number', '% of Total'], $counted($complaints['by_misconduct']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->signatures();
 
-        foreach ([
-            'By Misconduct' => [['Misconduct', 'Complaints'], $complaints['by_misconduct'], ['label', 'count']],
-            'By College'    => [['College', 'Complaints'], $complaints['by_college'], ['label', 'count']],
-            'By Department' => [['Department', 'College', 'Complaints'], $complaints['by_department'], ['label', 'college', 'count']],
-        ] as $title => [$header, $rows, $keys]) {
-            $sheet = $spreadsheet->createSheet();
-            $sheet->setTitle($title);
-            $sheet->fromArray($header, null, 'A1');
-            $this->writeRows($sheet, $rows, $keys, 2);
-        }
+        $book->sheet('By College', 'Complaints by College', [56, 16, 16])
+            ->table(['College', 'Number', '% of Total'], $counted($complaints['by_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
 
-        $spreadsheet->setActiveSheetIndex(0);
+        $book->sheet('By Department', 'Complaints by Department', [40, 46, 14])
+            ->table(['Department', 'College', 'Number'], array_map(fn($r) => [$r['label'], $r['college'], (int) $r['count']], $complaints['by_department']), ['total' => [2], 'center' => [2]]);
 
-        $filename = 'iCARE-SDU-Report-' . now()->format('Y-m-d') . '.xlsx';
-        $tmpPath = storage_path('app/' . $filename);
-        (new Xlsx($spreadsheet))->save($tmpPath);
+        // One row per complaint, without the names of the persons involved.
+        $rows = Complaint::query()
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->orderBy('created_at')
+            ->get()
+            ->values()
+            ->map(fn($c, $i) => [
+                $i + 1,
+                $c->complaint_code,
+                $c->created_at?->format('M j, Y'),
+                $c->incident_date ? date('M j, Y', strtotime($c->incident_date)) : '-',
+                $c->complainee_college ?: 'Not specified',
+                $c->complainee_department ?: 'Not specified',
+                $c->violation_type ?: 'Not specified',
+                $this->label($c->status),
+            ])->all();
 
-        return response()->download($tmpPath, $filename)->deleteFileAfterSend(true);
-    }
-
-    /**
-     * Writes an array of associative rows into $sheet starting at $startRow,
-     * pulling the given $keys from each row in order.
-     */
-    private function writeRows($sheet, array $rows, array $keys, int $startRow): void
-    {
-        $r = $startRow;
-        foreach ($rows as $row) {
-            $col = 'A';
-            foreach ($keys as $key) {
-                $sheet->setCellValue("{$col}{$r}", $row[$key] ?? '');
-                $col++;
-            }
-            $r++;
-        }
+        $book->sheet('Complaint List', 'Detailed List of Complaints', [6, 18, 14, 14, 38, 28, 40, 16])
+            ->landscape()
+            ->table(['No.', 'Complaint No.', 'Date Filed', 'Date of Incident', 'College', 'Department', 'Misconduct', 'Status'], $rows, ['center' => [0, 2, 3], 'repeat' => true]);
     }
 }
