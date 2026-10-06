@@ -125,7 +125,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import { notificationAPI, devAPI } from '../api/index';
+import api, { notificationAPI, devAPI } from '../api/index';
 
 const router = useRouter();
 const route  = useRoute();
@@ -153,6 +153,19 @@ async function handleDevSwitch() {
   } finally {
     switching.value = false;
   }
+}
+
+// The role cached at login can go stale - an Admin may change it, and the
+// tester account's role switch applies to every browser it is signed in on.
+// The server enforces the real role, so make the menu and pages match it.
+async function syncUser() {
+  try {
+    const res = await api.get('/me');
+    const roleChanged = res.data.role !== auth.user?.role;
+    auth.setUser({ ...auth.user, ...res.data });
+    devRole.value = res.data.role;
+    if (roleChanged && route.name !== 'dashboard') router.replace({ name: 'dashboard' });
+  } catch (e) { /* keep the cached user */ }
 }
 
 const showNotifs = ref(false);
@@ -417,5 +430,8 @@ async function handleLogout() {
   router.push({ name: 'login-choice' });
 }
 
-onMounted(() => fetchNotifications());
+onMounted(() => {
+  fetchNotifications();
+  syncUser();
+});
 </script>

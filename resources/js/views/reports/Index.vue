@@ -34,7 +34,8 @@
     <div v-else-if="loadError" class="icard">
       <div class="empty-state">
         <h3>Couldn't load the report</h3>
-        <p>The server or the database did not respond. Check your internet connection, then try again.</p>
+        <p v-if="loadError === 'forbidden'">Your account's current role does not have access to Reports. Only Admin / GCU Head and GCU Staff can view them.</p>
+        <p v-else>The server or the database did not respond. Check your internet connection, then try again.</p>
         <button class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" @click="fetchAll">Try Again</button>
       </div>
     </div>
@@ -326,7 +327,7 @@ async function fetchAll() {
   } catch (e) {
     console.error(e);
     // Say so, rather than leaving a page of zeros that reads as "no records".
-    loadError.value = true;
+    loadError.value = e.response?.status === 403 ? 'forbidden' : 'failed';
   } finally {
     loading.value = false;
   }
