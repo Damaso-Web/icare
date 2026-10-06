@@ -5,10 +5,33 @@
       <p>Update your personal information and password.</p>
     </div>
 
-    <div style="max-width:1080px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+    <!-- Profile header, then one section at a time behind tabs - the same
+         layout as the student portal's My Account. -->
+    <div style="max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
-      <div style="display:flex;flex-direction:column;gap:16px">
-        <div class="icard">
+      <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
+        <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
+        <div style="min-width:0">
+          <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</div>
+          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ headerDetails }}</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:2px">
+        <button
+          v-for="t in TABS"
+          :key="t.value"
+          type="button"
+          class="ibtn ibtn-sm"
+          :class="tab === t.value ? 'ibtn-p' : 'ibtn-o'"
+          style="flex-shrink:0"
+          @click="tab = t.value"
+        >
+          {{ t.label }}
+        </button>
+      </div>
+
+        <div v-show="tab === 'profile'" class="icard">
           <div class="icard-header"><span class="icard-title">Profile Information</span></div>
           <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
             <div v-if="profileError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileError }}</div>
@@ -53,7 +76,7 @@
           </div>
         </div>
 
-        <div class="icard">
+        <div v-show="tab === 'details'" class="icard">
           <div class="icard-header"><span class="icard-title">Account Details</span></div>
           <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px;font-size:13px">
             <div><span style="color:var(--stone)">Employee ID:</span> {{ auth.user?.employee_id || '-' }}</div>
@@ -64,9 +87,8 @@
             <div style="font-size:11px;color:var(--fog);margin-top:4px">These details can only be changed by the Administrator.</div>
           </div>
         </div>
-      </div>
 
-      <div class="icard">
+      <div v-show="tab === 'password'" class="icard">
         <div class="icard-header"><span class="icard-title">Change Password</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pwError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwError }}</div>
@@ -127,6 +149,23 @@ import api from '../api/index';
 
 const toast = inject('toast');
 const auth  = useAuthStore();
+
+// ---- Tabs ----
+const TABS = [
+  { value: 'profile',  label: 'Profile' },
+  { value: 'details',  label: 'Account Details' },
+  { value: 'password', label: 'Password' },
+];
+// An account still on a temporary password lands on the Password tab.
+const tab = ref(auth.user?.must_change_password ? 'password' : 'profile');
+
+const headerInitials = computed(() =>
+  (auth.user?.name || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?'
+);
+const headerDetails = computed(() => {
+  const u = auth.user || {};
+  return [roleLabel.value, u.employee_id, u.unit || u.college, u.email].filter(Boolean).join(' · ');
+});
 
 const PROFILE_FIELDS = ['first_name', 'last_name', 'middle_name', 'suffix', 'email', 'contact_number'];
 
