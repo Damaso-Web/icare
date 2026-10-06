@@ -196,7 +196,13 @@ class ReportController extends Controller
             ->sortByDesc('recurring_students')
             ->values();
 
-        $topRecurringStudents = Student::withCount('referrals')
+        // Count only referrals inside the selected period, so the recurring
+        // lists agree with the rest of the report for a semester or year.
+        $inPeriod = ['referrals' => fn($q) => $q
+            ->when($request->date_from, fn($w) => $w->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($w) => $w->whereDate('created_at', '<=', $request->date_to))];
+
+        $topRecurringStudents = Student::withCount($inPeriod)
             ->having('referrals_count', '>', 1)
             ->orderByDesc('referrals_count')
             ->limit(10)
@@ -204,7 +210,7 @@ class ReportController extends Controller
 
         return [
             'by_type'                  => $byType->toArray(),
-            'total_recurring_students' => Student::withCount('referrals')->having('referrals_count', '>', 1)->count(),
+            'total_recurring_students' => Student::withCount($inPeriod)->having('referrals_count', '>', 1)->get(['id'])->count(),
             'top_recurring_students'   => $topRecurringStudents->toArray(),
         ];
     }
@@ -219,12 +225,15 @@ class ReportController extends Controller
         $request->validate([
             'date_from' => 'nullable|date',
             'date_to'   => 'nullable|date',
+            'period_label' => 'nullable|string|max:100',
         ]);
 
         $data = [
             'generated_at' => now()->format('F j, Y g:i A'),
             'date_from'    => $request->date_from,
             'date_to'      => $request->date_to,
+            // e.g. "1st Semester, A.Y. 2026-2027" - set by the Reports page period picker
+            'period_label' => $request->period_label,
             'referrals'    => $this->buildReferralsReport($request),
             'cases'        => $this->buildCasesReport($request),
             'appointments' => $this->buildAppointmentsReport($request),
@@ -241,6 +250,7 @@ class ReportController extends Controller
         $request->validate([
             'date_from' => 'nullable|date',
             'date_to'   => 'nullable|date',
+            'period_label' => 'nullable|string|max:100',
         ]);
 
         $referrals    = $this->buildReferralsReport($request);
@@ -256,7 +266,7 @@ class ReportController extends Controller
         $summary->fromArray([
             ['iCARE Reports & Analytics'],
             ['Generated: ' . now()->format('F j, Y g:i A')],
-            ['Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
+            [($request->period_label ? 'Period: ' . $request->period_label . ' | ' : '') . 'Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
             [],
             ['Metric', 'Value'],
             ['Total Referrals', $referrals['total']],

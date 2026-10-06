@@ -8,10 +8,18 @@
 
     <!-- Date Range Filter -->
     <div class="filter-bar" style="margin-bottom:20px">
-      <div style="font-size:12px;color:var(--stone);font-weight:500">Date Range:</div>
-      <input v-model="dateFrom" type="date" class="ifi" style="width:160px" />
+      <div style="font-size:12px;color:var(--stone);font-weight:500">Academic Year:</div>
+      <select v-model="academicYear" class="fsm" :disabled="period === 'custom'" @change="applyPeriod">
+        <option v-for="y in academicYears" :key="y" :value="y">{{ y }}–{{ y + 1 }}</option>
+      </select>
+      <div style="font-size:12px;color:var(--stone);font-weight:500">Period:</div>
+      <select v-model="period" class="fsm" @change="applyPeriod">
+        <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
+        <option value="custom">Custom Range</option>
+      </select>
+      <input v-model="dateFrom" type="date" class="ifi" style="width:150px" title="From date" :disabled="period !== 'custom'" />
       <span style="font-size:12px;color:var(--stone)">to</span>
-      <input v-model="dateTo" type="date" class="ifi" style="width:160px" />
+      <input v-model="dateTo" type="date" class="ifi" style="width:150px" title="To date" :disabled="period !== 'custom'" />
       <button class="ibtn ibtn-p ibtn-sm" title="Reload the report figures for the selected date range" @click="fetchAll">
         Generate
       </button>
@@ -23,6 +31,11 @@
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         {{ exporting === 'excel' ? 'Exporting...' : 'Export Excel' }}
       </button>
+    </div>
+
+    <!-- What the figures below cover -->
+    <div style="font-size:12.5px;color:var(--stone);margin:-8px 0 16px">
+      Showing: <strong style="color:var(--ink)">{{ shownLabel }}</strong>
     </div>
 
     <!-- Loading -->
@@ -242,6 +255,65 @@ const loading  = ref(true);
 const loadError = ref(false);
 const dateFrom = ref('');
 const dateTo   = ref('');
+
+// ---- Academic year / term picker ----
+// An academic year "2026-2027" starts in August 2026. Each period is a
+// [month, day] start and end; `next` means the date falls in the second
+// calendar year of the academic year. Adjust here if the school calendar moves.
+const AY_START_MONTH = 8;
+const PERIODS = [
+  { value: 'year',    label: 'Whole Academic Year', from: [8, 1],            to: [7, 31, 'next'] },
+  { value: 'first',   label: '1st Semester',        from: [8, 1],            to: [12, 31] },
+  { value: 'second',  label: '2nd Semester',        from: [1, 1, 'next'],    to: [5, 31, 'next'] },
+  { value: 'midyear', label: 'Midyear',             from: [6, 1, 'next'],    to: [7, 31, 'next'] },
+];
+
+const today = new Date();
+const currentAY = today.getMonth() + 1 >= AY_START_MONTH ? today.getFullYear() : today.getFullYear() - 1;
+// Current academic year first, then the four before it.
+const academicYears = Array.from({ length: 5 }, (_, i) => currentAY - i);
+
+function periodDates(ay, p) {
+  const iso = ([m, d, next]) => `${next ? ay + 1 : ay}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  return [iso(p.from), iso(p.to)];
+}
+
+// Open on the term that today falls in.
+const todayStr = localDateStr(today);
+const startPeriod = PERIODS.slice(1).find(p => {
+  const [from, to] = periodDates(currentAY, p);
+  return todayStr >= from && todayStr <= to;
+}) || PERIODS[0];
+
+const academicYear = ref(currentAY);
+const period       = ref(startPeriod.value);
+
+const periodLabel = computed(() => {
+  const p = PERIODS.find(x => x.value === period.value);
+  return p ? `${p.label}, A.Y. ${academicYear.value}–${academicYear.value + 1}` : '';
+});
+
+function prettyDate(str) {
+  if (!str) return '';
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const shownLabel = computed(() => {
+  const range = dateFrom.value || dateTo.value
+    ? `${prettyDate(dateFrom.value) || 'the beginning'} – ${prettyDate(dateTo.value) || 'present'}`
+    : 'All records';
+  return periodLabel.value ? `${periodLabel.value} (${range})` : range;
+});
+
+// Fill the date boxes from the chosen term and reload. Custom Range leaves
+// the dates as they are for the user to edit, then Generate.
+function applyPeriod() {
+  const p = PERIODS.find(x => x.value === period.value);
+  if (!p) return;
+  [dateFrom.value, dateTo.value] = periodDates(academicYear.value, p);
+  fetchAll();
+}
 const exporting = ref('');
 
 async function exportReport(format) {
@@ -249,7 +321,7 @@ async function exportReport(format) {
   try {
     const res = await axios.get(`${API_BASE}/reports/export/${format}`, {
       ...authHeaders(),
-      params: { date_from: dateFrom.value, date_to: dateTo.value },
+      params: { date_from: dateFrom.value, date_to: dateTo.value, period_label: periodLabel.value },
       responseType: 'blob',
     });
     const ext = format === 'pdf' ? 'pdf' : 'xlsx';
@@ -346,5 +418,5 @@ function unitColor(unit) {
   return { GCU: 'var(--moss)', SDU: 'var(--amber)', TMDU: 'var(--purple)' }[unit] || 'var(--moss)';
 }
 
-onMounted(() => fetchAll());
+onMounted(() => applyPeriod());
 </script>

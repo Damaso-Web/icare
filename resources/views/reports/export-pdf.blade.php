@@ -20,6 +20,7 @@
     <h1>iCARE Reports &amp; Analytics</h1>
     <div class="meta">
         Generated {{ $generated_at }} &middot;
+        @if (!empty($period_label)){{ $period_label }} &middot;@endif
         Date Range: {{ $date_from ?: 'All time' }} to {{ $date_to ?: 'present' }}
     </div>
 
