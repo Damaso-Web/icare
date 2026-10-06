@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Notifications\PasswordChangedNotification;
 use App\Models\Student;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
@@ -96,6 +97,7 @@ class StudentAuthController extends Controller
             'must_change_password'  => false,
         ]);
         AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
+        $student->notify(new PasswordChangedNotification());
 
         return response()->json(['message' => 'Password updated successfully.']);
     }
