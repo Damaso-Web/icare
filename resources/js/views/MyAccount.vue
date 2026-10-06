@@ -9,11 +9,15 @@
          layout as the student portal's My Account. -->
     <div style="max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
-      <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
+      <div class="icard" style="padding:18px 20px;display:flex;align-items:flex-start;gap:14px">
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
         <div style="min-width:0">
           <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</div>
-          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ headerDetails }}</div>
+          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ auth.user?.email }}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12.5px;margin-top:8px">
+            <span v-for="d in accountDetails" :key="d.label"><span style="color:var(--stone)">{{ d.label }}:</span> {{ d.value }}</span>
+          </div>
+          <div style="font-size:11px;color:var(--fog);margin-top:6px">These details can only be changed by the Administrator.</div>
         </div>
       </div>
 
@@ -76,40 +80,54 @@
           </div>
         </div>
 
-        <div v-show="tab === 'details'" class="icard">
-          <div class="icard-header"><span class="icard-title">Account Details</span></div>
-          <div style="padding:16px 20px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-            <div><span style="color:var(--stone)">Employee ID:</span> {{ auth.user?.employee_id || '-' }}</div>
-            <div><span style="color:var(--stone)">Role:</span> {{ roleLabel }}</div>
-            <div v-if="auth.user?.unit"><span style="color:var(--stone)">Unit:</span> {{ auth.user.unit }}</div>
-            <div v-if="auth.user?.college"><span style="color:var(--stone)">College:</span> {{ auth.user.college }}</div>
-            <div v-if="auth.user?.department"><span style="color:var(--stone)">Department:</span> {{ auth.user.department }}</div>
-            <div style="font-size:11px;color:var(--fog);margin-top:4px">These details can only be changed by the Administrator.</div>
-          </div>
-        </div>
-
       <div v-show="tab === 'password'" class="icard">
         <div class="icard-header"><span class="icard-title">Change Password</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pwError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwError }}</div>
           <div>
             <label class="ifl">Current Password</label>
-            <input v-model="pwForm.current_password" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
+              <button type="button" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showCurrentPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <div>
             <label class="ifl">New Password</label>
-            <input v-model="pwForm.password" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
+              <button type="button" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showNewPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <div>
             <label class="ifl">Confirm New Password</label>
-            <input v-model="pwForm.password_confirmation" type="password" class="ifi" />
+            <div style="position:relative">
+              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
+              <button type="button" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showConfirmPw ? 'Hide' : 'Show' }}</button>
+            </div>
+            <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
+            <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="changePassword">Change Password</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="askChangePassword">Change Password</button>
         </div>
       </div>
 
     </div>
 
+    <!-- Password change confirmation -->
+    <div v-if="showPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPwConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Change Password</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to change your password?</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
+            <button type="button" class="ibtn ibtn-p" :disabled="changingPw" @click="confirmChangePassword">{{ changingPw ? 'Changing...' : 'Yes, Change Password' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Email change confirmation -->
     <div v-if="showEmailConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeEmailConfirm">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -128,7 +146,10 @@
           </div>
           <div>
             <label class="ifl">Current Password</label>
-            <input v-model="confirmPassword" type="password" class="ifi" @keyup.enter="submitProfile" />
+            <div style="position:relative">
+              <input v-model="confirmPassword" :type="showEmailPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" @keyup.enter="submitProfile" />
+              <button type="button" @click="showEmailPw = !showEmailPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showEmailPw ? 'Hide' : 'Show' }}</button>
+            </div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!confirmPassword || saving" @click="submitProfile">
@@ -153,7 +174,6 @@ const auth  = useAuthStore();
 // ---- Tabs ----
 const TABS = [
   { value: 'profile',  label: 'Profile' },
-  { value: 'details',  label: 'Account Details' },
   { value: 'password', label: 'Password' },
 ];
 // An account still on a temporary password lands on the Password tab.
@@ -162,9 +182,16 @@ const tab = ref(auth.user?.must_change_password ? 'password' : 'profile');
 const headerInitials = computed(() =>
   (auth.user?.name || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?'
 );
-const headerDetails = computed(() => {
+// Read-only account details, shown in the header. Only the ones that are set.
+const accountDetails = computed(() => {
   const u = auth.user || {};
-  return [roleLabel.value, u.employee_id, u.unit || u.college, u.email].filter(Boolean).join(' · ');
+  return [
+    { label: 'Employee ID', value: u.employee_id || '-' },
+    { label: 'Role',        value: roleLabel.value },
+    { label: 'Unit',        value: u.unit },
+    { label: 'College',     value: u.college },
+    { label: 'Department',  value: u.department },
+  ].filter(d => d.value);
 });
 
 const PROFILE_FIELDS = ['first_name', 'last_name', 'middle_name', 'suffix', 'email', 'contact_number'];
@@ -180,6 +207,13 @@ const confirmError     = ref('');
 
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
 const pwError = ref('');
+// Checked as the user types, so a mismatch shows before they submit.
+const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
+const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
+const showCurrentPw = ref(false);
+const showNewPw     = ref(false);
+const showConfirmPw = ref(false);
+const showEmailPw   = ref(false);
 
 const isDirty      = computed(() => JSON.stringify(profileForm.value) !== snapshot.value);
 const emailChanged = computed(() =>
@@ -226,6 +260,7 @@ function closeEmailConfirm() {
   showEmailConfirm.value = false;
   confirmPassword.value = '';
   confirmError.value = '';
+  showEmailPw.value = false;
 }
 
 async function submitProfile() {
@@ -252,12 +287,42 @@ async function submitProfile() {
   }
 }
 
+// Password changes are confirmed first; the server then leaves a notice in
+// the account's notifications.
+const showPwConfirm = ref(false);
+const changingPw    = ref(false);
+
+function askChangePassword() {
+  pwError.value = '';
+  const f = pwForm.value;
+  if (!f.current_password || !f.password || !f.password_confirmation) {
+    pwError.value = 'Please fill in your current password and the new password twice.';
+    return;
+  }
+  if (f.password !== f.password_confirmation) {
+    pwError.value = 'The new password and its confirmation do not match.';
+    return;
+  }
+  showPwConfirm.value = true;
+}
+
+async function confirmChangePassword() {
+  changingPw.value = true;
+  try {
+    await changePassword();
+  } finally {
+    changingPw.value = false;
+    showPwConfirm.value = false;
+  }
+}
+
 async function changePassword() {
   pwError.value = '';
   try {
     await api.put('/me/password', pwForm.value);
     toast?.success('Password changed successfully.');
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
+    showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
   } catch (e) {
     pwError.value = e.response?.data?.message || 'Failed to change password.';
   }
