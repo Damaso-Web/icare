@@ -32,6 +32,23 @@ class CronController extends Controller
         ]);
     }
 
+    // The daily scheduled backup of data and configuration. Laravel's own
+    // scheduler has nothing to start it on the hosting service, so the same
+    // outside timer that calls the two jobs above calls this once a day.
+    public function backup(Request $request)
+    {
+        if (!$this->secretOk($request)) {
+            abort(403, 'Unauthorized.');
+        }
+
+        Artisan::call('backup:run', ['--type' => 'all', '--trigger' => 'scheduled']);
+
+        return response()->json([
+            'message' => 'Scheduled backup executed.',
+            'output'  => Artisan::output(),
+        ]);
+    }
+
     public function detectNoShows(Request $request)
 {
     if (!$this->secretOk($request)) {
