@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-    <h1>iCARE Reports &amp; Analytics</h1>
+    <h1>iCARE {{ $unit }} Report</h1>
     <div class="meta">
         Generated {{ $generated_at }} &middot;
         @if (!empty($period_label)){{ $period_label }} &middot;@endif

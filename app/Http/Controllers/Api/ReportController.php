@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Appointment;
 use App\Models\CaseFile;
+use App\Models\CaseIntervention;
+use App\Models\Complaint;
 use App\Models\College;
 use App\Models\FeedbackSlip;
 use App\Models\Referral;
@@ -84,9 +86,36 @@ class ReportController extends Controller
 
     // ---------- Shared report builders (used by both the JSON endpoints above and the exports below) ----------
 
+    // ---------- Unit scoping ----------
+    // Each unit has its own report. Admin (GCU Head) may open any of them;
+    // unit staff always get their own unit, whatever the request asks for.
+
+    private const UNIT_BY_ROLE = ['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'sdu_head' => 'SDU'];
+
+    private function unit(Request $request): string
+    {
+        $role = $request->user()?->role;
+
+        if (isset(self::UNIT_BY_ROLE[$role])) {
+            return self::UNIT_BY_ROLE[$role];
+        }
+
+        return in_array($request->unit, ['GCU', 'TMDU', 'SDU'], true) ? $request->unit : 'GCU';
+    }
+
+    /** Referral types belong to a unit: SDU disciplinary, TMDU testing, GCU everything else. */
+    private function forUnit($query, string $unit, string $column = 'referral_type')
+    {
+        return match ($unit) {
+            'SDU'   => $query->where($column, 'disciplinary'),
+            'TMDU'  => $query->where($column, 'psychological_testing'),
+            default => $query->whereNotIn($column, ['disciplinary', 'psychological_testing']),
+        };
+    }
+
     private function buildReferralsReport(Request $request): array
     {
-        $query = Referral::query()
+        $query = $this->forUnit(Referral::query(), $this->unit($request))
             ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
 
@@ -121,7 +150,7 @@ class ReportController extends Controller
      */
     private function buildCollegeBreakdown(Request $request): array
     {
-        $counts = Referral::query()
+        $counts = $this->forUnit(Referral::query(), $this->unit($request), 'referrals.referral_type')
             ->join('students', 'students.id', '=', 'referrals.student_id')
             ->when($request->date_from, fn($q) => $q->whereDate('referrals.created_at', '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate('referrals.created_at', '<=', $request->date_to))
@@ -151,19 +180,33 @@ class ReportController extends Controller
             ->when($request->date_from, fn($q) => $q->whereDate($column, '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate($column, '<=', $request->date_to));
 
-        return [
-            ['service' => 'Counseling sessions conducted',     'count' => $between(SessionNote::query(), 'session_date')->count()],
-            ['service' => 'Appointments completed',            'count' => $between(Appointment::where('status', 'completed'), 'appointment_date')->count()],
-            ['service' => 'Class admission slips issued',      'count' => $between(Referral::whereNotNull('admission_issued_at'), 'admission_issued_at')->count()],
-            ['service' => 'Feedback slips sent to referrers',  'count' => $between(FeedbackSlip::query(), 'sent_at')->count()],
-            ['service' => 'Psychological tests administered',  'count' => $between(TestingRecord::whereNotNull('tests_administered'), 'testing_date')->count()],
-            ['service' => 'Test results issued to GCU',        'count' => $between(TestingRecord::whereNotNull('report_sent_at'), 'report_sent_at')->count()],
-        ];
+        $completed = fn(string $unit) => $between(Appointment::where('unit', $unit)->where('status', 'completed'), 'appointment_date')->count();
+
+        return match ($this->unit($request)) {
+            'TMDU' => [
+                ['service' => 'Testing referrals received from GCU',  'count' => $between(TestingRecord::query(), 'created_at')->count()],
+                ['service' => 'Testing appointments completed',       'count' => $completed('TMDU')],
+                ['service' => 'Psychological tests administered',     'count' => $between(TestingRecord::whereNotNull('tests_administered'), 'testing_date')->count()],
+                ['service' => 'Test results issued to GCU',           'count' => $between(TestingRecord::whereNotNull('report_sent_at'), 'report_sent_at')->count()],
+            ],
+            'SDU' => [
+                ['service' => 'Complaints / incident reports received', 'count' => $between(Complaint::query(), 'created_at')->count()],
+                ['service' => 'SDU appointments completed',             'count' => $completed('SDU')],
+                ['service' => 'Sanctions recorded',                     'count' => $between(CaseIntervention::where('type', 'sanction'), 'created_at')->count()],
+            ],
+            default => [
+                ['service' => 'Counseling sessions conducted',         'count' => $between(SessionNote::query(), 'session_date')->count()],
+                ['service' => 'Counseling appointments completed',     'count' => $completed('GCU')],
+                ['service' => 'Class admission slips issued',          'count' => $between(Referral::whereNotNull('admission_issued_at'), 'admission_issued_at')->count()],
+                ['service' => 'Feedback slips sent to referrers',      'count' => $between(FeedbackSlip::query(), 'sent_at')->count()],
+                ['service' => 'Students referred to TMDU for testing', 'count' => $between(TestingRecord::query(), 'created_at')->count()],
+            ],
+        };
     }
 
     private function buildAppointmentsReport(Request $request): array
     {
-        $query = Appointment::query()
+        $query = Appointment::where('unit', $this->unit($request))
             ->when($request->date_from, fn($q) => $q->whereDate('appointment_date', '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate('appointment_date', '<=', $request->date_to));
 
@@ -199,7 +242,7 @@ class ReportController extends Controller
 
     private function buildCasesReport(Request $request): array
     {
-        $query = CaseFile::query()
+        $query = CaseFile::where('current_unit', $this->unit($request))
             ->when($request->date_from, fn($q) => $q->whereDate('opened_date', '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate('opened_date', '<=', $request->date_to));
 
@@ -216,7 +259,11 @@ class ReportController extends Controller
                                     ->select('case_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
             'recurring'      => $query->clone()->where('is_recurring', true)->count(),
-            'referred_tmdu'  => $query->clone()->where('referred_to_tmdu', true)->count(),
+            // Counted wherever the case sits now - a case sent for testing has left GCU.
+            'referred_tmdu'  => CaseFile::where('referred_to_tmdu', true)
+                                    ->when($request->date_from, fn($q) => $q->whereDate('opened_date', '>=', $request->date_from))
+                                    ->when($request->date_to,   fn($q) => $q->whereDate('opened_date', '<=', $request->date_to))
+                                    ->count(),
             'avg_days_to_close' => round(
                 (clone $query)->where('status', 'closed')->whereNotNull('closed_date')
                     ->avg(DB::raw('DATEDIFF(closed_date, opened_date)')) ?? 0,
@@ -237,7 +284,7 @@ class ReportController extends Controller
 
     private function buildRecurringReport(Request $request): array
     {
-        $query = Referral::query()
+        $query = $this->forUnit(Referral::query(), $this->unit($request))
             ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
             ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
 
@@ -259,7 +306,7 @@ class ReportController extends Controller
 
         // Count only referrals inside the selected period, so the recurring
         // lists agree with the rest of the report for a semester or year.
-        $inPeriod = ['referrals' => fn($q) => $q
+        $inPeriod = ['referrals' => fn($q) => $this->forUnit($q, $this->unit($request))
             ->when($request->date_from, fn($w) => $w->whereDate('created_at', '>=', $request->date_from))
             ->when($request->date_to,   fn($w) => $w->whereDate('created_at', '<=', $request->date_to))];
 
@@ -291,6 +338,7 @@ class ReportController extends Controller
 
         $data = [
             'generated_at' => now()->format('F j, Y g:i A'),
+            'unit'         => $this->unit($request),
             'date_from'    => $request->date_from,
             'date_to'      => $request->date_to,
             // e.g. "1st Semester, A.Y. 2026-2027" - set by the Reports page period picker
@@ -326,7 +374,7 @@ class ReportController extends Controller
         $summary = $spreadsheet->getActiveSheet();
         $summary->setTitle('Summary');
         $summary->fromArray([
-            ['iCARE Reports & Analytics'],
+            ['iCARE ' . $this->unit($request) . ' Report'],
             ['Generated: ' . now()->format('F j, Y g:i A')],
             [($request->period_label ? 'Period: ' . $request->period_label . ' | ' : '') . 'Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
             [],
@@ -336,7 +384,7 @@ class ReportController extends Controller
             ['Pending Cases', $cases['pending']],
             ['Avg. Days to Close', $cases['avg_days_to_close']],
             ['Total Appointments', $appointments['total']],
-            ['TMDU Assessments', $cases['referred_tmdu']],
+            ['Cases referred to TMDU', $cases['referred_tmdu']],
             ['Students with Recurring Referrals', $recurring['total_recurring_students']],
         ], null, 'A1');
 

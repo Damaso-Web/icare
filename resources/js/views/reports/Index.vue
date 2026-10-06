@@ -3,7 +3,20 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Reports & Analytics</h1>
-      <p>Generate and export reports on referrals, appointments, and case outcomes.</p>
+      <p>{{ UNIT_NAMES[unit] }} report on referrals received, services rendered, appointments, and case outcomes.</p>
+    </div>
+
+    <!-- Each unit has its own report. Admin can open any of them; unit staff only see their own. -->
+    <div v-if="canPickUnit" style="display:flex;gap:8px;margin-bottom:16px">
+      <button
+        v-for="u in UNITS"
+        :key="u"
+        class="ibtn ibtn-sm"
+        :class="unit === u ? 'ibtn-p' : 'ibtn-o'"
+        @click="selectUnit(u)"
+      >
+        {{ u }} Report
+      </button>
     </div>
 
     <!-- Date Range Filter -->
@@ -70,23 +83,6 @@
       <!-- Charts Row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
-        <!-- Referrals by Type -->
-        <div class="icard">
-          <div class="icard-header"><span class="icard-title">Referrals by Type</span></div>
-          <div class="icard-body">
-            <div v-if="!referralData.by_type?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-            <div v-for="item in referralData.by_type" :key="item.referral_type" style="margin-bottom:11px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
-                <span>{{ toTitleCase(item.referral_type) }}</span>
-                <span style="color:var(--stone)">{{ item.count }}</span>
-              </div>
-              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
-                <div :style="{ width: pct(item.count, referralData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- Referrals by College (college of the referred student) -->
         <div class="icard">
           <div class="icard-header">
@@ -98,6 +94,23 @@
             <div v-for="item in collegeRows" :key="item.college" style="margin-bottom:11px">
               <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
                 <span>{{ item.college }}</span>
+                <span style="color:var(--stone)">{{ item.count }}</span>
+              </div>
+              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+                <div :style="{ width: pct(item.count, referralData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Referrals by Type -->
+        <div class="icard">
+          <div class="icard-header"><span class="icard-title">Referrals by Type</span></div>
+          <div class="icard-body">
+            <div v-if="!referralData.by_type?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in referralData.by_type" :key="item.referral_type" style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+                <span>{{ toTitleCase(item.referral_type) }}</span>
                 <span style="color:var(--stone)">{{ item.count }}</span>
               </div>
               <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
@@ -130,7 +143,7 @@
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="margin-bottom:16px">
 
         <!-- Cases by Status -->
         <div class="icard">
@@ -140,23 +153,6 @@
             <div v-for="item in caseData.by_status" :key="item.status" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cloud)">
               <span class="ibadge" :class="'ibadge-' + item.status">{{ toTitleCase(item.status) }}</span>
               <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ item.count }}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Cases by Unit -->
-        <div class="icard">
-          <div class="icard-header"><span class="icard-title">Cases by Unit</span></div>
-          <div class="icard-body">
-            <div v-if="!caseData.by_unit?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-            <div v-for="item in caseData.by_unit" :key="item.current_unit" style="margin-bottom:14px">
-              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px">
-                <span class="ibadge" :class="'unit-' + item.current_unit?.toLowerCase()">{{ item.current_unit }}</span>
-                <span style="color:var(--stone)">{{ item.count }} cases</span>
-              </div>
-              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
-                <div :style="{ width: pct(item.count, caseData.total) + '%', background: unitColor(item.current_unit), height: '100%', borderRadius: '4px' }"></div>
-              </div>
             </div>
           </div>
         </div>
@@ -284,6 +280,7 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { reportAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 import { toTitleCase, localDateStr } from '../../utils/validators';
 
 const toast = inject('toast');
@@ -296,6 +293,26 @@ const loading  = ref(true);
 const loadError = ref(false);
 const dateFrom = ref('');
 const dateTo   = ref('');
+
+// ---- Unit ----
+// GCU, TMDU and SDU each have their own report. Admin picks; unit staff are
+// fixed to their unit (the server enforces this too).
+const UNITS = ['GCU', 'TMDU', 'SDU'];
+const UNIT_NAMES = {
+  GCU:  'Guidance and Counseling Unit',
+  TMDU: 'Testing and Measurement Development Unit',
+  SDU:  'Student Discipline Unit',
+};
+const auth = useAuthStore();
+const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
+const canPickUnit = !ownUnit;
+const unit = ref(ownUnit || 'GCU');
+
+function selectUnit(u) {
+  if (unit.value === u) return;
+  unit.value = u;
+  fetchAll();
+}
 
 // ---- Academic year / term picker ----
 // An academic year "2026-2027" starts in August 2026. Each period is a
@@ -365,14 +382,14 @@ async function exportReport(format) {
   try {
     const res = await axios.get(`${API_BASE}/reports/export/${format}`, {
       ...authHeaders(),
-      params: { date_from: dateFrom.value, date_to: dateTo.value, period_label: periodLabel.value },
+      params: { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value, period_label: periodLabel.value },
       responseType: 'blob',
     });
     const ext = format === 'pdf' ? 'pdf' : 'xlsx';
     const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `iCARE-Report-${localDateStr()}.${ext}`;
+    link.download = `iCARE-${unit.value}-Report-${localDateStr()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -398,14 +415,16 @@ function collegeShort(name) {
   return name.match(/\(([^)]+)\)\s*$/)?.[1] || name;
 }
 
-const summaryStats = computed(() => [
+const summaryStats = computed(() => allStats.value.filter(st => !st.only || st.only === unit.value));
+
+const allStats = computed(() => [
   { label: 'Total Referrals',    value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
   { label: 'Total Cases',        value: caseData.value.total        ?? 0, iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
   { label: 'Pending Cases',      value: caseData.value.pending      ?? 0, iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'Closed Cases',       value: caseData.value.by_status?.find(s => s.status === 'closed')?.count ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
   { label: 'Avg. Days to Close', value: caseData.value.avg_days_to_close ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'Total Appointments', value: apptData.value.total        ?? 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)',  icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
-  { label: 'TMDU Assessments',   value: caseData.value.referred_tmdu ?? 0, iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
+  { label: 'Referred to TMDU',   value: caseData.value.referred_tmdu ?? 0, only: 'GCU', iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
 ]);
 
 const maxMonthlyCount = computed(() => {
@@ -435,7 +454,7 @@ async function fetchAll() {
   loading.value = true;
   loadError.value = false;
   try {
-    const params = { date_from: dateFrom.value, date_to: dateTo.value };
+    const params = { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value };
     const [r, c, a, d, rc, sv] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
@@ -468,9 +487,6 @@ function monthLabel(month) {
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][month - 1] || month;
 }
 
-function unitColor(unit) {
-  return { GCU: 'var(--moss)', SDU: 'var(--amber)', TMDU: 'var(--purple)' }[unit] || 'var(--moss)';
-}
 
 onMounted(() => applyPeriod());
 </script>

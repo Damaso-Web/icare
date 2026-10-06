@@ -214,7 +214,7 @@ const routes = [
                 path: 'reports',
                 name: 'reports',
                 component: Reports,
-                meta: { roles: GCU_ROLES },
+                meta: { roles: STAFF_ROLES },
             },
             {
                 path: 'users',

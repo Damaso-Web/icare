@@ -177,8 +177,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('notifications/read-all',    [NotificationController::class, 'markAllRead']);
     Route::get('notification-logs',          [NotificationController::class, 'logs']);
 
-    // Reports
-    Route::prefix('reports')->middleware('role:admin,gcu_staff')->group(function () {
+    // Reports - one per unit. Admin may open any; unit staff are held to
+    // their own unit inside ReportController.
+    Route::prefix('reports')->middleware('role:admin,gcu_staff,tmdu_staff,sdu_head')->group(function () {
         Route::get('referrals',    [ReportController::class, 'referrals']);
         Route::get('appointments', [ReportController::class, 'appointments']);
         Route::get('cases',        [ReportController::class, 'cases']);
