@@ -1,8 +1,9 @@
 <template>
   <div style="display:flex;height:100vh;overflow:hidden">
 
-    <!-- Sidebar -->
-    <div class="sidebar">
+    <!-- Sidebar (slides in over the page on phones) -->
+    <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
+    <div class="sidebar" :class="{ open: menuOpen }">
       <div class="sb-head">
         <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
         <div>
@@ -67,9 +68,10 @@
 
       <!-- Topbar -->
       <div class="topbar" style="position:relative">
+        <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
-          <span style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
+          <span class="tb-email" style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
 
           <!-- Notification Bell -->
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
@@ -122,7 +124,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
@@ -167,6 +169,10 @@ async function syncUser() {
     if (roleChanged && route.name !== 'dashboard') router.replace({ name: 'dashboard' });
   } catch (e) { /* keep the cached user */ }
 }
+
+// Phone menu: closed by default, and closes again after choosing a page.
+const menuOpen = ref(false);
+watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
 const notifications = ref([]);
