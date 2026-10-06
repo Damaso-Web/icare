@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Reports & Analytics</h1>
-      <p>{{ UNIT_NAMES[unit] }} report on referrals received, services rendered, appointments, and case outcomes.</p>
+      <p>{{ UNIT_NAMES[unit] }} {{ UNIT_BLURB[unit] }}</p>
     </div>
 
     <!-- Each unit has its own report. Admin can open any of them; unit staff only see their own. -->
@@ -65,6 +65,82 @@
         <button class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" @click="fetchAll">Try Again</button>
       </div>
     </div>
+
+    <!-- SDU report: complaints received, by misconduct, college and department -->
+    <template v-else-if="unit === 'SDU'">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
+        <div class="stat-card" v-for="stat in sduStats" :key="stat.label">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+            <div class="stat-icon" :style="{ background: stat.iconBg }">
+              <svg viewBox="0 0 24 24" :style="{ color: stat.iconColor }" v-html="stat.icon"></svg>
+            </div>
+          </div>
+          <div class="stat-num">{{ stat.value }}</div>
+          <div class="stat-label">{{ stat.label }}</div>
+        </div>
+      </div>
+
+      <div class="icard" style="margin-bottom:16px">
+        <div class="icard-header">
+          <span class="icard-title" style="white-space:nowrap">Complaints by Misconduct</span>
+          <span v-if="topOf(sduData.by_misconduct)" class="ibadge" :title="topOf(sduData.by_misconduct).label" style="background:var(--mist);color:var(--moss);display:block;min-width:0;max-width:65%;overflow:hidden;text-overflow:ellipsis">Most common: {{ topOf(sduData.by_misconduct).label }} ({{ topOf(sduData.by_misconduct).count }})</span>
+        </div>
+        <div class="icard-body">
+          <div v-if="!sduData.by_misconduct?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+          <div v-for="item in sduData.by_misconduct" :key="item.label" style="margin-bottom:11px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+              <span>{{ item.label }}</span>
+              <span style="color:var(--stone)">{{ item.count }}</span>
+            </div>
+            <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+              <div :style="{ width: pct(item.count, sduData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;align-items:start">
+        <div class="icard" style="min-width:0">
+          <div class="icard-header">
+            <span class="icard-title" style="white-space:nowrap">Complaints by College</span>
+            <span v-if="topOf(sduData.by_college)" class="ibadge" style="background:var(--mist);color:var(--moss)">Highest: {{ collegeShort(topOf(sduData.by_college).label) }} ({{ topOf(sduData.by_college).count }})</span>
+          </div>
+          <div class="icard-body">
+            <div v-if="!sduData.by_college?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in sduData.by_college" :key="item.label" style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+                <span>{{ item.label }}</span>
+                <span style="color:var(--stone)">{{ item.count }}</span>
+              </div>
+              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+                <div :style="{ width: pct(item.count, sduData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="icard" style="min-width:0">
+          <div class="icard-header"><span class="icard-title">Complaints by Department</span></div>
+          <div class="ts">
+            <table class="itable">
+              <thead>
+                <tr><th>Department</th><th>College</th><th style="width:110px">Complaints</th></tr>
+              </thead>
+              <tbody>
+                <tr v-for="row in sduData.by_department" :key="row.label + row.college">
+                  <td>{{ row.label }}</td>
+                  <td>{{ collegeShort(row.college) }}</td>
+                  <td style="font-weight:600">{{ row.count }}</td>
+                </tr>
+                <tr v-if="!sduData.by_department?.length">
+                  <td colspan="3" style="text-align:center;color:var(--fog)">No data</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </template>
 
     <template v-else>
       <!-- Summary Stats -->
@@ -303,6 +379,11 @@ const UNIT_NAMES = {
   TMDU: 'Testing and Measurement Development Unit',
   SDU:  'Student Discipline Unit',
 };
+const UNIT_BLURB = {
+  GCU:  'report on referrals received, services rendered, appointments, and case outcomes.',
+  TMDU: 'report on referrals received, services rendered, appointments, and case outcomes.',
+  SDU:  'report on complaints received, by misconduct, college and department.',
+};
 const auth = useAuthStore();
 const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
 const canPickUnit = !ownUnit;
@@ -407,6 +488,25 @@ const apptData      = ref({});
 const dashData      = ref({});
 const recurringData = ref({});
 const servicesData  = ref([]);
+const sduData       = ref({});
+
+const sduStats = computed(() => {
+  const look = {
+    pending:      { iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+    under_review: { iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>' },
+    resolved:     { iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>' },
+  };
+  const other = { iconBg: 'var(--cloud)', iconColor: 'var(--stone)', icon: '<circle cx="12" cy="12" r="10"/>' };
+  return [
+    { label: 'Total Complaints', value: sduData.value.total ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    ...(sduData.value.by_status || []).map(row => ({ label: row.label, value: row.count, ...(look[row.status] || other) })),
+  ];
+});
+
+// First row with a count - lists arrive ranked highest first.
+function topOf(rows) {
+  return (rows || []).find(r => r.count > 0) || null;
+}
 
 const collegeRows = computed(() => referralData.value.by_student_college || []);
 const topCollege  = computed(() => collegeRows.value.find(c => c.count > 0) || null);
@@ -455,6 +555,11 @@ async function fetchAll() {
   loadError.value = false;
   try {
     const params = { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value };
+    // SDU's report is its complaints, not the referral/case figures.
+    if (unit.value === 'SDU') {
+      sduData.value = (await reportAPI.complaints(params)).data;
+      return;
+    }
     const [r, c, a, d, rc, sv] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),

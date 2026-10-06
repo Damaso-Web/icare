@@ -72,6 +72,18 @@ class ReportController extends Controller
         return response()->json($this->buildServicesReport($request));
     }
 
+    /** SDU's report: complaints received, by misconduct, college and department. */
+    public function complaints(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to'   => 'nullable|date',
+        ]);
+        abort_unless($this->unit($request) === 'SDU', 403, 'The complaints report belongs to SDU.');
+
+        return response()->json($this->buildComplaintsReport($request));
+    }
+
     public function dashboardStats()
     {
         return response()->json([
@@ -202,6 +214,48 @@ class ReportController extends Controller
                 ['service' => 'Students referred to TMDU for testing', 'count' => $between(TestingRecord::query(), 'created_at')->count()],
             ],
         };
+    }
+
+    private function buildComplaintsReport(Request $request): array
+    {
+        $query = Complaint::query()
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
+
+        // Highest count first, then alphabetical.
+        $ranked = function (array $rows) {
+            usort($rows, fn($a, $b) => [$b['count'], $a['label']] <=> [$a['count'], $b['label']]);
+            return $rows;
+        };
+
+        $byCollege = $query->clone()->groupBy('complainee_college')
+            ->select('complainee_college', DB::raw('count(*) as count'))
+            ->pluck('count', 'complainee_college');
+
+        // Every college in the Management list is shown, even with none.
+        $colleges = College::orderBy('name')->pluck('name')
+            ->merge($byCollege->keys())
+            ->unique()
+            ->map(fn($name) => ['label' => $name ?: 'Not specified', 'count' => (int) ($byCollege[$name] ?? 0)])
+            ->values()->all();
+
+        $statusLabels = ['pending' => 'Pending', 'under_review' => 'Under Review', 'resolved' => 'Resolved', 'dismissed' => 'Dismissed'];
+        $byStatus = $query->clone()->groupBy('status')->select('status', DB::raw('count(*) as count'))->pluck('count', 'status');
+
+        return [
+            'total'         => $query->count(),
+            'by_status'     => collect($statusLabels)
+                ->map(fn($label, $key) => ['status' => $key, 'label' => $label, 'count' => (int) ($byStatus[$key] ?? 0)])
+                ->filter(fn($row) => $row['count'] > 0 || in_array($row['status'], ['pending', 'under_review', 'resolved'], true))
+                ->values()->all(),
+            'by_misconduct' => $ranked($query->clone()->groupBy('violation_type')
+                ->select('violation_type', DB::raw('count(*) as count'))->get()
+                ->map(fn($r) => ['label' => $r->violation_type ?: 'Not specified', 'count' => (int) $r->count])->all()),
+            'by_college'    => $ranked($colleges),
+            'by_department' => $ranked($query->clone()->groupBy('complainee_department', 'complainee_college')
+                ->select('complainee_department', 'complainee_college', DB::raw('count(*) as count'))->get()
+                ->map(fn($r) => ['label' => $r->complainee_department ?: 'Not specified', 'college' => $r->complainee_college ?: '-', 'count' => (int) $r->count])->all()),
+        ];
     }
 
     private function buildAppointmentsReport(Request $request): array
@@ -336,6 +390,16 @@ class ReportController extends Controller
             'period_label' => 'nullable|string|max:100',
         ]);
 
+        if ($this->unit($request) === 'SDU') {
+            return Pdf::loadView('reports.export-sdu-pdf', [
+                'generated_at' => now()->format('F j, Y g:i A'),
+                'date_from'    => $request->date_from,
+                'date_to'      => $request->date_to,
+                'period_label' => $request->period_label,
+                'complaints'   => $this->buildComplaintsReport($request),
+            ])->setPaper('a4', 'portrait')->download('iCARE-SDU-Report-' . now()->format('Y-m-d') . '.pdf');
+        }
+
         $data = [
             'generated_at' => now()->format('F j, Y g:i A'),
             'unit'         => $this->unit($request),
@@ -362,6 +426,10 @@ class ReportController extends Controller
             'date_to'   => 'nullable|date',
             'period_label' => 'nullable|string|max:100',
         ]);
+
+        if ($this->unit($request) === 'SDU') {
+            return $this->exportSduExcel($request);
+        }
 
         $referrals    = $this->buildReferralsReport($request);
         $cases        = $this->buildCasesReport($request);
@@ -445,6 +513,42 @@ class ReportController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
 
         $filename = 'iCARE-Report-' . now()->format('Y-m-d') . '.xlsx';
+        $tmpPath = storage_path('app/' . $filename);
+        (new Xlsx($spreadsheet))->save($tmpPath);
+
+        return response()->download($tmpPath, $filename)->deleteFileAfterSend(true);
+    }
+
+    private function exportSduExcel(Request $request)
+    {
+        $complaints = $this->buildComplaintsReport($request);
+
+        $spreadsheet = new Spreadsheet();
+        $summary = $spreadsheet->getActiveSheet();
+        $summary->setTitle('Summary');
+        $summary->fromArray(array_merge([
+            ['iCARE SDU Report'],
+            ['Generated: ' . now()->format('F j, Y g:i A')],
+            [($request->period_label ? 'Period: ' . $request->period_label . ' | ' : '') . 'Date Range: ' . ($request->date_from ?: 'All time') . ' to ' . ($request->date_to ?: 'present')],
+            [],
+            ['Metric', 'Value'],
+            ['Total Complaints', $complaints['total']],
+        ], array_map(fn($row) => [$row['label'], $row['count']], $complaints['by_status'])), null, 'A1');
+
+        foreach ([
+            'By Misconduct' => [['Misconduct', 'Complaints'], $complaints['by_misconduct'], ['label', 'count']],
+            'By College'    => [['College', 'Complaints'], $complaints['by_college'], ['label', 'count']],
+            'By Department' => [['Department', 'College', 'Complaints'], $complaints['by_department'], ['label', 'college', 'count']],
+        ] as $title => [$header, $rows, $keys]) {
+            $sheet = $spreadsheet->createSheet();
+            $sheet->setTitle($title);
+            $sheet->fromArray($header, null, 'A1');
+            $this->writeRows($sheet, $rows, $keys, 2);
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $filename = 'iCARE-SDU-Report-' . now()->format('Y-m-d') . '.xlsx';
         $tmpPath = storage_path('app/' . $filename);
         (new Xlsx($spreadsheet))->save($tmpPath);
 
