@@ -254,9 +254,11 @@ const pageTitle = computed(() => {
     complaints:             'Complaints',
     'referral-show':     'Referral Details',
     cases:               'Student Information Files',
-    appointments:        'Appointment Calendar',
+    'case-referrals':    'Case Referrals (Internal)',
+    'case-referral-show': 'Case Referral',
+    appointments:        'GCU Appointments',
     testing:             'Testing Records',
-    'testing-appointments': 'Testing Appointments',
+    'testing-appointments': 'TMDU Appointments',
     reports:             'Reports & Analytics',
     users:               'User Management',
     'faculty-directory': 'Faculty',
@@ -316,7 +318,7 @@ const menuItems = computed(() => {
     },
     {
       name:    'appointments',
-      label:   'Appointment',
+      label:   'GCU Appointments',
       icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
       roles:   ['admin', 'gcu_staff'],
       section: null,
@@ -329,17 +331,24 @@ const menuItems = computed(() => {
       section: null,
     },
     {
+      name:    'case-referrals',
+      label:   'Case Referrals (Internal)',
+      icon:    '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+      roles:   ['admin', 'gcu_staff'],
+      section: null,
+    },
+    {
       name:    'testing',
       label:   'Testing Records',
       icon:    '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
-      roles:   ['admin', 'gcu_staff', 'tmdu_staff'],
+      roles:   ['tmdu_staff'],
       section: null,
     },
     {
       name:    'testing-appointments',
-      label:   'Testing Appointments',
+      label:   'TMDU Appointments',
       icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
-      roles:   ['admin', 'tmdu_staff'],
+      roles:   ['tmdu_staff'],
       section: null,
     },
     {
@@ -419,7 +428,8 @@ function isActive(name) {
   }
   if (name === 'referrals'       && (routeName === 'referrals' || routeName === 'referral-show')) return true;
   if (name === 'referral-create' && ['referral-create', 'referral-create-form', 'complaint-create'].includes(routeName)) return true;
-  if (name === 'cases'           && routeName.startsWith('case'))    return true;
+  if (name === 'case-referrals'  && routeName === 'case-referral-show') return true;
+  if (name === 'cases'           && routeName.startsWith('case') && !routeName.startsWith('case-referral')) return true;
   if (name === 'testing'         && routeName === 'testing-show')    return true;
   if (name === 'students'        && routeName.startsWith('student')) return true;
   return routeName === name;

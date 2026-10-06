@@ -48,11 +48,13 @@ class Appointment extends Model
         'call_slip_notes',
         'required_documents',
         'reschedule_count',
+        'on_hold_at',
     ];
 
     protected $casts = [
         'token_expires_at'       => 'datetime',
         'call_slip_initiated_at' => 'datetime',
+        'on_hold_at'             => 'datetime',
         'appointment_date'      => 'date',
         'confirmation_sent'     => 'boolean',
         'confirmation_sent_at'  => 'datetime',

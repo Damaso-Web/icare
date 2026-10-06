@@ -260,6 +260,8 @@ export const testingAPI = {
     // record - required before any other action on it can proceed.
     assign:           (id, data) => api.post(`/testing-records/${id}/assign`, data),
     availableTesters: ()         => api.get('/testing-records/available-testers'),
+    // PAR release appointment actions: released | on_hold | cancel
+    parAction:        (appointmentId, action) => api.post(`/appointments/${appointmentId}/par-action`, { action }),
 };
 
 export const reportAPI = {
@@ -270,6 +272,15 @@ export const reportAPI = {
     services:     (params) => api.get('/reports/services', { params }),
     complaints:   (params) => api.get('/reports/complaints', { params }),
     dashboard:    ()       => api.get('/reports/dashboard'),
+};
+
+// Case Referrals (Internal) - GCU's read-only view of the Refer to TMDU forms.
+export const caseReferralAPI = {
+    index:     (params) => api.get('/case-referrals', { params }),
+    show:      (id)     => api.get(`/case-referrals/${id}`),
+    forSource: (id)     => api.get(`/case-referrals/by-source/${id}`),
+    // PAR file download (blob), opened by the caller.
+    downloadDocument: (id) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
 };
 
 export const userAPI = {

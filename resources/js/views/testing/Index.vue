@@ -89,9 +89,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import { testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
+const route        = useRoute();
 const filterStatus = ref('');
 const loading      = ref(true);
 const records      = ref([]);
@@ -140,7 +142,7 @@ function statusLabel(status) {
 async function fetchRecords() {
   loading.value = true;
   try {
-    const res = await testingAPI.index({ status: filterStatus.value });
+    const res = await testingAPI.index({ status: filterStatus.value, student_id: route.query.student_id || undefined });
     records.value = res.data.data || res.data;
   } catch (e) {
     console.error(e);

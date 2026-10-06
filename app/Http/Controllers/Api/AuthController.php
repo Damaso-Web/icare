@@ -6,37 +6,122 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rules\Password;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    // One generic message for every credential failure, so the login form can't be
+    // used to discover which emails have accounts. The real reason goes to the audit log.
+    private const BAD_LOGIN = 'Invalid email or password.';
+
     public function login(Request $request)
     {
         $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required|string',
+            'email'    => 'required|email|max:255',
+            'password' => 'required|string|max:255',
         ]);
 
-        // Split into distinct checks so the person actually knows what to fix,
-        // instead of a single blanket "Invalid credentials." for three very
-        // different situations.
         $user = User::where('email', $request->email)->first();
+
+        // Always run a hash check so response time doesn't reveal whether the email exists.
+        $hashOk = Hash::check($request->password, $user->password ?? '$2y$10$2GvViDLZ9R65EGg.7Rovhu/4d61pXs3jA97oN/8FQRJm0fnXvRIEW');
 
         if (!$user) {
             AuditLog::record('login_failed', "Failed staff login: no account with email {$request->email}.");
-            return response()->json(['message' => 'No BSU Personnel account was found with that email address.'], 401);
+            return response()->json(['message' => self::BAD_LOGIN], 401);
         }
 
+        if (!$hashOk) {
+            AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password.", $user, [], [], $user);
+            return response()->json(['message' => self::BAD_LOGIN], 401);
+        }
+
+        // Only reveal the deactivated state AFTER a correct password.
         if (!$user->is_active) {
             AuditLog::record('login_failed', "Failed staff login for {$user->name}: account is deactivated.", $user, [], [], $user);
             return response()->json(['message' => 'This account has been deactivated. Please contact the OSS administrator.'], 401);
         }
 
-        if (!Hash::check($request->password, $user->password)) {
-            AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password.", $user, [], [], $user);
-            return response()->json(['message' => 'Incorrect password. Please try again.'], 401);
+        // Optional 2nd step: 6-digit code emailed to the registered address.
+        if (config('security.otp_enabled')) {
+            return $this->sendOtp($user);
         }
 
+        return $this->issueToken($user);
+    }
+
+    private function sendOtp(User $user)
+    {
+        $code     = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $otpToken = Str::random(48);
+
+        Cache::put("staff_otp:$otpToken", [
+            'user_id'  => $user->id,
+            'hash'     => Hash::make($code),
+            'attempts' => 0,
+        ], now()->addMinutes(config('security.otp_ttl')));
+
+        try {
+            Mail::raw(
+                "Your iCARE verification code is {$code}.\n\nIt expires in " . config('security.otp_ttl') . " minutes. If you did not try to log in, change your password and tell the OSS administrator.",
+                fn ($m) => $m->to($user->email)->subject('iCARE login verification code')
+            );
+        } catch (\Throwable $e) {
+            Cache::forget("staff_otp:$otpToken");
+            Log::error('OTP email failed: ' . $e->getMessage());
+            return response()->json(['message' => 'We could not send the verification code. Please try again or contact the OSS administrator.'], 503);
+        }
+
+        AuditLog::record('login_otp_sent', "Login verification code sent to {$user->name}.", $user, [], [], $user);
+
+        return response()->json([
+            'otp_required' => true,
+            'otp_token'    => $otpToken,
+            'email_hint'   => preg_replace('/(?<=.{2}).(?=[^@]*@)/', '*', $user->email),
+        ]);
+    }
+
+    public function verifyOtp(Request $request)
+    {
+        $request->validate([
+            'otp_token' => 'required|string|max:100',
+            'otp'       => 'required|digits:6',
+        ]);
+
+        $key  = 'staff_otp:' . $request->otp_token;
+        $data = Cache::get($key);
+
+        if (!$data) {
+            return response()->json(['message' => 'This code has expired. Please log in again.'], 422);
+        }
+
+        if (!Hash::check($request->otp, $data['hash'])) {
+            $data['attempts']++;
+            if ($data['attempts'] >= config('security.otp_attempts')) {
+                Cache::forget($key);
+                return response()->json(['message' => 'Too many wrong codes. Please log in again.'], 422);
+            }
+            Cache::put($key, $data, now()->addMinutes(config('security.otp_ttl')));
+            return response()->json(['message' => 'Incorrect verification code.'], 422);
+        }
+
+        Cache::forget($key); // single use
+        $user = User::where('id', $data['user_id'])->where('is_active', true)->first();
+
+        if (!$user) {
+            return response()->json(['message' => self::BAD_LOGIN], 401);
+        }
+
+        return $this->issueToken($user);
+    }
+
+    private function issueToken(User $user)
+    {
         $user->update(['last_login_at' => now()]);
         $token = $user->createToken('icare-token')->plainTextToken;
 
@@ -44,13 +129,13 @@ class AuthController extends Controller
         AuditLog::record('login', "User {$user->name} logged in.", $user, [], [], $user);
 
         return response()->json([
-        'token' => $token,
-        'user'  => $user->only([
-            'id', 'name', 'first_name', 'middle_name', 'last_name',
-            'email', 'role', 'unit', 'college', 'department',
-            'contact_number', 'employee_id'
-        ]),
-    ]);
+            'token' => $token,
+            'user'  => $user->only([
+                'id', 'name', 'first_name', 'middle_name', 'last_name',
+                'email', 'role', 'unit', 'college', 'department',
+                'contact_number', 'employee_id'
+            ]),
+        ]);
     }
 
     public function logout(Request $request)
@@ -69,7 +154,7 @@ class AuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => 'required|min:8|confirmed',
+            'password'         => ['required', 'confirmed', Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
         ]);
 
         $user = $request->user();

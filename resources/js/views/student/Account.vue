@@ -2,13 +2,13 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>My Account</h1>
-      <p>Update your personal information and password.</p>
+      <p>Fill in your Personal, Family, Siblings and Educational information, and update your password.</p>
     </div>
 
     <div style="max-width:680px;display:flex;flex-direction:column;gap:16px">
 
       <div class="icard">
-        <div class="icard-header"><span class="icard-title">Profile Information</span></div>
+        <div class="icard-header"><span class="icard-title">Personal Information</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="profileError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileError }}</div>
           <div v-if="profileSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ profileSuccess }}</div>
@@ -42,6 +42,55 @@
           <div>
             <label class="ifl">Email Address</label>
             <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" />
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Student ID</label>
+              <input :value="student.student_id || ''" class="ifi" disabled />
+            </div>
+            <div>
+              <label class="ifl">Course and Year</label>
+              <input :value="[student.program, student.year_level].filter(Boolean).join(' - ')" class="ifi" disabled />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Birthdate (mm/dd/yyyy)</label>
+              <input v-model="profileForm.birthdate" type="date" class="ifi" :max="todayStr" />
+            </div>
+            <div>
+              <label class="ifl">Sex</label>
+              <select v-model="profileForm.sex" class="ifse">
+                <option value="">Select...</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Civil Status</label>
+              <select v-model="profileForm.civil_status" class="ifse">
+                <option value="">Select...</option>
+                <option v-for="c in CIVIL_STATUSES" :key="c" :value="c">{{ c }}</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Nationality</label>
+              <input v-model="profileForm.nationality" class="ifi" maxlength="100" @input="profileForm.nationality = String(profileForm.nationality ?? '').replace(/[^a-zA-Z\s'.-]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Birthplace</label>
+              <input v-model="profileForm.birthplace" class="ifi" maxlength="255" @input="profileForm.birthplace = String(profileForm.birthplace ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+          </div>
+          <div>
+            <label class="ifl">Languages that I understand</label>
+            <input v-model="profileForm.languages" class="ifi" maxlength="255" placeholder="e.g. Filipino, English, Bisaya" @input="profileForm.languages = String(profileForm.languages ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+          </div>
+          <div>
+            <label class="ifl">Address while studying at BSU</label>
+            <input v-model="profileForm.address" class="ifi" maxlength="255" @input="profileForm.address = String(profileForm.address ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
           </div>
           <div>
             <label class="ifl">Contact Number</label>
@@ -92,6 +141,17 @@
             </div>
           </div>
 
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
+            <div>
+              <label class="ifl">Age</label>
+              <input v-model="backgroundForm.father_age" class="ifi" maxlength="3" @input="backgroundForm.father_age = String(backgroundForm.father_age ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Highest Educational Attainment</label>
+              <input v-model="backgroundForm.father_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.father_educational_attainment = String(backgroundForm.father_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+          </div>
+
           <div style="font-size:11.5px;font-weight:600;color:var(--slate);margin-top:4px">Mother</div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
@@ -115,6 +175,53 @@
             <div>
               <label class="ifl">Contact Number</label>
               <input v-model="backgroundForm.mother_contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="backgroundForm.mother_contact_number = backgroundForm.mother_contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
+            <div>
+              <label class="ifl">Age</label>
+              <input v-model="backgroundForm.mother_age" class="ifi" maxlength="3" @input="backgroundForm.mother_age = String(backgroundForm.mother_age ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Highest Educational Attainment</label>
+              <input v-model="backgroundForm.mother_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.mother_educational_attainment = String(backgroundForm.mother_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+          </div>
+
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate);margin-top:4px">Legal Guardian</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Last Name</label>
+              <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_last_name = String(backgroundForm.guardian_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">First Name</label>
+              <input v-model="backgroundForm.guardian_first_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_first_name = String(backgroundForm.guardian_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Middle Name</label>
+              <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_middle_name = String(backgroundForm.guardian_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
+            <div>
+              <label class="ifl">Age</label>
+              <input v-model="backgroundForm.guardian_age" class="ifi" maxlength="3" @input="backgroundForm.guardian_age = String(backgroundForm.guardian_age ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Highest Educational Attainment</label>
+              <input v-model="backgroundForm.guardian_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.guardian_educational_attainment = String(backgroundForm.guardian_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Occupation</label>
+              <input v-model="backgroundForm.guardian_occupation" class="ifi" maxlength="255" @input="backgroundForm.guardian_occupation = String(backgroundForm.guardian_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Contact Number</label>
+              <input v-model="backgroundForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="backgroundForm.guardian_contact = String(backgroundForm.guardian_contact ?? '').replace(/[^0-9]/g, '').slice(0, 11)" />
             </div>
           </div>
 
@@ -148,13 +255,26 @@
                 <input v-model="sib.middle_name" class="ifi" maxlength="255" @input="sib.middle_name = String(sib.middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:80px 1fr auto;gap:10px;align-items:end">
+            <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Age</label>
-                <input v-model="sib.age" class="ifi" maxlength="3" @input="sib.age = sib.age.replace(/[^0-9]/g, '')" />
+                <input v-model="sib.age" class="ifi" maxlength="3" @input="sib.age = String(sib.age ?? '').replace(/[^0-9]/g, '')" />
               </div>
               <div>
-                <label class="ifl">Occupation / School</label>
+                <label class="ifl">Highest Educational Attainment</label>
+                <input v-model="sib.educational_attainment" class="ifi" maxlength="255" @input="sib.educational_attainment = String(sib.educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              </div>
+              <div>
+                <label class="ifl">Civil Status</label>
+                <select v-model="sib.civil_status" class="ifse">
+                  <option value="">Select...</option>
+                  <option v-for="c in CIVIL_STATUSES" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+              <div>
+                <label class="ifl">Occupation (write student if still studying)</label>
                 <input v-model="sib.occupation" class="ifi" maxlength="255" @input="sib.occupation = String(sib.occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
               </div>
               <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="removeSibling(idx)">Remove</button>
@@ -168,30 +288,60 @@
           <div style="height:1px;background:var(--cloud)"></div>
 
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Educational Attainment</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Senior High School</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
-              <label class="ifl">Elementary School</label>
-              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="255" @input="backgroundForm.elementary_school = String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <label class="ifl">School</label>
+              <input v-model="backgroundForm.senior_high_school" class="ifi" maxlength="255" @input="backgroundForm.senior_high_school = String(backgroundForm.senior_high_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.elementary_year_graduated" class="ifi" placeholder="e.g. 2016" maxlength="4" @input="backgroundForm.elementary_year_graduated = backgroundForm.elementary_year_graduated.replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
             </div>
+          </div>
+          <div v-if="'senior_high_achievements'">
+            <label class="ifl">Achievements</label>
+            <textarea v-model="backgroundForm.senior_high_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Junior High School</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
-              <label class="ifl">High School</label>
+              <label class="ifl">School</label>
               <input v-model="backgroundForm.high_school" class="ifi" maxlength="255" @input="backgroundForm.high_school = String(backgroundForm.high_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" @input="backgroundForm.high_school_year_graduated = backgroundForm.high_school_year_graduated.replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
             </div>
+          </div>
+          <div v-if="'high_school_achievements'">
+            <label class="ifl">Achievements</label>
+            <textarea v-model="backgroundForm.high_school_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Elementary</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
+            <div>
+              <label class="ifl">School</label>
+              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="255" @input="backgroundForm.elementary_school = String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            </div>
+            <div>
+              <label class="ifl">Year Graduated</label>
+              <input v-model="backgroundForm.elementary_year_graduated" class="ifi" placeholder="e.g. 2016" maxlength="4" @input="backgroundForm.elementary_year_graduated = String(backgroundForm.elementary_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+          </div>
+          <div v-if="'elementary_achievements'">
+            <label class="ifl">Achievements</label>
+            <textarea v-model="backgroundForm.elementary_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">College (current)</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">College / University</label>
               <input v-model="backgroundForm.college_school" class="ifi" maxlength="255" @input="backgroundForm.college_school = String(backgroundForm.college_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" @input="backgroundForm.college_year_graduated = backgroundForm.college_year_graduated.replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
             </div>
           </div>
 
@@ -262,7 +412,12 @@ import axios from 'axios';
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
-const profileForm = ref({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', contact_number: '' });
+const CIVIL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
+const todayStr = new Date().toISOString().split('T')[0];
+const profileForm = ref({
+  first_name: '', last_name: '', middle_name: '', suffix: '', email: '', contact_number: '',
+  birthdate: '', sex: '', civil_status: '', nationality: '', birthplace: '', languages: '', address: '',
+});
 const profileSnapshot = ref('');
 const isProfileUnchanged = computed(() => JSON.stringify(profileForm.value) === profileSnapshot.value);
 const profileError = ref('');
@@ -293,10 +448,15 @@ function firstApiError(e, fallback) {
 function emptyBackgroundForm() {
   return {
     father_first_name: '', father_middle_name: '', father_last_name: '', father_occupation: '', father_contact_number: '',
+    father_age: '', father_educational_attainment: '',
     mother_first_name: '', mother_middle_name: '', mother_last_name: '', mother_occupation: '', mother_contact_number: '',
+    mother_age: '', mother_educational_attainment: '',
+    guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '', guardian_age: '',
+    guardian_occupation: '', guardian_educational_attainment: '', guardian_contact: '',
     siblings: [],
-    elementary_school: '', elementary_year_graduated: '',
-    high_school: '', high_school_year_graduated: '',
+    senior_high_school: '', senior_high_year_graduated: '', senior_high_achievements: '',
+    elementary_school: '', elementary_year_graduated: '', elementary_achievements: '',
+    high_school: '', high_school_year_graduated: '', high_school_achievements: '',
     college_school: '', college_year_graduated: '',
   };
 }
@@ -306,6 +466,9 @@ const isBackgroundUnchanged = computed(() => JSON.stringify(backgroundForm.value
 const FAMILY_KEYS = [
   'father_first_name', 'father_middle_name', 'father_last_name', 'father_occupation', 'father_contact_number',
   'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_occupation', 'mother_contact_number',
+  'father_age', 'father_educational_attainment', 'mother_age', 'mother_educational_attainment',
+  'guardian_first_name', 'guardian_middle_name', 'guardian_last_name', 'guardian_age',
+  'guardian_occupation', 'guardian_educational_attainment', 'guardian_contact',
 ];
 const pickFamily = (src) => Object.fromEntries(FAMILY_KEYS.map(k => [k, src?.[k] ?? '']));
 const isFamilyUnchanged = computed(() => {
@@ -316,14 +479,16 @@ const isFamilyUnchanged = computed(() => {
 });
 const savingFamily = ref(false);
 const EDUCATION_KEYS = [
-  'elementary_school', 'elementary_year_graduated',
-  'high_school', 'high_school_year_graduated',
+  'senior_high_school', 'senior_high_year_graduated', 'senior_high_achievements',
+  'high_school', 'high_school_year_graduated', 'high_school_achievements',
+  'elementary_school', 'elementary_year_graduated', 'elementary_achievements',
   'college_school', 'college_year_graduated',
 ];
 const pickEducation = (src) => Object.fromEntries(EDUCATION_KEYS.map(k => [k, src?.[k] ?? '']));
 const pickSiblings = (src) => (src?.siblings || []).map(x => ({
   first_name: x.first_name ?? '', middle_name: x.middle_name ?? '', last_name: x.last_name ?? '',
   age: x.age ?? '', occupation: x.occupation ?? '',
+  educational_attainment: x.educational_attainment ?? '', civil_status: x.civil_status ?? '',
 }));
 const snapOf = () => { try { return backgroundSnapshot.value ? JSON.parse(backgroundSnapshot.value) : {}; } catch (e) { return {}; } };
 const isSiblingsUnchanged = computed(() => JSON.stringify(pickSiblings(backgroundForm.value)) === JSON.stringify(pickSiblings(snapOf())));
@@ -335,7 +500,7 @@ const backgroundSuccess = ref('');
 
 // Every save goes through a confirmation modal first.
 const CONFIRM_LABELS = {
-  profile: 'Profile Information',
+  profile: 'Personal Information',
   family: 'Family Information',
   siblings: 'Siblings Information',
   education: 'Educational Attainment',
@@ -377,7 +542,7 @@ async function confirmSave() {
 }
 
 function addSibling() {
-  backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', age: '', occupation: '' });
+  backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', age: '', occupation: '', educational_attainment: '', civil_status: '' });
 }
 function removeSibling(idx) {
   backgroundForm.value.siblings.splice(idx, 1);
@@ -397,7 +562,8 @@ async function saveProfile() {
   }
 
   try {
-    const res = await axios.put(`${API_BASE}/student/profile`, profileForm.value, authHeaders());
+    const payload = { ...profileForm.value, birthdate: profileForm.value.birthdate || null, sex: profileForm.value.sex || null, civil_status: profileForm.value.civil_status || null };
+    const res = await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
     student.value = { ...student.value, ...res.data };
     localStorage.setItem('student', JSON.stringify(student.value));
     profileSnapshot.value = JSON.stringify(profileForm.value);
@@ -503,6 +669,18 @@ onMounted(async () => {
     const res = await axios.get(`${API_BASE}/student/me`, authHeaders());
     const d = res.data || {};
     const siblings = Array.isArray(d.siblings) ? d.siblings : (d.siblings ? JSON.parse(d.siblings) : []);
+    student.value = { ...student.value, program: d.program, year_level: d.year_level, student_id: d.student_id };
+    profileForm.value = {
+      ...profileForm.value,
+      birthdate: d.birthdate ? String(d.birthdate).slice(0, 10) : '',
+      sex: d.sex || '',
+      civil_status: d.civil_status || '',
+      nationality: d.nationality || '',
+      birthplace: d.birthplace || '',
+      languages: d.languages || '',
+      address: d.address || '',
+    };
+    profileSnapshot.value = JSON.stringify(profileForm.value);
     backgroundForm.value = {
       father_first_name: d.father_first_name || '',
       father_middle_name: d.father_middle_name || '',
@@ -514,7 +692,18 @@ onMounted(async () => {
       mother_last_name: d.mother_last_name || '',
       mother_occupation: d.mother_occupation || '',
       mother_contact_number: d.mother_contact_number || '',
+      father_age: d.father_age || '', father_educational_attainment: d.father_educational_attainment || '',
+      mother_age: d.mother_age || '', mother_educational_attainment: d.mother_educational_attainment || '',
+      guardian_first_name: d.guardian_first_name || '', guardian_middle_name: d.guardian_middle_name || '',
+      guardian_last_name: d.guardian_last_name || '', guardian_age: d.guardian_age || '',
+      guardian_occupation: d.guardian_occupation || '', guardian_educational_attainment: d.guardian_educational_attainment || '',
+      guardian_contact: d.guardian_contact || '',
       siblings,
+      senior_high_school: d.senior_high_school || '',
+      senior_high_year_graduated: d.senior_high_year_graduated || '',
+      senior_high_achievements: d.senior_high_achievements || '',
+      high_school_achievements: d.high_school_achievements || '',
+      elementary_achievements: d.elementary_achievements || '',
       elementary_school: d.elementary_school || '',
       elementary_year_graduated: d.elementary_year_graduated || '',
       high_school: d.high_school || '',

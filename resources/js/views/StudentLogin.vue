@@ -153,7 +153,9 @@ async function handleLogin() {
       account_locked:     'This account has been locked. Please contact the Office of Student Services.',
     };
 
-    error.value = MESSAGES[code]
+    error.value = e.response?.status === 429
+      ? 'Too many attempts. Please wait a minute and try again.'
+      : MESSAGES[code]
       || data.message
       || 'Invalid Student ID or password.';
   } finally {

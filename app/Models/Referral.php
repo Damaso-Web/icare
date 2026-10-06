@@ -147,6 +147,13 @@ class Referral extends Model
     // changed any more. Mirrors referrals/Show.vue's isResolved computed so
     // the frontend lock and this backend lock can't drift; the frontend one
     // is UX only, this is what actually refuses a direct API call.
+    // A referral created through "Refer to TMDU" (the Case Referral Slip)
+    // carries its own TestingRecord and belongs to TMDU alone - it is kept
+    // out of GCU's Referrals / SIF and TMDU's own queue is limited to these.
+    public function scopeTmduOwned($q)    { return $q->whereHas('testingRecord'); }
+    public function scopeNotTmduOwned($q) { return $q->whereDoesntHave('testingRecord'); }
+    public function isTmduOwned(): bool   { return $this->testingRecord()->exists(); }
+
     public function isLocked(): bool
     {
         return in_array($this->status, ['completed', 'closed'], true);

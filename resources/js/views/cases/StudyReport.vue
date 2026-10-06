@@ -14,55 +14,72 @@
       <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
     </div>
 
+    <div v-else-if="loadError" style="text-align:center;padding:44px;color:var(--red);font-size:13px">{{ loadError }}</div>
+
     <template v-else>
       <div style="text-align:center;border-bottom:2px solid var(--forest);padding-bottom:14px;margin-bottom:20px">
         <div style="font-size:11px;color:var(--stone)">Batangas State University - Office of Student Services</div>
         <h1 style="margin:6px 0 2px;font-size:20px;color:var(--forest)">Case Study Report</h1>
       </div>
 
-      <!-- Student Info -->
+      <!-- Personal Information -->
       <section class="sr-sec">
-        <h2>Student Info</h2>
-        <div class="sr-grid">
-          <div><strong>ID:</strong> {{ student.student_id || '-' }}</div>
-          <div><strong>Full Name:</strong> {{ fullName }}</div>
-          <div><strong>College:</strong> {{ student.college || '-' }}</div>
-          <div><strong>Program:</strong> {{ student.program || '-' }}</div>
-          <div><strong>Year and Section:</strong> {{ yearSection }}</div>
+        <h2>Personal Information</h2>
+        <div class="sr-grid3">
+          <div><span class="sr-k">Name</span>{{ fullName }}</div>
+          <div><span class="sr-k">Student ID</span>{{ student.student_id || '-' }}</div>
+          <div><span class="sr-k">Contact Number</span>{{ student.contact_number || '-' }}</div>
+          <div><span class="sr-k">Course and Year</span>{{ courseYear }}</div>
+          <div><span class="sr-k">Birthdate (mm/dd/yyyy)</span>{{ birthdate }}</div>
+          <div><span class="sr-k">Sex</span>{{ student.sex || '-' }}</div>
+          <div><span class="sr-k">Civil Status</span>{{ student.civil_status || '-' }}</div>
+          <div><span class="sr-k">Nationality</span>{{ student.nationality || '-' }}</div>
+          <div><span class="sr-k">Birthplace</span>{{ student.birthplace || '-' }}</div>
+          <div><span class="sr-k">Email Address</span>{{ student.email || '-' }}</div>
+          <div class="sr-span2"><span class="sr-k">Languages that I understand</span>{{ student.languages || '-' }}</div>
+          <div class="sr-span3"><span class="sr-k">Address while studying at BSU</span>{{ student.address || '-' }}</div>
         </div>
       </section>
 
       <!-- Family Information -->
       <section class="sr-sec">
         <h2>Family Information</h2>
-        <div class="sr-grid">
-          <div>
-            <div class="sr-sub">Father</div>
-            <div><strong>Name:</strong> {{ parentName('father') }}</div>
-            <div><strong>Occupation:</strong> {{ student.father_occupation || '-' }}</div>
-            <div><strong>Contact No.:</strong> {{ student.father_contact_number || '-' }}</div>
-          </div>
-          <div>
-            <div class="sr-sub">Mother</div>
-            <div><strong>Name:</strong> {{ parentName('mother') }}</div>
-            <div><strong>Occupation:</strong> {{ student.mother_occupation || '-' }}</div>
-            <div><strong>Contact No.:</strong> {{ student.mother_contact_number || '-' }}</div>
-          </div>
-        </div>
+        <table class="sr-table sr-family">
+          <thead>
+            <tr><th style="width:26%"></th><th>Father</th><th>Mother</th><th>Legal Guardian</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in familyRows" :key="row.label">
+              <th>{{ row.label }}</th>
+              <td v-for="who in ['father', 'mother', 'guardian']" :key="who">{{ row[who] || '-' }}</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <!-- Siblings Information -->
       <section class="sr-sec">
         <h2>Siblings Information</h2>
+        <div class="sr-muted" style="margin-bottom:6px">Siblings (brothers &amp; sisters), arranged from the eldest to youngest</div>
         <div v-if="!siblings.length" class="sr-muted">No siblings recorded.</div>
         <table v-else class="sr-table">
           <thead>
-            <tr><th>Name</th><th style="width:60px">Age</th><th>Occupation / School</th></tr>
+            <tr>
+              <th style="width:34px">#</th>
+              <th>Name</th>
+              <th style="width:54px">Age</th>
+              <th>Highest Educational Attainment</th>
+              <th>Civil Status</th>
+              <th>Occupation (write student if still studying)</th>
+            </tr>
           </thead>
           <tbody>
             <tr v-for="(s, i) in siblings" :key="i">
-              <td>{{ [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ') }}</td>
+              <td>{{ i + 1 }}</td>
+              <td>{{ [s.first_name, s.middle_name, s.last_name].filter(Boolean).join(' ') || '-' }}</td>
               <td>{{ s.age || '-' }}</td>
+              <td>{{ s.educational_attainment || '-' }}</td>
+              <td>{{ s.civil_status || '-' }}</td>
               <td>{{ s.occupation || '-' }}</td>
             </tr>
           </tbody>
@@ -74,50 +91,47 @@
         <h2>Educational Attainment</h2>
         <table class="sr-table">
           <thead>
-            <tr><th>Level</th><th>School</th><th style="width:120px">Year Graduated</th></tr>
+            <tr><th style="width:24%">School Level</th><th>School</th><th style="width:110px">Year Graduated</th><th>Achievements</th></tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Elementary</td>
-              <td>{{ student.elementary_school || '-' }}</td>
-              <td>{{ student.elementary_year_graduated || '-' }}</td>
-            </tr>
-            <tr>
-              <td>High School</td>
-              <td>{{ student.high_school || '-' }}</td>
-              <td>{{ student.high_school_year_graduated || '-' }}</td>
-            </tr>
-            <tr>
-              <td>College</td>
-              <td>{{ student.college_school || '-' }}</td>
-              <td>{{ student.college_year_graduated || 'Ongoing' }}</td>
+            <tr v-for="lvl in educationRows" :key="lvl.level">
+              <td>{{ lvl.level }}</td>
+              <td>{{ lvl.school || '-' }}</td>
+              <td>{{ lvl.year || '-' }}</td>
+              <td class="sr-text">{{ lvl.achievements || '-' }}</td>
             </tr>
           </tbody>
         </table>
       </section>
 
-      <!-- Sessions -->
+      <!-- Referral History -->
       <section class="sr-sec">
-        <h2>Sessions</h2>
-        <div v-if="!sessions.length" class="sr-muted">No session notes recorded yet.</div>
-        <div v-for="n in sessions" :key="n.id" class="sr-session">
-          <div class="sr-grid">
-            <div><strong>Date:</strong> {{ monthYear(n.session_date) }}</div>
-            <div><strong>Initial Concern (Service):</strong> {{ initialConcern(n) }}</div>
-          </div>
-          <div class="sr-block">
-            <div class="sr-label">Session Notes</div>
-            <div class="sr-text">{{ sessionNotesText(n) }}</div>
-          </div>
-          <div class="sr-block">
-            <div class="sr-label">Remarks</div>
-            <div class="sr-text">{{ remarksText(n) }}</div>
-          </div>
-          <div class="sr-block">
-            <div class="sr-label">Conducted by</div>
-            <div class="sr-text">{{ n.recorded_by?.name || '-' }}</div>
-          </div>
-        </div>
+        <h2>Referral History</h2>
+        <div v-if="!historyRows.length" class="sr-muted">No referrals recorded yet.</div>
+        <table v-else class="sr-table sr-history">
+          <thead>
+            <tr>
+              <th style="width:76px">Date</th>
+              <th style="width:24%">Initial Concern</th>
+              <th>Intervention/s (Session Notes)</th>
+              <th style="width:24%">Remarks</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in historyRows" :key="row.key">
+              <td>{{ row.date }}</td>
+              <td>
+                <div style="font-weight:600">{{ row.service }}</div>
+                <div v-if="row.concern" class="sr-sub-text">{{ row.concern }}</div>
+              </td>
+              <td class="sr-text">{{ row.notes }}</td>
+              <td class="sr-text">
+                {{ row.remarks }}
+                <div v-if="row.conductedBy" class="sr-sub-text">Conducted by: {{ row.conductedBy }}</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <div style="margin-top:40px;font-size:11px;color:var(--stone);text-align:center;border-top:1px solid var(--cloud);padding-top:10px">
@@ -135,24 +149,48 @@ import { toTitleCase } from '../../utils/validators';
 
 const route = useRoute();
 const loading = ref(true);
+const loadError = ref('');
 const caseFile = ref({});
 
 const student = computed(() => caseFile.value.student || {});
 
+function fullNameOf(first, middle, last, suffix) {
+  return [first, middle, last, suffix].filter(Boolean).join(' ');
+}
+
 const fullName = computed(() => {
   const s = student.value;
-  return [s.first_name, s.middle_name, s.last_name, s.suffix].filter(Boolean).join(' ') || '-';
+  return fullNameOf(s.first_name, s.middle_name, s.last_name, s.suffix) || '-';
 });
 
-const yearSection = computed(() => {
+const courseYear = computed(() => {
   const s = student.value;
-  return [s.year_level, s.section].filter(Boolean).join(' - ') || '-';
+  const parts = [s.program, [s.year_level, s.section].filter(Boolean).join(' - ')].filter(Boolean);
+  return parts.join(' | ') || '-';
 });
 
-function parentName(who) {
+const birthdate = computed(() => {
+  const b = student.value.birthdate;
+  if (!b) return '-';
+  const d = new Date(b);
+  if (isNaN(d)) return '-';
+  return `${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}/${d.getFullYear()}`;
+});
+
+const familyRows = computed(() => {
   const s = student.value;
-  return [s[`${who}_first_name`], s[`${who}_middle_name`], s[`${who}_last_name`]].filter(Boolean).join(' ') || '-';
-}
+  const guardianName = fullNameOf(s.guardian_first_name, s.guardian_middle_name, s.guardian_last_name);
+  return [
+    { label: 'Name',
+      father: fullNameOf(s.father_first_name, s.father_middle_name, s.father_last_name),
+      mother: fullNameOf(s.mother_first_name, s.mother_middle_name, s.mother_last_name),
+      guardian: guardianName },
+    { label: 'Age', father: s.father_age, mother: s.mother_age, guardian: s.guardian_age },
+    { label: 'Occupation', father: s.father_occupation, mother: s.mother_occupation, guardian: s.guardian_occupation },
+    { label: 'Highest Educational Attainment', father: s.father_educational_attainment, mother: s.mother_educational_attainment, guardian: s.guardian_educational_attainment },
+    { label: 'Contact No.', father: s.father_contact_number, mother: s.mother_contact_number, guardian: s.guardian_contact },
+  ];
+});
 
 const siblings = computed(() => {
   let list = student.value.siblings;
@@ -162,12 +200,18 @@ const siblings = computed(() => {
   return Array.isArray(list) ? list : [];
 });
 
-// Oldest first, so the report reads in the order the sessions happened.
-const sessions = computed(() =>
-  [...(caseFile.value.session_notes || [])].sort(
-    (a, b) => new Date(a.session_date) - new Date(b.session_date) || a.id - b.id
-  )
-);
+const educationRows = computed(() => {
+  const s = student.value;
+  const rows = [
+    { level: 'Senior High School', school: s.senior_high_school, year: s.senior_high_year_graduated, achievements: s.senior_high_achievements },
+    { level: 'Junior High School', school: s.high_school, year: s.high_school_year_graduated, achievements: s.high_school_achievements },
+    { level: 'Elementary', school: s.elementary_school, year: s.elementary_year_graduated, achievements: s.elementary_achievements },
+  ];
+  if (s.college_school) {
+    rows.unshift({ level: 'College', school: s.college_school, year: s.college_year_graduated || 'Ongoing', achievements: '' });
+  }
+  return rows;
+});
 
 function monthYear(date) {
   if (!date) return '-';
@@ -176,23 +220,39 @@ function monthYear(date) {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-function initialConcern(n) {
-  const ref = n.referral
-    || (caseFile.value.referrals || []).find(r => r.id === n.referral_id);
-  const service = ref?.referral_type ? toTitleCase(ref.referral_type) : null;
-  const concern = ref?.nature_of_concern || caseFile.value.presenting_concern;
-  return [service, concern].filter(Boolean).join(' | ') || '-';
-}
+// One row per session note, grouped under the referral (initial concern) it
+// belongs to. A referral with no session notes yet still gets one row.
+// TMDU's own Case Referral Slips are a separate record and are never listed.
+const historyRows = computed(() => {
+  const referrals = [...(caseFile.value.referrals || [])]
+    .filter(r => !r.testing_record && !r.complaint_id)
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at) || a.id - b.id);
 
-function sessionNotesText(n) {
-  return [n.observations, n.interventions && `Interventions: ${n.interventions}`]
-    .filter(Boolean).join('\n') || '-';
-}
+  const rows = [];
+  for (const r of referrals) {
+    const service = r.referral_type ? toTitleCase(r.referral_type) : '-';
+    const concern = r.nature_of_concern || '';
+    const notes = [...(r.session_notes || [])]
+      .sort((a, b) => new Date(a.session_date) - new Date(b.session_date) || a.id - b.id);
 
-function remarksText(n) {
-  return [n.student_response && `Student response: ${n.student_response}`, n.next_steps && `Next steps: ${n.next_steps}`]
-    .filter(Boolean).join('\n') || '-';
-}
+    if (!notes.length) {
+      rows.push({ key: `r${r.id}`, date: monthYear(r.created_at), service, concern, notes: '-', remarks: '-', conductedBy: '' });
+      continue;
+    }
+    for (const n of notes) {
+      rows.push({
+        key: `n${n.id}`,
+        date: monthYear(n.session_date || r.created_at),
+        service,
+        concern,
+        notes: [n.observations, n.interventions && `Interventions: ${n.interventions}`].filter(Boolean).join('\n') || '-',
+        remarks: [n.student_response && `Student response: ${n.student_response}`, n.next_steps].filter(Boolean).join('\n') || '-',
+        conductedBy: n.recorded_by?.name || '',
+      });
+    }
+  }
+  return rows;
+});
 
 function printReport() {
   window.print();
@@ -203,7 +263,7 @@ onMounted(async () => {
     const res = await caseAPI.summary(route.params.id);
     caseFile.value = res.data;
   } catch (e) {
-    console.error(e);
+    loadError.value = e.response?.data?.message || 'Could not load the Case Study Report.';
   } finally {
     loading.value = false;
   }
@@ -211,18 +271,21 @@ onMounted(async () => {
 </script>
 
 <style>
-.sr-page { max-width: 820px; margin: 0 auto; padding: 32px 24px; background: #fff; font-family: var(--sans, sans-serif); }
+.sr-page { max-width: 860px; margin: 0 auto; padding: 32px 24px; background: #fff; font-family: var(--sans, sans-serif); }
 .sr-sec { margin-bottom: 18px; }
 .sr-sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--forest); border-bottom: 1px solid var(--cloud); padding-bottom: 4px; margin: 0 0 8px; }
-.sr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; font-size: 13px; }
-.sr-sub { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--fog); margin-bottom: 3px; }
+.sr-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; font-size: 13px; }
+.sr-span2 { grid-column: span 2; }
+.sr-span3 { grid-column: span 3; }
+.sr-k { display: block; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--fog); margin-bottom: 2px; }
 .sr-muted { font-size: 12.5px; color: var(--fog); }
 .sr-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.sr-table th, .sr-table td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--cloud); }
-.sr-session { border: 1px solid var(--cloud); border-radius: 6px; padding: 12px 14px; margin-bottom: 12px; page-break-inside: avoid; }
-.sr-block { margin-top: 10px; font-size: 13px; }
-.sr-label { font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--fog); margin-bottom: 2px; }
-.sr-text { white-space: pre-line; line-height: 1.55; }
+.sr-table th, .sr-table td { text-align: left; padding: 5px 8px; border: 1px solid var(--cloud); vertical-align: top; }
+.sr-table thead th { background: var(--snow); font-size: 11px; text-transform: uppercase; color: var(--stone); }
+.sr-family tbody th { background: var(--snow); font-size: 11px; color: var(--stone); font-weight: 600; }
+.sr-history tr { page-break-inside: avoid; }
+.sr-sub-text { font-size: 11.5px; color: var(--stone); margin-top: 2px; }
+.sr-text { white-space: pre-line; line-height: 1.5; }
 @media print {
   .no-print { display: none !important; }
 }

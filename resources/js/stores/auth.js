@@ -24,10 +24,25 @@ export const useAuthStore = defineStore('auth', {
     },
 
     actions: {
+        // Returns { otpRequired, otpToken, emailHint } when the server wants the
+        // emailed 6-digit code; otherwise logs in and returns { otpRequired: false }.
         async login(email, password) {
             const response = await axios.post('/api/login', { email, password });
-            this.token = response.data.token;
-            this.user  = response.data.user;
+            if (response.data.otp_required) {
+                return { otpRequired: true, otpToken: response.data.otp_token, emailHint: response.data.email_hint };
+            }
+            this.setSession(response.data);
+            return { otpRequired: false };
+        },
+
+        async verifyOtp(otpToken, otp) {
+            const response = await axios.post('/api/login/verify-otp', { otp_token: otpToken, otp });
+            this.setSession(response.data);
+        },
+
+        setSession(data) {
+            this.token = data.token;
+            this.user  = data.user;
             localStorage.setItem('token', this.token);
             localStorage.setItem('user', JSON.stringify(this.user));
             axios.defaults.headers.common['Authorization'] = `Bearer ${this.token}`;

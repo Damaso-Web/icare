@@ -24,6 +24,18 @@ class RouteServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Brute-force protection: per account + IP, and a wider per-IP cap.
+        RateLimiter::for('login', function (Request $request) {
+            $id = strtolower((string) ($request->input('email') ?: $request->input('student_id')));
+            return [
+                Limit::perMinute(5)->by('login:'.$id.'|'.$request->ip()),
+                Limit::perMinute(20)->by('login-ip:'.$request->ip()),
+            ];
+        });
+        RateLimiter::for('public-form', function (Request $request) {
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });

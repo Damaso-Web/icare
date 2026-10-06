@@ -20,7 +20,22 @@
         {{ error }}
       </div>
 
-      <form @submit.prevent="handleLogin">
+      <!-- Step 2: emailed one-time code (only when the server has OTP turned on) -->
+      <form v-if="otpToken" @submit.prevent="handleVerify">
+        <p style="font-size:13px;color:var(--stone);margin-bottom:14px">
+          We sent a 6-digit verification code to <strong>{{ emailHint }}</strong>. It expires in 10 minutes.
+        </p>
+        <div style="margin-bottom:20px">
+          <label class="ifl">Verification Code</label>
+          <input v-model="otp" class="ifi" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" required @input="otp = otp.replace(/\D/g, '')" />
+        </div>
+        <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading || otp.length !== 6">
+          {{ loading ? 'Verifying...' : 'Verify & Log In' }}
+        </button>
+        <button type="button" class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:8px" @click="otpToken = ''; otp = ''; error = ''">Back</button>
+      </form>
+
+      <form v-else @submit.prevent="handleLogin">
         <div style="margin-bottom:14px">
           <label class="ifl">Email Address</label>
           <input
@@ -93,6 +108,9 @@ const error       = ref('');
 const loading     = ref(false);
 const showPassword = ref(false);
 const capsLockOn = ref(false);
+const otpToken  = ref('');
+const otp       = ref('');
+const emailHint = ref('');
 
 function checkCapsLock(e) {
   capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
@@ -102,10 +120,35 @@ async function handleLogin() {
   error.value   = '';
   loading.value = true;
   try {
-    await auth.login(form.value.email, form.value.password);
+    const r = await auth.login(form.value.email, form.value.password);
+    if (r.otpRequired) {
+      otpToken.value  = r.otpToken;
+      emailHint.value = r.emailHint;
+    } else {
+      router.push({ name: 'dashboard' });
+    }
+  } catch (e) {
+    error.value = e.response?.status === 429
+      ? 'Too many attempts. Please wait a minute and try again.'
+      : (e.response?.data?.message || 'Invalid email or password.');
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function handleVerify() {
+  error.value   = '';
+  loading.value = true;
+  try {
+    await auth.verifyOtp(otpToken.value, otp.value);
     router.push({ name: 'dashboard' });
   } catch (e) {
-    error.value = e.response?.data?.message || 'Invalid email or password.';
+    error.value = e.response?.status === 429
+      ? 'Too many attempts. Please wait a minute and try again.'
+      : (e.response?.data?.message || 'Verification failed.');
+    if (e.response?.status === 422 && /expired|Too many/.test(e.response?.data?.message || '')) {
+      otpToken.value = ''; otp.value = '';
+    }
   } finally {
     loading.value = false;
   }

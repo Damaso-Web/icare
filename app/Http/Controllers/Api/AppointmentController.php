@@ -28,6 +28,18 @@ class AppointmentController extends Controller
     // once the appointment is confirmed, the student needs to be told to
     // bring these so the admission slip can actually be processed.
     private const CLASS_ATTENDANCE_REMINDER = "Please bring a Letter of Explanation, a photocopy of the valid ID of the parent/legal guardian who signed the letter, and 3 specimen signatures of that same parent/legal guardian.";
+    // TMDU staff only act on TMDU appointments; GCU staff never on TMDU's.
+    private function authorizeUnit(Appointment $appointment): void
+    {
+        $role = request()->user()?->role;
+        if ($role === 'tmdu_staff' && $appointment->unit !== 'TMDU') {
+            abort(403, 'This appointment belongs to another unit.');
+        }
+        if (in_array($role, ['admin', 'gcu_staff'], true) && $appointment->unit === 'TMDU') {
+            abort(403, 'This appointment belongs to TMDU.');
+        }
+    }
+
     public function index(Request $request)
     {
         $user = $request->user();
@@ -48,8 +60,10 @@ class AppointmentController extends Controller
                 })
                 ->when($request->referral_id,      fn($q) => $q->where('referral_id', $request->referral_id))
                 ->when($request->appointment_type, fn($q) => $q->where('appointment_type', $request->appointment_type))
+                // GCU and TMDU appointments are separate calendars.
                 ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
                 ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
+                ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 ->orderByDesc('created_at')
                 ->paginate($perPage)
         );
@@ -148,11 +162,13 @@ class AppointmentController extends Controller
 
     public function show(Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         return response()->json($appointment->load(['student', 'staff', 'case', 'createdBy']));
     }
 
     public function update(Request $request, Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         $validated = $request->validate([
             'location'         => 'nullable|string',
             'notes'            => 'nullable|string|max:1000',
@@ -189,6 +205,7 @@ class AppointmentController extends Controller
 
     public function confirm(Request $request, Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         $validated = $request->validate([
             'staff_user_id'       => 'nullable|exists:users,id',
             'required_documents'  => 'nullable|string|max:1000',
@@ -280,6 +297,7 @@ class AppointmentController extends Controller
     // whole chain of an appointment's reschedules be counted and traced.
     public function reschedule(Request $request, Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         $request->validate([
             'reschedule_reason' => 'required|string|max:1000',
         ]);
@@ -595,6 +613,7 @@ public function checkConflictByStudent(Request $request)
 
     public function checkIn(Request $request, Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         $appointment->update([
             'checked_in'            => true,
             'checked_in_at'         => now(),
@@ -623,6 +642,7 @@ public function checkConflictByStudent(Request $request)
     // drives the decision itself.
     public function escalateNoShow(Request $request, Appointment $appointment)
     {
+        $this->authorizeUnit($appointment);
         $validated = $request->validate([
             'action' => 'required|in:call_slip,reschedule',
         ]);

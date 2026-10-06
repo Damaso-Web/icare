@@ -8,9 +8,19 @@ use Illuminate\Support\Facades\Artisan;
 
 class CronController extends Controller
 {
+    // Fails CLOSED: if CRON_SECRET isn't configured, nobody gets in (previously a
+    // missing secret meant null === null and the endpoint was open to everyone).
+    private function secretOk(Request $request): bool
+    {
+        $secret = (string) config('app.cron_secret');
+        $given  = (string) $request->header('X-Cron-Secret');
+
+        return $secret !== '' && hash_equals($secret, $given);
+    }
+
     public function followUpReminders(Request $request)
     {
-        if ($request->header('X-Cron-Secret') !== config('app.cron_secret')) {
+        if (!$this->secretOk($request)) {
             abort(403, 'Unauthorized.');
         }
 
@@ -24,7 +34,7 @@ class CronController extends Controller
 
     public function detectNoShows(Request $request)
 {
-    if ($request->header('X-Cron-Secret') !== config('app.cron_secret')) {
+    if (!$this->secretOk($request)) {
         abort(403, 'Unauthorized.');
     }
 

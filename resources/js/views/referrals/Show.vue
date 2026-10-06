@@ -200,7 +200,7 @@
           <!-- Referral Info (merged with the former "Referral Details" card) -->
           <div class="icard" v-if="!isIncidentReport">
             <div class="icard-header">
-              <span class="icard-title">Referral Info</span>
+              <span class="icard-title">{{ isCaseReferralSlip ? 'Case Referral Slip' : 'Referral Info' }}</span>
             </div>
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
@@ -604,7 +604,7 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Recommended Actions</div>
                 <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ tmduTestingRecord.recommendations || '-' }}</div>
               </div>
-              <a v-if="parDocument" :href="attachmentUrl(parDocument)" target="_blank" class="ibtn ibtn-o ibtn-sm" style="margin-bottom:8px">
+              <a v-if="parDocument" href="#" @click.prevent="openPar(parDocument)" class="ibtn ibtn-o ibtn-sm" style="margin-bottom:8px">
                 <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 {{ parDocument.original_filename || 'View PAR File' }}
               </a>
@@ -727,7 +727,7 @@
           <div class="icard" v-else-if="referral.status === 'submitted' && !fromCases">
             <div class="icard-body">
               <div style="font-size:13px;color:var(--stone)">
-                Awaiting acknowledgement from {{ referral.referral_type === 'psychological_testing' ? 'TMDU' : 'GCU' }}.
+                Awaiting acknowledgement from {{ referral.testing_record ? 'TMDU' : 'GCU' }}.
               </div>
             </div>
           </div>
@@ -986,6 +986,10 @@
                        card uses) instead. Also gated on hasAttendedAppointment -
                        an appointment must be set AND attended before the case
                        can be escalated, same gate the backend enforces. -->
+                  <button v-if="tmduSlip || tmduTestingRecord" class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openSlipModal">
+                    <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    View Case Referral
+                  </button>
                   <div v-if="tmduTestingRecord && tmduTestingRecord.status !== 'test_results_issued'" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                     ✓ Already referred to TMDU
                   </div>
@@ -1094,13 +1098,13 @@
                 Issue Slip
               </button>
             </div>
-            <div v-if="!referral.case?.parent_conference_slips?.length" class="empty-state">
+            <div v-if="!referralParentConferenceSlips.length" class="empty-state">
               <h3>No parent conference slips yet</h3>
-              <p>No Parent Conference Slip has been issued for this case.</p>
+              <p>No Parent Conference Slip has been issued for this referral.</p>
             </div>
             <div v-else>
               <div
-                v-for="s in referral.case.parent_conference_slips"
+                v-for="s in referralParentConferenceSlips"
                 :key="s.id"
                 style="padding:12px 18px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
                 @mouseover="$event.currentTarget.style.background='var(--foam)'"
@@ -1751,6 +1755,19 @@
       </div>
 
     </template>
+
+    <!-- Read-only Case Referral (Refer to TMDU) form -->
+    <div v-if="slipModal" class="modal-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px" @click.self="slipModal = false">
+      <div style="background:#fff;border-radius:12px;max-width:820px;width:100%;max-height:92vh;overflow:auto;padding:20px">
+        <div v-if="slipLoading" style="padding:30px;text-align:center;color:var(--stone)">Loading...</div>
+        <CaseReferralView v-else-if="tmduSlip" :data="tmduSlip" />
+        <div v-else style="padding:30px;text-align:center;color:var(--stone)">Case referral form not available.</div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
+          <button v-if="tmduSlip" class="ibtn ibtn-p" @click="router.push({ name: 'case-referral-show', params: { id: tmduSlip.id } })">View Case Referral</button>
+          <button class="ibtn ibtn-o" @click="slipModal = false">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -1758,7 +1775,8 @@
 import { ref, onMounted, inject, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI } from '../../api/index';
+import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
+import CaseReferralView from '../../components/CaseReferralView.vue';
 import { useAuthStore } from '../../stores/auth';
 import { toTitleCase } from '../../utils/validators';
 
@@ -1853,6 +1871,13 @@ function attachmentUrl(att) {
   return `${API_BASE.replace(/\/api$/, '')}/storage/${att.file_path}`;
 }
 
+// Parent conference slips belong to the referral they were issued from;
+// older slips that predate that link (no referral_id) still show.
+const referralParentConferenceSlips = computed(() =>
+  (referral.value.case?.parent_conference_slips || [])
+    .filter(s => !s.referral_id || s.referral_id === referral.value.id)
+);
+
 const referralAppointments = computed(() => {
   const all = referral.value.case?.appointments || [];
   return all.filter(a => a.referral_id === referral.value.id);
@@ -1938,6 +1963,29 @@ const tmduTestingRecord = computed(() => {
   return sibling?.testing_record || null;
 });
 
+const tmduSlip = ref(null);
+const slipModal = ref(false);
+const slipLoading = ref(false);
+async function loadSlip() {
+  if (!isGCU.value || !referral.value?.id) return;
+  try { tmduSlip.value = (await caseReferralAPI.forSource(referral.value.id)).data || null; }
+  catch { tmduSlip.value = null; }
+}
+async function openSlipModal() {
+  slipModal.value = true;
+  slipLoading.value = true;
+  await loadSlip();
+  slipLoading.value = false;
+}
+watch(() => referral.value?.id, () => loadSlip());
+
+async function openPar(doc) {
+  try {
+    const res = await caseReferralAPI.downloadDocument(doc.id);
+    window.open(URL.createObjectURL(res.data), '_blank');
+  } catch { toast?.error('Unable to open the PAR file.'); }
+}
+
 const parDocument = computed(() =>
   (tmduTestingRecord.value?.documents || [])
     .find(d => d.document_type === 'psychological_assessment_report') || null
@@ -2013,16 +2061,18 @@ const isSDUHead = computed(() => auth.user?.role === 'sdu_head');
 // TMDU testing referrals (and anything TMDU staff open) use the TMDU form
 // header QF-OSS-GCU-05 instead of the general referral slip QF-OSS-01.
 const useTmduDoc = computed(() =>
-  referral.value?.referral_type === 'psychological_testing'
-  || !!referral.value?.testing_record
+  !!referral.value?.testing_record
   || auth.user?.role === 'tmdu_staff');
+// The Case Referral Slip (filled in through "Refer to TMDU") is TMDU's own
+// form - same layout as a general referral, but a different record entirely.
+const isCaseReferralSlip = computed(() => useTmduDoc.value);
 const headerDoc = computed(() => (useTmduDoc.value ? tmduDoc.value : referralDoc.value) || {});
-const isTMDUStaff = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
+const isTMDUStaff = computed(() => auth.user?.role === 'tmdu_staff');
 
 // Who can acknowledge THIS referral: GCU for ordinary referrals, TMDU staff
 // for the shared psychological_testing referral created by "Refer to TMDU".
 const canAcknowledge = computed(() =>
-  referral.value.referral_type === 'psychological_testing' ? isTMDUStaff.value : isGCU.value
+  referral.value.testing_record ? isTMDUStaff.value : isGCU.value
 );
 
 // Set by whichever module linked here (?ctx=cases from Case Files). This page is
@@ -2664,7 +2714,7 @@ async function submitParentConferenceSlip() {
   }
   savingParentConference.value = true;
   try {
-    const res = await caseAPI.issueParentConferenceSlip(referral.value.case.id, parentConferenceForm.value);
+    const res = await caseAPI.issueParentConferenceSlip(referral.value.case.id, { ...parentConferenceForm.value, referral_id: referral.value.id });
     if (!referral.value.case.parent_conference_slips) referral.value.case.parent_conference_slips = [];
     referral.value.case.parent_conference_slips.unshift(res.data);
     showParentConferenceModal.value = false;

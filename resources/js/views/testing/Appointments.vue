@@ -87,10 +87,19 @@
                 </div>
               </div>
               <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
-                <button v-if="a.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
-                <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
-                <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
-                <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="openCancel(a)">Cancel</button>
+                <template v-if="a.appointment_type === 'par_release'">
+                  <template v-if="!['cancelled','completed'].includes(a.status)">
+                    <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click.stop="doParAction(a, 'released')">Results Released</button>
+                    <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!a.on_hold_at" @click.stop="doParAction(a, 'on_hold')">On Hold</button>
+                    <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click.stop="doParAction(a, 'cancel')">Cancel</button>
+                  </template>
+                </template>
+                <template v-else>
+                  <button v-if="a.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
+                  <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
+                  <button v-if="a.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click.stop="openReschedule(a)">Request Reschedule</button>
+                  <button v-if="a.status !== 'cancelled' && a.status !== 'completed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click.stop="openCancel(a)">Cancel</button>
+                </template>
               </div>
             </div>
           </div>
@@ -213,12 +222,20 @@
           </div>
 
           <div v-if="!['cancelled','completed'].includes(detailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
-            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
-            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
-            <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
-            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
+            <template v-if="detailTarget.appointment_type === 'par_release'">
+              <span v-if="detailTarget.on_hold_at" class="ibadge" style="background:var(--amber-lt);color:var(--amber);align-self:center">On Hold</span>
+              <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click="doParAction(detailTarget, 'released')">Results Released</button>
+              <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!detailTarget.on_hold_at" @click="doParAction(detailTarget, 'on_hold')">{{ detailTarget.on_hold_at ? 'On Hold' : 'On Hold' }}</button>
+              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="doParAction(detailTarget, 'cancel')">Cancel</button>
+            </template>
+            <template v-else>
+              <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+              <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
+              <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
+              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
+            </template>
           </div>
-          <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToStudent(detailTarget)">View Student Profile</button>
+          <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToStudent(detailTarget)">View Student Testing Records</button>
         </div>
       </div>
     </div>
@@ -293,7 +310,7 @@
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { appointmentAPI } from '../../api/index';
+import { appointmentAPI, testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 
 const toast  = inject('toast');
@@ -371,7 +388,7 @@ async function fetchAllAppointments() {
 function goToStudent(a) {
   const studentId = a.student_id || a.student?.id;
   if (studentId) {
-    router.push({ name: 'student-show', params: { id: studentId } });
+    router.push({ name: 'testing', query: { student_id: studentId } });
   } else {
     toast?.error('No linked student found for this appointment.');
   }
@@ -398,6 +415,24 @@ async function checkIn(a) {
     fetchAllAppointments();
   } catch (e) {
     toast?.error('Failed to check in.');
+  }
+}
+
+// PAR Release appointment: Results Released / On Hold / Cancel.
+const parBusy = ref(false);
+async function doParAction(a, action) {
+  if (parBusy.value) return;
+  parBusy.value = true;
+  try {
+    const res = await testingAPI.parAction(a.id, action);
+    toast?.success(res.data?.message || 'Updated.');
+    detailTarget.value = null;
+    await fetchAllAppointments();
+    await fetchAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to update the PAR release.');
+  } finally {
+    parBusy.value = false;
   }
 }
 

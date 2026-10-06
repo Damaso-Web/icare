@@ -27,13 +27,15 @@ class ReferralController extends Controller
         $user = $request->user();
 
         if (!$user->isTMDUStaff()) {
+            // GCU can never act on TMDU's own Case Referral Slip.
+            if ($referral && $referral->isTmduOwned()) {
+                abort(403, 'This Case Referral Slip belongs to TMDU.');
+            }
             return;
         }
 
-        if (!$referral
-            || $referral->referral_type !== 'psychological_testing'
-            || optional($referral->case)->current_unit !== 'TMDU') {
-            abort(403, 'TMDU can only modify psychological testing referrals assigned to TMDU.');
+        if (!$referral || !$referral->isTmduOwned()) {
+            abort(403, 'TMDU can only modify its own Case Referral Slips.');
         }
     }
 
@@ -81,8 +83,14 @@ class ReferralController extends Controller
         // college, not just referrals they personally submitted.
         $query->whereHas('student', fn($s) => $s->where('college', $user->college));
     } elseif ($user->isTMDUStaff()) {
-        $query->where('referral_type', 'psychological_testing')
-              ->whereHas('case', fn($c) => $c->where('current_unit', 'TMDU'));
+        // TMDU only ever sees the Case Referral Slips GCU sent to it.
+        $query->tmduOwned();
+    }
+
+    // Everyone else (GCU, faculty, college reps, SDU) never sees TMDU's
+    // Case Referral Slips - those live in TMDU's own queue.
+    if (!$user->isTMDUStaff()) {
+        $query->notTmduOwned();
     }
 
     return response()->json(
@@ -106,8 +114,11 @@ class ReferralController extends Controller
         } elseif ($user->isDeanSecretary()) {
             $query->whereHas('student', fn($s) => $s->where('college', $user->college));
         } elseif ($user->isTMDUStaff()) {
-            $query->where('referral_type', 'psychological_testing')
-                  ->whereHas('case', fn($c) => $c->where('current_unit', 'TMDU'));
+            $query->tmduOwned();
+        }
+
+        if (!$user->isTMDUStaff()) {
+            $query->notTmduOwned();
         }
 
         $query->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
@@ -217,6 +228,7 @@ class ReferralController extends Controller
             // the PAR document attached to it) here is what lets this GCU
             // referral's own SIF page surface the PAR results once TMDU has
             // issued them, without needing to open the Testing Record itself.
+            'testingRecord',
             'case.referrals.testingRecord.documents',
             'case.referrals.testingRecord.tester',
             // For a disciplinary referral filed together with a Complaint
@@ -652,13 +664,13 @@ class ReferralController extends Controller
             abort(403, 'Unauthorized.');
         }
 
-        if ($user->isTMDUStaff()) {
-            $isTesting = $referral->referral_type === 'psychological_testing';
-            $inTmdu    = optional($referral->case)->current_unit === 'TMDU';
+        $tmduOwned = $referral->isTmduOwned();
 
-            if (!$isTesting || !$inTmdu) {
-                abort(403, 'TMDU can only view psychological testing referrals assigned to TMDU.');
-            }
+        if ($user->isTMDUStaff() && !$tmduOwned) {
+            abort(403, 'TMDU can only view its own Case Referral Slips.');
+        }
+        if (!$user->isTMDUStaff() && $tmduOwned) {
+            abort(403, 'This Case Referral Slip belongs to TMDU.');
         }
     }
 }

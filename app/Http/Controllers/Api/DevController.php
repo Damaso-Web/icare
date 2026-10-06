@@ -27,6 +27,10 @@ class DevController extends Controller
 
     private function authorizeTester(Request $request): void
     {
+        if (!config('security.dev_tools')) {
+            abort(404);
+        }
+
         $email = strtolower($request->user()->email ?? '');
         if ($email !== self::TESTER_EMAIL) {
             abort(403, 'This feature is only available on the designated tester account.');

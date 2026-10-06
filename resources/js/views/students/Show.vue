@@ -111,7 +111,6 @@
                   <tr>
                     <th>Refer No.</th>
                     <th>Type</th>
-                    <th>Unit</th>
                     <th>Status</th>
                     <th>Date Submitted</th>
                     <th></th>
@@ -126,7 +125,6 @@
                   >
                     <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
                     <td>{{ toTitleCase(r.referral_type) }}</td>
-                    <td><span class="ibadge" :class="'unit-' + referralUnit(r.referral_type).toLowerCase()">{{ referralUnit(r.referral_type) }}</span></td>
                     <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                     <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
                     <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">View</button></td>

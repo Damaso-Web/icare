@@ -36,12 +36,12 @@ class StudentAuthController extends Controller
 
         if (!$student) {
             AuditLog::record('login_failed', "Failed student login: no active account with Student ID {$request->student_id}.");
-            return response()->json(['message' => 'No active student account was found with that Student ID.'], 401);
+            return response()->json(['message' => 'Invalid Student ID or password.'], 401);
         }
 
         if (!$student->password || !Hash::check($request->password, $student->password)) {
             AuditLog::record('login_failed', "Failed student login for {$student->student_id}: incorrect password.", $student, [], [], $student);
-            return response()->json(['message' => 'Incorrect password.'], 401);
+            return response()->json(['message' => 'Invalid Student ID or password.'], 401);
         }
 
         // The consent notice is shown every time on the login page (not just
@@ -81,7 +81,7 @@ class StudentAuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => ['required', 'confirmed', 'min:8'],
+            'password'         => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
         ]);
 
         $student = $request->user('student');
@@ -144,6 +144,15 @@ public function updateProfile(Request $request)
         'email'          => 'nullable|email',
         'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
+        // Personal Information (Student Information Sheet)
+        'birthdate'      => 'nullable|date|before:today',
+        'sex'            => 'nullable|in:Male,Female',
+        'civil_status'   => 'nullable|in:Single,Married,Divorced,Widowed,Separated',
+        'nationality'    => ['nullable', 'string', 'max:100', 'regex:' . self::NAME_REGEX],
+        'birthplace'     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'languages'      => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'address'        => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+
         // Family Information - names split into first/middle/last, same as
         // the student's own name and the guardian_first_name/middle/last
         // columns, rather than one plain "name" string.
@@ -157,6 +166,17 @@ public function updateProfile(Request $request)
         'mother_last_name'        => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'mother_occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'mother_contact_number'   => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
+        'father_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        'father_educational_attainment'   => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'mother_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        'mother_educational_attainment'   => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'guardian_first_name'             => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'guardian_middle_name'            => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'guardian_last_name'              => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'guardian_age'                    => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        'guardian_occupation'             => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'guardian_educational_attainment' => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'guardian_contact'                => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Siblings Information - a repeatable list filled in by the student,
         // same first/middle/last split per sibling.
@@ -166,6 +186,8 @@ public function updateProfile(Request $request)
         'siblings.*.last_name'        => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'siblings.*.age'              => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
         'siblings.*.occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'siblings.*.educational_attainment' => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'siblings.*.civil_status'     => 'nullable|in:Single,Married,Divorced,Widowed,Separated',
 
         // Educational Attainment (school history)
         'elementary_school'               => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
@@ -174,6 +196,11 @@ public function updateProfile(Request $request)
         'high_school_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
         'college_school'                  => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'college_year_graduated'          => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'senior_high_school'              => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'senior_high_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'senior_high_achievements'        => 'nullable|string|max:1000',
+        'high_school_achievements'        => 'nullable|string|max:1000',
+        'elementary_achievements'         => 'nullable|string|max:1000',
     ]);
 
     $student->fill($validated);

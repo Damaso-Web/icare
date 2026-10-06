@@ -58,6 +58,12 @@ class Student extends Authenticatable
         'high_school_year_graduated',
         'college_school',
         'college_year_graduated',
+        'civil_status', 'nationality', 'birthplace', 'languages',
+        'father_age', 'father_educational_attainment',
+        'mother_age', 'mother_educational_attainment',
+        'guardian_age', 'guardian_occupation', 'guardian_educational_attainment',
+        'senior_high_school', 'senior_high_year_graduated',
+        'senior_high_achievements', 'high_school_achievements', 'elementary_achievements',
     ];
 
     protected $hidden = [

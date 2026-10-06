@@ -196,11 +196,25 @@ class StudentController extends Controller
         // so this is where opening a profile is logged (once per open).
         AuditLog::record('viewed', "Viewed student profile and records for {$student->first_name} {$student->last_name} ({$student->student_id}).", $student);
 
+        $user = request()->user();
+
+        // TMDU works from Testing Records and its own Case Referral Slips -
+        // never the SIF (cases) or GCU's referrals/appointments. GCU in turn
+        // never sees TMDU's referrals, appointments or testing records.
+        if ($user?->isTMDUStaff()) {
+            return response()->json([
+                'cases'           => [],
+                'referrals'       => $student->referrals()->tmduOwned()->with('case:id,status')->latest()->get(),
+                'appointments'    => $student->appointments()->where('unit', 'TMDU')->with('staff')->latest()->get(),
+                'testing_records' => \App\Models\TestingRecord::where('student_id', $student->id)->latest()->get(),
+            ]);
+        }
+
         return response()->json([
             'cases'           => $student->cases()->with('counselor')->latest()->get(),
-            'referrals'       => $student->referrals()->with('case:id,status')->latest()->get(),
-            'appointments'    => $student->appointments()->with('staff')->latest()->get(),
-            'testing_records' => \App\Models\TestingRecord::where('student_id', $student->id)->latest()->get(),
+            'referrals'       => $student->referrals()->notTmduOwned()->with('case:id,status')->latest()->get(),
+            'appointments'    => $student->appointments()->where('unit', '!=', 'TMDU')->with('staff')->latest()->get(),
+            'testing_records' => [],
         ]);
     }
 

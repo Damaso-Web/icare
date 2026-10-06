@@ -25,6 +25,8 @@ import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
 import CallSlips from '../views/callslips/Index.vue';
 import Management from '../views/management/Index.vue';
+import CaseReferrals from '../views/caseReferrals/Index.vue';
+import CaseReferralShow from '../views/caseReferrals/Show.vue';
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean_secretary'];
@@ -41,10 +43,10 @@ const REFERRAL_SUBMITTERS = ['admin', 'gcu_staff', 'sdu_head', 'faculty', 'dean_
 // student, since the Testing Record Details page displays their original
 // referral information too (a "shared case" the referring GCU staff can
 // also view, per the Testing module requirements).
-const TESTING_ROLES = ['admin', 'gcu_staff', 'tmdu_staff'];
+const TESTING_ROLES = ['tmdu_staff'];
 // TMDU Appointments (calendar/queue) - unlike Testing Record Details, this
 // isn't a shared-case view, so GCU staff don't need access here.
-const TMDU_ROLES = ['admin', 'tmdu_staff'];
+const TMDU_ROLES = ['tmdu_staff'];
 
 const routes = [
     {
@@ -178,6 +180,18 @@ const routes = [
                 meta: { roles: [...REFERRAL_SUBMITTERS, 'tmdu_staff'] },
             },
             {
+                path: 'case-referrals',
+                name: 'case-referrals',
+                component: CaseReferrals,
+                meta: { roles: GCU_ROLES },
+            },
+            {
+                path: 'case-referrals/:id',
+                name: 'case-referral-show',
+                component: CaseReferralShow,
+                meta: { roles: GCU_ROLES },
+            },
+            {
                 path: 'cases',
                 name: 'cases',
                 component: Cases,
@@ -187,7 +201,7 @@ const routes = [
                 path: 'appointments',
                 name: 'appointments',
                 component: Appointments,
-                meta: { roles: STAFF_ROLES },
+                meta: { roles: ['admin', 'gcu_staff'] },
             },
             {
                 path: 'testing',

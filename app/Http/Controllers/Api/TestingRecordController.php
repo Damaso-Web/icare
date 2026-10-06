@@ -15,6 +15,8 @@ use App\Notifications\TestingAppointmentReadyNotification;
 use App\Notifications\TestingRequestSubmittedNotification;
 use App\Notifications\TestingScheduledNotification;
 use Illuminate\Http\Request;
+use App\Notifications\ParOnHoldNotification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 
@@ -31,6 +33,27 @@ class TestingRecordController extends Controller
     // record that's just sitting in TMDU's queue unowned; whoever picks it up
     // has to claim it via assign() first. Viewing, the student-facing
     // requestTestingByStudent(), and assign() itself are exempt.
+    // A notification (mail/database) failing must never turn a successful
+    // action into a 500 - e.g. Reassign Test Administrator used to fail
+    // outright whenever the mail channel couldn't deliver.
+    private function safeNotify($notifiables, $notification): void
+    {
+        try {
+            Notification::send($notifiables, $notification);
+        } catch (\Throwable $e) {
+            Log::error('Notification failed: ' . $e->getMessage(), ['notification' => get_class($notification)]);
+        }
+    }
+
+    // Appointments belong to a specific referral (this record's own Case
+    // Referral Slip). Older rows with no referral_id fall back to the case.
+    private function recordAppointments(TestingRecord $record, string $type)
+    {
+        return Appointment::where('case_id', $record->case_id)
+            ->where('appointment_type', $type)
+            ->where(fn($q) => $q->where('referral_id', $record->referral_id)->orWhereNull('referral_id'));
+    }
+
     private function ensureTesterAssigned(TestingRecord $testingRecord): void
     {
         if (!$testingRecord->assigned_tester_user_id) {
@@ -44,7 +67,7 @@ class TestingRecordController extends Controller
     public function availableTesters()
     {
         return response()->json(
-            User::whereIn('role', ['tmdu_staff', 'admin'])
+            User::whereIn('role', ['tmdu_staff'])
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'role'])
@@ -62,7 +85,7 @@ class TestingRecordController extends Controller
 
         $tester = User::findOrFail($validated['tester_user_id']);
         abort_unless(
-            in_array($tester->role, ['tmdu_staff', 'admin'], true),
+            in_array($tester->role, ['tmdu_staff'], true),
             422,
             'The selected user is not TMDU staff.'
         );
@@ -77,7 +100,7 @@ class TestingRecordController extends Controller
             $old
         );
 
-        Notification::send($tester, new TesterAssignedNotification($testingRecord));
+        $this->safeNotify($tester, new TesterAssignedNotification($testingRecord));
 
         return response()->json($testingRecord->load('tester'));
     }
@@ -100,7 +123,7 @@ class TestingRecordController extends Controller
         AuditLog::record('acknowledged', "Acknowledged testing referral for record #{$testingRecord->id}.", $testingRecord);
 
         if ($testingRecord->student) {
-            Notification::send($testingRecord->student, new TestingAppointmentReadyNotification($testingRecord));
+            $this->safeNotify($testingRecord->student, new TestingAppointmentReadyNotification($testingRecord));
         }
 
         return response()->json([
@@ -114,6 +137,7 @@ class TestingRecordController extends Controller
 
         $query = TestingRecord::with(['student', 'referredBy', 'tester', 'case'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->when($request->student_id, fn($q) => $q->where('student_id', $request->student_id))
             // TMDU's Testing Records is where an acknowledged GCU referral
             // lands: records assigned to this tester, plus unclaimed records
             // whose referral TMDU has already acknowledged.
@@ -149,6 +173,8 @@ class TestingRecordController extends Controller
             // Testing Action / Appointments panel on the Testing Record
             // Details page - every appointment sharing this record's case_id
             // (TestingRecord::appointments()), same pattern as CaseFile's.
+            'appointments' => fn($q) => $q
+                ->where(fn($w) => $w->where('referral_id', $testingRecord->referral_id)->orWhereNull('referral_id')),
             'appointments.staff',
         ]));
     }
@@ -268,7 +294,7 @@ class TestingRecordController extends Controller
             : User::where('role', 'tmdu_staff')->get();
 
         if ($recipients->isNotEmpty()) {
-            Notification::send($recipients, new TestingRequestSubmittedNotification($testingRecord));
+            $this->safeNotify($recipients, new TestingRequestSubmittedNotification($testingRecord));
         }
 
         return response()->json($testingRecord);
@@ -292,14 +318,14 @@ class TestingRecordController extends Controller
             'end_time'         => 'required',
         ]);
 
-        $appointment = $testingRecord->case->appointments()
-            ->where('appointment_type', 'psychological_testing')
+        $appointment = $this->recordAppointments($testingRecord, 'psychological_testing')
             ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
             ->latest()
             ->first();
 
         $attributes = [
             'case_id'             => $testingRecord->case_id,
+            'referral_id'         => $testingRecord->referral_id,
             'student_id'          => $testingRecord->student_id,
             'staff_user_id'       => $request->user()->id,
             'created_by_user_id'  => $request->user()->id,
@@ -332,7 +358,7 @@ class TestingRecordController extends Controller
         AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id}.", $testingRecord);
 
         if ($testingRecord->student) {
-            Notification::send($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment));
+            $this->safeNotify($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment));
         }
 
         return response()->json([
@@ -390,8 +416,7 @@ class TestingRecordController extends Controller
     {
         $this->ensureTesterAssigned($testingRecord);
 
-        $testAppointment = $testingRecord->case->appointments()
-            ->where('appointment_type', 'psychological_testing')
+        $testAppointment = $this->recordAppointments($testingRecord, 'psychological_testing')
             ->whereNotIn('status', ['cancelled'])
             ->latest()
             ->first();
@@ -406,14 +431,15 @@ class TestingRecordController extends Controller
             'end_time'         => 'required',
         ]);
 
-        $appointment = $testingRecord->case->appointments()
-            ->where('appointment_type', 'par_release')
+        $appointment = $this->recordAppointments($testingRecord, 'par_release')
             ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
             ->latest()
             ->first();
 
         $attributes = [
             'case_id'             => $testingRecord->case_id,
+            'referral_id'         => $testingRecord->referral_id,
+            'on_hold_at'          => null,
             'student_id'          => $testingRecord->student_id,
             'staff_user_id'       => $request->user()->id,
             'created_by_user_id'  => $request->user()->id,
@@ -439,13 +465,61 @@ class TestingRecordController extends Controller
         AuditLog::record('par_scheduled', "Scheduled PAR release for record #{$testingRecord->id}.", $testingRecord);
 
         if ($testingRecord->student) {
-            Notification::send($testingRecord->student, new ParScheduledNotification($testingRecord, $appointment));
+            $this->safeNotify($testingRecord->student, new ParScheduledNotification($testingRecord, $appointment));
         }
 
         return response()->json([
             'testing_record' => $testingRecord,
             'appointment'    => $appointment,
         ]);
+    }
+
+    /**
+     * PAR Release appointment actions: Results Released, On Hold, Cancel.
+     * On Hold re-notifies the student to go and collect their PAR results.
+     */
+    public function parAction(Request $request, Appointment $appointment)
+    {
+        $validated = $request->validate([
+            'action' => 'required|in:released,on_hold,cancel',
+        ]);
+
+        abort_unless($appointment->appointment_type === 'par_release' && $appointment->unit === 'TMDU', 422, 'This is not a PAR release appointment.');
+        abort_if(in_array($appointment->status, ['completed', 'cancelled'], true), 422, 'This PAR release is already ' . $appointment->status . '.');
+
+        $record = TestingRecord::where('case_id', $appointment->case_id)
+            ->where(fn($q) => $q->where('referral_id', $appointment->referral_id)->orWhereNull('referral_id'))
+            ->latest()
+            ->first();
+
+        switch ($validated['action']) {
+            case 'released':
+                $appointment->update(['status' => 'completed', 'request_status' => 'completed', 'on_hold_at' => null]);
+                $message = 'PAR marked as released. You can now attach the PAR results.';
+                break;
+
+            case 'on_hold':
+                abort_if($appointment->on_hold_at, 422, 'This PAR release is already on hold.');
+                $appointment->update(['on_hold_at' => now()]);
+                if ($appointment->student) {
+                    $this->safeNotify($appointment->student, new ParOnHoldNotification($appointment));
+                }
+                $message = 'PAR release put on hold. The student was notified to collect their PAR results.';
+                break;
+
+            default:
+                $appointment->update([
+                    'status'         => 'cancelled',
+                    'request_status' => 'cancelled',
+                    'cancelled_at'   => now(),
+                    'on_hold_at'     => null,
+                ]);
+                $message = 'PAR release cancelled. Schedule a new PAR release when ready.';
+        }
+
+        AuditLog::record('par_release_' . $validated['action'], "PAR release {$validated['action']} for appointment {$appointment->appointment_code}.", $appointment);
+
+        return response()->json(['message' => $message, 'appointment' => $appointment->fresh(), 'testing_record' => $record]);
     }
 
     // "Attach Psychological Assessment Records (PAR)" action on the Testing
@@ -462,6 +536,15 @@ class TestingRecordController extends Controller
             abort(422, 'Test results have already been issued to GCU for this record.');
         }
         $this->ensureTesterAssigned($testingRecord);
+
+        // The PAR can only be attached once the scheduled PAR release
+        // appointment has been marked "Results Released".
+        $released = $this->recordAppointments($testingRecord, 'par_release')
+            ->where('status', 'completed')
+            ->exists();
+        if (!$released) {
+            abort(422, 'PAR results can only be attached after the scheduled PAR release has been marked as Results Released.');
+        }
 
         $request->validate([
             'assessment_summary' => 'required|string|max:3000',
@@ -487,24 +570,30 @@ class TestingRecordController extends Controller
             $file = $request->file('report_file');
             $path = $file->store("testing-reports/{$testingRecord->id}", 'local');
 
-            Document::create([
-                'documentable_type'    => TestingRecord::class,
-                'documentable_id'      => $testingRecord->id,
-                'document_type'        => 'psychological_assessment_report',
-                'file_path'            => $path,
-                'original_filename'    => $file->getClientOriginalName(),
-                'uploaded_by_user_id'  => $request->user()->id,
+            $docBase = [
+                'document_type'       => 'psychological_assessment_report',
+                'disk'                => 'local',
+                'path'                => $path,
+                'stored_filename'     => basename($path),
+                'original_filename'   => $file->getClientOriginalName(),
+                'mime_type'           => $file->getClientMimeType() ?: 'application/octet-stream',
+                'file_size'           => $file->getSize() ?: 0,
+                'is_confidential'     => true,
+                'uploaded_by_user_id' => $request->user()->id,
+            ];
+
+            Document::create($docBase + [
+                'documentable_type' => TestingRecord::class,
+                'documentable_id'   => $testingRecord->id,
             ]);
 
-            $linkedReferral = $testingRecord->referral ?? $testingRecord->case?->latestReferral;
+            // GCU never opens TMDU's own Case Referral Slip, so the PAR is
+            // also attached to the GCU referral this escalation started from.
+            $linkedReferral = $testingRecord->sourceReferral ?? $testingRecord->case?->latestReferral;
             if ($linkedReferral) {
-                Document::create([
-                    'documentable_type'    => \App\Models\Referral::class,
-                    'documentable_id'      => $linkedReferral->id,
-                    'document_type'        => 'psychological_assessment_report',
-                    'file_path'            => $path,
-                    'original_filename'    => $file->getClientOriginalName(),
-                    'uploaded_by_user_id'  => $request->user()->id,
+                Document::create($docBase + [
+                    'documentable_type' => \App\Models\Referral::class,
+                    'documentable_id'   => $linkedReferral->id,
                 ]);
             }
         }
@@ -513,7 +602,7 @@ class TestingRecordController extends Controller
 
         // Notify the original referring GCU counselor that the PAR is ready.
         if ($testingRecord->referredBy) {
-            Notification::send($testingRecord->referredBy, new ParReadyNotification($testingRecord));
+            $this->safeNotify($testingRecord->referredBy, new ParReadyNotification($testingRecord));
         }
 
         return response()->json($testingRecord);

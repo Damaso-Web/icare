@@ -15,6 +15,7 @@ class ParentConferenceSlip extends Model
 
     protected $fillable = [
         'case_id',
+        'referral_id',
         'issued_by_user_id',
         'conference_date',
         'conference_time',
@@ -34,5 +35,6 @@ class ParentConferenceSlip extends Model
 
     public function caseFile() { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function issuedBy() { return $this->belongsTo(User::class, 'issued_by_user_id'); }
+    public function referral() { return $this->belongsTo(Referral::class); }
     public function notesRecordedBy() { return $this->belongsTo(User::class, 'notes_recorded_by_user_id'); }
 }

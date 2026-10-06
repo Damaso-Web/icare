@@ -30,8 +30,8 @@ class CaseController extends Controller
         $user = request()->user();
         // TMDU has no Student Information File access - they work from the
         // Testing Records module instead.
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head'])) {
-            abort(403, 'Unauthorized. Only GCU/SDU staff may access case files.');
+        if (!in_array($user->role, ['admin', 'gcu_staff'])) {
+            abort(403, 'Unauthorized. Only GCU staff may access Student Information Files.');
         }
     }
 
@@ -199,6 +199,7 @@ class CaseController extends Controller
             'student',
             'counselor',
             'referrals.sessionNotes.recordedBy',
+            'referrals.testingRecord',
             'referrals.referredBy',
             'sessionNotes.recordedBy',
             'sessionNotes.referral',
@@ -518,7 +519,15 @@ class CaseController extends Controller
             'conference_time' => 'required',
             'reason'          => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'remarks'         => 'nullable|string|max:1000',
+            'referral_id'     => 'nullable|exists:referrals,id',
         ]);
+
+        // A parent conference slip is issued per referral, not per case.
+        if (!empty($validated['referral_id'])) {
+            $slipReferral = Referral::findOrFail($validated['referral_id']);
+            abort_if($slipReferral->case_id !== $case->id, 422, 'That referral does not belong to this case.');
+            $slipReferral->abortIfLocked();
+        }
 
         $slip = $case->parentConferenceSlips()->create([
             ...$validated,
@@ -559,7 +568,7 @@ class CaseController extends Controller
         }
 
         $case = $slip->caseFile;
-        $case?->referrals()->latest()->first()?->abortIfLocked();
+        ($slip->referral ?? $case?->referrals()->latest()->first())?->abortIfLocked();
 
         $slip->update([
             'notes'                     => trim($validated['notes']),

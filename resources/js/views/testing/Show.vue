@@ -82,7 +82,7 @@
                referrals/Show.vue; only rendered here if this record has one
                (older records created before the referral link existed won't). -->
           <div class="icard" v-if="record.referral">
-            <div class="icard-header"><span class="icard-title">Referral Information</span></div>
+            <div class="icard-header"><span class="icard-title">Case Referral Slip</span></div>
 
             <!-- TMDU form header - read only (edited in Management). -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
@@ -204,10 +204,14 @@
               <!-- PAR copy pickup is face-to-face, not handled by the system -
                    this is just an indication of whether the student came for
                    their printed copy, taken from the PAR release appointment. -->
+              <div v-if="!parReleased" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
+                🔒 PAR results can only be attached after the scheduled PAR release is marked <strong>Results Released</strong> (open the PAR Release appointment below).
+                <span v-if="parReleaseAppointment?.on_hold_at"> The release is currently on hold.</span>
+              </div>
               <div v-if="parReleaseAppointment?.status === 'no_show'" style="background:var(--red-lt);border:1px solid #f0a8a8;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
                 ⚠ PAR copy held — the student did not come for the scheduled face-to-face release on {{ formatDate(parReleaseAppointment.appointment_date) }}.
               </div>
-              <div v-else-if="parReleaseAppointment?.checked_in" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--moss)">
+              <div v-else-if="parReleased" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--moss)">
                 ✓ PAR copy released to the student in person on {{ formatDate(parReleaseAppointment.appointment_date) }}.
               </div>
               <div v-else-if="parReleaseAppointment" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
@@ -215,18 +219,18 @@
               </div>
               <div>
                 <label class="ifl">PAR / Result File</label>
-                <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" @change="handleFileUpload" />
+                <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" :disabled="!parReleased" @change="handleFileUpload" />
                 <div v-if="selectedFile" style="font-size:12px;color:var(--moss);margin-top:4px">✓ {{ selectedFile.name }}</div>
               </div>
               <div>
                 <label class="ifl">Assessment Summary</label>
-                <textarea v-model="parForm.assessment_summary" class="ifta" placeholder="Summarize the assessment results..." maxlength="3000"></textarea>
+                <textarea v-model="parForm.assessment_summary" class="ifta" placeholder="Summarize the assessment results..." maxlength="3000" :disabled="!parReleased"></textarea>
               </div>
               <div>
                 <label class="ifl">Recommended Actions</label>
-                <textarea v-model="parForm.recommendations" class="ifta" placeholder="Recommended actions based on the assessment..." maxlength="3000"></textarea>
+                <textarea v-model="parForm.recommendations" class="ifta" placeholder="Recommended actions based on the assessment..." maxlength="3000" :disabled="!parReleased"></textarea>
               </div>
-              <button class="ibtn ibtn-blue ibtn-sm" style="align-self:flex-start" @click="attachPar" :disabled="saving">
+              <button class="ibtn ibtn-blue ibtn-sm" style="align-self:flex-start" @click="attachPar" :disabled="saving || !parReleased">
                 {{ saving ? 'Sending...' : 'Attach PAR & Release Results to GCU' }}
               </button>
             </div>
@@ -300,7 +304,7 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Student Profile Details</span>
-              <router-link :to="{ name: 'student-show', params: { id: record.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
+              <router-link :to="{ name: 'testing', query: { student_id: record.student?.id } }" class="ibtn ibtn-g ibtn-sm">Testing Records</router-link>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
@@ -394,7 +398,14 @@
               <p>No TMDU appointments have been scheduled for this testing case.</p>
             </div>
             <div v-else>
-              <div v-for="a in tmduAppointments" :key="a.id" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px">
+              <div
+                v-for="a in tmduAppointments"
+                :key="a.id"
+                style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;flex-direction:column;gap:6px;cursor:pointer;transition:background .1s"
+                @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                @mouseleave="$event.currentTarget.style.background='transparent'"
+                @click="openApptDetail(a)"
+              >
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <div>
                     <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
@@ -408,14 +419,57 @@
                   v-if="canManage && a.status === 'pending'"
                   class="ibtn ibtn-sm"
                   style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start"
-                  @click="openNoShowModal(a)"
+                  @click.stop="openNoShowModal(a)"
                 >
                   No-Show
                 </button>
+                <span v-if="a.on_hold_at && a.status !== 'completed'" class="ibadge" style="background:var(--amber-lt);color:var(--amber);align-self:flex-start">On Hold</span>
               </div>
             </div>
           </div>
 
+        </div>
+      </div>
+
+      <!-- Appointment Details floating modal - same pattern as the TMDU
+           Appointments page: click a card to see it and act on it here. -->
+      <div v-if="apptDetail" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="apptDetail = null">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ toTitleCase(apptDetail.appointment_type) }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(apptDetail.appointment_date) }} · {{ apptDetail.start_time }} - {{ apptDetail.end_time }}</div>
+            </div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="apptDetail = null">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Staff</div>
+                <div style="font-size:13px;color:var(--ink)">{{ apptDetail.staff?.name || 'TBA' }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
+                <span class="ibadge" :class="'ibadge-' + apptDetail.status">{{ toTitleCase(apptDetail.status) }}</span>
+                <span v-if="apptDetail.on_hold_at && apptDetail.status !== 'completed'" class="ibadge" style="background:var(--amber-lt);color:var(--amber);margin-left:4px">On Hold</span>
+              </div>
+            </div>
+            <div v-if="apptDetail.required_documents">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
+              <div style="font-size:13px;color:var(--ink);background:var(--snow);padding:8px 10px;border-radius:var(--r-sm)">{{ apptDetail.required_documents }}</div>
+            </div>
+            <div v-if="canManage && !['cancelled','completed'].includes(apptDetail.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px">
+              <template v-if="apptDetail.appointment_type === 'par_release'">
+                <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click="doParAction(apptDetail, 'released')">Results Released</button>
+                <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!apptDetail.on_hold_at" @click="doParAction(apptDetail, 'on_hold')">On Hold</button>
+                <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="doParAction(apptDetail, 'cancel')">Cancel</button>
+              </template>
+              <template v-else-if="apptDetail.status === 'pending'">
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="parBusy" @click="markAttended(apptDetail)">Student Attended</button>
+                <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShowModal(apptDetail); apptDetail = null">No-Show</button>
+              </template>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -508,7 +562,7 @@ const availableTests = [
   'Sentence Completion Test',
 ];
 
-const canManage = computed(() => ['admin', 'tmdu_staff'].includes(auth.user?.role));
+const canManage = computed(() => auth.user?.role === 'tmdu_staff');
 
 // Maps the DB-level testing_records.status values onto the 5 bar stages.
 // The current flow is a straight 1:1 mapping; the old collapsed values
@@ -772,6 +826,46 @@ const parReleaseAppointment = computed(() =>
     .filter(a => a.appointment_type === 'par_release')
     .sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))[0]
 );
+
+// Appointment Details floating modal + actions.
+const apptDetail = ref(null);
+const parBusy = ref(false);
+
+// PAR results can only be attached once the PAR release appointment has
+// been marked "Results Released" (status completed).
+const parReleased = computed(() => parReleaseAppointment.value?.status === 'completed');
+
+function openApptDetail(a) { apptDetail.value = a; }
+
+async function doParAction(a, action) {
+  if (parBusy.value) return;
+  parBusy.value = true;
+  try {
+    const res = await testingAPI.parAction(a.id, action);
+    toast?.success(res.data?.message || 'Updated.');
+    apptDetail.value = null;
+    await loadRecord();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to update the PAR release.');
+  } finally {
+    parBusy.value = false;
+  }
+}
+
+async function markAttended(a) {
+  if (parBusy.value) return;
+  parBusy.value = true;
+  try {
+    await appointmentAPI.checkIn(a.id);
+    toast?.success('Student marked as attended.');
+    apptDetail.value = null;
+    await loadRecord();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to mark attendance.');
+  } finally {
+    parBusy.value = false;
+  }
+}
 
 const showNoShowModal = ref(false);
 const noShowTarget = ref(null);

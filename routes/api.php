@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\DocumentController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\UserController;
+use App\Http\Controllers\Api\CaseReferralController;
 use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StaffAvailabilityController;
@@ -30,19 +31,19 @@ use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\DocumentSettingController;
 
 // Public routes
-Route::post('/login',           [AuthController::class, 'login']);
-Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
-Route::get('schedule/{token}', [PublicSchedulingController::class, 'show']);
-Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability']);
-Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability']);
-Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit']);
+Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/login/verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:login');
+Route::get('schedule/{token}', [PublicSchedulingController::class, 'show'])->middleware('throttle:public-form');
+Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability'])->middleware('throttle:public-form');
+Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability'])->middleware('throttle:public-form');
+Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit'])->middleware('throttle:public-form');
 
 // External cron endpoints (secured via X-Cron-Secret header, checked inside the controller)
-Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders']);
-Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows']);
+Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders'])->middleware('throttle:public-form');
+Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows'])->middleware('throttle:public-form');
 
 // Authenticated routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
     // Auth
     Route::post('/logout',     [AuthController::class, 'logout']);
@@ -152,24 +153,38 @@ Route::middleware('auth:sanctum')->group(function () {
     // Testing Records
     // Registered before the apiResource below so "available-testers" isn't
     // swallowed by its {testingRecord} show route.
-    Route::get('testing-records/available-testers', [TestingRecordController::class, 'availableTesters']);
-    Route::apiResource('testing-records', TestingRecordController::class);
-    Route::post('testing-records/{testingRecord}/assign',            [TestingRecordController::class, 'assign']);
-    Route::patch('testing-records/{testingRecord}/status',           [TestingRecordController::class, 'updateStatus']);
-    Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);
-    Route::post('testing-records/{testingRecord}/acknowledge',       [TestingRecordController::class, 'acknowledge']);
-    Route::post('testing-records/{testingRecord}/schedule-testing',  [TestingRecordController::class, 'scheduleTesting']);
-    // "Psychological Tests Administered" action on the Testing Record Details
-    // page - saves tests + date and moves status straight to Awaiting Results.
-    Route::post('testing-records/{testingRecord}/administer-tests',  [TestingRecordController::class, 'administerTests']);
-    Route::post('testing-records/{testingRecord}/schedule-par',      [TestingRecordController::class, 'schedulePar']);
-    Route::get('testing-records/{testingRecord}/or-photo',           [TestingRecordController::class, 'orPhoto']);
+    // Testing Records, PAR release and the TMDU tester roster belong to TMDU only.
+    Route::middleware('role:tmdu_staff')->group(function () {
+        Route::get('testing-records/available-testers', [TestingRecordController::class, 'availableTesters']);
+        Route::apiResource('testing-records', TestingRecordController::class);
+        Route::post('testing-records/{testingRecord}/assign',            [TestingRecordController::class, 'assign']);
+        Route::patch('testing-records/{testingRecord}/status',           [TestingRecordController::class, 'updateStatus']);
+        Route::post('testing-records/{testingRecord}/send-to-gcu',       [TestingRecordController::class, 'sendToGcu']);
+        Route::post('testing-records/{testingRecord}/acknowledge',       [TestingRecordController::class, 'acknowledge']);
+        Route::post('testing-records/{testingRecord}/schedule-testing',  [TestingRecordController::class, 'scheduleTesting']);
+        // "Psychological Tests Administered" action on the Testing Record Details
+        // page - saves tests + date and moves status straight to Awaiting Results.
+        Route::post('testing-records/{testingRecord}/administer-tests',  [TestingRecordController::class, 'administerTests']);
+        Route::post('testing-records/{testingRecord}/schedule-par',      [TestingRecordController::class, 'schedulePar']);
+        Route::get('testing-records/{testingRecord}/or-photo',           [TestingRecordController::class, 'orPhoto']);
+        Route::post('appointments/{appointment}/par-action', [TestingRecordController::class, 'parAction']);
+    });
 
-    // Documents
-    Route::post('documents/upload',                [DocumentController::class, 'upload']);
-    Route::get('documents/{document}',             [DocumentController::class, 'show']);
-    Route::delete('documents/{document}',          [DocumentController::class, 'destroy']);
-    Route::get('documents/{document}/download',    [DocumentController::class, 'download']);
+    // Case Referrals (Internal) - GCU's read-only view of the Refer to TMDU
+    // forms it sent, their status and the released PAR.
+    Route::middleware('role:admin,gcu_staff')->group(function () {
+        Route::get('case-referrals',                       [CaseReferralController::class, 'index']);
+        Route::get('case-referrals/by-source/{referral}',  [CaseReferralController::class, 'forSource']);
+        Route::get('case-referrals/{referral}',            [CaseReferralController::class, 'show']);
+    });
+
+    // Documents - staff units only (faculty / dean secretaries have no business here)
+    Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff')->group(function () {
+        Route::post('documents/upload',                [DocumentController::class, 'upload']);
+        Route::get('documents/{document}',             [DocumentController::class, 'show']);
+        Route::delete('documents/{document}',          [DocumentController::class, 'destroy']);
+        Route::get('documents/{document}/download',    [DocumentController::class, 'download']);
+    });
 
     // Notifications
     Route::get('notifications',              [NotificationController::class, 'index']);
@@ -258,9 +273,9 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Student authentication routes (completely separate from staff auth:sanctum group)
-Route::post('student/login', [StudentAuthController::class, 'login']);
+Route::post('student/login', [StudentAuthController::class, 'login'])->middleware('throttle:login');
 
-Route::middleware('auth:student')->group(function () {
+Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
     Route::get('student/appointments',                 [AppointmentController::class, 'indexByStudent']);
