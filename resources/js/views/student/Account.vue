@@ -403,13 +403,30 @@
               <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
               <button type="button" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showConfirmPw ? 'Hide' : 'Show' }}</button>
             </div>
+            <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
+            <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="changePassword">Change Password</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="askChangePassword">Change Password</button>
         </div>
       </div>
 
     </div>
 
+    <!-- Password change confirmation -->
+    <div v-if="showPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPwConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Change Password</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to change your password?</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
+            <button type="button" class="ibtn ibtn-p" :disabled="changingPw" @click="confirmChangePassword">{{ changingPw ? 'Changing...' : 'Yes, Change Password' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
     <!-- Save confirmation -->
     <div v-if="confirmAction" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="confirmAction = null">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -470,6 +487,9 @@ const profileError = ref('');
 const profileSuccess = ref('');
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
 const pwError = ref('');
+// Checked as the user types, so a mismatch shows before they submit.
+const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
+const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
 const pwSuccess = ref('');
 const showCurrentPw = ref(false);
 const showNewPw = ref(false);
@@ -677,6 +697,35 @@ async function saveEducation() {
     backgroundError.value = firstApiError(e, 'Failed to update your educational attainment.');
   } finally {
     savingEducation.value = false;
+  }
+}
+
+// Password changes are confirmed first; the server then leaves a notice in
+// the account's notifications.
+const showPwConfirm = ref(false);
+const changingPw    = ref(false);
+
+function askChangePassword() {
+  pwError.value = '';
+  const f = pwForm.value;
+  if (!f.current_password || !f.password || !f.password_confirmation) {
+    pwError.value = 'Please fill in your current password and the new password twice.';
+    return;
+  }
+  if (f.password !== f.password_confirmation) {
+    pwError.value = 'The new password and its confirmation do not match.';
+    return;
+  }
+  showPwConfirm.value = true;
+}
+
+async function confirmChangePassword() {
+  changingPw.value = true;
+  try {
+    await changePassword();
+  } finally {
+    changingPw.value = false;
+    showPwConfirm.value = false;
   }
 }
 
