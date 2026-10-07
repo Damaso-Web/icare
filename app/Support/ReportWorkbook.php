@@ -27,6 +27,9 @@ class ReportWorkbook
     private int $row = 1;
     private int $cols = 2;
 
+    /** Every block added, in order - the PDF is printed from this, so it matches the Excel. */
+    private array $doc = [];
+
     public function __construct(
         private string $unitName,
         private string $reportTitle,
@@ -41,6 +44,7 @@ class ReportWorkbook
     /** Starts a new sheet with the letterhead. $widths are the column widths, left to right. */
     public function sheet(string $tab, string $heading, array $widths): static
     {
+        $this->doc[] = ['type' => 'sheet', 'tab' => $tab, 'heading' => $heading];
         $this->sheet = $this->sheet === null ? $this->book->getActiveSheet() : $this->book->createSheet();
         $this->sheet->setTitle(mb_substr($tab, 0, 31));
         $this->cols = count($widths);
@@ -82,6 +86,7 @@ class ReportWorkbook
     /** A bold caption above a table. */
     public function section(string $title): static
     {
+        $this->doc[] = ['type' => 'section', 'title' => $title];
         $this->sheet->setCellValue("A{$this->row}", $title);
         $this->sheet->getStyle("A{$this->row}")->getFont()->setBold(true)->setSize(11)->getColor()->setRGB(self::GREEN);
         $this->row++;
@@ -98,6 +103,7 @@ class ReportWorkbook
      */
     public function table(array $headers, array $rows, array $options = []): static
     {
+        $this->doc[] = ['type' => 'table', 'headers' => $headers, 'rows' => $rows, 'options' => $options];
         $last = Coordinate::stringFromColumnIndex(count($headers));
         $headerRow = $this->row;
 
@@ -180,6 +186,7 @@ class ReportWorkbook
      */
     public function groupedTable(string $firstHeader, string $groupTitle, array $groups): static
     {
+        $this->doc[] = ['type' => 'grouped', 'first' => $firstHeader, 'groupTitle' => $groupTitle, 'groups' => $groups];
         $s = $this->sheet;
         $top = $this->row;
         $headerFill = ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D6DCE5']];
@@ -250,6 +257,7 @@ class ReportWorkbook
     /** A plain bold line (used for the printed report's two-line section headings). */
     public function line(string $text, bool $upper = false): static
     {
+        $this->doc[] = ['type' => 'line', 'text' => $upper ? mb_strtoupper($text) : $text];
         $this->sheet->setCellValue("A{$this->row}", $upper ? mb_strtoupper($text) : $text);
         $this->sheet->getStyle("A{$this->row}")->getFont()->setBold(true)->setSize(11);
         $this->row++;
@@ -260,6 +268,7 @@ class ReportWorkbook
     /** A small italic note under a table. */
     public function note(string $text): static
     {
+        $this->doc[] = ['type' => 'note', 'text' => $text];
         $last = Coordinate::stringFromColumnIndex($this->cols);
         $this->sheet->setCellValue("A{$this->row}", $text);
         $this->sheet->mergeCells("A{$this->row}:{$last}{$this->row}");
@@ -279,6 +288,7 @@ class ReportWorkbook
      */
     public function servicesTable(string $valueHeader, array $rows): static
     {
+        $this->doc[] = ['type' => 'services', 'valueHeader' => $valueHeader, 'rows' => $rows];
         $s = $this->sheet;
         $top = $this->row;
 
@@ -326,6 +336,7 @@ class ReportWorkbook
      */
     public function counselingMatrix(string $firstHeader, string $collegeHeader, array $categories, array $groups): static
     {
+        $this->doc[] = ['type' => 'matrix', 'first' => $firstHeader, 'collegeHeader' => $collegeHeader, 'categories' => $categories, 'groups' => $groups];
         $s = $this->sheet;
         $top = $this->row;
         $col = fn(int $i) => Coordinate::stringFromColumnIndex($i);
@@ -420,6 +431,7 @@ class ReportWorkbook
     /** "Prepared by / Noted by" lines at the foot of a sheet. */
     public function signatures(): static
     {
+        $this->doc[] = ['type' => 'signatures'];
         $this->row += 2;
         $right = Coordinate::stringFromColumnIndex(max(2, $this->cols));
 
@@ -448,79 +460,34 @@ class ReportWorkbook
     }
 
     /**
-     * Saves the same workbook as a PDF: every sheet, in order, on A4 landscape;
-     * wide sheets are narrowed to fit (see fitForPdf).
+     * Saves the same report as a PDF. It is printed from the blocks the
+     * workbook was built from (see $doc) through a print stylesheet - proper
+     * margins, full-width tables, repeated table headers, page numbers - so
+     * it carries exactly the Excel content without the look of a spreadsheet.
      */
     public function savePdf(string $filename): string
     {
-        $this->book->setActiveSheetIndex(0);
-        foreach ($this->book->getAllSheets() as $sheet) {
-            $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)->setFitToWidth(1)->setFitToHeight(0);
-            $this->fitForPdf($sheet);
-        }
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.export-pdf', [
+            'doc'         => $this->doc,
+            'unitName'    => $this->unitName,
+            'reportTitle' => $this->reportTitle,
+            'period'      => $this->period,
+            'generatedAt' => $this->generatedAt,
+        ])->setPaper('a4', 'landscape')
+          ->setOption('isFontSubsettingEnabled', true);   // embed only the letters used
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Pdf\Dompdf($this->book);
-        $writer->writeAllSheets();
-        $writer->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
-        $writer->setPaperSize(PageSetup::PAPERSIZE_A4);
+        $dompdf = $pdf->getDomPDF();
+        $dompdf->render();
+        $canvas = $dompdf->getCanvas();
+        $font   = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
+        $footer = 'iCARE - ' . $this->reportTitle . '  |  Generated ' . $this->generatedAt;
+        $canvas->page_text(45, $canvas->get_height() - 28, $footer, $font, 7, [0.45, 0.45, 0.45]);
+        $canvas->page_text($canvas->get_width() - 110, $canvas->get_height() - 28, 'Page {PAGE_NUM} of {PAGE_COUNT}', $font, 7, [0.45, 0.45, 0.45]);
 
         $path = storage_path('app/' . $filename);
-        $writer->save($path);
+        file_put_contents($path, $dompdf->output());
 
         return $path;
-    }
-
-    /**
-     * The PDF writer does not scale a sheet to the page or carry a merged cell
-     * across a page break, so before printing: titles that sit in column A
-     * alone are spread over the full width, cells merged down a column are
-     * unmerged (the label stays on the first row), and sheets wider than an
-     * A4 landscape page get proportionally narrower columns and smaller text.
-     */
-    private function fitForPdf(Worksheet $sheet): void
-    {
-        $lastCol = Coordinate::columnIndexFromString($sheet->getHighestColumn());
-        $last    = Coordinate::stringFromColumnIndex($lastCol);
-
-        foreach ($sheet->getMergeCells() as $range) {
-            [$from, $to] = explode(':', $range);
-            [$c1, $r1] = Coordinate::coordinateFromString($from);
-            [$c2, $r2] = Coordinate::coordinateFromString($to);
-            if ($c1 === $c2 && $r1 !== $r2) {
-                $sheet->unmergeCells($range);
-                $sheet->getStyle($from)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
-            }
-        }
-
-        $merged = [];
-        foreach ($sheet->getMergeCells() as $range) {
-            [$from, $to] = explode(':', $range);
-            for ($r = (int) preg_replace('/\D/', '', $from); $r <= (int) preg_replace('/\D/', '', $to); $r++) $merged[$r] = true;
-        }
-        for ($r = 1; $r <= $sheet->getHighestRow(); $r++) {
-            if (isset($merged[$r]) || $lastCol < 2) continue;
-            $value = $sheet->getCell("A{$r}")->getValue();
-            if ($value === null || $value === '') continue;
-            $alone = true;
-            for ($c = 2; $c <= $lastCol && $alone; $c++) {
-                $v = $sheet->getCell(Coordinate::stringFromColumnIndex($c) . $r)->getValue();
-                if ($v !== null && $v !== '') $alone = false;
-            }
-            if ($alone) $sheet->mergeCells("A{$r}:{$last}{$r}");
-        }
-
-        // About 120 character widths fit across A4 landscape, with a little margin.
-        $widths = [];
-        for ($c = 1; $c <= $lastCol; $c++) {
-            $widths[$c] = $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($c))->getWidth();
-        }
-        $total = array_sum(array_map(fn($w) => $w > 0 ? $w : 9, $widths));
-        if ($total > 120) {
-            foreach ($widths as $c => $w) {
-                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($c))->setWidth(round(($w > 0 ? $w : 9) * 120 / $total, 1));
-            }
-            $sheet->getStyle("A1:{$last}" . $sheet->getHighestRow())->getFont()->setSize($total > 150 ? 7 : 8);
-        }
     }
 
     private function bannerLine(string $text, int $size, bool $bold, string $color = '1A1A1A'): void
