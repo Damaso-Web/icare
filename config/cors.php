@@ -23,7 +23,7 @@ return [
     'https://sensational-donut-8d1d65.netlify.app',
     'https://curious-malabi-34cbb3.netlify.app',
     'https://clinquant-alfajores-987799.netlify.app',
-    'https://extraordinary-lokum-a195fc.netlify.app',
+    'https://guileless-salmiakki-14d80b.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],
