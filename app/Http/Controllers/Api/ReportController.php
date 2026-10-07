@@ -744,8 +744,8 @@ class ReportController extends Controller
     {
         $data = $this->buildGcuAccomplishment($request);
 
-        $book->sheet('A. Individual Inventory', 'Guidance and Counseling Unit by the Numbers', [16, 46, 13, 13, 13])
-            ->section("A. Individual Inventory (updating of students' records in the SIAS and in the Anecdotal Record)")
+        $book->sheet('Individual Inventory', 'Guidance and Counseling Unit by the Numbers', [16, 46, 13, 13, 13])
+            ->section("Individual Inventory (updating of students' records in the SIAS and in the Anecdotal Record)")
             ->groupedTable('COLLEGE', 'INDIVIDUAL INVENTORY', $data['inventory']['undergraduate'])
             ->groupedTable('GRADUATE SCHOOL', 'INDIVIDUAL INVENTORY', $data['inventory']['graduate']);
 
@@ -766,8 +766,8 @@ class ReportController extends Controller
             'Referral Inside (to TMDU)'                                                       => 'Referral: Inside',
             'Referral Outside'                                                                => 'Referral: Outside',
         ];
-        $book->sheet('B. Services Conducted', 'Guidance and Counseling Unit by the Numbers', [92, 18])
-            ->line('B. Individual Guidance (TuTuKK: Kalinga)')
+        $book->sheet('Services Conducted', 'Guidance and Counseling Unit by the Numbers', [92, 18])
+            ->line('Individual Guidance (TuTuKK: Kalinga)')
             ->line('Summary of Counseling/Life Coaching Services Conducted', true)
             ->servicesTable('TRANSACTIONS', array_map(fn($r) => [$printed[$r['service']] ?? $r['service'], (int) $r['count']], $data['services']));
 
@@ -782,9 +782,9 @@ class ReportController extends Controller
             'socio'         => 'SOCIO-CULTURAL',
             'psychosocial'  => 'PSYCHOSOCIAL',
         ];
-        $book->sheet('1. Counseling', 'Guidance and Counseling Unit by the Numbers', array_merge([14, 34], array_fill(0, 14, 8.5), [10]))
+        $book->sheet('Counseling', 'Guidance and Counseling Unit by the Numbers', array_merge([14, 34], array_fill(0, 14, 8.5), [10]))
             ->landscape()
-            ->line('1. Counseling (TuTuKK: Kalinga)')
+            ->line('Counseling (TuTuKK: Kalinga)')
             ->counselingMatrix('COUNSELING', 'UNDERGRADUATE', $areas, $data['counseling']['undergraduate'])
             ->counselingMatrix('COUNSELING', 'GRADUATE SCHOOL', $areas, $data['counseling']['graduate'])
             ->note('Note: iCARE does not yet record the area of concern (academic, behavioral, environmental, personal, official/extra-curricular, socio-cultural, psychosocial) of a counseling case, so only the TOTAL per course is filled in.')
