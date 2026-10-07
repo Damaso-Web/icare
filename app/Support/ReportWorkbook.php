@@ -61,7 +61,7 @@ class ReportWorkbook
 
         $setup = $this->sheet->getPageSetup();
         $setup->setPaperSize(PageSetup::PAPERSIZE_A4)
-              ->setOrientation(PageSetup::ORIENTATION_PORTRAIT)
+              ->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)
               ->setFitToWidth(1)
               ->setFitToHeight(0);
         $setup->setHorizontalCentered(true);
@@ -445,6 +445,82 @@ class ReportWorkbook
         (new Xlsx($this->book))->save($path);
 
         return $path;
+    }
+
+    /**
+     * Saves the same workbook as a PDF: every sheet, in order, on A4 landscape;
+     * wide sheets are narrowed to fit (see fitForPdf).
+     */
+    public function savePdf(string $filename): string
+    {
+        $this->book->setActiveSheetIndex(0);
+        foreach ($this->book->getAllSheets() as $sheet) {
+            $sheet->getPageSetup()->setOrientation(PageSetup::ORIENTATION_LANDSCAPE)->setFitToWidth(1)->setFitToHeight(0);
+            $this->fitForPdf($sheet);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Pdf\Dompdf($this->book);
+        $writer->writeAllSheets();
+        $writer->setOrientation(PageSetup::ORIENTATION_LANDSCAPE);
+        $writer->setPaperSize(PageSetup::PAPERSIZE_A4);
+
+        $path = storage_path('app/' . $filename);
+        $writer->save($path);
+
+        return $path;
+    }
+
+    /**
+     * The PDF writer does not scale a sheet to the page or carry a merged cell
+     * across a page break, so before printing: titles that sit in column A
+     * alone are spread over the full width, cells merged down a column are
+     * unmerged (the label stays on the first row), and sheets wider than an
+     * A4 landscape page get proportionally narrower columns and smaller text.
+     */
+    private function fitForPdf(Worksheet $sheet): void
+    {
+        $lastCol = Coordinate::columnIndexFromString($sheet->getHighestColumn());
+        $last    = Coordinate::stringFromColumnIndex($lastCol);
+
+        foreach ($sheet->getMergeCells() as $range) {
+            [$from, $to] = explode(':', $range);
+            [$c1, $r1] = Coordinate::coordinateFromString($from);
+            [$c2, $r2] = Coordinate::coordinateFromString($to);
+            if ($c1 === $c2 && $r1 !== $r2) {
+                $sheet->unmergeCells($range);
+                $sheet->getStyle($from)->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+            }
+        }
+
+        $merged = [];
+        foreach ($sheet->getMergeCells() as $range) {
+            [$from, $to] = explode(':', $range);
+            for ($r = (int) preg_replace('/\D/', '', $from); $r <= (int) preg_replace('/\D/', '', $to); $r++) $merged[$r] = true;
+        }
+        for ($r = 1; $r <= $sheet->getHighestRow(); $r++) {
+            if (isset($merged[$r]) || $lastCol < 2) continue;
+            $value = $sheet->getCell("A{$r}")->getValue();
+            if ($value === null || $value === '') continue;
+            $alone = true;
+            for ($c = 2; $c <= $lastCol && $alone; $c++) {
+                $v = $sheet->getCell(Coordinate::stringFromColumnIndex($c) . $r)->getValue();
+                if ($v !== null && $v !== '') $alone = false;
+            }
+            if ($alone) $sheet->mergeCells("A{$r}:{$last}{$r}");
+        }
+
+        // About 120 character widths fit across A4 landscape, with a little margin.
+        $widths = [];
+        for ($c = 1; $c <= $lastCol; $c++) {
+            $widths[$c] = $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($c))->getWidth();
+        }
+        $total = array_sum(array_map(fn($w) => $w > 0 ? $w : 9, $widths));
+        if ($total > 120) {
+            foreach ($widths as $c => $w) {
+                $sheet->getColumnDimension(Coordinate::stringFromColumnIndex($c))->setWidth(round(($w > 0 ? $w : 9) * 120 / $total, 1));
+            }
+            $sheet->getStyle("A1:{$last}" . $sheet->getHighestRow())->getFont()->setSize($total > 150 ? 7 : 8);
+        }
     }
 
     private function bannerLine(string $text, int $size, bool $bold, string $color = '1A1A1A'): void

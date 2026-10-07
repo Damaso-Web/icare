@@ -16,7 +16,6 @@ use App\Models\Student;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\ReportWorkbook;
 
 class ReportController extends Controller
@@ -574,44 +573,28 @@ class ReportController extends Controller
     // Concerns summary shown on the Reports & Analytics page, for the same
     // date range the user has set there.
 
+    // ---------- Exports ----------
+    // Excel and PDF carry the same report: the PDF is the same workbook,
+    // every sheet printed in order, so the two can never drift apart.
+
     public function exportPdf(Request $request)
     {
-        $request->validate([
-            'date_from' => 'nullable|date',
-            'date_to'   => 'nullable|date',
-            'period_label' => 'nullable|string|max:100',
-        ]);
+        [$book, $unit] = $this->makeWorkbook($request);
+        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.pdf';
 
-        if ($this->unit($request) === 'SDU') {
-            return Pdf::loadView('reports.export-sdu-pdf', [
-                'generated_at' => now()->format('F j, Y g:i A'),
-                'date_from'    => $request->date_from,
-                'date_to'      => $request->date_to,
-                'period_label' => $request->period_label,
-                'complaints'   => $this->buildComplaintsReport($request),
-            ])->setPaper('a4', 'portrait')->download('iCARE-SDU-Report-' . now()->format('Y-m-d') . '.pdf');
-        }
-
-        $data = [
-            'generated_at' => now()->format('F j, Y g:i A'),
-            'unit'         => $this->unit($request),
-            'date_from'    => $request->date_from,
-            'date_to'      => $request->date_to,
-            // e.g. "1st Semester, A.Y. 2026-2027" - set by the Reports page period picker
-            'period_label' => $request->period_label,
-            'referrals'    => $this->buildReferralsReport($request),
-            'cases'        => $this->buildCasesReport($request),
-            'appointments' => $this->buildAppointmentsReport($request),
-            'recurring'    => $this->buildRecurringReport($request),
-            'services'     => $this->buildServicesReport($request),
-        ];
-
-        $pdf = Pdf::loadView('reports.export-pdf', $data)->setPaper('a4', 'portrait');
-
-        return $pdf->download('iCARE-Report-' . now()->format('Y-m-d') . '.pdf');
+        return response()->download($book->savePdf($filename), $filename)->deleteFileAfterSend(true);
     }
 
     public function exportExcel(Request $request)
+    {
+        [$book, $unit] = $this->makeWorkbook($request);
+        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.xlsx';
+
+        return response()->download($book->save($filename), $filename)->deleteFileAfterSend(true);
+    }
+
+    /** Builds the unit's report workbook, shared by both exports. */
+    private function makeWorkbook(Request $request): array
     {
         $request->validate([
             'date_from' => 'nullable|date',
@@ -633,9 +616,7 @@ class ReportController extends Controller
 
         $unit === 'SDU' ? $this->fillSduWorkbook($book, $request) : $this->fillUnitWorkbook($book, $request, $unit);
 
-        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.xlsx';
-
-        return response()->download($book->save($filename), $filename)->deleteFileAfterSend(true);
+        return [$book, $unit];
     }
 
     /** "in_review" -> "In Review" */
@@ -735,7 +716,6 @@ class ReportController extends Controller
             ])->all();
 
         $book->sheet('Referral List', 'Detailed List of Referrals', [6, 18, 14, 38, 38, 12, 10, 24, 16])
-            ->landscape()
             ->table(['No.', 'Referral No.', 'Date Received', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true]);
     }
 
@@ -783,7 +763,6 @@ class ReportController extends Controller
             'psychosocial'  => 'PSYCHOSOCIAL',
         ];
         $book->sheet('Counseling', 'Guidance and Counseling Unit by the Numbers', array_merge([14, 34], array_fill(0, 14, 8.5), [10]))
-            ->landscape()
             ->line('Counseling (TuTuKK: Kalinga)')
             ->counselingMatrix('COUNSELING', 'UNDERGRADUATE', $areas, $data['counseling']['undergraduate'])
             ->counselingMatrix('COUNSELING', 'GRADUATE SCHOOL', $areas, $data['counseling']['graduate'])
@@ -831,7 +810,6 @@ class ReportController extends Controller
             ])->all();
 
         $book->sheet('Complaint List', 'Detailed List of Complaints', [6, 18, 14, 14, 38, 28, 40, 16])
-            ->landscape()
             ->table(['No.', 'Complaint No.', 'Date Filed', 'Date of Incident', 'College', 'Department', 'Misconduct', 'Status'], $rows, ['center' => [0, 2, 3], 'repeat' => true]);
     }
 }
