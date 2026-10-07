@@ -175,6 +175,17 @@
                button surfaces that 422 as a plain error if clicked early. -->
           <div class="icard" v-if="canManage && stage === 'test_administered'">
             <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
+            <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-TMDU-02</div>
+                <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(slipDoc.effectivity_date || '2022-09-02') }}</div>
+                <div><strong>Ctrl No.:</strong> {{ slipDoc.ctrl_no || '-' }}</div>
+              </div>
+            </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <div v-if="!testTakingAttended" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
                 The student must be marked as attended on the test-taking appointment (Manage Queue) before PAR release can be scheduled.
@@ -353,6 +364,17 @@
                TMDU decides the date/time directly. -->
           <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
             <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
+            <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-TMDU-02</div>
+                <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(slipDoc.effectivity_date || '2022-09-02') }}</div>
+                <div><strong>Ctrl No.:</strong> {{ slipDoc.ctrl_no || '-' }}</div>
+              </div>
+            </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
               <div>
                 <input v-model="testingForm.appointment_date" type="date" class="ifi" style="width:100%" />
@@ -920,9 +942,17 @@ async function loadRecord() {
 }
 
 const tmduDoc = ref({});
+const slipDoc = ref({});
 function formatDocDate(date) {
   if (!date) return '-';
   return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+}
+async function fetchSlipDoc() {
+  try {
+    const base = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+    const res = await axios.get(`${base}/document-settings/QF-TMDU-02`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    slipDoc.value = res.data;
+  } catch (e) { /* header falls back to the defaults */ }
 }
 async function fetchTmduDoc() {
   try {
@@ -934,6 +964,7 @@ async function fetchTmduDoc() {
 
 onMounted(async () => {
   fetchTmduDoc();
+  fetchSlipDoc();
   try {
     await loadRecord();
   } catch (e) {

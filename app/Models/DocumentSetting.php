@@ -15,7 +15,7 @@ class DocumentSetting extends Model
     ];
 
     protected $casts = [
-        'effectivity_date' => 'date',
+        'effectivity_date' => 'date:Y-m-d',
     ];
 
     public function getCtrlNoAttribute(): ?string

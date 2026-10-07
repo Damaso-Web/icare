@@ -2,7 +2,7 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>Management</h1>
-      <p>Manage Colleges, Programs, Departments, referral form options, and document headers used across iCARE.</p>
+      <p>Manage Colleges, Programs, Departments, referral form options, school calendar, and document headers used across iCARE.</p>
     </div>
 
     <!-- Tabs -->
@@ -205,6 +205,49 @@
       />
     </div>
 
+    <!-- ============ SCHOOL CALENDAR ============ -->
+    <div v-if="activeTab === 'calendar'" class="icard">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+        <span class="icard-title">School Calendar (Academic Years)</span>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openAyModal()">
+          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Academic Year
+        </button>
+      </div>
+      <div style="padding:12px 16px;font-size:12px;color:var(--stone);border-bottom:1px solid var(--cloud)">
+        These dates drive the Academic Year and Semester options on the Reports page.
+      </div>
+      <div v-if="loadingAy" style="text-align:center;padding:44px">
+        <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
+      </div>
+      <div v-else-if="academicYears.length === 0" class="empty-state">
+        <h3>No academic years yet</h3>
+        <p>Add one to set the school calendar. Until then, Reports uses Aug 1 - Jul 31.</p>
+      </div>
+      <div class="ts" v-else>
+        <table class="itable">
+          <thead>
+            <tr><th>Academic Year</th><th>Year Dates</th><th>1st Semester</th><th>2nd Semester</th><th>Midyear</th><th></th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="a in academicYears" :key="a.id">
+              <td style="font-weight:600">{{ a.start_year }}-{{ a.start_year + 1 }}</td>
+              <td>{{ ayRange(a.year_start, a.year_end) }}</td>
+              <td>{{ ayRange(a.first_sem_start, a.first_sem_end) }}</td>
+              <td>{{ ayRange(a.second_sem_start, a.second_sem_end) }}</td>
+              <td>{{ ayRange(a.midyear_start, a.midyear_end) }}</td>
+              <td>
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                  <button class="ibtn ibtn-o ibtn-sm" @click="openAyModal(a)">Edit</button>
+                  <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openDeleteConfirm('academicYear', a, a.start_year + '-' + (a.start_year + 1))">Delete</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     <!-- ============ DOCUMENT HEADERS ============ -->
     <div v-if="activeTab === 'documents'" style="display:flex;flex-direction:column;gap:16px">
       <div v-if="!isAdmin" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
@@ -216,10 +259,42 @@
         <button v-for="u in docUnits" :key="u.key" class="ibtn ibtn-sm" :class="docUnit === u.key ? 'ibtn-p' : 'ibtn-o'" @click="docUnit = u.key">{{ u.label }}</button>
       </div>
 
-      <div v-if="docUnit !== 'GCU'" class="icard">
-        <div class="icard-header"><span class="icard-title">{{ docUnit === 'TMDU' ? 'Testing and Monitoring Development Unit (TMDU)' : 'Student Discipline Unit (SDU)' }}</span></div>
-        <div class="icard-body" style="font-size:13px;color:var(--stone)">
-          The {{ docUnit }} document headers will be added here later.
+      <!-- TMDU Appointment Slip (QF-TMDU-02) - shown on Schedule Test Taking and Schedule PAR Release -->
+      <div v-if="docUnit === 'TMDU'" class="icard">
+        <div class="icard-header"><span class="icard-title">Appointment Slip (QF-TMDU-02)</span></div>
+        <div class="icard-body">
+          <div v-if="docError.tmduSlip" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:12px">{{ docError.tmduSlip }}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label class="ifl">Document Code</label>
+              <input class="ifi" value="QF-TMDU-02" disabled />
+            </div>
+            <div>
+              <label class="ifl">Revision No.</label>
+              <input v-model="tmduSlipDoc.revision_no" class="ifi" placeholder="e.g. 00" maxlength="20" @input="tmduSlipDoc.revision_no = String(tmduSlipDoc.revision_no ?? '').replace(/[^A-Za-z0-9\- ]/g, '')" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Effectivity Date</label>
+              <input v-model="tmduSlipDoc.effectivity_date" type="date" class="ifi" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Year <span style="color:var(--fog)">(optional)</span></label>
+              <input v-model="tmduSlipDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="tmduSlipDoc.ctrl_no_year = String(tmduSlipDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Term <span style="color:var(--fog)">(optional)</span></label>
+              <select v-model="tmduSlipDoc.ctrl_no_term" class="ifse" :disabled="!isAdmin">
+                <option value="">None</option>
+                <option value="1">1 (First Sem)</option>
+                <option value="2">2 (Second Sem)</option>
+                <option value="S">S (Summer / Mid-Year)</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown on the Schedule Test Taking and Schedule PAR Release cards in a testing record. The Ctrl No. is blank on the printed slip, so it can stay empty.</div>
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmduSlip" @click="askSave(true, saveTmduSlipDoc)">
+            {{ savingDoc.tmduSlip ? 'Saving...' : 'Save' }}
+          </button>
         </div>
       </div>
 
@@ -326,6 +401,40 @@
         </div>
       </div>
       </template>
+    </div>
+
+    <!-- ============ Academic Year Modal ============ -->
+    <div v-if="showAyModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAyModal = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ ayForm.id ? 'Edit Academic Year' : 'Add Academic Year' }}</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div v-if="ayError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ ayError }}</div>
+          <div>
+            <label class="ifl">Starting Year <span style="color:var(--red)">*</span></label>
+            <input v-model="ayForm.start_year" class="ifi" maxlength="4" placeholder="e.g. 2026" @input="onAyYearInput" />
+            <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ ayForm.start_year && String(ayForm.start_year).length === 4 ? 'A.Y. ' + ayForm.start_year + '-' + (Number(ayForm.start_year) + 1) : 'Type the year the academic year starts.' }}</div>
+          </div>
+          <div v-for="g in AY_GROUPS" :key="g.key" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="grid-column:1 / -1;font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">{{ g.label }}</div>
+            <div>
+              <label class="ifl">Start <span style="color:var(--red)">*</span></label>
+              <input v-model="ayForm[g.key + '_start']" type="date" class="ifi" />
+            </div>
+            <div>
+              <label class="ifl">End <span style="color:var(--red)">*</span></label>
+              <input v-model="ayForm[g.key + '_end']" type="date" class="ifi" />
+            </div>
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" :disabled="!ayValid || savingAy" @click="askSave(ayForm.id, saveAy)">
+              {{ savingAy ? 'Saving...' : (ayForm.id ? 'Save Changes' : 'Add Academic Year') }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showAyModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ============ College Modal ============ -->
@@ -523,11 +632,10 @@ function authHeaders() {
 // system_admin can view Management but not save these.
 const isAdmin = computed(() => auth.user?.role === 'admin');
 
-// Document Headers are grouped per unit; TMDU and SDU headers come later.
+// Document Headers are grouped per unit. SDU uses a single document, so it has no tab here.
 const docUnits = [
   { key: 'GCU',  label: 'GCU' },
   { key: 'TMDU', label: 'TMDU' },
-  { key: 'SDU',  label: 'SDU' },
 ];
 const docUnit = ref('GCU');
 
@@ -538,6 +646,7 @@ const tabs = [
   { key: 'wellness',     label: 'Wellness Services' },
   { key: 'disciplinary', label: 'Disciplinary Services' },
   { key: 'sources',      label: 'Referral Sources' },
+  { key: 'calendar',     label: 'School Calendar' },
   { key: 'documents',    label: 'Document Headers' },
 ];
 const activeTab = ref('colleges');
@@ -770,6 +879,89 @@ function deleteFormOption(o) {
   openDeleteConfirm('formOption', o, o.label);
 }
 
+// ---------- School Calendar (Academic Years) ----------
+const academicYears = ref([]);
+const loadingAy = ref(false);
+const showAyModal = ref(false);
+const ayError = ref('');
+const savingAy = ref(false);
+const AY_GROUPS = [
+  { key: 'year',       label: 'Academic Year' },
+  { key: 'first_sem',  label: '1st Semester' },
+  { key: 'second_sem', label: '2nd Semester' },
+  { key: 'midyear',    label: 'Midyear' },
+];
+const AY_FIELDS = AY_GROUPS.flatMap(g => [g.key + '_start', g.key + '_end']);
+const emptyAy = () => ({ id: null, start_year: '', ...Object.fromEntries(AY_FIELDS.map(f => [f, ''])) });
+const ayForm = ref(emptyAy());
+
+function ayDefaults(y) {
+  return {
+    year_start: `${y}-08-01`,       year_end: `${y + 1}-07-31`,
+    first_sem_start: `${y}-08-01`,  first_sem_end: `${y}-12-31`,
+    second_sem_start: `${y + 1}-01-01`, second_sem_end: `${y + 1}-05-31`,
+    midyear_start: `${y + 1}-06-01`, midyear_end: `${y + 1}-07-31`,
+  };
+}
+function onAyYearInput() {
+  ayForm.value.start_year = String(ayForm.value.start_year ?? '').replace(/\D/g, '').slice(0, 4);
+  // Suggest the usual dates for a new academic year; the user can change them.
+  if (!ayForm.value.id && ayForm.value.start_year.length === 4) {
+    Object.assign(ayForm.value, ayDefaults(Number(ayForm.value.start_year)));
+  }
+}
+const ayValid = computed(() => String(ayForm.value.start_year).length === 4 && AY_FIELDS.every(f => ayForm.value[f]));
+
+function ayRange(a, b) {
+  const fmt = (str) => {
+    if (!str) return '';
+    const [y, m, d] = String(str).slice(0, 10).split('-').map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+  return `${fmt(a)} - ${fmt(b)}`;
+}
+
+async function fetchAcademicYears() {
+  loadingAy.value = true;
+  try {
+    const res = await axios.get(`${API_BASE}/management/academic-years`, authHeaders());
+    academicYears.value = res.data;
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loadingAy.value = false;
+  }
+}
+
+function openAyModal(a) {
+  ayForm.value = a
+    ? { id: a.id, start_year: String(a.start_year), ...Object.fromEntries(AY_FIELDS.map(f => [f, String(a[f] || '').slice(0, 10)])) }
+    : emptyAy();
+  ayError.value = '';
+  showAyModal.value = true;
+}
+
+async function saveAy() {
+  ayError.value = '';
+  savingAy.value = true;
+  try {
+    const payload = { ...ayForm.value, start_year: Number(ayForm.value.start_year) };
+    if (payload.id) {
+      await axios.put(`${API_BASE}/management/academic-years/${payload.id}`, payload, authHeaders());
+    } else {
+      await axios.post(`${API_BASE}/management/academic-years`, payload, authHeaders());
+    }
+    toast?.success('Academic year saved.');
+    showAyModal.value = false;
+    fetchAcademicYears();
+  } catch (e) {
+    const errs = e.response?.data?.errors;
+    ayError.value = errs ? Object.values(errs).flat()[0] : (e.response?.data?.message || 'Failed to save academic year.');
+  } finally {
+    savingAy.value = false;
+  }
+}
+
 // ---------- Delete Confirmation (styled modal, replacing browser confirm()) ----------
 const showSaveConfirm = ref(false);
 let pendingSave = null;
@@ -816,6 +1008,10 @@ async function doConfirmedDelete() {
       await axios.delete(`${API_BASE}/management/departments/${target.id}`, authHeaders());
       toast?.success('Department deleted.');
       fetchDepartments();
+    } else if (kind === 'academicYear') {
+      await axios.delete(`${API_BASE}/management/academic-years/${target.id}`, authHeaders());
+      toast?.success('Academic year deleted.');
+      fetchAcademicYears();
     } else if (kind === 'formOption') {
       await axios.delete(`${API_BASE}/management/form-options/${target.id}`, authHeaders());
       toast?.success('Deleted.');
@@ -833,8 +1029,9 @@ async function doConfirmedDelete() {
 const referralDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
 const feedbackDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
 const tmduDoc     = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
-const savingDoc = ref({ referral: false, feedback: false, tmdu: false });
-const docError  = ref({ referral: '', feedback: '', tmdu: '' });
+const tmduSlipDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '' });
+const savingDoc = ref({ referral: false, feedback: false, tmdu: false, tmduSlip: false });
+const docError  = ref({ referral: '', feedback: '', tmdu: '', tmduSlip: '' });
 
 function toDateInput(date) {
   return date ? new Date(date).toISOString().slice(0, 10) : '';
@@ -872,6 +1069,21 @@ async function saveDocSettings(code, form, key) {
 function saveReferralDoc() { return saveDocSettings('QF-OSS-01', referralDoc, 'referral'); }
 function saveFeedbackDoc() { return saveDocSettings('QF-OSS-03', feedbackDoc, 'feedback'); }
 function saveTmduDoc()     { return saveDocSettings('QF-OSS-GCU-05', tmduDoc, 'tmdu'); }
+function saveTmduSlipDoc() { return saveDocSettings('QF-TMDU-02', tmduSlipDoc, 'tmduSlip'); }
+
+async function fetchTmduSlipDoc() {
+  try {
+    const res = await axios.get(`${API_BASE}/document-settings/QF-TMDU-02`, authHeaders());
+    tmduSlipDoc.value = {
+      revision_no:      res.data.revision_no || '00',
+      effectivity_date: toDateInput(res.data.effectivity_date),
+      ctrl_no_year:     res.data.ctrl_no_year || '',
+      ctrl_no_term:     res.data.ctrl_no_term || '',
+    };
+  } catch (e) {
+    console.error(e);
+  }
+}
 
 // FormOptionTable - small local render-function component to avoid repeating
 // the same table markup three times (Wellness / Disciplinary / Sources).
@@ -927,6 +1139,7 @@ const FormOptionTable = {
 function selectTab(key) {
   activeTab.value = key;
   if (TAB_CATEGORY[key]) fetchFormOptions();
+  if (key === 'calendar') fetchAcademicYears();
 }
 
 onMounted(async () => {
@@ -936,5 +1149,6 @@ onMounted(async () => {
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
   fetchDocSettings('QF-OSS-GCU-05', tmduDoc);
+  fetchTmduSlipDoc();
 });
 </script>
