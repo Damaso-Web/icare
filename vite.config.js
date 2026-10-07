@@ -4,6 +4,11 @@ import vue from '@vitejs/plugin-vue';
 import fs from 'fs';
 
 export default defineConfig({
+    // Netlify serves the contents of public/build at the site root, so its
+    // assets live at /assets/..., not /build/assets/... Without this, pages that
+    // load their own CSS later (e.g. Student Login) asked for /build/... and got
+    // a blank screen. Laravel serving the build locally keeps the default /build/.
+    base: process.env.NETLIFY ? '/' : undefined,
     plugins: [
         laravel({
             input: ['resources/js/app.js'],
