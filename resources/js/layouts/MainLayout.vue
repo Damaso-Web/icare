@@ -220,7 +220,7 @@ function openNotification(n) {
   if (n.data?.referral_id) {
     router.push({ name: 'referral-show', params: { id: n.data.referral_id } });
     showNotifs.value = false;
-  } else if (n.data?.type === 'appointment_confirmed') {
+  } else if (['appointment_confirmed', 'appointment_requested'].includes(n.data?.type)) {
     router.push({ name: 'appointments' });
     showNotifs.value = false;
   }

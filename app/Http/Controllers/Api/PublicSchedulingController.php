@@ -167,6 +167,7 @@ class PublicSchedulingController extends Controller
         }
 
         AuditLog::record('scheduled', "Student self-scheduled appointment {$appointment->appointment_code}.", $appointment);
+        $appointment->notifyOffice('scheduled');
 
         return response()->json(['message' => 'Appointment request submitted. The office will confirm shortly.', 'appointment' => $appointment]);
     }

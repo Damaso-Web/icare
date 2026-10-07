@@ -59,7 +59,7 @@
           </button>
           <!-- Editing a student record belongs to the Student/Client module.
                Case Files is a read-only case view, so the action is hidden there. -->
-          <button v-if="!fromCases" class="ibtn ibtn-o ibtn-sm" @click="showEditModal = true">
+          <button v-if="!fromCases" class="ibtn ibtn-o ibtn-sm" @click="openEdit">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit Student Profile
           </button>
@@ -388,11 +388,10 @@
       </div>
 
       <!-- Edit Student Modal -->
-      <div v-if="showEditModal && !fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditModal = false">
+      <div v-if="showEditModal && !fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeEdit">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Student Profile</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showEditModal = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
 
@@ -404,19 +403,23 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="editForm.last_name" class="ifi" placeholder="Last Name" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
+                <input v-model="editForm.last_name" class="ifi" maxlength="20" placeholder="Last Name" @input="editForm.last_name = onlyLetters(editForm.last_name)" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="editForm.first_name" class="ifi" placeholder="First Name" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
+                <input v-model="editForm.first_name" class="ifi" maxlength="20" placeholder="First Name" @input="editForm.first_name = onlyLetters(editForm.first_name)" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="editForm.middle_name" class="ifi" placeholder="Middle Name" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
+                <input v-model="editForm.middle_name" class="ifi" maxlength="20" placeholder="Middle Name" @input="editForm.middle_name = onlyLetters(editForm.middle_name)" />
               </div>
               <div>
                 <label class="ifl">Suffix</label>
-                <input v-model="editForm.suffix" class="ifi" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+                <select v-model="editForm.suffix" class="ifse">
+                  <option value="">None</option>
+                  <option v-if="editForm.suffix && !SUFFIX_OPTIONS.includes(editForm.suffix)" :value="editForm.suffix">{{ editForm.suffix }}</option>
+                  <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
+                </select>
               </div>
               <div>
                 <label class="ifl">Sex</label>
@@ -428,17 +431,14 @@
               </div>
               <div>
                 <label class="ifl">Student ID</label>
-                <input v-model="editForm.student_id" class="ifi" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
+                <input v-model="editForm.student_id" class="ifi" maxlength="15" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
               </div>
               <div>
                 <label class="ifl">Year Level</label>
                 <select v-model="editForm.year_level" class="ifse">
                   <option value="">Select...</option>
-                  <option>1st Year</option>
-                  <option>2nd Year</option>
-                  <option>3rd Year</option>
-                  <option>4th Year</option>
-                  <option>5th Year</option>
+                  <option v-if="editForm.year_level && !YEAR_LEVEL_OPTIONS.includes(String(editForm.year_level))" :value="editForm.year_level">{{ editForm.year_level }}</option>
+                  <option v-for="yl in YEAR_LEVEL_OPTIONS" :key="yl" :value="yl">{{ yl }}</option>
                 </select>
               </div>
               <div>
@@ -467,12 +467,12 @@
                 />
               </div>
               <div>
-                <label class="ifl">Email</label>
-                <input v-model="editForm.email" class="ifi" placeholder="student@bsu.edu.ph" />
+                <label class="ifl">Email Address</label>
+                <input v-model="editForm.email" class="ifi" maxlength="100" placeholder="student@bsu.edu.ph" />
               </div>
               <div>
                 <label class="ifl">Contact Number</label>
-                <input v-model="editForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number); editForm.contact_number = String(editForm.contact_number ?? '').replace(/[^0-9+\- ]/g, '')" />
+                <input v-model="editForm.contact_number" class="ifi" maxlength="11" placeholder="09XXXXXXXXX" @input="editForm.contact_number = contactNumberInput(editForm.contact_number); editForm.contact_number = String(editForm.contact_number ?? '').replace(/[^0-9+\- ]/g, '')" />
               </div>
             </div>
 
@@ -484,19 +484,19 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Guardian Last Name <span style="color:var(--red)">*</span></label>
-                <input v-model="editForm.guardian_last_name" class="ifi" placeholder="Dela Cruz" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
+                <input v-model="editForm.guardian_last_name" class="ifi" maxlength="20" placeholder="Dela Cruz" @input="editForm.guardian_last_name = onlyLetters(editForm.guardian_last_name)" />
               </div>
               <div>
                 <label class="ifl">Guardian First Name <span style="color:var(--red)">*</span></label>
-                <input v-model="editForm.guardian_first_name" class="ifi" placeholder="Juan" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
+                <input v-model="editForm.guardian_first_name" class="ifi" maxlength="20" placeholder="Juan" @input="editForm.guardian_first_name = onlyLetters(editForm.guardian_first_name)" />
               </div>
               <div>
                 <label class="ifl">Guardian Middle Name</label>
-                <input v-model="editForm.guardian_middle_name" class="ifi" placeholder="Santos" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
+                <input v-model="editForm.guardian_middle_name" class="ifi" maxlength="20" placeholder="Santos" @input="editForm.guardian_middle_name = onlyLetters(editForm.guardian_middle_name)" />
               </div>
               <div>
                 <label class="ifl">Guardian Contact <span style="color:var(--red)">*</span></label>
-                <input v-model="editForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact); editForm.guardian_contact = String(editForm.guardian_contact ?? '').replace(/[^0-9+\- ]/g, '')" />
+                <input v-model="editForm.guardian_contact" class="ifi" maxlength="11" placeholder="09XXXXXXXXX" @input="editForm.guardian_contact = contactNumberInput(editForm.guardian_contact); editForm.guardian_contact = String(editForm.guardian_contact ?? '').replace(/[^0-9+\- ]/g, '')" />
               </div>
               <div>
                 <label class="ifl">Relationship <span style="color:var(--red)">*</span></label>
@@ -516,12 +516,48 @@
             </div>
 
             <div style="display:flex;gap:8px;padding-top:4px">
-              <button class="ibtn ibtn-p" @click="saveStudent" :disabled="saving">
+              <button class="ibtn ibtn-p" @click="askSaveStudent" :disabled="saving || isEditUnchanged">
                 <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ saving ? 'Saving...' : 'Save Changes' }}
               </button>
-              <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
+              <button class="ibtn ibtn-o" @click="closeEdit">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confirm changes (B331) -->
+      <div v-if="showEditConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditConfirm = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:13px;color:var(--stone)">
+              You are about to save <strong>{{ editChanges.length }}</strong> change{{ editChanges.length === 1 ? '' : 's' }} to this student profile:
+            </div>
+            <div style="border:1px solid var(--cloud);border-radius:var(--r-sm);overflow:hidden">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                  <tr style="background:var(--snow)">
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">Field</th>
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">Before</th>
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in editChanges" :key="c.label" style="border-top:1px solid var(--cloud)">
+                    <td style="padding:8px 12px;color:var(--slate)">{{ c.label }}</td>
+                    <td style="padding:8px 12px;color:var(--red);text-decoration:line-through">{{ c.before }}</td>
+                    <td style="padding:8px 12px;color:var(--moss);font-weight:600">{{ c.after }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" :disabled="saving" @click="saveStudent">{{ saving ? 'Saving...' : 'Confirm & Save' }}</button>
+              <button class="ibtn ibtn-o" :disabled="saving" @click="showEditConfirm = false">Go Back &amp; Edit</button>
             </div>
           </div>
         </div>
@@ -603,6 +639,47 @@ const colleges = COLLEGES;
 const editError = ref('');
 
 const editForm = ref({});
+const editSnapshot = ref('');
+const showEditConfirm = ref(false);
+const SUFFIX_OPTIONS = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV', 'V'];
+// Same year-level values the student list / add-student forms save.
+const YEAR_LEVEL_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
+
+const isEditUnchanged = computed(() => JSON.stringify(editForm.value) === editSnapshot.value);
+
+const EDIT_LABELS = {
+  student_id: 'Student ID', last_name: 'Last Name', first_name: 'First Name', middle_name: 'Middle Name',
+  suffix: 'Suffix', sex: 'Sex', college: 'College', program: 'Program', year_level: 'Year Level',
+  section: 'Section', email: 'Email Address', contact_number: 'Contact Number',
+  guardian_last_name: 'Guardian Last Name', guardian_first_name: 'Guardian First Name',
+  guardian_middle_name: 'Guardian Middle Name', guardian_contact: 'Guardian Contact',
+  guardian_relationship: 'Guardian Relationship',
+};
+const editChanges = computed(() => {
+  let before = {};
+  try { before = JSON.parse(editSnapshot.value || '{}'); } catch { before = {}; }
+  const after = editForm.value || {};
+  return Object.keys(EDIT_LABELS)
+    .filter(k => String(before[k] ?? '') !== String(after[k] ?? ''))
+    .map(k => ({ label: EDIT_LABELS[k], before: before[k] || '—', after: after[k] || '—' }));
+});
+
+function openEdit() {
+  editError.value = '';
+  editForm.value = { ...student.value };
+  editSnapshot.value = JSON.stringify(editForm.value);
+  showEditConfirm.value = false;
+  showEditModal.value = true;
+}
+
+// Closing (Cancel or clicking outside) throws away anything typed.
+function closeEdit() {
+  editForm.value = { ...student.value };
+  editSnapshot.value = JSON.stringify(editForm.value);
+  editError.value = '';
+  showEditConfirm.value = false;
+  showEditModal.value = false;
+}
 const referralSearch = ref('');
 
 // Update Case Status - moved here from Referral Details (B242)
@@ -773,7 +850,7 @@ function referralUnit(referralType) {
   return 'GCU';
 }
 
-async function saveStudent() {
+function askSaveStudent() {
   editError.value = '';
 
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
@@ -792,13 +869,28 @@ async function saveStudent() {
     return;
   }
 
+  const f = editForm.value;
+  if (f.contact_number && f.guardian_contact && f.contact_number === f.guardian_contact) {
+    editError.value = "The student's contact number and the guardian's contact number are the same. Please enter a different number for the guardian.";
+    return;
+  }
+  if (isEditUnchanged.value) return;
+  showEditConfirm.value = true;
+}
+
+async function saveStudent() {
+  editError.value = '';
   saving.value = true;
   try {
     const res = await studentAPI.update(student.value.id, editForm.value);
     student.value = res.data;
+    editForm.value = { ...res.data };
+    editSnapshot.value = JSON.stringify(editForm.value);
+    showEditConfirm.value = false;
     showEditModal.value = false;
     toast?.success('Student profile updated successfully.');
   } catch (e) {
+    showEditConfirm.value = false;
     editError.value = e.response?.data?.message || 'Please fill in all required fields.';
   } finally {
     saving.value = false;
@@ -822,6 +914,7 @@ onMounted(async () => {
     student.value = studentRes.data;
     history.value = historyRes.data;
     editForm.value = { ...studentRes.data };
+    editSnapshot.value = JSON.stringify(editForm.value);
     newCaseStatus.value = history.value.cases?.[0]?.status || '';
   } catch (e) {
     console.error(e);

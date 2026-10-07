@@ -78,4 +78,9 @@ class User extends Authenticatable
     public function availability()        { return $this->hasMany(StaffAvailability::class); }
     public function sessionNotes()        { return $this->hasMany(SessionNote::class, 'recorded_by_user_id'); }
     public function auditLogs()           { return $this->hasMany(AuditLog::class); }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPasswordLinkNotification($token, 'staff'));
+    }
 }

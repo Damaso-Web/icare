@@ -252,7 +252,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all referral forms, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.referral" @click="saveReferralDoc">
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.referral" @click="askSave(true, saveReferralDoc)">
             {{ savingDoc.referral ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -286,7 +286,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all feedback slips, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.feedback" @click="saveFeedbackDoc">
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.feedback" @click="askSave(true, saveFeedbackDoc)">
             {{ savingDoc.feedback ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -320,7 +320,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to the GCU&rarr;TMDU referral slip shown when a case is referred for psychological testing, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmdu" @click="saveTmduDoc">
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmdu" @click="askSave(true, saveTmduDoc)">
             {{ savingDoc.tmdu ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -346,7 +346,7 @@
             <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" @input="collegeForm.abbrev = String(collegeForm.abbrev ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; saveCollege()">
+            <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; askSave(collegeForm.id, saveCollege)">
               {{ savingCollege ? 'Saving...' : (collegeForm.id ? 'Save Changes' : 'Add College') }}
             </button>
             <button class="ibtn ibtn-o" @click="showCollegeModal = false">Cancel</button>
@@ -377,7 +377,7 @@
             <div v-if="programTouched && !programForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; saveProgram()">
+            <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; askSave(programForm.id, saveProgram)">
               {{ savingProgram ? 'Saving...' : (programForm.id ? 'Save Changes' : 'Add Program') }}
             </button>
             <button class="ibtn ibtn-o" @click="showProgramModal = false">Cancel</button>
@@ -408,7 +408,7 @@
             <div v-if="departmentTouched && !departmentForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="departmentTouched = true; saveDepartment()">
+            <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="departmentTouched = true; askSave(departmentForm.id, saveDepartment)">
               {{ savingDepartment ? 'Saving...' : (departmentForm.id ? 'Save Changes' : 'Add Department') }}
             </button>
             <button class="ibtn ibtn-o" @click="showDepartmentModal = false">Cancel</button>
@@ -458,10 +458,26 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Not editable - existing records reference this value.</div>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="formOptionTouched = true; saveFormOption()">
+            <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="formOptionTouched = true; askSave(formOptionForm.id, saveFormOption)">
               {{ savingFormOption ? 'Saving...' : (formOptionForm.id ? 'Save Changes' : 'Add') }}
             </button>
             <button class="ibtn ibtn-o" @click="showFormOptionModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Save Confirmation Modal ============ -->
+    <div v-if="showSaveConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:76;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showSaveConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to save these changes?</div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" @click="confirmSave">Yes, Save</button>
+            <button class="ibtn ibtn-o" @click="showSaveConfirm = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -755,6 +771,20 @@ function deleteFormOption(o) {
 }
 
 // ---------- Delete Confirmation (styled modal, replacing browser confirm()) ----------
+const showSaveConfirm = ref(false);
+let pendingSave = null;
+// Edits (existing record) go through a confirm step; new records save directly.
+function askSave(isEdit, fn) {
+  if (!isEdit) { fn(); return; }
+  pendingSave = fn;
+  showSaveConfirm.value = true;
+}
+function confirmSave() {
+  showSaveConfirm.value = false;
+  const fn = pendingSave; pendingSave = null;
+  if (fn) fn();
+}
+
 const showDeleteConfirm = ref(false);
 const deleteTarget = ref(null);
 const deleteKind    = ref('');

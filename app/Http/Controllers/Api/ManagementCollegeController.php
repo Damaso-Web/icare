@@ -16,7 +16,7 @@ class ManagementCollegeController extends Controller
 
     public function index()
     {
-        return College::orderBy('name')->get();
+        return College::orderBy('id')->get();
     }
 
     public function store(Request $request)

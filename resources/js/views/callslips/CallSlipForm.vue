@@ -56,7 +56,8 @@
       <section style="margin-bottom:18px">
         <h2 style="font-size:13px;text-transform:uppercase;letter-spacing:.5px;color:var(--forest);border-bottom:1px solid var(--cloud);padding-bottom:4px;margin-bottom:8px">Reason for Call Slip</h2>
         <p style="font-size:13px;line-height:1.6">
-          <template v-if="appointment.no_show_escalated">Student did not show up for the scheduled appointment.</template>
+          <template v-if="appointment.no_show_escalated && appointment.status !== 'no_show' && appointment.call_slip_stage !== 'rescheduled'">Student was asked to pick an appointment schedule but has not done so yet.</template>
+          <template v-else-if="appointment.no_show_escalated">Student did not show up for the scheduled appointment.</template>
           <template v-else-if="(appointment.reschedule_count || 0) >= 3">Appointment has been rescheduled {{ appointment.reschedule_count }} times, reaching the office's reschedule limit.</template>
           <template v-else>See notes below.</template>
         </p>

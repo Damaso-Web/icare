@@ -17,7 +17,7 @@ class StudentController extends Controller
     // which need normal punctuation). Letters include basic Latin-1/Latin
     // Extended-A so accented names (e.g. "Peña", "Dela Cruz") still work.
     private const NAME_REGEX  = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
-    private const TEXT_REGEX  = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+    private const TEXT_REGEX  = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\"\-\.\,\&\(\)\/\#\:\;\!\?\@\%\+\_\s]+$/u';
     private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
     private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
 
@@ -104,8 +104,25 @@ class StudentController extends Controller
         ], 201);
     }
 
+    // TMDU may open a student's record only when that student has been referred
+    // to TMDU (a TMDU-owned referral, testing record or TMDU appointment).
+    private function authorizeTmduScope(Student $student): void
+    {
+        $user = request()->user();
+        if (!$user?->isTMDUStaff()) return;
+
+        $referred = $student->referrals()->tmduOwned()->exists()
+            || \App\Models\TestingRecord::where('student_id', $student->id)->exists()
+            || $student->appointments()->where('unit', 'TMDU')->exists();
+
+        if (!$referred) {
+            abort(403, 'This student has not been referred to TMDU.');
+        }
+    }
+
     public function show(Student $student)
     {
+        $this->authorizeTmduScope($student);
         return response()->json($student);
     }
 
@@ -197,6 +214,7 @@ class StudentController extends Controller
         AuditLog::record('viewed', "Viewed student profile and records for {$student->first_name} {$student->last_name} ({$student->student_id}).", $student);
 
         $user = request()->user();
+        $this->authorizeTmduScope($student);
 
         // TMDU works from Testing Records and its own Case Referral Slips -
         // never the SIF (cases) or GCU's referrals/appointments. GCU in turn

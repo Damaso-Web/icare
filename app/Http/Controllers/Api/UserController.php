@@ -82,7 +82,7 @@ class UserController extends Controller
             'college'               => 'nullable|string|max:255',
             'department'            => 'nullable|string|max:255',
             'contact_number'        => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
-            'password'              => ['required', 'confirmed', 'min:8', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
+            'password'              => ['required', 'confirmed', 'min:8', 'max:64', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
         ]);
 
         $user = User::create([

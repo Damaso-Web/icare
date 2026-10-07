@@ -78,7 +78,7 @@
                   {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} - {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
+                  <span class="ibadge" :class="'ibadge-' + a.status">{{ statusText(a) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
                   <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
                     {{ a.reschedule_reason ? 'Rescheduling' : 'Awaiting Student' }}
@@ -199,7 +199,7 @@
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-              <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ toTitleCase(detailTarget.status) }}</span>
+              <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
               <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">🔁 Rescheduled</span>
             </div>
             <div>
@@ -374,7 +374,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, inject } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
@@ -502,8 +502,8 @@ function goToReferral(a) {
   }
 }
 
-async function fetchAppointments(page = 1) {
-  loading.value = true;
+async function fetchAppointments(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await appointmentAPI.index({ ...filters.value, page });
     appointments.value = res.data.data;
@@ -699,9 +699,25 @@ function nextMonth() {
 function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { month: 'short' }); }
 function getDay(date)   { return new Date(date).getDate(); }
 
+// A student-picked schedule is still "pending" until staff confirm it; say so
+// instead of showing a bare "Pending" (B292).
+function statusText(a) {
+  if (a.status === 'pending' && a.request_status === 'pending_confirmation') return 'Awaiting Confirmation';
+  if (a.status === 'pending' && a.request_status === 'awaiting_student') return 'Awaiting Student';
+  return toTitleCase(a.status);
+}
+
+let refreshTimer = null;
 onMounted(() => {
   fetchAppointments();
   fetchAllAppointments();
   fetchStaff();
+  // Pick up schedules students set or change without a manual refresh.
+  refreshTimer = setInterval(() => {
+    if (document.hidden || showConfirmModal.value) return;
+    fetchAppointments(pagination.value?.current_page || 1, true);
+    fetchAllAppointments();
+  }, 30000);
 });
+onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
 </script>

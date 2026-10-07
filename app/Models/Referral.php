@@ -124,9 +124,18 @@ class Referral extends Model
     // falls back to this referral's own appointments if it has no case yet.
     public function hasAttendedAppointment(): bool
     {
-        return $this->case
-            ? $this->case->hasAttendedAppointment()
-            : $this->appointments()->where('status', 'completed')->exists();
+        // B301: linked by referral, not by case - an attended appointment
+        // for a different referral on the same case no longer unlocks this
+        // one. Older rows that predate referral linking (referral_id null)
+        // on the same case still count so existing SIFs are not locked.
+        return Appointment::where('status', 'completed')
+            ->where(function ($q) {
+                $q->where('referral_id', $this->id);
+                if ($this->case_id) {
+                    $q->orWhere(fn($w) => $w->whereNull('referral_id')->where('case_id', $this->case_id));
+                }
+            })
+            ->exists();
     }
 
     // Broader SIF edit gate: nothing on the referral's Student Information

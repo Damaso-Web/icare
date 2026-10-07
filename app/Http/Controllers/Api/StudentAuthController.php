@@ -25,7 +25,7 @@ class StudentAuthController extends Controller
     {
         $request->validate([
             'student_id'        => 'required|string',
-            'password'          => 'required|string',
+            'password'          => 'required|string|max:255',
             // Enforced server-side too, not just gated by the frontend UI -
             // a login request without this can't proceed.
             'consent_accepted'  => 'required|accepted',
@@ -82,7 +82,7 @@ class StudentAuthController extends Controller
     {
         $request->validate([
             'current_password' => 'required',
-            'password'         => ['required', 'confirmed', \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
+            'password'         => ['required', 'confirmed', 'max:64', 'different:current_password', \Illuminate\Validation\Rules\Password::min(8)->letters()->mixedCase()->numbers()->symbols()],
         ]);
 
         $student = $request->user('student');

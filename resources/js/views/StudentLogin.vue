@@ -1,19 +1,21 @@
 <template>
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div style="width:100%;max-width:400px">
+  <div class="login-wrap">
+    <div class="login-card">
       <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
-      <div style="text-align:center;margin-bottom:24px">
-        <img :src="'/icare-logo.png'" alt="iCARE" style="width:52px;height:52px;border-radius:14px;object-fit:cover;margin:0 auto 12px;display:block" />
+      <div style="text-align:center;margin-bottom:28px">
+        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
+          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
+        </div>
         <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
         <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
       </div>
 
       <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
-      <div v-if="!consentGiven" class="icard">
-        <div style="padding:22px;max-height:60vh;overflow-y:auto">
+      <div v-if="!consentGiven">
+        <div style="max-height:60vh;overflow-y:auto">
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Confidentiality Notice</div>
           <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:16px">
             Pursuant to the Data Privacy Act of 2012 and its Implementing Rules and Regulations (IRR) and the BSU Data Privacy Policy, personnel from the OSS-SDS-Student Discipline Unit (SDU) - La Trinidad Campus are committed to keep with utmost confidentiality all sensitive personal information collected from students. Personal Information are collected, accessed, used, and disclosed on a "need to know basis" and only as reasonably required. Confidential information either within or outside the University will not be communicated except to persons authorized to receive such information. Authorized hardware, software, or other authorized equipment shall be used only in accessing, processing, and transmitting such personal information.
@@ -31,8 +33,8 @@
         </div>
       </div>
 
-      <div v-else class="icard">
-        <div style="padding:24px">
+      <div v-else>
+        <div>
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">Student Login</div>
 
           <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
@@ -84,6 +86,9 @@
                 </button>
               </div>
               <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
+            </div>
+            <div style="text-align:right;margin:-6px 0 14px">
+              <router-link :to="{ name: 'forgot-password', query: { type: 'student' } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
             </div>
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -177,3 +182,7 @@ function checkCapsLock(e) {
   capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
 }
 </script>
+<style scoped>
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--snow); padding: 20px; }
+.login-card { background: #fff; border-radius: var(--r-lg); box-shadow: var(--sh-lg); padding: 36px 32px; width: 100%; max-width: 400px; }
+</style>

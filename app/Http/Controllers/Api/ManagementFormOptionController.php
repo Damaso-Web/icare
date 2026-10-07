@@ -18,7 +18,7 @@ class ManagementFormOptionController extends Controller
 
     public function index(Request $request)
     {
-        $query = ReferralFormOption::orderBy('category')->orderBy('sort_order')->orderBy('label');
+        $query = ReferralFormOption::orderBy('category')->orderBy('sort_order')->orderBy('id');
         if ($request->category) {
             $query->where('category', $request->category);
         }

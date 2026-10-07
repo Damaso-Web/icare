@@ -9,15 +9,10 @@
          layout as the student portal's My Account. -->
     <div style="max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
-      <div class="icard" style="padding:18px 20px;display:flex;align-items:flex-start;gap:14px">
+      <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
-        <div style="min-width:0">
+        <div style="min-width:0;align-self:center">
           <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</div>
-          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ auth.user?.email }}</div>
-          <div style="display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12.5px;margin-top:8px">
-            <span v-for="d in accountDetails" :key="d.label"><span style="color:var(--stone)">{{ d.label }}:</span> {{ d.value }}</span>
-          </div>
-          <div style="font-size:11px;color:var(--fog);margin-top:6px">These details can only be changed by the Administrator.</div>
         </div>
       </div>
 
@@ -42,29 +37,32 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="profileForm.last_name" class="ifi"
-         @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'.-]/g, '')" />
+                <input v-model="profileForm.last_name" class="ifi" maxlength="50"
+         @input="profileForm.last_name = capFirst(profileForm.last_name.replace(/[^a-zA-Z\s'.-]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="profileForm.first_name" class="ifi"
-         @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'.-]/g, '')" />
+                <input v-model="profileForm.first_name" class="ifi" maxlength="50"
+         @input="profileForm.first_name = capFirst(profileForm.first_name.replace(/[^a-zA-Z\s'.-]/g, ''))" />
               </div>
             </div>
             <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="profileForm.middle_name" class="ifi"
-         @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'.-]/g, '')" />
+                <input v-model="profileForm.middle_name" class="ifi" maxlength="50"
+         @input="profileForm.middle_name = capFirst(profileForm.middle_name.replace(/[^a-zA-Z\s'.-]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">Suffix</label>
-                <input v-model="profileForm.suffix" class="ifi" placeholder="e.g. Jr., III" maxlength="20" @input="profileForm.suffix = String(profileForm.suffix ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+                <select v-model="profileForm.suffix" class="ifse">
+                  <option value="">None</option>
+                  <option v-for="x in SUFFIXES" :key="x" :value="x">{{ x }}</option>
+                </select>
               </div>
             </div>
             <div>
               <label class="ifl">Email</label>
-              <input v-model="profileForm.email" type="email" class="ifi" />
+              <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" />
               <div v-if="emailChanged" style="font-size:11px;color:var(--amber);margin-top:4px">
                 This is your login email. You'll be asked for your current password to confirm the change.
               </div>
@@ -87,22 +85,26 @@
           <div>
             <label class="ifl">Current Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
-              <button type="button" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showCurrentPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:40px" />
+              <button type="button" :aria-label="showCurrentPw ? 'Hide password' : 'Show password'" :title="showCurrentPw ? 'Hide password' : 'Show password'" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showCurrentPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
           </div>
           <div>
             <label class="ifl">New Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
-              <button type="button" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showNewPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:40px" />
+              <button type="button" :aria-label="showNewPw ? 'Hide password' : 'Show password'" :title="showNewPw ? 'Hide password' : 'Show password'" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showNewPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--stone);line-height:1.6">
+            Password must be 8-64 characters with an uppercase letter, a lowercase letter, a number and a symbol (e.g. ! @ # $).
+            <div v-if="pwSameAsCurrent" style="color:var(--red)">New password must be different from your current password.</div>
           </div>
           <div>
             <label class="ifl">Confirm New Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" />
-              <button type="button" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showConfirmPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:40px" />
+              <button type="button" :aria-label="showConfirmPw ? 'Hide password' : 'Show password'" :title="showConfirmPw ? 'Hide password' : 'Show password'" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showConfirmPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
             <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
             <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
@@ -131,9 +133,8 @@
     <!-- Email change confirmation -->
     <div v-if="showEmailConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:65;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeEmailConfirm">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Email Change</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="closeEmailConfirm">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div v-if="confirmError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ confirmError }}</div>
@@ -147,8 +148,8 @@
           <div>
             <label class="ifl">Current Password</label>
             <div style="position:relative">
-              <input v-model="confirmPassword" :type="showEmailPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:52px" @keyup.enter="submitProfile" />
-              <button type="button" @click="showEmailPw = !showEmailPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showEmailPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="confirmPassword" :type="showEmailPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:40px" @keyup.enter="submitProfile" />
+              <button type="button" :aria-label="showEmailPw ? 'Hide password' : 'Show password'" :title="showEmailPw ? 'Hide password' : 'Show password'" @click="showEmailPw = !showEmailPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showEmailPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
           </div>
           <div style="display:flex;gap:8px">
@@ -194,6 +195,9 @@ const accountDetails = computed(() => {
   ].filter(d => d.value);
 });
 
+const SUFFIXES = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV', 'V'];
+const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
+
 const PROFILE_FIELDS = ['first_name', 'last_name', 'middle_name', 'suffix', 'email', 'contact_number'];
 
 const profileForm = ref(Object.fromEntries(PROFILE_FIELDS.map(f => [f, ''])));
@@ -210,6 +214,7 @@ const pwError = ref('');
 // Checked as the user types, so a mismatch shows before they submit.
 const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
 const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
+const pwSameAsCurrent = computed(() => !!pwForm.value.password && pwForm.value.password === pwForm.value.current_password);
 const showCurrentPw = ref(false);
 const showNewPw     = ref(false);
 const showConfirmPw = ref(false);
@@ -292,6 +297,16 @@ async function submitProfile() {
 const showPwConfirm = ref(false);
 const changingPw    = ref(false);
 
+// Same rules as the server, with an example for the symbol requirement.
+function passwordProblem(pw) {
+  if (pw.length < 8) return 'The password must be at least 8 characters.';
+  if (pw.length > 64) return 'The password must not be longer than 64 characters.';
+  if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw)) return 'The password must contain both uppercase and lowercase letters.';
+  if (!/[0-9]/.test(pw)) return 'The password must contain at least one number.';
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'The password must contain at least one symbol (e.g. !, @, #, or $).';
+  return '';
+}
+
 function askChangePassword() {
   pwError.value = '';
   const f = pwForm.value;
@@ -303,6 +318,12 @@ function askChangePassword() {
     pwError.value = 'The new password and its confirmation do not match.';
     return;
   }
+  if (f.password === f.current_password) {
+    pwError.value = 'The new password must be different from your current password.';
+    return;
+  }
+  const problem = passwordProblem(f.password);
+  if (problem) { pwError.value = problem; return; }
   showPwConfirm.value = true;
 }
 
@@ -324,7 +345,8 @@ async function changePassword() {
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
   } catch (e) {
-    pwError.value = e.response?.data?.message || 'Failed to change password.';
+    const errs = e.response?.data?.errors;
+    pwError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to change password.';
   }
 }
 

@@ -516,7 +516,7 @@
                 </div>
                 <div>
                   <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-                  <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+                  <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\-\/#:;!?@%+_ ]/g, '')" />
                 </div>
                 <div>
                   <label class="ifl">Remarks</label>

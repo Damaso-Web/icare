@@ -16,7 +16,7 @@ class ManagementDepartmentController extends Controller
 
     public function index(Request $request)
     {
-        $query = Department::with('college')->orderBy('name');
+        $query = Department::with('college')->orderBy('id');
         if ($request->college_id) {
             $query->where('college_id', $request->college_id);
         }

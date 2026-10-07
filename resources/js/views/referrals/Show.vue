@@ -56,16 +56,7 @@
           <h1>{{ headerTitle }}</h1>
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
-        <div v-if="(isGCU || isSDUHead) && referral.case" style="margin-left:auto;display:flex;gap:8px">
-          <button
-            v-if="fromCases && (isGCU || (isSDUHead && referral.case.current_unit === 'SDU'))"
-            class="ibtn ibtn-o ibtn-sm"
-            @click="openTransferModal"
-          >
-            <svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            Endorse to Unit
-          </button>
-        </div>
+        <!-- "Endorse to Unit" button removed (B285/B293). -->
       </div>
 
       <!-- Case Summary - Student Information Files only; the Referral Queue
@@ -388,15 +379,15 @@
               <template v-else-if="isGCU">
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
                   <div>
-                    <label class="ifl">Date</label>
+                    <label class="ifl">Class Date</label>
                     <input type="date" v-model="admissionForm.admission_date" class="ifse" />
                   </div>
                   <div>
-                    <label class="ifl">Time In</label>
+                    <label class="ifl">Class Time Duration (From)</label>
                     <input type="time" v-model="admissionForm.admission_time_in" class="ifse" />
                   </div>
                   <div>
-                    <label class="ifl">Time Out</label>
+                    <label class="ifl">Class Time Duration (To)</label>
                     <input type="time" v-model="admissionForm.admission_time_out" class="ifse" />
                   </div>
                 </div>
@@ -430,8 +421,8 @@
 
               <div v-if="referral.admission_issued_at" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--cloud)">
                 <div style="font-size:11px;color:var(--fog)">
-                  Date: {{ formatDate(referral.admission_date) }}
-                  <span v-if="referral.admission_time_in"> · {{ referral.admission_time_in }}<span v-if="referral.admission_time_out"> - {{ referral.admission_time_out }}</span></span>
+                  Class date: {{ formatDate(referral.admission_date) }}
+                  <span v-if="referral.admission_time_in"> · Class time duration: {{ referral.admission_time_in }}<span v-if="referral.admission_time_out"> - {{ referral.admission_time_out }}</span></span>
                   <span v-if="referral.admission_excused !== null"> · {{ referral.admission_excused ? 'Excused' : 'Unexcused' }}</span>
                 </div>
                 <div v-if="referral.admission_remarks" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-top:6px">{{ referral.admission_remarks }}</div>
@@ -1621,10 +1612,10 @@
               <button
                 class="ibtn ibtn-sm"
                 style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8"
-                :disabled="apptDetailTarget.request_status === 'awaiting_student' || apptDetailTarget.no_show_escalated"
-                :title="apptDetailTarget.no_show_escalated ? 'A Call-Slip was already sent for this appointment' : (apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : '')"
+                :disabled="apptDetailTarget.no_show_escalated || sendingCallSlip"
+                :title="apptDetailTarget.no_show_escalated ? 'A Call-Slip was already sent for this appointment' : (apptDetailTarget.request_status === 'awaiting_student' ? 'The student has not picked a schedule yet - ask the Dean\'s Secretary to follow up' : '')"
                 @click="requestCallSlip(apptDetailTarget)"
-              >{{ apptDetailTarget.no_show_escalated ? 'Call-Slip Sent' : 'Send Call-Slip' }}</button>
+              >{{ apptDetailTarget.no_show_escalated ? 'Call-Slip Sent' : (apptDetailTarget.request_status === 'awaiting_student' ? 'Send for Call Slip' : 'Send Call-Slip') }}</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkInApptFromDetail">Student Attended</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openCaseNoShowModal(apptDetailTarget); apptDetailTarget = null">No-Show</button>
               <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="apptCancelling = true; apptCancelReason = ''">Cancel Appointment</button>
@@ -1642,7 +1633,8 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
             <div style="font-size:13px;color:var(--slate);line-height:1.6">
-              This will escalate the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?
+              <template v-if="callSlipTarget.request_status === 'awaiting_student'">The student has not picked a schedule yet. This will send a Call-Slip to the Dean's Secretary so they can follow up with the student. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
+              <template v-else>This will escalate the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
             </div>
             <div style="display:flex;gap:8px;justify-content:flex-end">
               <button class="ibtn ibtn-o" :disabled="sendingCallSlip" @click="callSlipTarget = null">Cancel</button>
@@ -1728,7 +1720,7 @@
             </div>
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\-\/#:;!?@%+_ ]/g, '')" />
             </div>
             <div>
               <label class="ifl">Remarks</label>
@@ -1892,8 +1884,10 @@ const referralAppointments = computed(() => {
 // never gated by this - it has to stay clickable precisely so staff can set
 // the appointment that satisfies this gate.
 const hasAttendedAppointment = computed(() => {
+  // Linked by referral, not by case (B301); legacy rows with no referral_id
+  // on this case still count.
   const all = referral.value.case?.appointments || [];
-  return all.some(a => a.status === 'completed');
+  return all.some(a => a.status === 'completed' && (a.referral_id === referral.value.id || !a.referral_id));
 });
 
 // Broader than hasAttendedAppointment alone: nothing in the SIF should be
@@ -2635,8 +2629,11 @@ async function confirmCallSlip() {
   if (!a || sendingCallSlip.value || a.no_show_escalated) return;
   sendingCallSlip.value = true;
   try {
-    const res = await appointmentAPI.escalateNoShow(a.id, 'call_slip');
-    a.status = 'no_show';
+    const unscheduled = a.request_status === 'awaiting_student';
+    const res = unscheduled
+      ? await appointmentAPI.sendCallSlipUnscheduled(a.id)
+      : await appointmentAPI.escalateNoShow(a.id, 'call_slip');
+    if (!unscheduled) a.status = 'no_show';
     a.no_show_escalated = true;
     toast?.success(res.data.message || 'Call-Slip sent.');
     callSlipTarget.value = null;

@@ -34,6 +34,8 @@ use App\Http\Controllers\Api\DocumentSettingController;
 // Public routes
 Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
 Route::post('/login/verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:login');
+Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'forgot'])->middleware('throttle:login');
+Route::post('/reset-password',  [\App\Http\Controllers\Api\PasswordResetController::class, 'reset'])->middleware('throttle:login');
 Route::get('schedule/{token}', [PublicSchedulingController::class, 'show'])->middleware('throttle:public-form');
 Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability'])->middleware('throttle:public-form');
 Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability'])->middleware('throttle:public-form');
@@ -143,6 +145,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('appointments/{appointment}/cancel',     [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
+    Route::post('appointments/{appointment}/send-call-slip', [AppointmentController::class, 'sendCallSlipUnscheduled']);
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 

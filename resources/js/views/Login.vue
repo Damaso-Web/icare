@@ -80,6 +80,9 @@
           </div>
           <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
         </div>
+        <div style="text-align:right;margin:-10px 0 16px">
+          <router-link :to="{ name: 'forgot-password', query: { type: 'staff' } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
+        </div>
         <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
           <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
           {{ loading ? 'Signing in...' : 'Sign In' }}

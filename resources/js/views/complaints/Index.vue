@@ -37,7 +37,10 @@
         <p>Try adjusting your search or filters.</p>
       </div>
       <div class="ts" v-else>
-        <table>
+        <table style="table-layout:fixed;width:100%;min-width:760px">
+          <colgroup>
+            <col style="width:12%"><col style="width:20%"><col style="width:24%"><col style="width:16%"><col style="width:12%"><col style="width:10%"><col style="width:6%">
+          </colgroup>
           <thead>
             <tr>
               <th>Code</th>
@@ -51,10 +54,10 @@
           </thead>
           <tbody>
             <tr v-for="c in complaints" :key="c.id">
-              <td>{{ c.complaint_code }}</td>
-              <td>{{ c.complainee?.last_name }}, {{ c.complainee?.first_name }}</td>
-              <td>{{ c.violation_type }}</td>
-              <td>{{ c.filed_by?.name || c.filed_by?.first_name }}</td>
+              <td style="word-break:break-word">{{ c.complaint_code }}</td>
+              <td style="word-break:break-word;white-space:normal">{{ c.complainee?.last_name }}, {{ c.complainee?.first_name }}</td>
+              <td style="word-break:break-word;white-space:normal">{{ c.violation_type }}</td>
+              <td style="word-break:break-word;white-space:normal">{{ c.filed_by?.name || c.filed_by?.first_name }}</td>
               <td>{{ formatDate(c.created_at) }}</td>
               <td>
                 <span :style="statusStyle(c.status)" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">{{ statusLabel(c.status) }}</span>

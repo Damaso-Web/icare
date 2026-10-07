@@ -2,7 +2,7 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>Call Slips</h1>
-      <p>Students who missed their appointment and need to be contacted.</p>
+      <p>Students who missed their appointment or have not picked a schedule, and need to be contacted.</p>
     </div>
 
     <div class="icard">
@@ -20,10 +20,12 @@
             <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.student?.student_id }}</div>
           </div>
           <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
-            Missed appointment on {{ formatDate(a.appointment_date) }} at {{ a.start_time }} · {{ a.unit }}
+            <template v-if="isUnscheduled(a)">Student has not picked a schedule yet · {{ a.unit }}</template>
+            <template v-else>Missed appointment on {{ formatDate(a.appointment_date) }} at {{ a.start_time }} · {{ a.unit }}</template>
           </div>
           <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-            <span v-if="a.no_show_escalated" class="ibadge" style="background:var(--red-lt);color:var(--red)">No-Show</span>
+            <span v-if="a.no_show_escalated && !isUnscheduled(a)" class="ibadge" style="background:var(--red-lt);color:var(--red)">No-Show</span>
+            <span v-if="isUnscheduled(a)" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">No Schedule Picked</span>
             <span v-if="!a.no_show_escalated && a.reschedule_count >= 3" class="ibadge" style="background:var(--red-lt);color:var(--red)">Reschedule Limit Reached ({{ a.reschedule_count }}x)</span>
             <span v-if="a.call_slip_stage" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">{{ toTitleCase(a.call_slip_stage) }}</span>
           </div>
@@ -67,6 +69,9 @@ import { ref, onMounted, inject } from 'vue';
 import { callSlipAPI } from '../../api/index';
 
 const toast = inject('toast');
+
+// Call Slip sent for a student who never picked a schedule (not a real no-show).
+const isUnscheduled = a => a.no_show_escalated && a.status !== 'no_show' && a.call_slip_stage !== 'rescheduled';
 
 const loading   = ref(true);
 const callSlips = ref([]);

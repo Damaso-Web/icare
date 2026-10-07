@@ -46,7 +46,7 @@
             <div v-if="needsScheduling && !appointment.reschedule_reason" style="font-size:13px;color:var(--stone);font-style:italic">
               Not yet scheduled - choose your preferred date and time below.
             </div>
-            <div v-else style="font-size:13px;color:var(--ink)">{{ formatDate(appointment.appointment_date) }} · {{ appointment.start_time }} - {{ appointment.end_time }}</div>
+            <div v-else style="font-size:13px;color:var(--ink)">{{ formatDate(appointment.appointment_date) }} · {{ fmt12(appointment.start_time) }} - {{ fmt12(appointment.end_time) }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service</div>
@@ -87,7 +87,7 @@
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="appointment.reschedule_reason" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--amber)">
             🔁 You're rescheduling appointment <strong>{{ appointment.appointment_code }}</strong>, previously set for
-            <strong>{{ formatDate(appointment.appointment_date) }} · {{ appointment.start_time }}–{{ appointment.end_time }}</strong>.
+            <strong>{{ formatDate(appointment.appointment_date) }} · {{ fmt12(appointment.start_time) }}–{{ fmt12(appointment.end_time) }}</strong>.
             Reason: {{ appointment.reschedule_reason }}
           </div>
           <div style="font-size:13px;color:var(--stone);display:flex;align-items:center;flex-wrap:wrap;gap:8px 16px">
@@ -144,7 +144,7 @@
           <div v-if="timeOrderError" style="font-size:11px;color:var(--red)">End time must be later than start time.</div>
           <div v-if="sameAsOriginalError" style="font-size:11px;color:var(--red)">Please select a different date or time than your original appointment.</div>
           <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
-          <div v-else-if="availabilityChecked && !isAvailable" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ This time slot is already taken. Please choose another.</div>
+          <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ This time slot is already taken. Please choose another.</div>
           <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">
@@ -171,7 +171,6 @@
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="ibtn ibtn-o ibtn-sm" @click="openRescheduleModal">Request Reschedule</button>
-            <button v-if="appointment.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancelModal">Cancel Appointment</button>
           </div>
           <div style="font-size:11px;color:var(--fog)">{{ appointment.reschedule_count || 0 }} of 3 reschedule requests used.</div>
         </div>
@@ -188,7 +187,7 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6">Please review your preferred schedule before submitting:</div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
             <div><strong>Date:</strong> {{ formatDate(scheduleForm.appointment_date) }}</div>
-            <div><strong>Time:</strong> {{ scheduleForm.start_time }} - {{ scheduleForm.end_time }}</div>
+            <div><strong>Time:</strong> {{ fmt12(scheduleForm.start_time) }} - {{ fmt12(scheduleForm.end_time) }}</div>
           </div>
           <div style="font-size:12px;color:var(--stone)">Your request will be sent to the Office of Student Services for confirmation.</div>
           <div style="display:flex;gap:8px">
@@ -446,6 +445,15 @@ async function checkAvailability() {
   }
 }
 
+// 24h "HH:MM(:SS)" -> "h:mm AM/PM"
+function fmt12(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':');
+  const hh = Number(h);
+  if (Number.isNaN(hh)) return t;
+  return `${((hh + 11) % 12) + 1}:${(m || '00').slice(0, 2)} ${hh >= 12 ? 'PM' : 'AM'}`;
+}
+
 function onTimeChange() {
   timeRangeError.value = '';
   const { start_time, end_time } = scheduleForm.value;
@@ -454,6 +462,7 @@ function onTimeChange() {
   } else if (end_time && (end_time < OFFICE_START || end_time > OFFICE_END)) {
     timeRangeError.value = 'Please select a time between 8:00 AM and 4:00 PM.';
   }
+  if (timeRangeError.value) { availabilityChecked.value = false; return; }
   checkAvailability();
 }
 

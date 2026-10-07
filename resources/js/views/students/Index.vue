@@ -288,7 +288,11 @@
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="editForm.suffix" class="ifi" maxlength="20" placeholder="Jr., Sr., III" @input="editForm.suffix = onlyLettersStrict(editForm.suffix)" />
+              <select v-model="editForm.suffix" class="ifse">
+                <option value="">None</option>
+                <option v-if="editForm.suffix && !SUFFIX_OPTIONS.includes(editForm.suffix)" :value="editForm.suffix">{{ editForm.suffix }}</option>
+                <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
+              </select>
             </div>
             <div>
               <label class="ifl">Year Level <span style="color:var(--red)">*</span></label>
@@ -555,7 +559,11 @@
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input v-model="addForm.suffix" class="ifi" maxlength="20" placeholder="Jr., Sr., III" @input="addForm.suffix = onlyLettersStrict(addForm.suffix)" />
+              <select v-model="addForm.suffix" class="ifse">
+                <option value="">None</option>
+                <option v-if="addForm.suffix && !SUFFIX_OPTIONS.includes(addForm.suffix)" :value="addForm.suffix">{{ addForm.suffix }}</option>
+                <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
+              </select>
             </div>
             <div>
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
@@ -1092,6 +1100,7 @@ async function fetchManagementData() {
   }
 }
 
+const SUFFIX_OPTIONS = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV', 'V'];
 const YEAR_LEVEL_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'];
 
 const students   = ref([]);
@@ -1258,6 +1267,11 @@ function openEditConfirm() {
   }
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
     editError.value = 'Contact number must start with 09 and be 11 digits long.';
+    return;
+  }
+  if (editForm.value.contact_number && editForm.value.contact_number === editForm.value.guardian_contact) {
+    editFieldErrors.value = { ...editFieldErrors.value, guardian_contact: true };
+    editError.value = "The student's contact number and the guardian's contact number are the same. Please enter a different number for the guardian.";
     return;
   }
   if (!isValidPHContact(editForm.value.guardian_contact)) {

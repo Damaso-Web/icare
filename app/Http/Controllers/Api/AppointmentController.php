@@ -9,6 +9,7 @@ use App\Models\StaffAvailability;
 use App\Models\User;
 use App\Notifications\AppointmentConfirmedNotification;
 use App\Notifications\NoShowEscalationNotification;
+use App\Notifications\UnscheduledCallSlipNotification;
 use App\Notifications\DocumentsRequiredNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +28,10 @@ class AppointmentController extends Controller
     // psychological_testing workflow. Per QF-OSS-GCU-09 (Admission Slip):
     // once the appointment is confirmed, the student needs to be told to
     // bring these so the admission slip can actually be processed.
-    private const CLASS_ATTENDANCE_REMINDER = "Please bring a Letter of Explanation, a photocopy of the valid ID of the parent/legal guardian who signed the letter, and 3 specimen signatures of that same parent/legal guardian.";
+    private const CLASS_ATTENDANCE_REMINDER = "Please bring your Student ID, a signed Letter of Explanation, a photocopy of the valid ID of the parent/legal guardian who signed the letter, 3 specimen signatures of that same parent/legal guardian, and the relevant supporting documents (e.g., medical certificate, or others that apply).";
+    // B300: every service needs the Student ID, so the reminder is automatic
+    // for all appointment types, not only class attendance.
+    private const GENERAL_REMINDER = "Please bring your Student ID.";
     // TMDU staff only act on TMDU appointments; GCU staff never on TMDU's.
     private function authorizeUnit(Appointment $appointment): void
     {
@@ -257,7 +261,7 @@ class AppointmentController extends Controller
         // text, same pattern TestingRecordController::scheduleTesting() uses
         // for TESTING_REMINDER. Staff-provided text always wins.
         $requiredDocuments = $validated['required_documents']
-            ?? ($appointment->referral?->referral_type === 'class_attendance' ? self::CLASS_ATTENDANCE_REMINDER : null);
+            ?? ($appointment->referral?->referral_type === 'class_attendance' ? self::CLASS_ATTENDANCE_REMINDER : self::GENERAL_REMINDER);
 
         $appointment->update([
             'status'               => 'confirmed',
@@ -452,6 +456,7 @@ class AppointmentController extends Controller
         });
 
         AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reason}", $appointment);
+        $newAppointment->notifyOffice('reschedule_requested');
 
         return response()->json([
             'message'              => 'Reschedule requested.',
@@ -677,6 +682,37 @@ public function checkConflictByStudent(Request $request)
 
         return response()->json([
             'message'     => $message,
+            'appointment' => $appointment->load('case'),
+        ]);
+    }
+
+    // Call Slip for a referral that was acknowledged but whose student never
+    // picked a schedule (request_status still 'awaiting_student'). Nothing was
+    // missed yet, so unlike escalateNoShow this does NOT mark a no-show or
+    // bump the case's no_show_count - it only asks the Dean's Secretary to
+    // follow up with the student.
+    public function sendCallSlipUnscheduled(Request $request, Appointment $appointment)
+    {
+        $this->authorizeUnit($appointment);
+
+        if ($appointment->request_status !== 'awaiting_student' || $appointment->status !== 'pending') {
+            abort(422, 'A Call Slip can only be sent while the student has not picked a schedule yet.');
+        }
+        if ($appointment->no_show_escalated) {
+            abort(422, 'A Call Slip was already sent for this appointment.');
+        }
+
+        $appointment->update([
+            'no_show_escalated'    => true,
+            'no_show_escalated_at' => now(),
+            'call_slip_stage'      => $appointment->call_slip_stage ?: 'pending',
+        ]);
+
+        $this->notifyDeanSecretaries($appointment->loadMissing('student'), new UnscheduledCallSlipNotification($appointment));
+        AuditLog::record('call_slip_unscheduled', "GCU sent a Call Slip for appointment {$appointment->appointment_code}: student has not picked a schedule.", $appointment);
+
+        return response()->json([
+            'message'     => "Call Slip sent to the Dean's Secretary.",
             'appointment' => $appointment->load('case'),
         ]);
     }

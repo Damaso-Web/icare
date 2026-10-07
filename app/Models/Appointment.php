@@ -130,4 +130,32 @@ public static function hasUnitConflict(string $unit, string $date, string $start
         ->exists();
 }
 
+
+    /**
+     * Tell the people handling this appointment that the student acted on it:
+     * the assigned staff, whoever created it, and the unit head/staff.
+     * Never throws - the student's action is already saved.
+     */
+    public function notifyOffice(string $kind = 'scheduled'): void
+    {
+        try {
+            $roles = match ($this->unit) {
+                'SDU'   => ['sdu_head'],
+                'TMDU'  => ['tmdu_staff'],
+                default => ['admin', 'gcu_staff'],
+            };
+            $ids = \App\Models\User::where('is_active', true)->whereIn('role', $roles)->pluck('id')
+                ->merge([$this->staff_user_id, $this->created_by_user_id])->filter()->unique();
+            $users = \App\Models\User::whereIn('id', $ids)->where('is_active', true)->get();
+            foreach ($users as $u) {
+                try {
+                    $u->notify(new \App\Notifications\AppointmentRequestedNotification($this, $kind));
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
+    }
 }

@@ -72,6 +72,18 @@ const routes = [
         meta: { public: true },
     },
     {
+        path: '/forgot-password',
+        name: 'forgot-password',
+        component: () => import('../views/ForgotPassword.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/reset-password',
+        name: 'reset-password',
+        component: () => import('../views/ResetPassword.vue'),
+        meta: { public: true },
+    },
+    {
         path: '/student/login',
         name: 'student-login',
         component: () => import('../views/StudentLogin.vue'),
@@ -145,7 +157,9 @@ const routes = [
                 path: 'students/:id',
                 name: 'student-show',
                 component: StudentShow,
-                meta: { roles: GCU_ROLES },
+                // TMDU opens this from a psychological-testing referral; the API
+                // scopes what it can see to that student's TMDU records only.
+                meta: { roles: [...GCU_ROLES, 'tmdu_staff'] },
             },
             {
                 path: 'referrals',

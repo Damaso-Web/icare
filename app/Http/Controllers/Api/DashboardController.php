@@ -47,7 +47,7 @@ class DashboardController extends Controller
                 'pending_referrals' => Referral::where('status', 'submitted')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'GCU')
-                                        ->whereNotIn('status', ['cancelled'])->count(),
+                                        ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
             ],
             'recent_referrals' => Referral::with(['student', 'referredBy'])
                 ->where('status', 'submitted')
@@ -57,7 +57,7 @@ class DashboardController extends Controller
             'upcoming_appointments' => Appointment::with(['student', 'staff'])
                 ->where('appointment_date', '>=', today())
                 ->where('unit', 'GCU')
-                ->whereNotIn('status', ['cancelled'])
+                ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->take(5)
@@ -80,7 +80,7 @@ class DashboardController extends Controller
                 'pending_complaints' => Complaint::where('status', 'pending')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'SDU')
-                                        ->whereNotIn('status', ['cancelled'])->count(),
+                                        ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
             ],
             'recent_cases' => CaseFile::with('student')
                 ->where('current_unit', 'SDU')
@@ -90,7 +90,7 @@ class DashboardController extends Controller
             'upcoming_appointments' => Appointment::with(['student', 'staff'])
                 ->where('appointment_date', '>=', today())
                 ->where('unit', 'SDU')
-                ->whereNotIn('status', ['cancelled'])
+                ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->take(5)
@@ -107,7 +107,7 @@ class DashboardController extends Controller
                 'completed'         => TestingRecord::where('status', 'completed')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'TMDU')
-                                        ->whereNotIn('status', ['cancelled'])->count(),
+                                        ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
             ],
             'testing_queue' => TestingRecord::with(['student', 'referredBy'])
                 ->whereIn('status', ['pending', 'scheduled'])
@@ -117,7 +117,7 @@ class DashboardController extends Controller
             'upcoming_appointments' => Appointment::with(['student', 'staff'])
                 ->where('appointment_date', '>=', today())
                 ->where('unit', 'TMDU')
-                ->whereNotIn('status', ['cancelled'])
+                ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->take(5)

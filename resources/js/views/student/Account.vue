@@ -13,7 +13,6 @@
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
         <div style="min-width:0">
           <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ student.first_name }} {{ student.last_name }}</div>
-          <div style="font-size:12.5px;color:var(--stone);margin-top:2px">{{ headerDetails }}</div>
         </div>
       </div>
 
@@ -39,16 +38,16 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="profileForm.last_name" class="ifi" maxlength="20" @input="profileForm.last_name = profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+              <input v-model="profileForm.last_name" class="ifi" maxlength="20" @input="profileForm.last_name = capFirst(profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="profileForm.first_name" class="ifi" maxlength="20" @input="profileForm.first_name = profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+              <input v-model="profileForm.first_name" class="ifi" maxlength="20" @input="profileForm.first_name = capFirst(profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
             </div>
           </div>
           <div>
             <label class="ifl">Middle Name</label>
-            <input v-model="profileForm.middle_name" class="ifi" maxlength="20" @input="profileForm.middle_name = profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, '')" />
+            <input v-model="profileForm.middle_name" class="ifi" maxlength="20" @input="profileForm.middle_name = capFirst(profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
           </div>
           <div>
             <label class="ifl">Suffix</label>
@@ -101,20 +100,20 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Nationality</label>
-              <input v-model="profileForm.nationality" class="ifi" maxlength="100" @input="profileForm.nationality = String(profileForm.nationality ?? '').replace(/[^a-zA-Z\s'.-]/g, '')" />
+              <input v-model="profileForm.nationality" class="ifi" maxlength="100" @input="profileForm.nationality = capFirst(String(profileForm.nationality ?? '').replace(/[^a-zA-Z\s'.-]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Birthplace</label>
-              <input v-model="profileForm.birthplace" class="ifi" maxlength="255" @input="profileForm.birthplace = String(profileForm.birthplace ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="profileForm.birthplace" class="ifi" maxlength="255" @input="profileForm.birthplace = capFirst(String(profileForm.birthplace ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
           </div>
           <div>
             <label class="ifl">Languages that I understand</label>
-            <input v-model="profileForm.languages" class="ifi" maxlength="255" placeholder="e.g. Filipino, English, Bisaya" @input="profileForm.languages = String(profileForm.languages ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="profileForm.languages" class="ifi" maxlength="255" placeholder="e.g. Filipino, English, Bisaya" @input="profileForm.languages = capFirst(String(profileForm.languages ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
           </div>
           <div>
             <label class="ifl">Address while studying at BSU</label>
-            <input v-model="profileForm.address" class="ifi" maxlength="255" @input="profileForm.address = String(profileForm.address ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="profileForm.address" class="ifi" maxlength="255" @input="profileForm.address = capFirst(String(profileForm.address ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, ''))" />
           </div>
           <div>
             <label class="ifl">Contact Number</label>
@@ -144,21 +143,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="255" @input="backgroundForm.father_last_name = String(backgroundForm.father_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="50" @input="backgroundForm.father_last_name = capFirst(String(backgroundForm.father_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="255" @input="backgroundForm.father_first_name = String(backgroundForm.father_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="50" @input="backgroundForm.father_first_name = capFirst(String(backgroundForm.father_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="255" @input="backgroundForm.father_middle_name = String(backgroundForm.father_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="50" @input="backgroundForm.father_middle_name = capFirst(String(backgroundForm.father_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="255" @input="backgroundForm.father_occupation = String(backgroundForm.father_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="50" @input="backgroundForm.father_occupation = capFirst(String(backgroundForm.father_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -173,7 +172,7 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.father_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.father_educational_attainment = String(backgroundForm.father_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.father_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.father_educational_attainment = capFirst(String(backgroundForm.father_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
           </div>
 
@@ -181,21 +180,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="255" @input="backgroundForm.mother_last_name = String(backgroundForm.mother_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="50" @input="backgroundForm.mother_last_name = capFirst(String(backgroundForm.mother_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="255" @input="backgroundForm.mother_first_name = String(backgroundForm.mother_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="50" @input="backgroundForm.mother_first_name = capFirst(String(backgroundForm.mother_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="255" @input="backgroundForm.mother_middle_name = String(backgroundForm.mother_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="50" @input="backgroundForm.mother_middle_name = capFirst(String(backgroundForm.mother_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="255" @input="backgroundForm.mother_occupation = String(backgroundForm.mother_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="50" @input="backgroundForm.mother_occupation = capFirst(String(backgroundForm.mother_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -210,7 +209,7 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.mother_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.mother_educational_attainment = String(backgroundForm.mother_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.mother_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.mother_educational_attainment = capFirst(String(backgroundForm.mother_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
           </div>
 
@@ -218,15 +217,15 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_last_name = String(backgroundForm.guardian_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_last_name = capFirst(String(backgroundForm.guardian_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.guardian_first_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_first_name = String(backgroundForm.guardian_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.guardian_first_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_first_name = capFirst(String(backgroundForm.guardian_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="255" @input="backgroundForm.guardian_middle_name = String(backgroundForm.guardian_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+              <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_middle_name = capFirst(String(backgroundForm.guardian_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
@@ -236,13 +235,13 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.guardian_educational_attainment" class="ifi" maxlength="255" @input="backgroundForm.guardian_educational_attainment = String(backgroundForm.guardian_educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.guardian_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.guardian_educational_attainment = capFirst(String(backgroundForm.guardian_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.guardian_occupation" class="ifi" maxlength="255" @input="backgroundForm.guardian_occupation = String(backgroundForm.guardian_occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.guardian_occupation" class="ifi" maxlength="50" @input="backgroundForm.guardian_occupation = capFirst(String(backgroundForm.guardian_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -269,15 +268,15 @@
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="sib.last_name" class="ifi" maxlength="255" @input="sib.last_name = String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+                <input v-model="sib.last_name" class="ifi" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="sib.first_name" class="ifi" maxlength="255" @input="sib.first_name = String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+                <input v-model="sib.first_name" class="ifi" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="sib.middle_name" class="ifi" maxlength="255" @input="sib.middle_name = String(sib.middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, '')" />
+                <input v-model="sib.middle_name" class="ifi" maxlength="50" @input="sib.middle_name = capFirst(String(sib.middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
               </div>
             </div>
             <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px">
@@ -287,7 +286,7 @@
               </div>
               <div>
                 <label class="ifl">Highest Educational Attainment</label>
-                <input v-model="sib.educational_attainment" class="ifi" maxlength="255" @input="sib.educational_attainment = String(sib.educational_attainment ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+                <input v-model="sib.educational_attainment" class="ifi" maxlength="50" @input="sib.educational_attainment = capFirst(String(sib.educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">Civil Status</label>
@@ -299,8 +298,8 @@
             </div>
             <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
               <div>
-                <label class="ifl">Occupation (write student if still studying)</label>
-                <input v-model="sib.occupation" class="ifi" maxlength="255" @input="sib.occupation = String(sib.occupation ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+                <label class="ifl">Occupation (if currently studying, enter "Student")</label>
+                <input v-model="sib.occupation" class="ifi" maxlength="50" @input="sib.occupation = capFirst(String(sib.occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
               </div>
               <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="removeSibling(idx)">Remove</button>
             </div>
@@ -314,41 +313,11 @@
 
           <div v-show="tab === 'education'" style="display:flex;flex-direction:column;gap:16px">
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Educational Attainment</div>
-          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Senior High School</div>
-          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
-            <div>
-              <label class="ifl">School</label>
-              <input v-model="backgroundForm.senior_high_school" class="ifi" maxlength="255" @input="backgroundForm.senior_high_school = String(backgroundForm.senior_high_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
-            </div>
-            <div>
-              <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
-            </div>
-          </div>
-          <div v-if="'senior_high_achievements'">
-            <label class="ifl">Achievements</label>
-            <textarea v-model="backgroundForm.senior_high_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
-          </div>
-          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Junior High School</div>
-          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
-            <div>
-              <label class="ifl">School</label>
-              <input v-model="backgroundForm.high_school" class="ifi" maxlength="255" @input="backgroundForm.high_school = String(backgroundForm.high_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
-            </div>
-            <div>
-              <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
-            </div>
-          </div>
-          <div v-if="'high_school_achievements'">
-            <label class="ifl">Achievements</label>
-            <textarea v-model="backgroundForm.high_school_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
-          </div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Elementary</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">School</label>
-              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="255" @input="backgroundForm.elementary_school = String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="100" @input="backgroundForm.elementary_school = capFirst(String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
@@ -359,11 +328,41 @@
             <label class="ifl">Achievements</label>
             <textarea v-model="backgroundForm.elementary_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
           </div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Junior High School</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
+            <div>
+              <label class="ifl">School</label>
+              <input v-model="backgroundForm.high_school" class="ifi" maxlength="100" @input="backgroundForm.high_school = capFirst(String(backgroundForm.high_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+            </div>
+            <div>
+              <label class="ifl">Year Graduated</label>
+              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+          </div>
+          <div v-if="'high_school_achievements'">
+            <label class="ifl">Achievements</label>
+            <textarea v-model="backgroundForm.high_school_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+          </div>
+          <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Senior High School</div>
+          <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
+            <div>
+              <label class="ifl">School</label>
+              <input v-model="backgroundForm.senior_high_school" class="ifi" maxlength="100" @input="backgroundForm.senior_high_school = capFirst(String(backgroundForm.senior_high_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+            </div>
+            <div>
+              <label class="ifl">Year Graduated</label>
+              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+            </div>
+          </div>
+          <div v-if="'senior_high_achievements'">
+            <label class="ifl">Achievements</label>
+            <textarea v-model="backgroundForm.senior_high_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+          </div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">College (current)</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">College / University</label>
-              <input v-model="backgroundForm.college_school" class="ifi" maxlength="255" @input="backgroundForm.college_school = String(backgroundForm.college_school ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+              <input v-model="backgroundForm.college_school" class="ifi" maxlength="100" @input="backgroundForm.college_school = capFirst(String(backgroundForm.college_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
@@ -386,22 +385,26 @@
           <div>
             <label class="ifl">Current Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
-              <button type="button" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showCurrentPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.current_password" :type="showCurrentPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:36px" />
+              <button type="button" :aria-label="showCurrentPw ? 'Hide password' : 'Show password'" :title="showCurrentPw ? 'Hide password' : 'Show password'" @click="showCurrentPw = !showCurrentPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showCurrentPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
           </div>
           <div>
             <label class="ifl">New Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
-              <button type="button" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showNewPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.password" :type="showNewPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:36px" />
+              <button type="button" :aria-label="showNewPw ? 'Hide password' : 'Show password'" :title="showNewPw ? 'Hide password' : 'Show password'" @click="showNewPw = !showNewPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showNewPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
+          </div>
+          <div style="font-size:11.5px;color:var(--stone);line-height:1.6">
+            Password must be 8-64 characters with an uppercase letter, a lowercase letter, a number and a symbol (e.g. ! @ # $).
+            <div v-if="pwSameAsCurrent" style="color:var(--red)">New password must be different from your current password.</div>
           </div>
           <div>
             <label class="ifl">Confirm New Password</label>
             <div style="position:relative">
-              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="100" style="padding-right:36px" />
-              <button type="button" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);font-size:11px">{{ showConfirmPw ? 'Hide' : 'Show' }}</button>
+              <input v-model="pwForm.password_confirmation" :type="showConfirmPw ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:36px" />
+              <button type="button" :aria-label="showConfirmPw ? 'Hide password' : 'Show password'" :title="showConfirmPw ? 'Hide password' : 'Show password'" @click="showConfirmPw = !showConfirmPw" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--fog);display:flex;padding:4px"><svg v-if="showConfirmPw" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg><svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button>
             </div>
             <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
             <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
@@ -450,8 +453,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
+
+const toast = inject('toast', null);
+const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -491,6 +497,7 @@ const pwError = ref('');
 const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
 const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
 const pwSuccess = ref('');
+const pwSameAsCurrent = computed(() => !!pwForm.value.password && pwForm.value.password === pwForm.value.current_password);
 const showCurrentPw = ref(false);
 const showNewPw = ref(false);
 const showConfirmPw = ref(false);
@@ -585,6 +592,19 @@ function requestSave(kind) {
       return;
     }
   }
+  if (kind === 'family') {
+    const f = backgroundForm.value;
+    if (f.father_contact_number && f.father_contact_number === f.mother_contact_number) {
+      backgroundError.value = "The father's and mother's contact numbers are the same. Please enter a different number for each parent.";
+      return;
+    }
+    for (const k of ['father_contact_number', 'mother_contact_number', 'guardian_contact']) {
+      if (f[k] && !/^09\d{9}$/.test(f[k])) {
+        backgroundError.value = 'Contact numbers must start with 09 and be 11 digits long.';
+        return;
+      }
+    }
+  }
   if (kind === 'siblings') {
     for (const sib of backgroundForm.value.siblings) {
       if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
@@ -634,6 +654,7 @@ async function saveProfile() {
     localStorage.setItem('student', JSON.stringify(student.value));
     profileSnapshot.value = JSON.stringify(profileForm.value);
     profileSuccess.value = 'Profile updated successfully.';
+    toast?.success('Profile updated successfully.');
   } catch (e) {
     profileError.value = firstApiError(e, 'Failed to update profile.');
   }
@@ -651,6 +672,7 @@ async function saveFamily() {
     const snap = backgroundSnapshot.value ? JSON.parse(backgroundSnapshot.value) : {};
     backgroundSnapshot.value = JSON.stringify({ ...snap, ...payload });
     backgroundSuccess.value = 'Family information updated successfully.';
+    toast?.success('Family information updated successfully.');
   } catch (e) {
     backgroundError.value = firstApiError(e, 'Failed to update your family information.');
   } finally {
@@ -676,6 +698,7 @@ async function saveSiblings() {
     await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
     backgroundSnapshot.value = JSON.stringify({ ...snapOf(), ...payload });
     backgroundSuccess.value = 'Siblings information updated successfully.';
+    toast?.success('Siblings information updated successfully.');
   } catch (e) {
     backgroundError.value = firstApiError(e, 'Failed to update your siblings information.');
   } finally {
@@ -693,6 +716,7 @@ async function saveEducation() {
     await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
     backgroundSnapshot.value = JSON.stringify({ ...snapOf(), ...payload });
     backgroundSuccess.value = 'Educational attainment updated successfully.';
+    toast?.success('Educational attainment updated successfully.');
   } catch (e) {
     backgroundError.value = firstApiError(e, 'Failed to update your educational attainment.');
   } finally {
@@ -705,6 +729,16 @@ async function saveEducation() {
 const showPwConfirm = ref(false);
 const changingPw    = ref(false);
 
+// Same rules as the server, with an example for the symbol requirement.
+function passwordProblem(pw) {
+  if (pw.length < 8) return 'The password must be at least 8 characters.';
+  if (pw.length > 64) return 'The password must not be longer than 64 characters.';
+  if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw)) return 'The password must contain both uppercase and lowercase letters.';
+  if (!/[0-9]/.test(pw)) return 'The password must contain at least one number.';
+  if (!/[^A-Za-z0-9]/.test(pw)) return 'The password must contain at least one symbol (e.g. !, @, #, or $).';
+  return '';
+}
+
 function askChangePassword() {
   pwError.value = '';
   const f = pwForm.value;
@@ -716,6 +750,12 @@ function askChangePassword() {
     pwError.value = 'The new password and its confirmation do not match.';
     return;
   }
+  if (f.password === f.current_password) {
+    pwError.value = 'The new password must be different from your current password.';
+    return;
+  }
+  const problem = passwordProblem(f.password);
+  if (problem) { pwError.value = problem; return; }
   showPwConfirm.value = true;
 }
 
@@ -741,6 +781,7 @@ async function changePassword() {
     showNewPw.value = false;
     showConfirmPw.value = false;
     pwSuccess.value = 'Password changed successfully.';
+    toast?.success('Password changed successfully.');
   } catch (e) {
     pwError.value = firstApiError(e, 'Failed to change password.');
   }

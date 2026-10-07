@@ -91,4 +91,9 @@ class Student extends Authenticatable
 
     public function activeCase()     { return $this->hasOne(CaseFile::class)->whereIn('status', ['open', 'in_progress', 'awaiting_testing']); }
     public function isRecurring(): bool { return $this->referrals()->count() > 1; }
+
+    public function sendPasswordResetNotification($token): void
+    {
+        $this->notify(new \App\Notifications\ResetPasswordLinkNotification($token, 'student'));
+    }
 }

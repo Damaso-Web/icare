@@ -7,7 +7,7 @@
 
     <div class="icard">
       <div style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap">
-        <input v-model="search" class="ifi" style="max-width:260px" placeholder="Search student name or ID..." @input="onSearch" />
+        <input v-model="search" class="ifi" style="max-width:260px" maxlength="100" placeholder="Search student name or ID..." @input="onSearch" />
         <select v-model="status" class="fsm" @change="fetchItems">
           <option value="">All Statuses</option>
           <option value="pending">Pending</option>

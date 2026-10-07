@@ -16,7 +16,7 @@ class ManagementProgramController extends Controller
 
     public function index(Request $request)
     {
-        $query = Program::with('college')->orderBy('name');
+        $query = Program::with('college')->orderBy('id');
         if ($request->college_id) {
             $query->where('college_id', $request->college_id);
         }

@@ -281,6 +281,7 @@ export const appointmentAPI = {
     cancel:         (id, data) => api.post(`/appointments/${id}/cancel`, data),
     checkIn:        (id)       => api.post(`/appointments/${id}/check-in`),
     escalateNoShow: (id, action) => api.post(`/appointments/${id}/escalate-no-show`, { action }),
+    sendCallSlipUnscheduled: (id) => api.post(`/appointments/${id}/send-call-slip`),
     availability:   (params)   => api.get('/appointments/availability', { params }),
     checkConflict:  (data)     => api.post('/appointments/check-conflict', data),
 };

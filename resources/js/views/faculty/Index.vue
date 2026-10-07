@@ -9,7 +9,7 @@
 
     <div class="icard">
       <div class="filter-bar" style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="search" class="ifi" style="max-width:240px" placeholder="Search name, email or employee ID..." @input="onSearch" />
+        <input v-model="search" class="ifi" style="max-width:240px" maxlength="100" placeholder="Search name, email or employee ID..." @input="onSearch" />
         <select v-if="!isChair" v-model="deptFilter" class="fsm" @change="fetchItems">
           <option value="">All Departments</option>
           <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
@@ -75,16 +75,23 @@
             <div><label class="ifl">Email *</label><input v-model="form.email" type="email" class="ifi" /></div>
             <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" /></div>
             <div><label class="ifl">Contact Number</label><input v-model="form.contact_number" class="ifi" maxlength="11" /></div>
+            <div v-if="needsCollegePick && !editing">
+              <label class="ifl">College *</label>
+              <select v-model="form.college" class="ifse" @change="form.department = ''">
+                <option value="">Select college</option>
+                <option v-for="c in colleges" :key="c.id" :value="c.name">{{ c.name }}</option>
+              </select>
+            </div>
             <div>
               <label class="ifl">Department *</label>
               <input v-if="isChair" :value="auth.user?.department" class="ifi" disabled />
-              <select v-else v-model="form.department" class="ifse">
-                <option value="">Select department</option>
-                <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
+              <select v-else v-model="form.department" class="ifse" :disabled="needsCollegePick && !editing && !form.college">
+                <option value="">{{ needsCollegePick && !editing && !form.college ? 'Select a college first' : 'Select department' }}</option>
+                <option v-for="d in formDepartments" :key="d" :value="d">{{ d }}</option>
               </select>
             </div>
           </div>
-          <div style="font-size:12px;color:var(--stone);margin-top:10px">College: <strong>{{ auth.user?.college || 'n/a' }}</strong></div>
+          <div v-if="!needsCollegePick || editing" style="font-size:12px;color:var(--stone);margin-top:10px">College: <strong>{{ editing?.college || auth.user?.college || 'n/a' }}</strong></div>
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
         </div>
         <div class="ffoot">
@@ -147,7 +154,11 @@
               CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Department</span>.
               Everyone is added as <strong>Faculty</strong> of {{ isChair ? auth.user?.department : auth.user?.college }}.
             </p>
-            <input type="file" accept=".csv,.xlsx,.xls,.txt" @change="onFile" />
+            <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o ibtn-sm" style="margin-bottom:10px">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download Template
+            </a>
+            <div><input type="file" accept=".csv,.xlsx,.xls,.txt" @change="onFile" /></div>
             <div v-if="uploadError" style="color:var(--red);font-size:12px;margin-top:10px">{{ uploadError }}</div>
             <div v-if="preview.length" style="margin-top:14px;max-height:300px;overflow:auto">
               <table class="itable">
@@ -211,6 +222,13 @@ const toast = inject('toast', null);
 
 const isDean  = computed(() => auth.user?.role === 'dean');
 const isChair = computed(() => auth.user?.role === 'dept_chair');
+// Admin-side roles have no college of their own, so adding faculty needs a College pick.
+const needsCollegePick = computed(() => !isDean.value && !isChair.value);
+const formDepartments = computed(() => {
+  if (!needsCollegePick.value || editing.value) return departments.value;
+  const c = colleges.value.find(x => x.name === form.value.college);
+  return c ? allDepartments.value.filter(d => d.college_id === c.id).map(d => d.name) : [];
+});
 
 const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
 const items = ref([]);
@@ -220,6 +238,8 @@ const deptFilter = ref('');
 const page = ref(1);
 const lastPage = ref(1);
 const departments = ref([]);
+const colleges = ref([]);
+const allDepartments = ref([]);
 let timer = null;
 
 function onSearch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchItems(); }, 300); }
@@ -245,8 +265,15 @@ async function fetchDepartments() {
       axios.get(`${API_ROOT}/api/management/colleges`, headers),
       axios.get(`${API_ROOT}/api/management/departments`, headers),
     ]);
+    colleges.value = cRes.data;
+    allDepartments.value = dRes.data;
     const mine = cRes.data.find(c => c.name === auth.user?.college);
-    departments.value = mine ? dRes.data.filter(d => d.college_id === mine.id).map(d => d.name) : [];
+    // Dean/Chair see their own college's departments; admin-side roles have no
+    // college of their own, so they get every department (and pick a college
+    // first when adding).
+    departments.value = mine
+      ? dRes.data.filter(d => d.college_id === mine.id).map(d => d.name)
+      : [...new Set(dRes.data.map(d => d.name))];
   } catch (e) { /* the list just stays empty */ }
 }
 
@@ -255,7 +282,7 @@ const formOpen = ref(false);
 const editing = ref(null);
 const saving = ref(false);
 const formError = ref('');
-const blank = () => ({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', employee_id: '', contact_number: '', department: '' });
+const blank = () => ({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', employee_id: '', contact_number: '', department: '', college: '' });
 const form = ref(blank());
 const tempInfo = ref(null);
 
@@ -271,6 +298,7 @@ async function saveForm() {
   formError.value = '';
   const f = form.value;
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
+  if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
   if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }
   saving.value = true;
   try {
