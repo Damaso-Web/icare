@@ -1,63 +1,165 @@
 <template>
   <div class="fade-up">
+    <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>Faculty</h1>
-      <p v-if="isDean">All faculty of {{ auth.user?.college }}. Add or upload faculty and assign the Department Chair of each department.</p>
-      <p v-else-if="isChair">Faculty of {{ auth.user?.department }}. Add or upload faculty under your department.</p>
-      <p v-else>Faculty, Deans' faculty and Department Chairs.</p>
+      <h1>Faculty Profile</h1>
+      <p v-if="isDean">View and manage faculty of {{ auth.user?.college }}. Assign the Department Chair of each department.</p>
+      <p v-else-if="isChair">View and manage faculty of {{ auth.user?.department }}.</p>
+      <p v-else>View and manage faculty member accounts.</p>
     </div>
 
-    <div class="icard">
-      <div class="filter-bar" style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="search" class="ifi" style="max-width:240px" maxlength="100" placeholder="Search name, email or employee ID..." @input="onSearch" />
-        <select v-if="!isChair" v-model="deptFilter" class="fsm" @change="fetchItems">
-          <option value="">All Departments</option>
-          <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
-        </select>
-        <div style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap">
-          <button class="ibtn ibtn-o" @click="openUpload">Upload Faculty</button>
-          <button class="ibtn ibtn-p" @click="openForm(null)">+ Add Faculty</button>
-        </div>
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="sw">
+        <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input
+          v-model="search"
+          type="text"
+          class="sin"
+          maxlength="15"
+          placeholder="Search name, email, or employee ID..."
+          style="width:220px"
+          @keypress="blockSpecialKeypress"
+          @input="onSearch"
+        />
       </div>
+      <select v-model="statusFilter" class="fsm" @change="page = 1; fetchItems()">
+        <option value="">Sort by Status</option>
+        <option value="1">Active</option>
+        <option value="0">Inactive</option>
+      </select>
+      <select v-if="!isChair" v-model="deptFilter" class="fsm" @change="page = 1; fetchItems()">
+        <option value="">All Departments</option>
+        <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
+      </select>
+      <select v-model="sortOption" class="fsm" @change="page = 1; fetchItems()">
+        <option value="created_at:desc">Newest First</option>
+        <option value="created_at:asc">Oldest First</option>
+        <option value="employee_id:asc">Employee ID: Ascending</option>
+        <option value="employee_id:desc">Employee ID: Descending</option>
+        <option value="last_name:asc">Name: A-Z</option>
+        <option value="last_name:desc">Name: Z-A</option>
+      </select>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button class="ibtn ibtn-o ibtn-sm" @click="openUpload">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Upload Faculty
+      </button>
+      <button class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click="openForm(null)">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Faculty
+      </button>
+    </div>
 
+    <!-- Faculty Table -->
+    <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
       <div v-else-if="!items.length" class="empty-state">
-        <h3>No faculty yet</h3>
-        <p>Add a faculty member or upload a masterlist (CSV / Excel).</p>
+        <h3>No faculty found</h3>
+        <p>Try adjusting your search or filters, or add a faculty member / upload a masterlist (CSV / Excel).</p>
       </div>
-      <div v-else class="ts">
+      <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>Name</th><th>Employee ID</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>Employee ID</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
-            <tr v-for="u in items" :key="u.id">
-              <td>{{ u.last_name }}, {{ u.first_name }}</td>
-              <td style="font-family:var(--mono);font-size:12px">{{ u.employee_id || '-' }}</td>
-              <td style="font-size:12px">{{ u.email }}</td>
-              <td style="font-size:12px">{{ u.department || '-' }}</td>
+            <tr v-for="u in items" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
+              <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
               <td>
-                <span class="ibadge" :class="u.role === 'dept_chair' ? 'ibadge-scheduled' : 'ibadge-pending'">
-                  {{ u.role === 'dept_chair' ? 'Dept Chair' : 'Faculty' }}
+                <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--ink);border:1px solid var(--fog)'">
+                  {{ u.is_active ? 'Active' : 'Inactive' }}
                 </span>
               </td>
-              <td><span class="ibadge" :class="u.is_active ? 'ibadge-completed' : 'ibadge-closed'">{{ u.is_active ? 'Active' : 'Inactive' }}</span></td>
-              <td style="white-space:nowrap">
-                <button class="ibtn ibtn-o ibtn-sm" @click="openForm(u)">Edit</button>
-                <button v-if="isDean && u.role === 'faculty'" class="ibtn ibtn-o ibtn-sm" @click="openChair(u)">Make Dept Chair</button>
-                <button v-if="isDean && u.role === 'dept_chair'" class="ibtn ibtn-o ibtn-sm" @click="askAction('removeChair', u, 'Remove ' + u.name + ' as Department Chair?')">Remove Chair</button>
-                <button class="ibtn ibtn-o ibtn-sm" @click="askAction('reset', u, 'Reset the password of ' + u.name + '?')">Reset PW</button>
-                <button class="ibtn ibtn-o ibtn-sm" @click="askAction('toggle', u, (u.is_active ? 'Deactivate ' : 'Activate ') + u.name + '?')">{{ u.is_active ? 'Deactivate' : 'Activate' }}</button>
+              <td>
+                <div style="display:flex;gap:6px;justify-content:flex-end">
+                  <button class="ibtn ibtn-o ibtn-sm" @click="openView(u)">View</button>
+                  <button
+                    class="ibtn ibtn-sm"
+                    :style="u.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mint);color:var(--forest);border:1.5px solid var(--moss)'"
+                    @click="askAction('toggle', u, (u.is_active ? 'Deactivate ' : 'Activate ') + u.name + '?')"
+                  >
+                    {{ u.is_active ? 'Deactivate' : 'Activate' }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
-        <div v-if="lastPage > 1" style="padding:12px 18px;display:flex;gap:8px;justify-content:flex-end;align-items:center">
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="lastPage > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">Showing {{ pageFrom }}-{{ pageTo }} of {{ total }}</span>
+        <div style="display:flex;gap:6px">
           <button class="ibtn ibtn-o ibtn-sm" :disabled="page <= 1" @click="page--; fetchItems()">Prev</button>
-          <span style="font-size:12px;color:var(--stone)">Page {{ page }} of {{ lastPage }}</span>
           <button class="ibtn ibtn-o ibtn-sm" :disabled="page >= lastPage" @click="page++; fetchItems()">Next</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- View Faculty Profile Modal -->
+    <div v-if="viewTarget" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="viewTarget = null">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="background:linear-gradient(135deg,var(--forest),var(--pine));padding:22px;border-radius:var(--r-lg) var(--r-lg) 0 0;text-align:center">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 10px">
+            {{ initials(viewTarget.first_name, viewTarget.last_name) }}
+          </div>
+          <div style="font-size:15px;font-weight:600;color:#fff">{{ viewTarget.last_name }}, {{ viewTarget.first_name }} {{ viewTarget.middle_name }} {{ viewTarget.suffix }}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,.6);margin-top:2px">{{ viewTarget.email }}</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+          <div>
+            <div class="vlabel">Employee ID</div>
+            <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ viewTarget.employee_id || '-' }}</div>
+          </div>
+          <div>
+            <div class="vlabel">Role</div>
+            <span class="ibadge" :style="viewTarget.role === 'dept_chair' ? 'background:var(--amber-lt);color:var(--amber)' : 'background:var(--blue-lt);color:var(--blue)'">
+              {{ viewTarget.role === 'dept_chair' ? 'Dept Chair' : 'Faculty' }}
+            </span>
+          </div>
+          <div v-if="viewTarget.college">
+            <div class="vlabel">College</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewTarget.college }}</div>
+          </div>
+          <div v-if="viewTarget.department">
+            <div class="vlabel">Department</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewTarget.department }}</div>
+          </div>
+          <div v-if="viewTarget.contact_number">
+            <div class="vlabel">Contact Number</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewTarget.contact_number }}</div>
+          </div>
+          <div>
+            <div class="vlabel">Status</div>
+            <span class="ibadge" :style="viewTarget.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--stone)'">
+              {{ viewTarget.is_active ? 'Active' : 'Inactive' }}
+            </span>
+          </div>
+          <div>
+            <div class="vlabel">Last Login</div>
+            <div style="font-size:13px;color:var(--ink)">{{ viewTarget.last_login_at ? new Date(viewTarget.last_login_at).toLocaleDateString() : 'Never' }}</div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="ibtn ibtn-p" :disabled="!viewTarget.is_active" :style="{ flex:1, justifyContent:'center', opacity: viewTarget.is_active ? 1 : .5 }" @click="editFromView">Edit</button>
+            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="viewTarget = null">Close</button>
+          </div>
+          <button v-if="isDean && viewTarget.role === 'faculty'" class="ibtn ibtn-o ibtn-sm" style="width:100%;justify-content:center" :disabled="!viewTarget.is_active" @click="chairFromView">Make Dept Chair</button>
+          <button v-if="isDean && viewTarget.role === 'dept_chair'" class="ibtn ibtn-o ibtn-sm" style="width:100%;justify-content:center" @click="askFromView('removeChair', 'Remove ' + viewTarget.name + ' as Department Chair?')">Remove Chair</button>
+          <button
+            class="ibtn ibtn-sm"
+            :disabled="!viewTarget.is_active"
+            :style="{ width:'100%', justifyContent:'center', background:'var(--amber-lt)', color:'var(--amber)', border:'1.5px solid var(--amber)', opacity: viewTarget.is_active ? 1 : .5 }"
+            @click="askFromView('reset', 'Reset the password of ' + viewTarget.name + '?')"
+          >Reset Password</button>
         </div>
       </div>
     </div>
@@ -71,7 +173,12 @@
             <div><label class="ifl">First Name *</label><input v-model="form.first_name" class="ifi" /></div>
             <div><label class="ifl">Last Name *</label><input v-model="form.last_name" class="ifi" /></div>
             <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" /></div>
-            <div><label class="ifl">Suffix</label><input v-model="form.suffix" class="ifi" /></div>
+            <div><label class="ifl">Suffix</label>
+              <select v-model="form.suffix" class="ifse">
+                <option value="">None</option>
+                <option v-if="form.suffix && !SUFFIX_OPTIONS.includes(form.suffix)" :value="form.suffix">{{ form.suffix }}</option>
+                <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
+              </select></div>
             <div><label class="ifl">Email *</label><input v-model="form.email" type="email" class="ifi" /></div>
             <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" /></div>
             <div><label class="ifl">Contact Number</label><input v-model="form.contact_number" class="ifi" maxlength="11" /></div>
@@ -147,7 +254,7 @@
     <!-- Upload modal -->
     <div v-if="uploadOpen" class="fmodal" @click.self="closeUpload">
       <div class="fbox" style="max-width:760px">
-        <div class="fhead"><span>Upload Faculty</span><button class="ibtn ibtn-g ibtn-sm" @click="closeUpload">✕</button></div>
+        <div class="fhead"><span>Upload Faculty</span></div>
         <div class="fbody">
           <template v-if="!result">
             <p style="font-size:12px;color:var(--stone);margin-bottom:10px">
@@ -216,6 +323,7 @@ import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { facultyAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
+import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const auth  = useAuthStore();
 const toast = inject('toast', null);
@@ -230,11 +338,18 @@ const formDepartments = computed(() => {
   return c ? allDepartments.value.filter(d => d.college_id === c.id).map(d => d.name) : [];
 });
 
+const SUFFIX_OPTIONS = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV', 'V'];
 const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
 const items = ref([]);
 const loading = ref(true);
 const search = ref('');
 const deptFilter = ref('');
+const statusFilter = ref('');
+const sortOption = ref('created_at:desc');
+const total = ref(0);
+const pageFrom = ref(0);
+const pageTo = ref(0);
+const viewTarget = ref(null);
 const page = ref(1);
 const lastPage = ref(1);
 const departments = ref([]);
@@ -242,14 +357,24 @@ const colleges = ref([]);
 const allDepartments = ref([]);
 let timer = null;
 
-function onSearch() { clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchItems(); }, 300); }
+function onSearch() { search.value = safeSearchInput(search.value); clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchItems(); }, 300); }
 
 async function fetchItems() {
   loading.value = true;
   try {
-    const res = await facultyAPI.index({ search: search.value || undefined, department: deptFilter.value || undefined, page: page.value });
+    const [sortBy, sortDir] = sortOption.value.split(':');
+    const res = await facultyAPI.index({
+      search: search.value || undefined,
+      department: deptFilter.value || undefined,
+      is_active: statusFilter.value === '' ? undefined : statusFilter.value,
+      sort_by: sortBy, sort_dir: sortDir,
+      page: page.value,
+    });
     items.value = res.data.data || [];
     lastPage.value = res.data.last_page || 1;
+    total.value = res.data.total || 0;
+    pageFrom.value = res.data.from || 0;
+    pageTo.value = res.data.to || 0;
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Could not load faculty.');
   } finally {
@@ -276,6 +401,17 @@ async function fetchDepartments() {
       : [...new Set(dRes.data.map(d => d.name))];
   } catch (e) { /* the list just stays empty */ }
 }
+
+function resetFilters() {
+  search.value = ''; statusFilter.value = ''; deptFilter.value = ''; sortOption.value = 'created_at:desc';
+  page.value = 1; fetchItems();
+}
+
+function initials(first, last) { return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?'; }
+function openView(u) { viewTarget.value = u; }
+function editFromView() { const u = viewTarget.value; viewTarget.value = null; openForm(u); }
+function chairFromView() { const u = viewTarget.value; viewTarget.value = null; openChair(u); }
+function askFromView(kind, text) { const u = viewTarget.value; viewTarget.value = null; askAction(kind, u, text); }
 
 // ---- add / edit ----
 const formOpen = ref(false);
@@ -407,6 +543,7 @@ onMounted(() => { fetchItems(); fetchDepartments(); });
 </script>
 
 <style scoped>
+.vlabel { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); margin-bottom: 3px; }
 .fmodal { position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 60; display: flex; align-items: center; justify-content: center; padding: 20px; }
 .fbox { background: #fff; border-radius: var(--r-lg); width: 100%; max-width: 560px; max-height: 90vh; overflow-y: auto; box-shadow: var(--sh-lg); }
 .fhead { padding: 18px 22px; border-bottom: 1px solid var(--cloud); display: flex; align-items: center; justify-content: space-between; font-size: 15px; font-weight: 600; color: var(--ink); }

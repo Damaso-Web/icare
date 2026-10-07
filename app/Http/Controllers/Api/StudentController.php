@@ -191,9 +191,13 @@ class StudentController extends Controller
             'deactivation_notes'  => ['nullable', 'string', 'max:255', 'required_if:deactivation_reason,other', 'regex:' . self::TEXT_REGEX],
         ]);
 
-        $openCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->count();
-        if ($openCases > 0) {
-            return response()->json(['message' => "Cannot mark as graduated: student has {$openCases} open case(s)."], 422);
+        // B303: deactivating a student also closes their SIF, even when the case
+        // is still open or has an ongoing referral - this is the second way (besides
+        // the case status dropdown) to close a SIF.
+        $closedCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->get();
+        foreach ($closedCases as $case) {
+            $case->update(['status' => 'closed', 'closed_date' => today()]);
+            AuditLog::record('closed', "Closed case {$case->case_number} because the student was deactivated.", $case);
         }
 
         $student->update([

@@ -578,12 +578,11 @@
                    if the case is currently on one of them it is shown here
                    as a greyed-out, unselectable current value instead of
                    leaving the dropdown blank. -->
-              <option v-if="!['open','on_observation','in_progress','closed'].includes(newCaseStatus) && newCaseStatus" :value="newCaseStatus" disabled>
+              <option v-if="!['open','on_observation','closed'].includes(newCaseStatus) && newCaseStatus" :value="newCaseStatus" disabled>
                 {{ String(newCaseStatus).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) }} (current)
               </option>
               <option value="open">Open</option>
               <option value="on_observation">On Observation</option>
-              <option value="in_progress">In Progress</option>
               <option value="closed">Closed</option>
             </select>
             <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="updateCaseStatus">Save Status</button>

@@ -268,13 +268,11 @@
             </div>
             <div>
               <label class="ifl">Suffix</label>
-              <input
-                v-model="userForm.suffix"
-                class="ifi"
-                maxlength="20"
-                placeholder="Jr., Sr., III"
-                @input="userForm.suffix = onlyLettersStrict(userForm.suffix)"
-              />
+              <select v-model="userForm.suffix" class="ifse">
+                <option value="">None</option>
+                <option v-if="userForm.suffix && !SUFFIX_OPTIONS.includes(userForm.suffix)" :value="userForm.suffix">{{ userForm.suffix }}</option>
+                <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
+              </select>
             </div>
           </div>
 
@@ -879,6 +877,8 @@ async function openView(u) {
     // Non-fatal - falls back to the row data already shown.
   }
 }
+
+const SUFFIX_OPTIONS = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV', 'V'];
 
 async function openEditFromView() {
   showViewModal.value = false;

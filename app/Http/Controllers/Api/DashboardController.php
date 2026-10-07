@@ -39,18 +39,39 @@ class DashboardController extends Controller
         return response()->json(['message' => 'No dashboard available.'], 403);
     }
 
+    /** GCU's open SIFs: same rules as the Student Information Files list. */
+    private function gcuOpenCases()
+    {
+        return CaseFile::where('current_unit', 'GCU')
+            ->whereIn('status', ['open', 'in_progress'])
+            ->whereHas('student', fn($s) => $s->where('is_active', true))
+            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'));
+    }
+
+    /** GCU's referral inbox: same rules as the Referral Queue (no TMDU slips, complaints or archived). */
+    private function gcuPendingReferrals()
+    {
+        return Referral::where('status', 'submitted')
+            ->where('is_archived', false)
+            ->whereNull('complaint_id')
+            ->notTmduOwned();
+    }
+
     private function gcuDashboard($user): array
     {
         return [
             'stats' => [
-                'open_cases'        => CaseFile::whereIn('status', ['open', 'in_progress'])->count(),
-                'pending_referrals' => Referral::where('status', 'submitted')->count(),
+                // Counted per unit and with the same filters as the pages the
+                // cards link to (Student Information Files / Referral Queue), so
+                // the number on the card always matches the list behind it.
+                'open_cases'        => $this->gcuOpenCases()->count(),
+                'pending_referrals' => $this->gcuPendingReferrals()->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'GCU')
                                         ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
             ],
-            'recent_referrals' => Referral::with(['student', 'referredBy'])
-                ->where('status', 'submitted')
+            'recent_referrals' => $this->gcuPendingReferrals()
+                ->with(['student', 'referredBy'])
                 ->latest()
                 ->take(5)
                 ->get(),
@@ -76,7 +97,8 @@ class DashboardController extends Controller
         return [
             'stats' => [
                 'active_cases'      => CaseFile::where('current_unit', 'SDU')
-                                        ->whereIn('status', ['open', 'in_progress'])->count(),
+                                        ->whereIn('status', ['open', 'in_progress'])
+                                        ->whereHas('student', fn($s) => $s->where('is_active', true))->count(),
                 'pending_complaints' => Complaint::where('status', 'pending')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'SDU')

@@ -1,6 +1,6 @@
 <template>
-  <div class="login-wrap">
-    <div class="login-card">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
+    <div style="background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:36px 32px;width:100%" :style="{ maxWidth: consentGiven ? '400px' : '520px' }">
       <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
@@ -15,21 +15,21 @@
 
       <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
       <div v-if="!consentGiven">
-        <div style="max-height:60vh;overflow-y:auto">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Confidentiality Notice</div>
+        <div style="max-height:42vh;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Confidentiality Notice</div>
           <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:16px">
             Pursuant to the Data Privacy Act of 2012 and its Implementing Rules and Regulations (IRR) and the BSU Data Privacy Policy, personnel from the OSS-SDS-Student Discipline Unit (SDU) - La Trinidad Campus are committed to keep with utmost confidentiality all sensitive personal information collected from students. Personal Information are collected, accessed, used, and disclosed on a "need to know basis" and only as reasonably required. Confidential information either within or outside the University will not be communicated except to persons authorized to receive such information. Authorized hardware, software, or other authorized equipment shall be used only in accessing, processing, and transmitting such personal information.
           </div>
 
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:14px">Student's Agreement, Consent and Authorization</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:18px">
-            I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Student Discipline Unit (SDU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Student Discipline Unit (SDU) necessary and relevant data pertaining to my personal data.
+          <div style="font-size:15px;font-weight:600;color:var(--ink);margin:6px 0 10px">Student's Agreement, Consent and Authorization</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.7">
+            I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Student Discipline Unit (SDU), OSS-SWS-Guidance Counseling Unit (GCU), an OSS-SWS-Testing and Materials Development Unit (TMDU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Student Discipline Unit (SDU), OSS-SWS-Guidance Counseling Unit (GCU), an OSS-SWS-Testing and Materials Development Unit (TMDU) necessary and relevant data pertaining to my personal data.
           </div>
 
-          <div style="display:flex;gap:9px">
-            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="acceptConsent">Accept</button>
-            <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="declineConsent">Decline</button>
-          </div>
+        </div>
+        <div style="display:flex;gap:9px">
+          <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="acceptConsent">Accept</button>
+          <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="declineConsent">Decline</button>
         </div>
       </div>
 
@@ -182,7 +182,3 @@ function checkCapsLock(e) {
   capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
 }
 </script>
-<style scoped>
-.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--snow); padding: 20px; }
-.login-card { background: #fff; border-radius: var(--r-lg); box-shadow: var(--sh-lg); padding: 36px 32px; width: 100%; max-width: 400px; }
-</style>

@@ -993,7 +993,7 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            Deactivating preserves the student's records, which can be reactivated later if needed.
+            Deactivating preserves the student's records, which can be reactivated later if needed. Any open case (SIF) of this student will be closed.
           </div>
           <div>
             <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>

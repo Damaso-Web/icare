@@ -5,6 +5,10 @@ import MainLayout from '../layouts/MainLayout.vue';
 
 // Views
 import Login from '../views/Login.vue';
+// Imported up front (not lazy) so their styles ship with the main bundle and a
+// stale/failed chunk can never leave these pages blank or unstyled.
+import StudentLogin from '../views/StudentLogin.vue';
+import CaseStudyReport from '../views/cases/StudyReport.vue';
 import Dashboard from '../views/Dashboard.vue';
 import Students from '../views/students/Index.vue';
 import StudentShow from '../views/students/Show.vue';
@@ -86,7 +90,7 @@ const routes = [
     {
         path: '/student/login',
         name: 'student-login',
-        component: () => import('../views/StudentLogin.vue'),
+        component: StudentLogin,
         meta: { public: true },
     },
     {
@@ -295,7 +299,7 @@ const routes = [
     {
         path: '/cases/:id/study-report',
         name: 'case-study-report',
-        component: () => import('../views/cases/StudyReport.vue'),
+        component: CaseStudyReport,
         meta: { requiresAuth: true, roles: GCU_ROLES },
     },
     {

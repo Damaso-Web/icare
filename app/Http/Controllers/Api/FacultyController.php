@@ -76,7 +76,12 @@ class FacultyController extends UserController
             ))
             ->when($request->department, fn($q) => $q->where('department', $request->department))
             ->when($request->has('is_active') && $request->is_active !== '', fn($q) => $q->where('is_active', $request->is_active))
-            ->orderBy('last_name')->orderBy('first_name');
+            ;
+
+        $sortBy  = in_array($request->sort_by, ['created_at', 'employee_id', 'last_name'], true) ? $request->sort_by : 'last_name';
+        $sortDir = $request->sort_dir === 'desc' ? 'desc' : 'asc';
+        $query->orderBy($sortBy, $sortDir);
+        if ($sortBy !== 'last_name') $query->orderBy('last_name');
 
         return response()->json($query->paginate(20));
     }
