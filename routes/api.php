@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\ManagementFormOptionController;
 use App\Http\Controllers\Api\ComplaintController;
 use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\DocumentSettingController;
+use App\Http\Controllers\Api\ManagementAcademicYearController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
@@ -223,6 +224,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::get('management/programs',     [ManagementProgramController::class, 'index']);
     Route::get('management/departments',  [ManagementDepartmentController::class, 'index']);
     Route::get('management/form-options', [ManagementFormOptionController::class, 'index']);
+    Route::get('management/academic-years', [ManagementAcademicYearController::class, 'index']);
 
     // Document Settings (Revision No. / Effectivity / Ctrl No. shown on the
     // referral form header) - read access: any authenticated staff, since
@@ -283,6 +285,10 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('management/departments',               [ManagementDepartmentController::class, 'store']);
         Route::put('management/departments/{department}',    [ManagementDepartmentController::class, 'update']);
         Route::delete('management/departments/{department}', [ManagementDepartmentController::class, 'destroy']);
+
+        Route::post('management/academic-years',                 [ManagementAcademicYearController::class, 'store']);
+        Route::put('management/academic-years/{academicYear}',    [ManagementAcademicYearController::class, 'update']);
+        Route::delete('management/academic-years/{academicYear}', [ManagementAcademicYearController::class, 'destroy']);
 
         Route::post('management/form-options',                  [ManagementFormOptionController::class, 'store']);
         Route::put('management/form-options/{formOption}',       [ManagementFormOptionController::class, 'update']);

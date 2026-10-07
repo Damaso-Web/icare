@@ -553,36 +553,56 @@ function selectUnit(u) {
 }
 
 // ---- Academic year / term picker ----
-// An academic year "2026-2027" starts in August 2026. Each period is a
-// [month, day] start and end; `next` means the date falls in the second
-// calendar year of the academic year. Adjust here if the school calendar moves.
+// The academic years and their term dates come from Management > School
+// Calendar. If none are set yet, fall back to Aug 1 - Jul 31 split into
+// 1st Sem (Aug-Dec), 2nd Sem (Jan-May) and Midyear (Jun-Jul).
 const AY_START_MONTH = 8;
 const PERIODS = [
-  { value: 'year',    label: 'Whole Academic Year', from: [8, 1],            to: [7, 31, 'next'] },
-  { value: 'first',   label: '1st Semester',        from: [8, 1],            to: [12, 31],          code: 1 },
-  { value: 'second',  label: '2nd Semester',        from: [1, 1, 'next'],    to: [5, 31, 'next'],   code: 2 },
-  { value: 'midyear', label: 'Midyear',             from: [6, 1, 'next'],    to: [7, 31, 'next'],   code: 3 },
+  { value: 'year',    label: 'Whole Academic Year', keys: ['year_start', 'year_end'],             from: [8, 1],         to: [7, 31, 'next'] },
+  { value: 'first',   label: '1st Semester',        keys: ['first_sem_start', 'first_sem_end'],   from: [8, 1],         to: [12, 31],        code: 1 },
+  { value: 'second',  label: '2nd Semester',        keys: ['second_sem_start', 'second_sem_end'], from: [1, 1, 'next'], to: [5, 31, 'next'], code: 2 },
+  { value: 'midyear', label: 'Midyear',             keys: ['midyear_start', 'midyear_end'],       from: [6, 1, 'next'], to: [7, 31, 'next'], code: 3 },
 ];
 
+const ayRows = ref([]);
 const today = new Date();
-const currentAY = today.getMonth() + 1 >= AY_START_MONTH ? today.getFullYear() : today.getFullYear() - 1;
-// Current academic year first, then the four before it.
-const academicYears = Array.from({ length: 5 }, (_, i) => currentAY - i);
+const todayStr = localDateStr(today);
+
+const fallbackAY = today.getMonth() + 1 >= AY_START_MONTH ? today.getFullYear() : today.getFullYear() - 1;
+
+// The A.Y. whose dates contain today; else the latest one that has started; else the fallback.
+const currentAY = computed(() => {
+  if (!ayRows.value.length) return fallbackAY;
+  const within = ayRows.value.find(r => todayStr >= r.year_start && todayStr <= r.year_end);
+  if (within) return within.start_year;
+  const started = ayRows.value.filter(r => r.year_start <= todayStr).map(r => r.start_year);
+  return started.length ? Math.max(...started) : Math.max(...ayRows.value.map(r => r.start_year));
+});
+
+// Newest first.
+const academicYears = computed(() =>
+  ayRows.value.length
+    ? ayRows.value.map(r => r.start_year).sort((x, y) => y - x)
+    : Array.from({ length: 5 }, (_, i) => fallbackAY - i)
+);
 
 function periodDates(ay, p) {
+  const row = ayRows.value.find(r => r.start_year === ay);
+  if (row) return [String(row[p.keys[0]]).slice(0, 10), String(row[p.keys[1]]).slice(0, 10)];
   const iso = ([m, d, next]) => `${next ? ay + 1 : ay}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
   return [iso(p.from), iso(p.to)];
 }
 
 // Open on the term that today falls in.
-const todayStr = localDateStr(today);
-const startPeriod = PERIODS.slice(1).find(p => {
-  const [from, to] = periodDates(currentAY, p);
-  return todayStr >= from && todayStr <= to;
-}) || PERIODS[0];
+function currentTerm() {
+  return PERIODS.slice(1).find(p => {
+    const [from, to] = periodDates(currentAY.value, p);
+    return todayStr >= from && todayStr <= to;
+  }) || PERIODS[0];
+}
 
-const academicYear = ref(currentAY);
-const period       = ref(startPeriod.value);
+const academicYear = ref(fallbackAY);
+const period       = ref(currentTerm().value);
 
 const periodLabel = computed(() => {
   const p = PERIODS.find(x => x.value === period.value);
@@ -786,7 +806,17 @@ function monthLabel(month) {
 }
 
 
-onMounted(() => applyPeriod());
+onMounted(async () => {
+  try {
+    const res = await axios.get(`${API_BASE}/management/academic-years`, authHeaders());
+    ayRows.value = Array.isArray(res.data) ? res.data : [];
+  } catch (e) {
+    ayRows.value = []; // fall back to the default calendar
+  }
+  academicYear.value = currentAY.value;
+  period.value = currentTerm().value;
+  applyPeriod();
+});
 </script>
 
 <style scoped>
