@@ -210,6 +210,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::get('recurring-concerns', [ReportController::class, 'recurringConcerns']);
         Route::get('services',     [ReportController::class, 'services']);
         Route::get('complaints',   [ReportController::class, 'complaints']);
+        Route::get('gcu-accomplishment', [ReportController::class, 'gcuAccomplishment']);
         Route::get('dashboard',    [ReportController::class, 'dashboardStats']);
         Route::get('export/pdf',   [ReportController::class, 'exportPdf']);
         Route::get('export/excel', [ReportController::class, 'exportExcel']);

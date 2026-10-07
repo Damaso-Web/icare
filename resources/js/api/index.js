@@ -314,6 +314,7 @@ export const reportAPI = {
     recurringConcerns: (params) => api.get('/reports/recurring-concerns', { params }),
     services:     (params) => api.get('/reports/services', { params }),
     complaints:   (params) => api.get('/reports/complaints', { params }),
+    gcuAccomplishment: (params) => api.get('/reports/gcu-accomplishment', { params }),
     dashboard:    ()       => api.get('/reports/dashboard'),
 };
 

@@ -83,6 +83,18 @@ class ReportController extends Controller
         return response()->json($this->buildComplaintsReport($request));
     }
 
+    /** The GCU Accomplishment Report sections, in the layout of the printed report. */
+    public function gcuAccomplishment(Request $request)
+    {
+        $request->validate([
+            'date_from' => 'nullable|date',
+            'date_to'   => 'nullable|date',
+        ]);
+        abort_unless($this->unit($request) === 'GCU', 403, 'This report belongs to GCU.');
+
+        return response()->json($this->buildGcuAccomplishment($request));
+    }
+
     public function dashboardStats()
     {
         return response()->json([
@@ -254,6 +266,187 @@ class ReportController extends Controller
             'by_department' => $ranked($query->clone()->groupBy('complainee_department', 'complainee_college')
                 ->select('complainee_department', 'complainee_college', DB::raw('count(*) as count'))->get()
                 ->map(fn($r) => ['label' => $r->complainee_department ?: 'Not specified', 'college' => $r->complainee_college ?: '-', 'count' => (int) $r->count])->all()),
+        ];
+    }
+
+    // ---------- GCU Accomplishment Report ----------
+
+    /**
+     * Course codes as written in the printed GCU Accomplishment Report.
+     * A course not listed here falls back to "BS <name>" / "BA <name>".
+     */
+    private const COURSE_CODES = [
+        'bachelor of science in agribusiness'                            => 'BSAB',
+        'bachelor of science in agriculture'                             => 'BSA',
+        'bachelor of arts in communication'                              => 'BA Comm',
+        'bachelor of arts in english language'                           => 'BAEL',
+        'bachelor of arts in filipino language'                          => 'BAFL',
+        'bachelor of science in agricultural and biosystems engineering' => 'BSABE',
+        'bachelor of science in civil engineering'                       => 'BSCE',
+        'bachelor of science in electrical engineering'                  => 'BSEE',
+        'bachelor of science in industrial engineering'                  => 'BSIE',
+        'bachelor of science in forestry'                                => 'BSF',
+        'bachelor of science in entrepreneurship'                        => 'BS Entrep',
+        'bachelor of science in food technology'                         => 'BSFT',
+        'bachelor of science in hospitality management'                  => 'BSHM',
+        'bachelor of science in nutrition and dietetics'                 => 'BSND',
+        'bachelor of science in tourism management'                      => 'BSTM',
+        'bachelor of physical education'                                 => 'BPEd',
+        'bachelor of science in exercise and sports sciences'            => 'BSESS',
+        'bachelor of science in development communication'               => 'BSDC',
+        'bachelor of science in information technology'                  => 'BSIT',
+        'bachelor of library and information science'                    => 'BLIS',
+        'bachelor of science in biology'                                 => 'BS Bio',
+        'bachelor of science in chemistry'                               => 'BS Chem',
+        'bachelor of science in environmental science'                   => 'BSES',
+        'bachelor of science in mathematics'                             => 'BS Math',
+        'bachelor of science in statistics'                              => 'BSS',
+        'bachelor of science in nursing'                                 => 'BSN',
+        'bachelor of public administration'                              => 'BPA',
+        'bachelor of arts in history'                                    => 'BA Hist',
+        'bachelor of arts in psychology'                                 => 'BA Psych',
+        'bachelor of science in psychology'                              => 'BS Psych',
+        'bachelor of early childhood education'                          => 'BECED',
+        'bachelor of elementary education'                               => 'BEED',
+        'bachelor of secondary education'                                => 'BSED',
+        'bachelor of technology and livelihood education'                => 'BTLED',
+        'doctor of veterinary medicine'                                  => 'DVM',
+        'doctor of medicine'                                             => 'MD',
+    ];
+
+    private function courseShort(?string $program): string
+    {
+        $program = trim((string) $program);
+        if ($program === '') return 'Not specified';
+
+        return self::COURSE_CODES[strtolower($program)] ?? preg_replace(
+            ['/^Bachelor of Science in /i', '/^Bachelor of Arts in /i'],
+            ['BS ', 'BA '],
+            $program
+        );
+    }
+
+    /** "College of Nursing (CN)" -> "CN" */
+    private function collegeShort(?string $college): string
+    {
+        return preg_match('/\(([^)]+)\)\s*$/', (string) $college, $m) ? $m[1] : ($college ?: 'Not specified');
+    }
+
+    /** Master's and doctorate degrees go in the Graduate School table; DVM and MD stay with the colleges. */
+    private function isGraduate(?string $program): bool
+    {
+        return (bool) preg_match('/^(Master|Doctor of Philosophy|Doctor of Education|Doctor in )/i', (string) $program);
+    }
+
+    /**
+     * Groups students by college, then course, with Male / Female / Total -
+     * undergraduate and graduate separately. With $allCourses every course
+     * on file is listed (zeros included) in the printed report's order:
+     * colleges by name, then their courses; students without a college go
+     * last under "Outside".
+     */
+    private function inventoryGroups($students, bool $allCourses): array
+    {
+        $levels = ['undergraduate' => [], 'graduate' => []];
+        $blank  = fn() => ['male' => 0, 'female' => 0, 'total' => 0];
+
+        if ($allCourses) {
+            $programs = DB::table('programs')->join('colleges', 'colleges.id', '=', 'programs.college_id')
+                ->orderBy('colleges.name')->orderBy('programs.name')
+                ->get(['colleges.name as college', 'programs.name as program']);
+            foreach ($programs as $p) {
+                $level = $this->isGraduate($p->program) ? 'graduate' : 'undergraduate';
+                $levels[$level][$p->college][$p->program] = $blank();
+            }
+        }
+
+        foreach ($students as $st) {
+            $level   = $this->isGraduate($st->program) ? 'graduate' : 'undergraduate';
+            $college = $st->college ?: 'Outside';
+            $program = $st->program ?: ($st->college ? 'Not specified' : 'Outside');
+            $row     = $levels[$level][$college][$program] ?? $blank();
+            $sex     = strtolower((string) $st->sex);
+            if ($sex === 'male')   $row['male']++;
+            if ($sex === 'female') $row['female']++;
+            $row['total']++;
+            $levels[$level][$college][$program] = $row;
+        }
+
+        foreach ($levels as $level => $colleges) {
+            // Colleges by name; "Outside" always last.
+            uksort($colleges, fn($a, $b) => [$a === 'Outside', $a] <=> [$b === 'Outside', $b]);
+            $groups = [];
+            foreach ($colleges as $college => $programs) {
+                ksort($programs);
+                $rows = [];
+                foreach ($programs as $program => $n) {
+                    $rows[] = [
+                        'course' => $level === 'graduate' || $program === 'Outside' ? $program : $this->courseShort($program),
+                        'male'   => $n['male'], 'female' => $n['female'], 'total' => $n['total'],
+                    ];
+                }
+                $groups[] = ['college' => $college === 'Outside' ? 'OUTSIDE' : $this->collegeShort($college), 'rows' => $rows];
+            }
+            $levels[$level] = $groups;
+        }
+
+        return $levels;
+    }
+    private function buildGcuAccomplishment(Request $request): array
+    {
+        $gcuReferrals = $this->forUnit(Referral::query(), 'GCU')
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
+
+        // A. Individual Inventory - each student referred to GCU in the period,
+        //    i.e. each student whose Student Information File was opened or updated.
+        $studentIds = $gcuReferrals->clone()->distinct()->pluck('student_id');
+        $inventory  = $this->inventoryGroups(Student::whereIn('id', $studentIds)->get(['id', 'college', 'program', 'sex']), true);
+
+        // 1. Counseling - students referred for counseling, per course.
+        $counselingIds = $gcuReferrals->clone()->where('referral_type', 'counseling')->distinct()->pluck('student_id');
+        $counseling    = $this->inventoryGroups(Student::whereIn('id', $counselingIds)->get(['id', 'college', 'program', 'sex']), false);
+
+        // B. Services conducted - one transaction per referral of that kind.
+        $typeCounts = $gcuReferrals->clone()->groupBy('referral_type')
+            ->select('referral_type', DB::raw('count(*) as count'))->pluck('count', 'referral_type');
+
+        // Referral types Admin may add later under Management > Referral Form
+        // Options are matched to these rows by their label.
+        $typeLabels = DB::table('referral_form_options')->where('category', 'referral_type')->pluck('label', 'value');
+        $byLabel = function (string $pattern) use ($typeLabels, $typeCounts) {
+            $total = 0;
+            foreach ($typeLabels as $value => $label) {
+                if (preg_match($pattern, $label)) $total += (int) ($typeCounts[$value] ?? 0);
+            }
+            return $total;
+        };
+        $between = fn($query, string $column) => $query
+            ->when($request->date_from, fn($q) => $q->whereDate($column, '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate($column, '<=', $request->date_to));
+
+        $services = [
+            ['service' => 'Individual Guidance and/or Counseling',                                   'count' => (int) ($typeCounts['counseling'] ?? 0)],
+            ['service' => 'Academic Coaching',                                                       'count' => (int) ($typeCounts['academic_deficiency'] ?? 0)],
+            ['service' => 'Class Admission',                                                         'count' => (int) ($typeCounts['class_attendance'] ?? 0)],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying for Re-admission', 'count' => (int) ($typeCounts['readmission'] ?? 0)],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying Leave of Absence', 'count' => (int) ($typeCounts['leave_of_absence'] ?? 0)],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying for Withdrawal',  'count' => (int) ($typeCounts['withdrawal'] ?? 0)],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying for Dropping of Subjects', 'count' => $byLabel('/drop/i')],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying for Shifting Course', 'count' => (int) ($typeCounts['shifting'] ?? 0)],
+            ['service' => 'Guidance & Counseling/Life Coaching of Students Applying for Transferring Out', 'count' => $byLabel('/transfer/i')],
+            ['service' => 'Parent/Guardian Conference',                                              'count' => $between(DB::table('parent_conference_slips'), 'created_at')->count()],
+            ['service' => 'Briefing/Debriefing',                                                     'count' => $byLabel('/briefing/i')],
+            ['service' => 'Career Guidance',                                                         'count' => $byLabel('/career/i')],
+            ['service' => 'Inquiries',                                                               'count' => $byLabel('/inquir/i')],
+            ['service' => 'Referral Inside (to TMDU)',                                               'count' => $between(TestingRecord::query(), 'created_at')->count()],
+            ['service' => 'Referral Outside',                                                        'count' => $between(CaseFile::where('referred_externally', true), 'opened_date')->count()],
+        ];
+
+        return [
+            'inventory'  => $inventory,
+            'services'   => $services,
+            'counseling' => $counseling,
         ];
     }
 
@@ -454,6 +647,9 @@ class ReportController extends Controller
     /** GCU and TMDU workbook: summary, breakdowns and the detailed referral list. */
     private function fillUnitWorkbook(ReportWorkbook $book, Request $request, string $unit): void
     {
+        if ($unit === 'GCU') {
+            $this->fillGcuAccomplishmentSheets($book, $request);
+        }
         $referrals    = $this->buildReferralsReport($request);
         $cases        = $this->buildCasesReport($request);
         $appointments = $this->buildAppointmentsReport($request);
@@ -541,6 +737,58 @@ class ReportController extends Controller
         $book->sheet('Referral List', 'Detailed List of Referrals', [6, 18, 14, 38, 38, 12, 10, 24, 16])
             ->landscape()
             ->table(['No.', 'Referral No.', 'Date Received', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true]);
+    }
+
+    /** The three sections of the printed GCU Accomplishment Report. */
+    private function fillGcuAccomplishmentSheets(ReportWorkbook $book, Request $request): void
+    {
+        $data = $this->buildGcuAccomplishment($request);
+
+        $book->sheet('A. Individual Inventory', 'Guidance and Counseling Unit by the Numbers', [16, 46, 13, 13, 13])
+            ->section("A. Individual Inventory (updating of students' records in the SIAS and in the Anecdotal Record)")
+            ->groupedTable('COLLEGE', 'INDIVIDUAL INVENTORY', $data['inventory']['undergraduate'])
+            ->groupedTable('GRADUATE SCHOOL', 'INDIVIDUAL INVENTORY', $data['inventory']['graduate']);
+
+        // Service names as worded in the printed report (Excel only; the page keeps the short names).
+        $printed = [
+            'Individual Guidance and/or Counseling'                                           => 'Individual Guidance and/or Counseling (TuTuKK: Kalinga)',
+            'Academic Coaching'                                                               => 'Academic Coaching (TuTuKK: Kalinga)',
+            'Class Admission'                                                                 => 'Class Admission (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying for Re-admission'       => 'Guidance & Counseling/Life Coaching of Students Applying for Re-admission (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying Leave of Absence'       => 'Guidance & Counseling/Life Coaching of Students Applying Leave of Absence (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying for Withdrawal'          => 'Guidance & Counseling/Life Coaching of Students Applying for Withdrawal (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying for Dropping of Subjects' => 'Guidance & Counseling/Life Coaching of Students Applying for dropping of subjects (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying for Shifting Course'    => 'Guidance & Counseling/Life Coaching of Students Applying for shifting course (TuTuKK: Kalinga)',
+            'Guidance & Counseling/Life Coaching of Students Applying for Transferring Out'   => 'Guidance & Counseling/Life Coaching of Students Applying for transferring out (TuTuKK: Kalinga)',
+            'Parent/Guardian Conference'                                                      => 'Parent/ Guardian Conference (TuTuKK: Dap-ay)',
+            'Briefing/Debriefing'                                                             => 'Briefing/ Debriefing (TuTuKK: Kalinga)',
+            'Career Guidance'                                                                 => 'Career Guidance (TuTuKK: Kalinga)',
+            'Referral Inside (to TMDU)'                                                       => 'Referral: Inside',
+            'Referral Outside'                                                                => 'Referral: Outside',
+        ];
+        $book->sheet('B. Services Conducted', 'Guidance and Counseling Unit by the Numbers', [92, 18])
+            ->line('B. Individual Guidance (TuTuKK: Kalinga)')
+            ->line('Summary of Counseling/Life Coaching Services Conducted', true)
+            ->servicesTable('TRANSACTIONS', array_map(fn($r) => [$printed[$r['service']] ?? $r['service'], (int) $r['count']], $data['services']));
+
+        // The seven areas of concern of the printed report. iCARE does not record
+        // the area yet, so these cells stay blank and only TOTAL is filled.
+        $areas = [
+            'academic'      => 'ACADEMIC',
+            'behavioral'    => 'BEHAVIORAL',
+            'environmental' => 'ENVIRONMENTAL',
+            'personal'      => 'PERSONAL',
+            'official'      => 'OFFICIAL/EXTRA CURRICULAR',
+            'socio'         => 'SOCIO-CULTURAL',
+            'psychosocial'  => 'PSYCHOSOCIAL',
+        ];
+        $book->sheet('1. Counseling', 'Guidance and Counseling Unit by the Numbers', array_merge([14, 34], array_fill(0, 14, 8.5), [10]))
+            ->landscape()
+            ->line('1. Counseling (TuTuKK: Kalinga)')
+            ->counselingMatrix('COUNSELING', 'UNDERGRADUATE', $areas, $data['counseling']['undergraduate'])
+            ->counselingMatrix('COUNSELING', 'GRADUATE SCHOOL', $areas, $data['counseling']['graduate'])
+            ->note('Note: iCARE does not yet record the area of concern (academic, behavioral, environmental, personal, official/extra-curricular, socio-cultural, psychosocial) of a counseling case, so only the TOTAL per course is filled in.')
+            ->signatures();
     }
 
     /** SDU workbook: complaint counts and the detailed complaint list. */

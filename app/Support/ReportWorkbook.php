@@ -172,6 +172,251 @@ class ReportWorkbook
         return $this;
     }
 
+    /**
+     * The printed GCU report's table: a two-row header (first column | COURSE |
+     * $groupTitle over MALE / FEMALE / TOTAL), the college written once and
+     * merged down beside its courses, shaded count cells and a TOTAL row.
+     * $groups: [['college' => 'CA', 'rows' => [['course' =>, 'male' =>, 'female' =>, 'total' =>], ...]], ...]
+     */
+    public function groupedTable(string $firstHeader, string $groupTitle, array $groups): static
+    {
+        $s = $this->sheet;
+        $top = $this->row;
+        $headerFill = ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D6DCE5']];
+
+        $s->setCellValue("A{$top}", $firstHeader);
+        $s->setCellValue("B{$top}", 'COURSE');
+        $s->setCellValue("C{$top}", $groupTitle);
+        $s->mergeCells("A{$top}:A" . ($top + 1));
+        $s->mergeCells("B{$top}:B" . ($top + 1));
+        $s->mergeCells("C{$top}:E{$top}");
+        $s->fromArray(['MALE', 'FEMALE', 'TOTAL'], null, 'C' . ($top + 1));
+        $s->getStyle("A{$top}:E" . ($top + 1))->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 10],
+            'fill'      => $headerFill,
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $this->row = $top + 2;
+        $first = $this->row;
+
+        if (!array_filter($groups, fn($g) => !empty($g['rows']))) {
+            $s->setCellValue("A{$this->row}", 'No records for this period.');
+            $s->mergeCells("A{$this->row}:E{$this->row}");
+            $s->getStyle("A{$this->row}")->getFont()->setItalic(true)->getColor()->setRGB('777777');
+            $s->getStyle("A{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $this->row++;
+        }
+
+        foreach ($groups as $group) {
+            if (empty($group['rows'])) continue;
+            $start = $this->row;
+            foreach ($group['rows'] as $r) {
+                $s->setCellValueExplicit("B{$this->row}", (string) $r['course'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $s->setCellValue("C{$this->row}", (int) $r['male']);
+                $s->setCellValue("D{$this->row}", (int) $r['female']);
+                $s->setCellValue("E{$this->row}", (int) $r['total']);
+                $this->row++;
+            }
+            $end = $this->row - 1;
+            $s->setCellValue("A{$start}", $group['college']);
+            if ($end > $start) $s->mergeCells("A{$start}:A{$end}");
+            $s->getStyle("A{$start}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        }
+        $last = $this->row - 1;
+
+        if ($last >= $first) {
+            $s->getStyle("C{$first}:D{$last}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FCE9C6');
+            $s->getStyle("E{$first}:E{$last}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('F6CF6E');
+            $s->getStyle("C{$first}:E{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $s->getStyle("E{$first}:E{$last}")->getFont()->setBold(true);
+
+            $s->setCellValue("B{$this->row}", 'TOTAL');
+            foreach (['C', 'D', 'E'] as $col) $s->setCellValue("{$col}{$this->row}", "=SUM({$col}{$first}:{$col}{$last})");
+            $s->getStyle("A{$this->row}:E{$this->row}")->applyFromArray([
+                'font'      => ['bold' => true],
+                'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'C9D6C3']],
+            ]);
+            $s->getStyle("C{$this->row}:E{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $this->row++;
+        }
+
+        $s->getStyle("A{$top}:E" . ($this->row - 1))->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('8C8C8C');
+        $this->row += 2;
+
+        return $this;
+    }
+
+    /** A plain bold line (used for the printed report's two-line section headings). */
+    public function line(string $text, bool $upper = false): static
+    {
+        $this->sheet->setCellValue("A{$this->row}", $upper ? mb_strtoupper($text) : $text);
+        $this->sheet->getStyle("A{$this->row}")->getFont()->setBold(true)->setSize(11);
+        $this->row++;
+
+        return $this;
+    }
+
+    /** A small italic note under a table. */
+    public function note(string $text): static
+    {
+        $last = Coordinate::stringFromColumnIndex($this->cols);
+        $this->sheet->setCellValue("A{$this->row}", $text);
+        $this->sheet->mergeCells("A{$this->row}:{$last}{$this->row}");
+        $style = $this->sheet->getStyle("A{$this->row}");
+        $style->getFont()->setItalic(true)->setSize(9)->getColor()->setRGB('666666');
+        $style->getAlignment()->setWrapText(true);
+        $this->sheet->getRowDimension($this->row)->setRowHeight(26);
+        $this->row += 2;
+
+        return $this;
+    }
+
+    /**
+     * The printed report's services table: a shaded header band with the
+     * value heading on the right, plain rows, and a gold TOTAL row.
+     * $rows: [[label, number], ...]
+     */
+    public function servicesTable(string $valueHeader, array $rows): static
+    {
+        $s = $this->sheet;
+        $top = $this->row;
+
+        $s->setCellValue("B{$top}", $valueHeader);
+        $s->getStyle("A{$top}:B{$top}")->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 10],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D6DCE5']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        ]);
+        $this->row++;
+        $first = $this->row;
+
+        foreach ($rows as [$label, $value]) {
+            $s->setCellValue("A{$this->row}", $label);
+            $s->setCellValue("B{$this->row}", (int) $value);
+            $this->row++;
+        }
+        $last = $this->row - 1;
+        $s->getStyle("A{$first}:A{$last}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_CENTER);
+        $s->getStyle("B{$first}:B{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+
+        $s->setCellValue("A{$this->row}", 'TOTAL');
+        $s->setCellValue("B{$this->row}", $rows ? "=SUM(B{$first}:B{$last})" : 0);
+        $s->getStyle("A{$this->row}:B{$this->row}")->applyFromArray([
+            'font' => ['bold' => true],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F6CF6E']],
+        ]);
+        $s->getStyle("A{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
+        $s->getStyle("B{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $this->row++;
+
+        $s->getStyle("A{$top}:B" . ($this->row - 1))->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('8C8C8C');
+        $this->row += 2;
+
+        return $this;
+    }
+
+    /**
+     * The printed report's counseling matrix: first header over the college
+     * and course columns, each category with MALE / FEMALE under it, and a
+     * TOTAL column. Category cells are filled from $row['categories'][key]
+     * when the data has them, and left blank when it does not.
+     * $categories: ['academic' => 'ACADEMIC', ...]
+     */
+    public function counselingMatrix(string $firstHeader, string $collegeHeader, array $categories, array $groups): static
+    {
+        $s = $this->sheet;
+        $top = $this->row;
+        $col = fn(int $i) => Coordinate::stringFromColumnIndex($i);
+        $totalCol = $col(3 + 2 * count($categories));
+
+        $s->setCellValue("A{$top}", $firstHeader);
+        $s->mergeCells("A{$top}:B{$top}");
+        $s->setCellValue('A' . ($top + 1), $collegeHeader);
+        $s->setCellValue('B' . ($top + 1), 'COURSES');
+        $i = 3;
+        foreach ($categories as $label) {
+            $s->setCellValue($col($i) . $top, $label);
+            $s->mergeCells($col($i) . $top . ':' . $col($i + 1) . $top);
+            $s->setCellValue($col($i) . ($top + 1), 'MALE');
+            $s->setCellValue($col($i + 1) . ($top + 1), 'FEMALE');
+            $i += 2;
+        }
+        $s->setCellValue("{$totalCol}{$top}", 'TOTAL');
+        $s->mergeCells("{$totalCol}{$top}:{$totalCol}" . ($top + 1));
+        $s->getStyle("A{$top}:{$totalCol}" . ($top + 1))->applyFromArray([
+            'font'      => ['bold' => true, 'size' => 9],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'D6DCE5']],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER, 'wrapText' => true],
+        ]);
+        $s->getRowDimension($top)->setRowHeight(30);
+        $this->row = $top + 2;
+        $first = $this->row;
+
+        $hasRows = (bool) array_filter($groups, fn($g) => !empty($g['rows']));
+        if (!$hasRows) {
+            $s->setCellValue("A{$this->row}", 'No records for this period.');
+            $s->mergeCells("A{$this->row}:{$totalCol}{$this->row}");
+            $s->getStyle("A{$this->row}")->getFont()->setItalic(true)->getColor()->setRGB('777777');
+            $s->getStyle("A{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $this->row++;
+        }
+
+        foreach ($groups as $group) {
+            if (empty($group['rows'])) continue;
+            $start = $this->row;
+            foreach ($group['rows'] as $r) {
+                $s->setCellValueExplicit("B{$this->row}", (string) $r['course'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $i = 3;
+                foreach (array_keys($categories) as $key) {
+                    if (isset($r['categories'][$key])) {
+                        $s->setCellValue($col($i) . $this->row, (int) ($r['categories'][$key]['male'] ?? 0));
+                        $s->setCellValue($col($i + 1) . $this->row, (int) ($r['categories'][$key]['female'] ?? 0));
+                    }
+                    $i += 2;
+                }
+                $s->setCellValue("{$totalCol}{$this->row}", (int) $r['total']);
+                $this->row++;
+            }
+            $end = $this->row - 1;
+            $s->setCellValue("A{$start}", $group['college']);
+            if ($end > $start) $s->mergeCells("A{$start}:A{$end}");
+            $s->getStyle("A{$start}")->getAlignment()->setVertical(Alignment::VERTICAL_TOP);
+        }
+        $last = $this->row - 1;
+
+        if ($hasRows) {
+            $s->getStyle("C{$first}:{$totalCol}{$last}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+            $s->getStyle("{$totalCol}{$first}:{$totalCol}{$last}")->applyFromArray([
+                'font' => ['bold' => true],
+                'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'F6CF6E']],
+            ]);
+        }
+
+        // TOTAL row: every category column and the TOTAL column summed.
+        $s->setCellValue("B{$this->row}", 'TOTAL');
+        // Category totals stay blank when no row carries categories, so they do not read as zero.
+        $hasCategories = (bool) array_filter($groups, fn($g) => array_filter($g['rows'] ?? [], fn($r) => !empty($r['categories'])));
+        for ($i = 3; $i <= 3 + 2 * count($categories); $i++) {
+            $c = $col($i);
+            if ($c !== $totalCol && !$hasCategories) continue;
+            $s->setCellValue("{$c}{$this->row}", $hasRows ? "=SUM({$c}{$first}:{$c}{$last})" : 0);
+        }
+        $s->getStyle("A{$this->row}:{$totalCol}{$this->row}")->applyFromArray([
+            'font'      => ['bold' => true],
+            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'C9D6C3']],
+        ]);
+        $s->getStyle("C{$this->row}:{$totalCol}{$this->row}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+        $this->row++;
+
+        $s->getStyle("A{$top}:{$totalCol}" . ($this->row - 1))->getBorders()->getAllBorders()
+            ->setBorderStyle(Border::BORDER_THIN)->getColor()->setRGB('8C8C8C');
+        $this->row += 2;
+
+        return $this;
+    }
+
     /** "Prepared by / Noted by" lines at the foot of a sheet. */
     public function signatures(): static
     {

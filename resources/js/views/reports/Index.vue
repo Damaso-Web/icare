@@ -156,6 +156,167 @@
         </div>
       </div>
 
+      <!-- GCU: "Guidance and Counseling Unit by the Numbers", laid out like the printed GCU Accomplishment Report -->
+      <template v-if="unit === 'GCU'">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 10px">
+          <div style="font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--forest)">Guidance and Counseling Unit by the Numbers</div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--stone);cursor:pointer">
+            <input type="checkbox" v-model="showAllCourses" /> Show courses with no students
+          </label>
+        </div>
+        <div class="icard" style="margin-bottom:16px">
+          <div class="icard-header"><span class="icard-title">Individual Inventory <span style="font-weight:400;color:var(--stone)">(updating of students' records in the SIAS and in the Anecdotal Record)</span></span></div>
+          <div class="ts">
+            <table class="itable gcu-num">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width:130px">COLLEGE</th>
+                  <th rowspan="2">COURSE</th>
+                  <th colspan="3" class="num">INDIVIDUAL INVENTORY</th>
+                </tr>
+                <tr><th class="num">MALE</th><th class="num">FEMALE</th><th class="num">TOTAL</th></tr>
+              </thead>
+              <tbody>
+                <template v-for="g in visibleGroups(gcuData.inventory?.undergraduate)" :key="g.college">
+                  <tr v-for="(r, i) in g.rows" :key="g.college + r.course">
+                    <td v-if="i === 0" :rowspan="g.rows.length" class="col">{{ g.college }}</td>
+                    <td>{{ r.course }}</td>
+                    <td class="num cnt">{{ r.male }}</td>
+                    <td class="num cnt">{{ r.female }}</td>
+                    <td class="num tot">{{ r.total }}</td>
+                  </tr>
+                </template>
+                <tr v-if="!sumOf(flatRows(gcuData.inventory?.undergraduate), 'total')"><td colspan="5" style="text-align:center;color:var(--fog)">No records for this period</td></tr>
+                <tr v-else class="sum">
+                  <td></td>
+                  <td>TOTAL</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.undergraduate), 'male') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.undergraduate), 'female') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.undergraduate), 'total') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="icard" style="margin-bottom:16px">
+          <div class="icard-header"><span class="icard-title">Individual Inventory: Graduate School</span></div>
+          <div class="ts">
+            <table class="itable gcu-num">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width:130px">GRADUATE SCHOOL</th>
+                  <th rowspan="2">COURSE</th>
+                  <th colspan="3" class="num">INDIVIDUAL INVENTORY</th>
+                </tr>
+                <tr><th class="num">MALE</th><th class="num">FEMALE</th><th class="num">TOTAL</th></tr>
+              </thead>
+              <tbody>
+                <template v-for="g in visibleGroups(gcuData.inventory?.graduate)" :key="g.college">
+                  <tr v-for="(r, i) in g.rows" :key="g.college + r.course">
+                    <td v-if="i === 0" :rowspan="g.rows.length" class="col">{{ g.college }}</td>
+                    <td>{{ r.course }}</td>
+                    <td class="num cnt">{{ r.male }}</td>
+                    <td class="num cnt">{{ r.female }}</td>
+                    <td class="num tot">{{ r.total }}</td>
+                  </tr>
+                </template>
+                <tr v-if="!sumOf(flatRows(gcuData.inventory?.graduate), 'total')"><td colspan="5" style="text-align:center;color:var(--fog)">No records for this period</td></tr>
+                <tr v-else class="sum">
+                  <td></td>
+                  <td>TOTAL</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.graduate), 'male') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.graduate), 'female') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.inventory?.graduate), 'total') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="icard" style="margin-bottom:16px">
+          <div class="icard-header"><span class="icard-title">Individual Guidance <span style="font-weight:400;color:var(--stone)">(Summary of Counseling/Life Coaching Services Conducted)</span></span></div>
+          <div class="svc-wrap">
+            <div class="svc-grid">
+              <div v-for="(half, h) in serviceHalves" :key="h" class="svc-col" :class="{ 'svc-col-right': h === 1 }">
+                <div class="svc-head"><span>Service</span><span>Transactions</span></div>
+                <div v-for="r in half" :key="r.service" class="svc-row">
+                  <span>{{ r.service }}</span>
+                  <span class="svc-count" :class="{ zero: !r.count }">{{ r.count }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="svc-total"><span>Total transactions</span><strong>{{ sumOf(gcuData.services, 'count') }}</strong></div>
+          </div>
+        </div>
+        <div class="icard" style="margin-bottom:16px">
+          <div class="icard-header"><span class="icard-title">Counseling</span></div>
+          <div class="ts">
+            <table class="itable gcu-num">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width:130px">UNDERGRADUATE</th>
+                  <th rowspan="2">COURSE</th>
+                  <th colspan="3" class="num">COUNSELING</th>
+                </tr>
+                <tr><th class="num">MALE</th><th class="num">FEMALE</th><th class="num">TOTAL</th></tr>
+              </thead>
+              <tbody>
+                <template v-for="g in visibleGroups(gcuData.counseling?.undergraduate)" :key="g.college">
+                  <tr v-for="(r, i) in g.rows" :key="g.college + r.course">
+                    <td v-if="i === 0" :rowspan="g.rows.length" class="col">{{ g.college }}</td>
+                    <td>{{ r.course }}</td>
+                    <td class="num cnt">{{ r.male }}</td>
+                    <td class="num cnt">{{ r.female }}</td>
+                    <td class="num tot">{{ r.total }}</td>
+                  </tr>
+                </template>
+                <tr v-if="!sumOf(flatRows(gcuData.counseling?.undergraduate), 'total')"><td colspan="5" style="text-align:center;color:var(--fog)">No records for this period</td></tr>
+                <tr v-else class="sum">
+                  <td></td>
+                  <td>TOTAL</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.undergraduate), 'male') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.undergraduate), 'female') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.undergraduate), 'total') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="icard" style="margin-bottom:16px">
+          <div class="icard-header"><span class="icard-title">Counseling: Graduate School</span></div>
+          <div class="ts">
+            <table class="itable gcu-num">
+              <thead>
+                <tr>
+                  <th rowspan="2" style="width:130px">GRADUATE SCHOOL</th>
+                  <th rowspan="2">COURSE</th>
+                  <th colspan="3" class="num">COUNSELING</th>
+                </tr>
+                <tr><th class="num">MALE</th><th class="num">FEMALE</th><th class="num">TOTAL</th></tr>
+              </thead>
+              <tbody>
+                <template v-for="g in visibleGroups(gcuData.counseling?.graduate)" :key="g.college">
+                  <tr v-for="(r, i) in g.rows" :key="g.college + r.course">
+                    <td v-if="i === 0" :rowspan="g.rows.length" class="col">{{ g.college }}</td>
+                    <td>{{ r.course }}</td>
+                    <td class="num cnt">{{ r.male }}</td>
+                    <td class="num cnt">{{ r.female }}</td>
+                    <td class="num tot">{{ r.total }}</td>
+                  </tr>
+                </template>
+                <tr v-if="!sumOf(flatRows(gcuData.counseling?.graduate), 'total')"><td colspan="5" style="text-align:center;color:var(--fog)">No records for this period</td></tr>
+                <tr v-else class="sum">
+                  <td></td>
+                  <td>TOTAL</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.graduate), 'male') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.graduate), 'female') }}</td>
+                  <td class="num">{{ sumOf(flatRows(gcuData.counseling?.graduate), 'total') }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </template>
+
       <!-- Charts Row -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
@@ -201,21 +362,17 @@
       <!-- Services Rendered - what the office delivered, as opposed to referrals received -->
       <div class="icard" style="margin-bottom:16px">
         <div class="icard-header"><span class="icard-title">Services Rendered</span></div>
-        <div class="ts">
-          <table class="itable">
-            <thead>
-              <tr><th>Service</th><th style="width:140px">Count</th></tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in servicesData" :key="row.service">
-                <td>{{ row.service }}</td>
-                <td style="font-weight:600">{{ row.count }}</td>
-              </tr>
-              <tr v-if="!servicesData.length">
-                <td colspan="2" style="text-align:center;color:var(--fog)">No data</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="svc-wrap">
+          <div v-if="!servicesData.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+          <div v-else class="svc-grid">
+            <div v-for="(half, h) in halvesOf(servicesData)" :key="h" class="svc-col" :class="{ 'svc-col-right': h === 1 }">
+              <div class="svc-head"><span>Service</span><span>Count</span></div>
+              <div v-for="r in half" :key="r.service" class="svc-row">
+                <span>{{ r.service }}</span>
+                <span class="svc-count" :class="{ zero: !r.count }">{{ r.count }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -224,13 +381,13 @@
         <!-- Cases by Status -->
         <div class="icard">
           <div class="icard-header"><span class="icard-title">Cases by Status</span></div>
-          <div class="icard-body">
+          <div class="icard-body"><div class="narrow">
             <div v-if="!caseData.by_status?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
             <div v-for="item in caseData.by_status" :key="item.status" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cloud)">
               <span class="ibadge" :class="'ibadge-' + item.status">{{ toTitleCase(item.status) }}</span>
               <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ item.count }}</span>
             </div>
-          </div>
+          </div></div>
         </div>
 
       </div>
@@ -240,7 +397,7 @@
         <div class="icard-header"><span class="icard-title">Monthly Referral Trend</span></div>
         <div class="icard-body">
           <div v-if="!referralData.monthly_trend?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-          <div v-else style="display:flex;align-items:flex-end;gap:8px;height:120px">
+          <div v-else class="narrow" style="display:flex;align-items:flex-end;gap:8px;height:120px">
             <div
               v-for="item in referralData.monthly_trend"
               :key="item.month + '-' + item.year"
@@ -270,7 +427,7 @@
           <span class="ibadge" style="background:var(--blue-lt);color:var(--blue)">{{ recurringData.total_recurring_students ?? 0 }} students with recurring referrals</span>
         </div>
         <div class="ts">
-          <table class="itable">
+          <table class="itable gcu-num">
             <thead>
               <tr>
                 <th>Referral Type</th>
@@ -296,7 +453,7 @@
             </tbody>
           </table>
         </div>
-        <div v-if="recurringData.top_recurring_students?.length" style="padding:14px 18px;border-top:1px solid var(--cloud)">
+        <div v-if="recurringData.top_recurring_students?.length" class="narrow" style="padding:14px 0;border-top:1px solid var(--cloud)">
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Most Frequently Referred Students</div>
           <div style="display:flex;flex-direction:column;gap:6px">
             <div
@@ -318,7 +475,7 @@
       <div class="icard">
         <div class="icard-header"><span class="icard-title">Appointment Summary</span></div>
         <div class="ts">
-          <table class="itable">
+          <table class="itable gcu-num">
             <thead>
               <tr>
                 <th>Unit</th>
@@ -488,6 +645,38 @@ const apptData      = ref({});
 const dashData      = ref({});
 const recurringData = ref({});
 const servicesData  = ref([]);
+const gcuData       = ref({});
+
+// The page lists only courses with students unless asked; the Excel always lists every course.
+const showAllCourses = ref(false);
+function visibleGroups(groups) {
+  if (showAllCourses.value) return groups || [];
+  return (groups || [])
+    .map(g => ({ ...g, rows: (g.rows || []).filter(r => r.total > 0) }))
+    .filter(g => g.rows.length);
+}
+
+// Any list split in two for the two-column layout.
+function halvesOf(list) {
+  const mid = Math.ceil((list || []).length / 2);
+  return [(list || []).slice(0, mid), (list || []).slice(mid)];
+}
+
+// Services list split in two columns on the page.
+const serviceHalves = computed(() => {
+  const list = gcuData.value.services || [];
+  const mid = Math.ceil(list.length / 2);
+  return [list.slice(0, mid), list.slice(mid)];
+});
+
+// College groups -> their course rows, for totals.
+function flatRows(groups) {
+  return (groups || []).flatMap(g => g.rows || []);
+}
+
+function sumOf(rows, key) {
+  return (rows || []).reduce((n, r) => n + (Number(r[key]) || 0), 0);
+}
 const sduData       = ref({});
 
 const sduStats = computed(() => {
@@ -560,13 +749,16 @@ async function fetchAll() {
       sduData.value = (await reportAPI.complaints(params)).data;
       return;
     }
-    const [r, c, a, d, rc, sv] = await Promise.all([
+    // GCU's printed-report sections load alongside the other figures.
+    const gcu = unit.value === 'GCU' ? reportAPI.gcuAccomplishment(params) : Promise.resolve({ data: {} });
+    const [r, c, a, d, rc, sv, g] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
       reportAPI.appointments(params),
       reportAPI.dashboard(),
       reportAPI.recurringConcerns(params),
       reportAPI.services(params),
+      gcu,
     ]);
     referralData.value  = r.data;
     caseData.value      = c.data;
@@ -574,6 +766,7 @@ async function fetchAll() {
     dashData.value      = d.data;
     recurringData.value = rc.data;
     servicesData.value  = sv.data;
+    gcuData.value       = g.data;
   } catch (e) {
     console.error(e);
     // Say so, rather than leaving a page of zeros that reads as "no records".
@@ -595,3 +788,37 @@ function monthLabel(month) {
 
 onMounted(() => applyPeriod());
 </script>
+
+<style scoped>
+/* Compact tables for the GCU "by the Numbers" sections, centred in the card
+   so the numbers sit near the course names instead of at the far edge. */
+.gcu-num{font-size:12px;width:70%;margin:6px auto 10px}
+.gcu-num thead th{padding:6px 10px;font-size:10px;text-align:left}
+.gcu-num thead th.num{text-align:center}
+.gcu-num thead tr:last-child th.num{width:110px}
+.gcu-num tbody td{padding:5px 10px}
+.gcu-num td.num{text-align:center;width:90px}
+.gcu-num td.col{font-weight:600;vertical-align:top;border-right:1px solid var(--cloud)}
+.gcu-num td.tot{font-weight:600}
+.gcu-num tr.sum td{font-weight:700;border-top:1px solid var(--silver)}
+
+/* Services: two columns with a fading divider and a small mark in the middle. */
+.svc-wrap{padding:14px 22px 16px}
+/* Centred block, same width as the tables above. */
+.narrow{width:70%;margin-left:auto;margin-right:auto}
+.svc-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:56px;position:relative}
+.svc-grid::before{content:'';position:absolute;top:4px;bottom:4px;left:50%;width:1px;background:linear-gradient(to bottom,transparent,var(--mint) 18%,var(--moss) 50%,var(--mint) 82%,transparent)}
+.svc-grid::after{content:'';position:absolute;top:50%;left:50%;width:9px;height:9px;transform:translate(-50%,-50%) rotate(45deg);background:#fff;border:1.5px solid var(--moss);border-radius:2px}
+.svc-head{display:flex;justify-content:space-between;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);padding:0 4px 6px;border-bottom:1px solid var(--cloud)}
+.svc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 4px;font-size:12px;color:var(--ink);border-bottom:1px dashed var(--cloud)}
+.svc-count{min-width:30px;text-align:center;font-weight:700;color:var(--moss);background:var(--mist);border-radius:10px;padding:1px 8px}
+.svc-count.zero{color:var(--fog);background:transparent;font-weight:500}
+.svc-total{display:flex;justify-content:center;align-items:center;gap:10px;margin-top:12px;padding-top:10px;border-top:1px solid var(--silver);font-size:12.5px;color:var(--stone)}
+.svc-total strong{font-size:15px;color:var(--forest)}
+@media (max-width:860px){
+  .gcu-num,.narrow{width:100%}
+  .svc-grid{grid-template-columns:1fr}
+  .svc-grid::before,.svc-grid::after{display:none}
+  .svc-col-right{margin-top:10px}
+}
+</style>
