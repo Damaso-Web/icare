@@ -6,40 +6,46 @@
       <p>Complete log of all user actions and system events for accountability.</p>
     </div>
 
-    <!-- Filter Bar -->
-    <div class="filter-bar">
-      <div class="sw">
+    <!-- Filter Bar: one line on desktop (items shrink instead of wrapping); stacks on phones -->
+    <div class="filter-bar audit-bar">
+      <div class="sw ab-search">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input
           v-model="filters.search"
           type="text"
           class="sin"
           placeholder="Search name or description..."
-          style="width:220px"
           maxlength="100"
           @input="onSearchInput"
         />
       </div>
-      <select v-model="filters.user_id" class="fsm" @change="fetchLogs()">
+      <select v-model="filters.user_id" class="fsm ab-select" @change="fetchLogs()">
         <option value="">All Users</option>
         <option v-for="u in userList" :key="u.id" :value="u.id">{{ u.name }}</option>
       </select>
-      <select v-model="filters.action" class="fsm" @change="fetchLogs()">
+      <select v-model="filters.action" class="fsm ab-select" @change="fetchLogs()">
         <option value="">All Actions</option>
         <option v-for="a in actionList" :key="a" :value="a">{{ toTitleCase(a) }}</option>
       </select>
-      <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" title="From date" :max="filters.date_to || undefined" @change="fetchLogs()" />
-      <span style="font-size:12px;color:var(--stone)">to</span>
-      <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" title="To date" :min="filters.date_from || undefined" @change="fetchLogs()" />
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <select v-model="exportFormat" class="fsm" style="margin-left:auto">
-        <option value="pdf">PDF</option>
-        <option value="excel">Excel</option>
-      </select>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="exporting" @click="exportLogs">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        {{ exporting ? 'Exporting...' : 'Export' }}
-      </button>
+      <!-- From - To in one box -->
+      <div class="ab-range" title="Date range">
+        <input v-model="filters.date_from" type="date" title="From date" :max="filters.date_to || undefined" @change="fetchLogs()" />
+        <span>–</span>
+        <input v-model="filters.date_to" type="date" title="To date" :min="filters.date_from || undefined" @change="fetchLogs()" />
+      </div>
+      <button class="ibtn ibtn-g ibtn-sm ab-btn" @click="resetFilters">Reset</button>
+      <!-- One "Export as" button; picking a format downloads it right away -->
+      <div ref="exportMenuEl" class="ab-export">
+        <button class="ibtn ibtn-o ibtn-sm ab-btn" :disabled="exporting" @click="exportMenuOpen = !exportMenuOpen">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          {{ exporting ? `Exporting ${exportFormat === 'pdf' ? 'PDF' : 'Excel'}...` : 'Export as' }}
+          <svg v-if="!exporting" viewBox="0 0 24 24" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div v-if="exportMenuOpen" class="export-menu">
+          <button type="button" @click="exportAs('pdf')"><strong>PDF</strong><small>Ready to print</small></button>
+          <button type="button" @click="exportAs('excel')"><strong>Excel</strong><small>Editable spreadsheet</small></button>
+        </div>
+      </div>
     </div>
 
     <!-- Audit Log Table -->
@@ -151,7 +157,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, onMounted, onBeforeUnmount, inject } from 'vue';
 import axios from 'axios';
 import { auditAPI } from '../../api/index';
 import { toTitleCase, localDateStr } from '../../utils/validators';
@@ -164,6 +170,23 @@ function authHeaders() {
 
 const exportFormat = ref('pdf');
 const exporting    = ref(false);
+const exportMenuOpen = ref(false);
+const exportMenuEl   = ref(null);
+
+function exportAs(format) {
+  exportFormat.value = format;
+  exportMenuOpen.value = false;
+  exportLogs();
+}
+
+// Clicking anywhere outside the menu closes it.
+function closeExportMenu(e) {
+  if (exportMenuOpen.value && exportMenuEl.value && !exportMenuEl.value.contains(e.target)) {
+    exportMenuOpen.value = false;
+  }
+}
+onMounted(() => document.addEventListener('click', closeExportMenu));
+onBeforeUnmount(() => document.removeEventListener('click', closeExportMenu));
 
 async function exportLogs() {
   exporting.value = true;
@@ -309,3 +332,47 @@ onMounted(() => {
   fetchFilterOptions();
 });
 </script>
+<style scoped>
+/* Desktop: everything stays on one line - the search box takes the spare
+   room and gives it up first, the rest shrink a little before anything wraps. */
+.audit-bar { flex-wrap: nowrap; }
+.ab-search { flex: 1 1 200px; min-width: 130px; }
+.ab-search .sin { width: 100%; }
+.ab-select { flex: 0 1 140px; min-width: 100px; }
+.ab-range {
+  flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 0 8px; height: 36px; background: #fff;
+  border: 1.5px solid var(--silver); border-radius: var(--r-sm);
+}
+.ab-range:focus-within { border-color: var(--moss); }
+.ab-range input {
+  border: none; outline: none; background: none; min-width: 0; width: 118px;
+  font-family: var(--font); font-size: 12.5px; color: var(--ink);
+}
+.ab-range span { color: var(--fog); font-size: 12px; }
+.ab-btn { flex: none; white-space: nowrap; }
+.ab-export { position: relative; flex: none; margin-left: auto; }
+
+.export-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 180px; padding: 5px;
+  background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+.export-menu button {
+  display: block; width: 100%; padding: 7px 10px; border: none; background: none;
+  border-radius: 6px; font-family: var(--font); text-align: left; cursor: pointer;
+}
+.export-menu button:hover { background: var(--mist); }
+.export-menu strong { display: block; font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.export-menu small { display: block; font-size: 11px; color: var(--stone); }
+
+/* Phones keep the existing stacked layout. */
+@media (max-width: 860px) {
+  .audit-bar { flex-wrap: wrap; }
+  .ab-search, .ab-select, .ab-range { flex: 1 1 100%; }
+  .ab-range input { flex: 1; width: auto; }
+  .ab-export { margin-left: 0; flex: 1 1 auto; }
+  .ab-export > .ibtn { width: 100%; justify-content: center; }
+}
+</style>
