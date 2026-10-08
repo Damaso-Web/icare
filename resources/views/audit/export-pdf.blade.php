@@ -11,10 +11,10 @@
 <style>
     @page { margin: 16mm 14mm 16mm 14mm; }
     body { font-family: Helvetica, sans-serif; font-size: 8pt; color: #1d1d1d; }
-    .letterhead { text-align: center; border-bottom: 2px solid #1f5c3a; padding-bottom: 7px; margin-bottom: 10px; }
+    .letterhead { text-align: center; padding-bottom: 4px; margin-bottom: 8px; }
     .letterhead .uni { font-size: 13pt; font-weight: bold; letter-spacing: .5px; }
     .letterhead .off { font-size: 9pt; margin-top: 2px; }
-    .title { text-align: center; font-size: 11.5pt; font-weight: bold; color: #1f5c3a; }
+    .title { text-align: center; font-size: 11.5pt; font-weight: bold; color: #000; }
     .meta { text-align: center; color: #555; font-size: 8pt; margin: 3px 0 12px; }
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     th, td { border: .6px solid #b9c2bc; padding: 2.5px 5px; text-align: left; vertical-align: top; word-wrap: break-word; }
@@ -32,27 +32,22 @@
         <div class="off">Office of Student Services</div>
     </div>
     <div class="title">iCARE AUDIT TRAIL</div>
-    <div class="meta">Generated {{ $generated_at }} &middot; {{ count($logs) }} record(s)</div>
+    <div class="meta">Generated {{ $generated_at }} &middot; {{ count($rows) }} record(s)</div>
 
-    @forelse ($logs->chunk(40) as $chunk)
+    @forelse (array_chunk($rows, 40) as $chunk)
         {{-- Column widths are fixed, so the pieces line up as one table; the heading row prints once. --}}
         <table class="{{ $loop->first ? '' : 'cont' }}">
             <tr class="{{ $loop->first ? '' : 'sizer' }}">
-                <th style="width:12%">Timestamp</th>
-                <th style="width:13%">User</th>
-                <th style="width:9%">Role</th>
-                <th style="width:12%">Action</th>
-                <th style="width:44%">Description</th>
-                <th style="width:10%">IP Address</th>
+                @foreach (\App\Http\Controllers\Api\AuditLogController::EXPORT_HEADERS as $n => $h)
+                    <th style="width:{{ [12, 13, 11, 11, 43, 10][$n] }}%">{{ $h }}</th>
+                @endforeach
             </tr>
-            @foreach ($chunk->values() as $i => $log)
+            {{-- Rows come already in readable words (see AuditLogController::exportRows), same as the Excel. --}}
+            @foreach ($chunk as $i => $row)
                 <tr class="{{ $i % 2 ? 'alt' : '' }}">
-                    <td class="nw">{{ $log->created_at?->format('M j, Y g:i A') }}</td>
-                    <td>{{ $log->user_name }}</td>
-                    <td>{{ $log->user_role }}</td>
-                    <td>{{ $log->action }}</td>
-                    <td>{{ $log->description }}</td>
-                    <td>{{ $log->ip_address }}</td>
+                    @foreach ($row as $n => $v)
+                        <td class="{{ $n === 0 ? 'nw' : '' }}">{{ $v }}</td>
+                    @endforeach
                 </tr>
             @endforeach
         </table>
