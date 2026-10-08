@@ -19,31 +19,42 @@
       </button>
     </div>
 
-    <!-- Date Range Filter -->
-    <div class="filter-bar" style="margin-bottom:20px">
-      <div style="font-size:12px;color:var(--stone);font-weight:500">Academic Year:</div>
-      <select v-model="academicYear" class="fsm" :disabled="period === 'custom'" @change="applyPeriod">
-        <option v-for="y in academicYears" :key="y" :value="y">{{ y }}–{{ y + 1 }}</option>
-      </select>
-      <div style="font-size:12px;color:var(--stone);font-weight:500">Period:</div>
-      <select v-model="period" class="fsm" @change="applyPeriod">
-        <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
-        <option value="custom">Custom Range</option>
-      </select>
-      <input v-model="dateFrom" type="date" class="ifi" style="width:150px" title="From date" :disabled="period !== 'custom'" />
-      <span style="font-size:12px;color:var(--stone)">to</span>
-      <input v-model="dateTo" type="date" class="ifi" style="width:150px" title="To date" :disabled="period !== 'custom'" />
-      <button class="ibtn ibtn-p ibtn-sm" title="Reload the report figures for the selected date range" @click="fetchAll">
+    <!-- Period filter: one line on desktop (items shrink instead of wrapping); stacks on phones -->
+    <div class="filter-bar rp-bar" style="margin-bottom:20px">
+      <label class="rp-field">
+        <span>Academic Year</span>
+        <select v-model="academicYear" class="fsm" :disabled="period === 'custom'" @change="applyPeriod">
+          <option v-for="y in academicYears" :key="y" :value="y">{{ y }}–{{ y + 1 }}</option>
+        </select>
+      </label>
+      <label class="rp-field">
+        <span>Period</span>
+        <select v-model="period" class="fsm" @change="applyPeriod">
+          <option v-for="p in PERIODS" :key="p.value" :value="p.value">{{ p.label }}</option>
+          <option value="custom">Custom Range</option>
+        </select>
+      </label>
+      <!-- From - To in one box; editable only for Custom Range -->
+      <div class="rp-range" :class="{ locked: period !== 'custom' }" :title="period !== 'custom' ? 'Choose Custom Range to type your own dates' : 'Date range'">
+        <input v-model="dateFrom" type="date" title="From date" :max="dateTo || undefined" :disabled="period !== 'custom'" />
+        <span>–</span>
+        <input v-model="dateTo" type="date" title="To date" :min="dateFrom || undefined" :disabled="period !== 'custom'" />
+      </div>
+      <button class="ibtn ibtn-p ibtn-sm rp-btn" title="Reload the report figures for the selected date range" @click="fetchAll">
         Generate
       </button>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="!!exporting" @click="exportReport('pdf')">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        {{ exporting === 'pdf' ? 'Exporting...' : 'Export PDF' }}
-      </button>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="!!exporting" @click="exportReport('excel')">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        {{ exporting === 'excel' ? 'Exporting...' : 'Export Excel' }}
-      </button>
+      <!-- One "Export as" button; picking a format downloads it right away -->
+      <div ref="exportMenuEl" class="rp-export">
+        <button class="ibtn ibtn-o ibtn-sm rp-btn" :disabled="!!exporting" @click="exportMenuOpen = !exportMenuOpen">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          {{ exporting ? `Exporting ${exporting === 'pdf' ? 'PDF' : 'Excel'}...` : 'Export as' }}
+          <svg v-if="!exporting" viewBox="0 0 24 24" style="width:12px;height:12px"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div v-if="exportMenuOpen" class="export-menu">
+          <button type="button" @click="exportAs('pdf')"><strong>PDF</strong><small>Ready to print</small></button>
+          <button type="button" @click="exportAs('excel')"><strong>Excel</strong><small>Editable spreadsheet</small></button>
+        </div>
+      </div>
     </div>
 
     <!-- What the figures below cover -->
@@ -510,7 +521,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, inject } from 'vue';
 import axios from 'axios';
 import { reportAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
@@ -634,6 +645,22 @@ function applyPeriod() {
   fetchAll();
 }
 const exporting = ref('');
+const exportMenuOpen = ref(false);
+const exportMenuEl   = ref(null);
+
+function exportAs(format) {
+  exportMenuOpen.value = false;
+  exportReport(format);
+}
+
+// Clicking anywhere outside the menu closes it.
+function closeExportMenu(e) {
+  if (exportMenuOpen.value && exportMenuEl.value && !exportMenuEl.value.contains(e.target)) {
+    exportMenuOpen.value = false;
+  }
+}
+onMounted(() => document.addEventListener('click', closeExportMenu));
+onBeforeUnmount(() => document.removeEventListener('click', closeExportMenu));
 
 async function exportReport(format) {
   exporting.value = format;
@@ -820,6 +847,51 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Period filter - same pattern as the Audit Trail filter bar. */
+.rp-bar { flex-wrap: nowrap; }
+.rp-field { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
+.rp-field > span { font-size: 12px; color: var(--stone); font-weight: 500; white-space: nowrap; }
+.rp-field .fsm { min-width: 0; }
+.rp-range {
+  flex: 0 1 auto; min-width: 0; display: flex; align-items: center; gap: 4px;
+  padding: 0 8px; height: 36px; background: #fff;
+  border: 1.5px solid var(--silver); border-radius: var(--r-sm);
+}
+.rp-range:focus-within { border-color: var(--moss); }
+.rp-range.locked { background: var(--snow); }
+.rp-range input {
+  border: none; outline: none; background: none; min-width: 0; width: 118px;
+  font-family: var(--font); font-size: 12.5px; color: var(--ink);
+}
+.rp-range input:disabled { color: var(--stone); cursor: default; }
+.rp-range span { color: var(--fog); font-size: 12px; }
+.rp-btn { flex: none; white-space: nowrap; }
+.rp-export { position: relative; flex: none; margin-left: auto; }
+
+.export-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 30;
+  min-width: 180px; padding: 5px;
+  background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+}
+.export-menu button {
+  display: block; width: 100%; padding: 7px 10px; border: none; background: none;
+  border-radius: 6px; font-family: var(--font); text-align: left; cursor: pointer;
+}
+.export-menu button:hover { background: var(--mist); }
+.export-menu strong { display: block; font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.export-menu small { display: block; font-size: 11px; color: var(--stone); }
+
+/* Phones: one control per line. */
+@media (max-width: 860px) {
+  .rp-bar { flex-wrap: wrap; }
+  .rp-field, .rp-range { flex: 1 1 100%; }
+  .rp-field .fsm { flex: 1; }
+  .rp-range input { flex: 1; width: auto; }
+  .rp-btn { flex: 1 1 auto; justify-content: center; }
+  .rp-export { margin-left: 0; flex: 1 1 auto; }
+  .rp-export > .ibtn { width: 100%; justify-content: center; }
+}
 /* Compact tables for the GCU "by the Numbers" sections, centred in the card
    so the numbers sit near the course names instead of at the far edge. */
 .gcu-num{font-size:12px;width:70%;margin:6px auto 10px}
