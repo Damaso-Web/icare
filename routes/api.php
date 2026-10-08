@@ -72,9 +72,9 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
     Route::middleware('role:admin,gcu_staff')->group(function () {
         Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
-        Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
         Route::post('students/import', [StudentController::class, 'import']);
-        // Deactivating a student account is for Admin only.
+        // Activating and deactivating a student account is for the GCU Head (admin) only.
+        Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive'])->middleware('role:admin');
         Route::post('students/{student}/graduate', [StudentController::class, 'graduate'])->middleware('role:admin');
         Route::post('students/import-preview', [StudentController::class, 'importPreview']);
         Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
