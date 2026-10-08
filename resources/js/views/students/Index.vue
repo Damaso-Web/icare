@@ -84,7 +84,7 @@
               <td style="text-align:right">
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click.stop="openView(s)">View</button>
-                  <!-- Deactivating a student account is for Admin only -->
+                  <!-- Activating/deactivating a student account is for the GCU Head (admin) only -->
                   <button
                     v-if="s.is_active && auth.isAdmin"
                     class="ibtn ibtn-sm"
@@ -94,7 +94,7 @@
                     Deactivate
                   </button>
                   <button
-                    v-else-if="!s.is_active"
+                    v-else-if="!s.is_active && auth.isAdmin"
                     class="ibtn ibtn-sm"
                     style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
                     @click.stop="toggleActive(s)"
