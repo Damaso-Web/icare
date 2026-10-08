@@ -177,13 +177,8 @@ class StudentController extends Controller
         return response()->json(['message' => 'Student deleted.']);
     }
 
-    public function toggleActive(Request $request, Student $student)
+    public function toggleActive(Student $student)
     {
-        // Reactivating stays open to GCU staff; deactivating is for Admin only.
-        if ($student->is_active && $request->user()->role !== 'admin') {
-            abort(403, 'Only an Admin can deactivate a student account.');
-        }
-
         $student->update(['is_active' => !$student->is_active]);
         AuditLog::record('toggled', "Student {$student->first_name} {$student->last_name} " . ($student->is_active ? 'activated' : 'deactivated') . ".", $student);
         return response()->json($student);
