@@ -74,7 +74,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive']);
         Route::post('students/import', [StudentController::class, 'import']);
-        Route::post('students/{student}/graduate', [StudentController::class, 'graduate']);
+        // Deactivating a student account is for Admin only.
+        Route::post('students/{student}/graduate', [StudentController::class, 'graduate'])->middleware('role:admin');
         Route::post('students/import-preview', [StudentController::class, 'importPreview']);
         Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
         Route::get('students/{student}/temp-password',  [StudentController::class, 'viewTempPassword']);

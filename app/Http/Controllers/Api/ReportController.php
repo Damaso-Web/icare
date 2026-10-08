@@ -579,6 +579,10 @@ class ReportController extends Controller
 
     public function exportPdf(Request $request)
     {
+        // Rendering the full report PDF can go past PHP's default 128 MB / 30 s.
+        ini_set('memory_limit', '384M');
+        set_time_limit(180);
+
         [$book, $unit] = $this->makeWorkbook($request);
         $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.pdf';
 

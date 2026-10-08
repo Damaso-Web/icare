@@ -57,7 +57,28 @@ class PublicSchedulingController extends Controller
             ->where('end_time', '>', $request->start_time)
             ->exists();
 
+        if (!$conflict && $this->overlapsReplacedSlot($appointment, $request->appointment_date, $request->start_time, $request->end_time)) {
+            return response()->json(['available' => false, 'replaced_slot' => true, 'message' => self::REPLACED_SLOT_MESSAGE]);
+        }
+
         return response()->json(['available' => !$conflict]);
+    }
+
+    private const REPLACED_SLOT_MESSAGE = 'This is the time being rescheduled, so it is no longer available. Please choose another date or time.';
+
+    // A reschedule replaces the old slot - the old row is marked 'rescheduled'
+    // and so stops counting as a booking - but that slot is exactly the time
+    // that didn't work, so the new pick may not overlap it on the same day.
+    private function overlapsReplacedSlot(Appointment $appointment, string $date, string $start, string $end): bool
+    {
+        $previous = $appointment->rescheduled_from_id ? Appointment::find($appointment->rescheduled_from_id) : null;
+        if (!$previous || !$previous->appointment_date || !$previous->start_time || !$previous->end_time) {
+            return false;
+        }
+
+        return $previous->appointment_date->format('Y-m-d') === substr($date, 0, 10)
+            && substr($previous->start_time, 0, 5) < substr($end, 0, 5)
+            && substr($previous->end_time, 0, 5) > substr($start, 0, 5);
     }
 
     public function monthAvailability(Request $request, $token)
@@ -152,6 +173,10 @@ class PublicSchedulingController extends Controller
 
         if ($conflict) {
             return response()->json(['message' => 'This time slot is no longer available. Please pick another.'], 422);
+        }
+
+        if ($this->overlapsReplacedSlot($appointment, $request->appointment_date, $request->start_time, $request->end_time)) {
+            return response()->json(['message' => self::REPLACED_SLOT_MESSAGE], 422);
         }
 
         $appointment->update([

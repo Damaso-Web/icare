@@ -84,8 +84,9 @@
               <td style="text-align:right">
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click.stop="openView(s)">View</button>
+                  <!-- Deactivating a student account is for Admin only -->
                   <button
-                    v-if="s.is_active"
+                    v-if="s.is_active && auth.isAdmin"
                     class="ibtn ibtn-sm"
                     style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0"
                     @click.stop="confirmGraduate(s)"
@@ -93,7 +94,7 @@
                     Deactivate
                   </button>
                   <button
-                    v-else
+                    v-else-if="!s.is_active"
                     class="ibtn ibtn-sm"
                     style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)"
                     @click.stop="toggleActive(s)"
@@ -1060,6 +1061,7 @@
 import { ref, computed, inject, onMounted } from 'vue';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
+import { useAuthStore } from '../../stores/auth';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const toast   = inject('toast');
@@ -1121,6 +1123,8 @@ const showGraduateModal = ref(false);
 const studentToGraduate = ref(null);
 const graduateReason = ref('');
 const graduateNotes = ref('');
+const auth = useAuthStore();
+
 const canDeactivate = computed(() =>
   graduateReason.value &&
   (graduateReason.value !== 'other' || graduateNotes.value.trim())

@@ -60,6 +60,11 @@ class AuditLogController extends Controller
 
     public function exportPdf(Request $request)
     {
+        // A full 1,000-row PDF needs ~150 MB and ~20 s - over PHP's default
+        // 128 MB / 30 s on the server, which made the export fail live.
+        ini_set('memory_limit', '384M');
+        set_time_limit(180);
+
         $logs = $this->filteredQuery($request)->latest('created_at')->limit(1000)->get();
 
         $pdf = Pdf::loadView('audit.export-pdf', [
@@ -67,7 +72,16 @@ class AuditLogController extends Controller
             'generated_at' => now()->format('F j, Y g:i A'),
         ])->setPaper('a4', 'landscape');
 
-        return $pdf->download('iCARE-Audit-Trail-' . now()->format('Y-m-d') . '.pdf');
+        $dompdf = $pdf->getDomPDF();
+        $dompdf->render();
+        $canvas = $dompdf->getCanvas();
+        $canvas->page_text($canvas->get_width() - 100, $canvas->get_height() - 28, 'Page {PAGE_NUM} of {PAGE_COUNT}',
+            $dompdf->getFontMetrics()->getFont('Helvetica'), 7, [0.45, 0.45, 0.45]);
+
+        return response($dompdf->output(), 200, [
+            'Content-Type'        => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename=iCARE-Audit-Trail-' . now()->format('Y-m-d') . '.pdf',
+        ]);
     }
 
     public function exportExcel(Request $request)

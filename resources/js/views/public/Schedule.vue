@@ -112,7 +112,7 @@
 
           <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
           <div v-else-if="availabilityChecked && !isAvailable" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-            ⚠ This time slot is already taken. Please choose another.
+            ⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}
           </div>
           <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
             ✓ This time slot is available.
@@ -160,6 +160,7 @@ const timeOrderError = ref(false);
 const checkingAvailability = ref(false);
 const availabilityChecked  = ref(false);
 const isAvailable = ref(false);
+const availabilityMessage = ref('');
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -245,6 +246,7 @@ async function checkAvailability() {
   try {
     const res = await axios.post(`${API_BASE}/schedule/${token}/check-availability`, form.value);
     isAvailable.value = res.data.available;
+    availabilityMessage.value = res.data.message || '';
     availabilityChecked.value = true;
   } catch (e) {
     isAvailable.value = false;

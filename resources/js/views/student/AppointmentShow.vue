@@ -142,8 +142,8 @@
             <div v-if="timeRangeError" style="grid-column:1 / -1;font-size:11px;color:var(--red)">{{ timeRangeError }}</div>
           </div>
           <div v-if="timeOrderError" style="font-size:11px;color:var(--red)">End time must be later than start time.</div>
-          <div v-if="sameAsOriginalError" style="font-size:11px;color:var(--red)">Please select a different date or time than your original appointment.</div>
-          <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
+          <div v-if="sameAsOriginalError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ fmt12(appointment.start_time) }}–{{ fmt12(appointment.end_time) }} on {{ formatDate(appointment.appointment_date) }} is the time being rescheduled, so it is no longer available. Please choose another date or time.</div>
+          <div v-else-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
           <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ This time slot is already taken. Please choose another.</div>
           <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
@@ -342,13 +342,14 @@ const sameAsOriginalError = computed(() => {
   const appt = appointment.value;
   if (!appt?.reschedule_reason) return false;
   const origDate = appt.appointment_date?.split('T')[0];
-  return (
-    scheduleForm.value.appointment_date &&
-    scheduleForm.value.start_time &&
-    scheduleForm.value.end_time &&
-    scheduleForm.value.appointment_date === origDate &&
-    scheduleForm.value.start_time === appt.start_time &&
-    scheduleForm.value.end_time === appt.end_time
+  const { appointment_date, start_time, end_time } = scheduleForm.value;
+  // Any overlap with the slot being rescheduled counts, not just the exact
+  // same times - that whole time no longer works for the office.
+  return Boolean(
+    appointment_date && start_time && end_time &&
+    appointment_date === origDate &&
+    start_time.slice(0, 5) < String(appt.end_time).slice(0, 5) &&
+    end_time.slice(0, 5) > String(appt.start_time).slice(0, 5)
   );
 });
 
