@@ -28,7 +28,7 @@
         <template v-else>
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Check your email</div>
           <p style="font-size:13px;color:var(--stone);line-height:1.6">
-            If an account with <strong>{{ email }}</strong> exists, a password reset link has been sent to it. The link expires in 60 minutes.
+            If an account with <strong>{{ email }}</strong> exists, a password reset link has been sent to it. The link expires in 5 minutes.
             Also check your spam folder.
           </p>
           <button type="button" class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:16px" @click="goBack">Back to Sign In</button>

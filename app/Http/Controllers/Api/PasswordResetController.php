@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
@@ -37,9 +38,14 @@ class PasswordResetController extends Controller
             if (!$user || ($user->is_active ?? true) === false) {
                 return response()->json($generic);
             }
-            $broker->sendResetLink(['email' => $data['email']]);
+            $status = $broker->sendResetLink(['email' => $data['email']]);
+            if ($status !== Password::RESET_LINK_SENT) {
+                Log::warning("Forgot-password: no link sent for {$data['email']} ({$status}).");
+            }
         } catch (\Throwable $e) {
-            report($e);
+            // Still answer with the generic message (so emails can't be probed),
+            // but leave the real reason in the Render logs.
+            Log::error('Forgot-password email failed: ' . $e->getMessage());
         }
 
         return response()->json($generic);

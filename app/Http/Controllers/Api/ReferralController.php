@@ -262,6 +262,24 @@ class ReferralController extends Controller
         $this->authorizeView($referral, $request->user());
         $referral->abortIfLocked();
         $old = $referral->toArray();
+
+        // The person who submitted a referral can correct its details only until
+        // GCU acknowledges it. After that it is GCU's record.
+        $user = $request->user();
+        if ($user->isFaculty() || $user->isDeanSecretary()) {
+            abort_unless($referral->referred_by_user_id === $user->id, 403, 'Only the person who submitted this referral can edit it.');
+            abort_if($referral->acknowledged_at, 422, 'GCU already acknowledged this referral, so it can no longer be edited.');
+
+            $data = $request->validate([
+                'nature_of_concern'    => 'sometimes|required|string|min:10|max:1000',
+                'incident_description' => 'sometimes|nullable|string|max:2000',
+                'incident_date'        => 'sometimes|nullable|date',
+            ]);
+            $referral->update($data);
+            AuditLog::record('updated', "Referrer edited referral {$referral->referral_code} before acknowledgement.", $referral, $old, $referral->toArray());
+            return response()->json($referral);
+        }
+
         $referral->update($request->only([
             'nature_of_concern',
             'intake_notes',

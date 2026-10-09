@@ -55,7 +55,7 @@ class Appointment extends Model
         'token_expires_at'       => 'datetime',
         'call_slip_initiated_at' => 'datetime',
         'on_hold_at'             => 'datetime',
-        'appointment_date'      => 'date',
+        'appointment_date'      => 'date:Y-m-d',
         'confirmation_sent'     => 'boolean',
         'confirmation_sent_at'  => 'datetime',
         'reminder_sent'         => 'boolean',

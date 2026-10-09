@@ -25,3 +25,26 @@ services:
         value: defaultdb
       - key: DB_USERNAME
         value: avnadmin
+      # ---- Forgot password: link inside the email points here ----
+      - key: FRONTEND_URL
+        value: https://oss-icare.netlify.app
+      # ---- Outgoing email: Gmail SMTP (needs a Google App Password) ----
+      # NOTE: Render's free web services block outbound ports 25/465/587, so
+      # Gmail will time out there. On a paid instance it works as-is. On the
+      # free tier, use Brevo instead: MAIL_HOST=smtp-relay.brevo.com, MAIL_PORT=2525.
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value: smtp.gmail.com
+      - key: MAIL_PORT
+        value: 587
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_USERNAME
+        sync: false   # your Gmail address
+      - key: MAIL_PASSWORD
+        sync: false   # the 16-character App Password, not your Gmail password
+      - key: MAIL_FROM_ADDRESS
+        sync: false   # same as MAIL_USERNAME
+      - key: MAIL_FROM_NAME
+        value: iCARE

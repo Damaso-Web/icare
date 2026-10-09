@@ -163,6 +163,21 @@ class Referral extends Model
     public function scopeNotTmduOwned($q) { return $q->whereDoesntHave('testingRecord'); }
     public function isTmduOwned(): bool   { return $this->testingRecord()->exists(); }
 
+    // Moves active referrals out of the queue and into the archive (used when a
+    // student is deactivated or their case file is completed/closed). TMDU's own
+    // Case Referral Slips are left alone - they live in TMDU's queue.
+    public static function archiveActive(array $where, string $why): int
+    {
+        $referrals = static::where($where)->where('is_archived', false)->notTmduOwned()->get();
+
+        foreach ($referrals as $referral) {
+            $referral->update(['is_archived' => true]);
+            AuditLog::record('archived', "Archived referral {$referral->referral_code}: {$why}.", $referral);
+        }
+
+        return $referrals->count();
+    }
+
     public function isLocked(): bool
     {
         return in_array($this->status, ['completed', 'closed'], true);

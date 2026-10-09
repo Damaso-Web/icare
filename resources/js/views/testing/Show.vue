@@ -84,15 +84,15 @@
           <div class="icard" v-if="record.referral">
             <div class="icard-header"><span class="icard-title">Case Referral Slip</span></div>
 
-            <!-- TMDU form header - read only (edited in Management). -->
+            <!-- Same OSS-wide referral header as Refer a Student (QF-OSS-01) - read only (edited in Management). -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
-                <div><strong>Document Code:</strong> QF-OSS-GCU-05</div>
+                <div><strong>Document Code:</strong> QF-OSS-01</div>
                 <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date || '2023-07-04') }}</div>
-                <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '26-1' }}</div>
+                <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '-' }}</div>
               </div>
             </div>
             <div class="icard-body">
@@ -957,7 +957,7 @@ async function fetchSlipDoc() {
 async function fetchTmduDoc() {
   try {
     const base = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
-    const res = await axios.get(`${base}/document-settings/QF-OSS-GCU-05`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
+    const res = await axios.get(`${base}/document-settings/QF-OSS-01`, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } });
     tmduDoc.value = res.data;
   } catch (e) { /* header falls back to the defaults */ }
 }

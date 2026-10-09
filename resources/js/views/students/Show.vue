@@ -182,6 +182,31 @@
           <!-- Student Information (+ Guardian, + Login Credentials) -->
           <div class="icard">
             <div class="icard-header"><span class="icard-title">Student Information</span></div>
+
+            <!-- SIF document header - Case Files view only. Revision No. /
+                 Effectivity / Year-Term come from Management (QF-OSS-GCU-01).
+                 The client no. at the end of the Ctrl No. is per student and
+                 editable here by GCU. -->
+            <div v-if="fromCases" style="padding:10px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);font-size:11px;color:var(--stone);display:grid;grid-template-columns:1fr 1fr;gap:2px 10px">
+              <div><strong>Document Code:</strong> QF-OSS-GCU-01</div>
+              <div style="text-align:right"><strong>Effectivity:</strong> {{ formatDocDate(sifDoc.effectivity_date) }}</div>
+              <div><strong>Revision No.:</strong> {{ sifDoc.revision_no || '01' }}</div>
+              <div></div>
+              <div style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;margin-top:2px">
+                <strong>Ctrl No.:</strong>
+                <template v-if="!editingClientNo">
+                  <span style="font-family:var(--mono)">{{ sifCtrlNo }}</span>
+                  <button v-if="isGCU" type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" @click="startClientNoEdit">Edit</button>
+                </template>
+                <template v-else>
+                  <span style="font-family:var(--mono)">{{ sifDoc.ctrl_no || '-' }}-</span>
+                  <input v-model="clientNoDraft" class="ifi" style="width:70px;padding:3px 8px;font-family:var(--mono)" maxlength="4" inputmode="numeric" placeholder="____" @input="clientNoDraft = String(clientNoDraft ?? '').replace(/\D/g, '')" @keyup.enter="saveClientNo" />
+                  <button type="button" class="ibtn ibtn-p ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="saveClientNo">{{ savingClientNo ? '...' : 'Save' }}</button>
+                  <button type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="editingClientNo = false">Cancel</button>
+                </template>
+              </div>
+            </div>
+
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                 <div class="qav" style="width:40px;height:40px;font-size:15px">
@@ -712,6 +737,47 @@ function toggleConcernGroup(type) {
 // flag decides which actions are allowed here.
 const fromCases = computed(() => route.query.ctx === 'cases');
 
+// Student Information Sheet (QF-OSS-GCU-01) document header. Ctrl No. is
+// "<year>-<term>-<client no.>", e.g. 26-1-0012. Year-term is set in
+// Management; the client no. (which number client this student is) is stored
+// on the student and edited here.
+const sifDoc = ref({});
+const editingClientNo = ref(false);
+const clientNoDraft = ref('');
+const savingClientNo = ref(false);
+
+function formatDocDate(date) {
+  if (!date) return '-';
+  return new Date(date).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: '2-digit' });
+}
+
+const sifCtrlNo = computed(() => {
+  const n = student.value?.sif_client_no;
+  const tail = n ? String(n).padStart(4, '0') : '____';
+  return `${sifDoc.value?.ctrl_no || '-'}-${tail}`;
+});
+
+function startClientNoEdit() {
+  clientNoDraft.value = student.value?.sif_client_no ? String(student.value.sif_client_no) : '';
+  editingClientNo.value = true;
+}
+
+async function saveClientNo() {
+  if (savingClientNo.value) return;
+  savingClientNo.value = true;
+  try {
+    const value = clientNoDraft.value === '' ? null : Number(clientNoDraft.value);
+    const res = await studentAPI.updateClientNo(student.value.id, { sif_client_no: value });
+    student.value = { ...student.value, sif_client_no: res.data.sif_client_no };
+    editingClientNo.value = false;
+    toast?.success('Client number updated.');
+  } catch (e) {
+    toast?.error(e.response?.data?.errors?.sif_client_no?.[0] || e.response?.data?.message || 'Could not update the client number.');
+  } finally {
+    savingClientNo.value = false;
+  }
+}
+
 // Family / Siblings / Educational Attainment dropdown groups for the
 // Student Information card (SIF only, see the fromCases gate in the template).
 const expandedProfileGroups = ref({});
@@ -919,6 +985,11 @@ onMounted(async () => {
     console.error(e);
   } finally {
     loading.value = false;
+  }
+  if (fromCases.value) {
+    try {
+      sifDoc.value = (await studentAPI.documentSettings('QF-OSS-GCU-01')).data || {};
+    } catch (e) { /* header falls back to the defaults */ }
   }
 });
 </script>

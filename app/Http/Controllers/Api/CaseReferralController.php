@@ -64,7 +64,7 @@ class CaseReferralController extends Controller
             }))
             ->latest();
 
-        $page = $query->paginate(20);
+        $page = $query->paginate(min(max((int) $request->input('per_page', 20), 1), 200));
         $page->setCollection($page->getCollection()->map(fn($r) => $this->payload($r)));
 
         return response()->json($page);

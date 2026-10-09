@@ -717,6 +717,67 @@ public function checkConflictByStudent(Request $request)
         ]);
     }
 
+    // GCU Head only: manually move an appointment to any status, e.g. back from
+    // No-Show to Pending / Waiting for Student, when the original change was a
+    // mistake or the situation changed. A reason is required and audit-logged.
+    public function overrideStatus(Request $request, Appointment $appointment)
+    {
+        $this->authorizeUnit($appointment);
+
+        $data = $request->validate([
+            'target' => 'required|in:awaiting_student,pending_confirmation,confirmed,completed,no_show,cancelled',
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+
+        $map = [
+            'awaiting_student'     => ['pending',   'awaiting_student'],
+            'pending_confirmation' => ['pending',   'pending_confirmation'],
+            'confirmed'            => ['confirmed', 'confirmed'],
+            'completed'            => ['completed', 'completed'],
+            'no_show'              => ['no_show',   'no_show'],
+            'cancelled'            => ['cancelled', 'cancelled'],
+        ];
+        [$status, $requestStatus] = $map[$data['target']];
+        $from = $appointment->status . '/' . $appointment->request_status;
+
+        // Keep the case's no-show tally in step with the override.
+        $case = $appointment->case;
+        if ($case) {
+            if ($appointment->status === 'no_show' && $status !== 'no_show' && $case->no_show_count > 0) {
+                $case->decrement('no_show_count');
+            } elseif ($appointment->status !== 'no_show' && $status === 'no_show') {
+                $case->increment('no_show_count');
+            }
+        }
+
+        $attrs = ['status' => $status, 'request_status' => $requestStatus];
+
+        if ($status === 'cancelled') {
+            $attrs += [
+                'cancelled_at'          => now(),
+                'cancelled_by_user_id'  => $request->user()->id,
+                'cancellation_reason'   => $data['reason'],
+            ];
+        } else {
+            $attrs += ['cancelled_at' => null, 'cancelled_by_user_id' => null, 'cancellation_reason' => null];
+        }
+
+        if ($status === 'completed') {
+            $attrs += ['checked_in' => true, 'checked_in_at' => $appointment->checked_in_at ?? now(), 'checked_in_by_user_id' => $appointment->checked_in_by_user_id ?? $request->user()->id];
+        } else {
+            $attrs += ['checked_in' => false, 'checked_in_at' => null, 'checked_in_by_user_id' => null];
+        }
+
+        $appointment->update($attrs);
+
+        AuditLog::record('status_overridden', "GCU Head changed appointment {$appointment->appointment_code} from {$from} to {$status}/{$requestStatus}. Reason: {$data['reason']}", $appointment);
+
+        return response()->json([
+            'message'     => 'Appointment status updated.',
+            'appointment' => $appointment->fresh()->load(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy']),
+        ]);
+    }
+
     public function availability(Request $request)
     {
         $request->validate([

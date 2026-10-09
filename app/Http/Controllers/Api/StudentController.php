@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\Referral;
 use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -181,6 +182,11 @@ class StudentController extends Controller
     {
         $student->update(['is_active' => !$student->is_active]);
         AuditLog::record('toggled', "Student {$student->first_name} {$student->last_name} " . ($student->is_active ? 'activated' : 'deactivated') . ".", $student);
+
+        // A deactivated student's referrals leave the active queue and go to the archive.
+        if (!$student->is_active) {
+            Referral::archiveActive(['student_id' => $student->id], 'student account deactivated');
+        }
         return response()->json($student);
     }
 
@@ -207,6 +213,7 @@ class StudentController extends Controller
         ]);
 
         AuditLog::record('graduated', "Deactivated student {$student->student_id}. Reason: {$validated['deactivation_reason']}.", $student);
+        Referral::archiveActive(['student_id' => $student->id], 'student account deactivated');
         return response()->json($student);
     }
 
@@ -663,5 +670,22 @@ class StudentController extends Controller
             'duplicate_found' => (bool) $existing,
             'existing_student' => $existing,
         ]);
+    }
+
+    // Student Information Sheet Ctrl No. - the client count at the end of
+    // "26-1-____". Blank until GCU fills it in; editable any time.
+    public function updateClientNo(Request $request, Student $student)
+    {
+        $data = $request->validate([
+            'sif_client_no' => ['nullable', 'integer', 'min:1', 'max:9999'],
+        ]);
+
+        $old = $student->sif_client_no;
+        $student->sif_client_no = $data['sif_client_no'] ?? null;
+        $student->save();
+
+        AuditLog::record('updated', "Set SIF client no. for {$student->student_id} from " . ($old ?? 'blank') . ' to ' . ($student->sif_client_no ?? 'blank') . '.', $student);
+
+        return response()->json(['sif_client_no' => $student->sif_client_no]);
     }
 }

@@ -29,19 +29,30 @@
         <table class="itable">
           <thead>
             <tr>
+              <th style="width:28px"></th>
               <th>Student ID</th>
               <th>Name</th>
-              <th>Date</th>
-              <th></th>
+              <th>Case Referrals</th>
+              <th>Latest</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="r in items" :key="r.id" style="cursor:pointer" @click="selected = r">
-              <td style="font-family:var(--mono);font-size:12px">{{ r.student?.student_id }}</td>
-              <td>{{ r.student?.last_name }}, {{ r.student?.first_name }}</td>
-              <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
-              <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
-            </tr>
+            <template v-for="g in groups" :key="g.key">
+              <tr style="cursor:pointer" @click="toggle(g.key)">
+                <td style="color:var(--stone)">{{ isOpen(g.key) ? '▾' : '▸' }}</td>
+                <td style="font-family:var(--mono);font-size:12px">{{ g.student?.student_id }}</td>
+                <td style="font-weight:600">{{ g.student?.last_name }}, {{ g.student?.first_name }}</td>
+                <td><span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ g.items.length }}</span></td>
+                <td style="font-size:12px">{{ formatDate(g.items[0].created_at) }}</td>
+              </tr>
+              <tr v-for="r in (isOpen(g.key) ? g.items : [])" :key="r.id" style="cursor:pointer;background:var(--snow)" @click="selected = r">
+                <td></td>
+                <td style="font-family:var(--mono);font-size:11.5px;color:var(--stone)">{{ r.referral_code }}</td>
+                <td style="font-size:12px"><span class="ibadge" :class="badge(r).cls">{{ badge(r).label }}</span></td>
+                <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
+                <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
@@ -65,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 
@@ -74,6 +85,24 @@ const loading = ref(true);
 const search = ref('');
 const status = ref('');
 const selected = ref(null);
+
+// The list is grouped by student: one row per student, expandable to that
+// student's case referrals (newest first).
+const openKeys = ref({});
+function isOpen(key) { return !!openKeys.value[key]; }
+function toggle(key) { openKeys.value = { ...openKeys.value, [key]: !openKeys.value[key] }; }
+const groups = computed(() => {
+  const map = new Map();
+  for (const r of items.value) {
+    const key = r.student?.id ?? `none-${r.id}`;
+    if (!map.has(key)) map.set(key, { key, student: r.student, items: [] });
+    map.get(key).items.push(r);
+  }
+  const list = [...map.values()];
+  list.forEach(g => g.items.sort((a, b) => new Date(b.created_at) - new Date(a.created_at)));
+  list.sort((a, b) => new Date(b.items[0].created_at) - new Date(a.items[0].created_at));
+  return list;
+});
 
 const BADGES = {
   pending:             { label: 'Pending', cls: 'ibadge-pending' },
@@ -100,7 +129,7 @@ function onSearch() {
 async function fetchItems() {
   loading.value = true;
   try {
-    const res = await caseReferralAPI.index({ search: search.value || undefined, status: status.value || undefined });
+    const res = await caseReferralAPI.index({ search: search.value || undefined, status: status.value || undefined, per_page: 200 });
     items.value = res.data.data || res.data;
   } catch (e) {
     console.error(e);

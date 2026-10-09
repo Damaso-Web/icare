@@ -192,18 +192,19 @@
           <div class="icard" v-if="!isIncidentReport">
             <div class="icard-header">
               <span class="icard-title">{{ isCaseReferralSlip ? 'Case Referral Slip' : 'Referral Info' }}</span>
+              <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="margin-left:auto" @click="openReferralEdit">Edit Referral</button>
             </div>
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
                  Ctrl No. are edited in Management by admin, not here. -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
-                <div><strong>Document Code:</strong> {{ useTmduDoc ? 'QF-OSS-GCU-05' : 'QF-OSS-01' }}</div>
+                <div><strong>Document Code:</strong> QF-OSS-01</div>
                 <div><strong>Revision No.:</strong> {{ headerDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(headerDoc.effectivity_date || (useTmduDoc ? '2023-07-04' : null)) }}</div>
-                <div><strong>Ctrl No.:</strong> {{ headerDoc.ctrl_no || (useTmduDoc ? '26-1' : '-') }}</div>
+                <div><strong>Effectivity:</strong> {{ formatDocDate(headerDoc.effectivity_date) }}</div>
+                <div><strong>Ctrl No.:</strong> {{ headerDoc.ctrl_no || '-' }}</div>
               </div>
             </div>
 
@@ -977,25 +978,26 @@
                        card uses) instead. Also gated on hasAttendedAppointment -
                        an appointment must be set AND attended before the case
                        can be escalated, same gate the backend enforces. -->
-                  <button v-if="tmduSlip || tmduTestingRecord" class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openSlipModal">
+                  <!-- One slot: "Refer to TMDU" until the referral has been sent, then
+                       it is replaced by "View Case Referral". -->
+                  <button v-if="referredToTmdu" class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openSlipModal">
                     <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                     View Case Referral
                   </button>
-                  <div v-if="tmduTestingRecord && tmduTestingRecord.status !== 'test_results_issued'" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
-                    ✓ Already referred to TMDU
-                  </div>
-                  <div v-else-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
-                    ⚠ This referral must be acknowledged and have an appointment set and attended before referring to TMDU
-                  </div>
-                  <button
-                    v-else
-                    class="ibtn ibtn-o"
-                    style="width:100%;justify-content:center"
-                    @click="openTmduModal"
-                  >
-                    <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-                    Refer to TMDU
-                  </button>
+                  <template v-else>
+                    <div v-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                      ⚠ This referral must be acknowledged and have an appointment set and attended before referring to TMDU
+                    </div>
+                    <button
+                      v-else
+                      class="ibtn ibtn-o"
+                      style="width:100%;justify-content:center"
+                      @click="openTmduModal"
+                    >
+                      <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                      Refer to TMDU
+                    </button>
+                  </template>
 
                   <div v-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                     ⚠ This referral must be acknowledged and have an appointment set and attended before resolving
@@ -1354,6 +1356,40 @@
         </div>
       </div>
 
+      <!-- Edit Referral (referrer only, until GCU acknowledges it) -->
+      <div v-if="showReferralEdit" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showReferralEdit = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Referral</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showReferralEdit = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
+              You can change this referral until GCU acknowledges it.
+            </div>
+            <div>
+              <label class="ifl">Concern / Reason for Referral</label>
+              <textarea v-model="referralEditForm.nature_of_concern" class="ifta" style="min-height:110px" maxlength="1000"></textarea>
+            </div>
+            <template v-if="referral.referral_type === 'disciplinary'">
+              <div>
+                <label class="ifl">Date of Incident</label>
+                <input v-model="referralEditForm.incident_date" type="date" class="ifi" style="width:100%" />
+              </div>
+              <div>
+                <label class="ifl">Incident Description</label>
+                <textarea v-model="referralEditForm.incident_description" class="ifta" style="min-height:80px" maxlength="2000"></textarea>
+              </div>
+            </template>
+            <div v-if="referralEditError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ referralEditError }}</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="saveReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Save Changes' }}</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="showReferralEdit = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Refer to TMDU Modal: now a proper referral-slip form. Confirming
            creates a real, shared Referral (psychological_testing) under the
            same case, linked to a new TestingRecord - see
@@ -1370,12 +1406,12 @@
                Ctrl No. are edited in Management by admin. -->
           <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
             <div style="font-size:11px;color:var(--stone)">
-              <div><strong>Document Code:</strong> QF-OSS-GCU-05</div>
-              <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
+              <div><strong>Document Code:</strong> QF-OSS-01</div>
+              <div><strong>Revision No.:</strong> {{ referralDoc.revision_no || '01' }}</div>
             </div>
             <div style="font-size:11px;color:var(--stone);text-align:right">
-              <div><strong>Effectivity:</strong> {{ formatDocDate(tmduDoc.effectivity_date || '2023-07-04') }}</div>
-              <div><strong>Ctrl No.:</strong> {{ tmduDoc.ctrl_no || '26-1' }}</div>
+              <div><strong>Effectivity:</strong> {{ formatDocDate(referralDoc.effectivity_date) }}</div>
+              <div><strong>Ctrl No.:</strong> {{ referralDoc.ctrl_no || '-' }}</div>
             </div>
           </div>
 
@@ -1863,11 +1899,11 @@ function attachmentUrl(att) {
   return `${API_BASE.replace(/\/api$/, '')}/storage/${att.file_path}`;
 }
 
-// Parent conference slips belong to the referral they were issued from;
-// older slips that predate that link (no referral_id) still show.
+// Parent conference slips belong to the ONE referral they were issued from.
+// (Older slips with no referral_id are attached to a referral by a migration.)
 const referralParentConferenceSlips = computed(() =>
   (referral.value.case?.parent_conference_slips || [])
-    .filter(s => !s.referral_id || s.referral_id === referral.value.id)
+    .filter(s => s.referral_id === referral.value.id)
 );
 
 const referralAppointments = computed(() => {
@@ -1958,6 +1994,8 @@ const tmduTestingRecord = computed(() => {
 });
 
 const tmduSlip = ref(null);
+// True once this referral has been sent to TMDU (a Case Referral Slip exists).
+const referredToTmdu = computed(() => !!(tmduSlip.value || tmduTestingRecord.value));
 const slipModal = ref(false);
 const slipLoading = ref(false);
 async function loadSlip() {
@@ -2052,15 +2090,16 @@ watch([() => followUpForm.value.staff_user_id, () => followUpForm.value.appointm
 
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 const isSDUHead = computed(() => auth.user?.role === 'sdu_head');
-// TMDU testing referrals (and anything TMDU staff open) use the TMDU form
-// header QF-OSS-GCU-05 instead of the general referral slip QF-OSS-01.
+// TMDU testing referrals (and anything TMDU staff open) are the same OSS-wide
+// referral form as Refer a Student, so they share its document header
+// (QF-OSS-01) - only the layout/labels differ, not the header values.
 const useTmduDoc = computed(() =>
   !!referral.value?.testing_record
   || auth.user?.role === 'tmdu_staff');
 // The Case Referral Slip (filled in through "Refer to TMDU") is TMDU's own
 // form - same layout as a general referral, but a different record entirely.
 const isCaseReferralSlip = computed(() => useTmduDoc.value);
-const headerDoc = computed(() => (useTmduDoc.value ? tmduDoc.value : referralDoc.value) || {});
+const headerDoc = computed(() => referralDoc.value || {});
 const isTMDUStaff = computed(() => auth.user?.role === 'tmdu_staff');
 
 // Who can acknowledge THIS referral: GCU for ordinary referrals, TMDU staff
@@ -2181,7 +2220,6 @@ const profileDetailGroups = computed(() => {
 // (QF-OSS-03) are edited in Management by admin, not on individual referrals.
 const referralDoc = ref({});
 const feedbackDoc = ref({});
-const tmduDoc      = ref({});
 // Admission Slip (QF-OSS-GCU-09) - Class Attendance referrals only.
 const admissionDoc = ref({});
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -2391,6 +2429,57 @@ async function resolveReferral() {
 // B255: Refer to TMDU now requires an actual filled-out reason instead of
 // firing immediately with a hardcoded string.
 const showTmduModal  = ref(false);
+
+// Referrer edit: the person who submitted a referral can fix its details
+// until GCU acknowledges it.
+const canEditSubmittedReferral = computed(() => {
+  const u = auth.user;
+  const r = referral.value;
+  return !!u && !!r?.id
+    && ['faculty', 'dean', 'dept_chair', 'dean_secretary'].includes(u.role)
+    && r.referred_by_user_id === u.id
+    && !r.acknowledged_at
+    && !isResolved.value;
+});
+const showReferralEdit = ref(false);
+const savingReferralEdit = ref(false);
+const referralEditError = ref('');
+const referralEditForm = ref({ nature_of_concern: '', incident_description: '', incident_date: '' });
+
+function openReferralEdit() {
+  referralEditForm.value = {
+    nature_of_concern:    referral.value.nature_of_concern || '',
+    incident_description: referral.value.incident_description || '',
+    incident_date:        referral.value.incident_date ? String(referral.value.incident_date).slice(0, 10) : '',
+  };
+  referralEditError.value = '';
+  showReferralEdit.value = true;
+}
+
+async function saveReferralEdit() {
+  const f = referralEditForm.value;
+  if ((f.nature_of_concern || '').trim().length < 10) {
+    referralEditError.value = 'Please describe the concern in at least 10 characters.';
+    return;
+  }
+  savingReferralEdit.value = true;
+  referralEditError.value = '';
+  try {
+    const payload = { nature_of_concern: f.nature_of_concern.trim() };
+    if (referral.value.referral_type === 'disciplinary') {
+      payload.incident_description = f.incident_description || null;
+      payload.incident_date = f.incident_date || null;
+    }
+    const res = await referralAPI.update(referral.value.id, payload);
+    referral.value = { ...referral.value, ...res.data };
+    showReferralEdit.value = false;
+    toast?.success('Referral updated.');
+  } catch (e) {
+    referralEditError.value = e.response?.data?.message || 'Could not update the referral.';
+  } finally {
+    savingReferralEdit.value = false;
+  }
+}
 const submittingTmdu = ref(false);
 const tmduError      = ref('');
 const tmduForm       = ref({ reason: '' });
@@ -2844,7 +2933,6 @@ onMounted(async () => {
   }
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
-  fetchDocSettings('QF-OSS-GCU-05', tmduDoc);
   fetchDocSettings('QF-OSS-GCU-09', admissionDoc);
 });
 </script>

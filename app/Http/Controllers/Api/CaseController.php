@@ -172,6 +172,11 @@ class CaseController extends Controller
         $old = ['status' => $case->status];
         $case->update(['status' => $request->status]);
         AuditLog::record('status_updated', "Updated case {$case->case_number} status to {$request->status}.", $case, $old);
+
+        // A completed case's referrals leave the active queue and go to the archive.
+        if (in_array($request->status, ['resolved', 'closed'], true)) {
+            Referral::archiveActive(['case_id' => $case->id], "case {$case->case_number} marked {$request->status}");
+        }
         return response()->json($case);
     }
 
@@ -194,6 +199,7 @@ class CaseController extends Controller
         ]);
 
         AuditLog::record('closed', "Closed case {$case->case_number}.", $case);
+        Referral::archiveActive(['case_id' => $case->id], "case {$case->case_number} closed");
         return response()->json($case);
     }
 

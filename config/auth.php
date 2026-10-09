@@ -104,13 +104,13 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => 'password_reset_tokens',
-            'expire' => 60,
+            'expire' => 5,
             'throttle' => 60,
         ],
         'students' => [
             'provider' => 'students',
-            'table' => 'password_reset_tokens',
-            'expire' => 60,
+            'table' => 'student_password_reset_tokens',
+            'expire' => 5,
             'throttle' => 60,
         ],
     ],

@@ -213,6 +213,8 @@ export const studentAPI = {
     checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
     viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
     resetPassword:    (id)    => api.post(`/students/${id}/reset-password`),
+    updateClientNo:   (id, data) => api.patch(`/students/${id}/client-no`, data),
+    documentSettings: (code)  => api.get(`/document-settings/${code}`),
 };
 
 export const referralAPI = {
@@ -282,6 +284,7 @@ export const appointmentAPI = {
     checkIn:        (id)       => api.post(`/appointments/${id}/check-in`),
     escalateNoShow: (id, action) => api.post(`/appointments/${id}/escalate-no-show`, { action }),
     sendCallSlipUnscheduled: (id) => api.post(`/appointments/${id}/send-call-slip`),
+    overrideStatus: (id, data) => api.post(`/appointments/${id}/override-status`, data),
     availability:   (params)   => api.get('/appointments/availability', { params }),
     checkConflict:  (data)     => api.post('/appointments/check-conflict', data),
 };

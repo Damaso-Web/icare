@@ -1,14 +1,14 @@
 <template>
   <div>
-    <!-- Document Code Header - read only (QF-OSS-GCU-05) -->
+    <!-- Document Code Header - read only (QF-OSS-01, same as Refer a Student) -->
     <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
       <div style="font-size:11px;color:var(--stone)">
-        <div><strong>Document Code:</strong> QF-OSS-GCU-05</div>
+        <div><strong>Document Code:</strong> QF-OSS-01</div>
         <div><strong>Revision No.:</strong> {{ doc.revision_no || '01' }}</div>
       </div>
       <div style="font-size:11px;color:var(--stone);text-align:right">
-        <div><strong>Effectivity:</strong> {{ docDate(doc.effectivity_date || '2023-07-04') }}</div>
-        <div><strong>Ctrl No.:</strong> {{ doc.ctrl_no || '26-1' }}</div>
+        <div><strong>Effectivity:</strong> {{ docDate(doc.effectivity_date) }}</div>
+        <div><strong>Ctrl No.:</strong> {{ doc.ctrl_no || '-' }}</div>
       </div>
     </div>
 
@@ -83,7 +83,7 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 
 onMounted(async () => {
   try {
-    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-GCU-05`, {
+    const res = await axios.get(`${API_BASE}/document-settings/QF-OSS-01`, {
       headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
     });
     doc.value = res.data || {};

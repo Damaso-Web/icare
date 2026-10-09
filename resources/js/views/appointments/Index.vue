@@ -237,8 +237,39 @@
             <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
             <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
             <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
+            <button v-if="canSendCallSlip(detailTarget)" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="callSlipPrompt = true">Send Call Slip</button>
             <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
           </div>
+
+          <!-- Send Call Slip confirmation (student has not picked a schedule yet) -->
+          <div v-if="callSlipPrompt && canSendCallSlip(detailTarget)" style="border:1px solid var(--amber);background:var(--amber-lt);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+            <div style="font-size:12.5px;color:var(--ink);line-height:1.5"><strong>Send Call Slip?</strong> This asks the Dean's Secretary to follow up with the student, who has not picked a schedule yet. It does not mark a no-show.</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p ibtn-sm" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="sendCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes, Send Call Slip' }}</button>
+              <button class="ibtn ibtn-o ibtn-sm" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="callSlipPrompt = false">Cancel</button>
+            </div>
+          </div>
+
+          <!-- GCU Head only: manually override the appointment's status -->
+          <div v-if="auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" style="border-top:1px solid var(--cloud);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Override Status (GCU Head)</div>
+            <div style="display:grid;grid-template-columns:1fr;gap:8px">
+              <select v-model="overrideForm.target" class="ifse">
+                <option value="">Change status to...</option>
+                <option value="awaiting_student">Waiting for Student to Pick a Schedule</option>
+                <option value="pending_confirmation">Pending (Awaiting Confirmation)</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="completed">Attended / Completed</option>
+                <option value="no_show">No-Show</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <input v-model="overrideForm.reason" class="ifi" maxlength="255" placeholder="Reason for the change (required)" />
+            </div>
+            <button class="ibtn ibtn-o ibtn-sm" style="justify-content:center" :disabled="!overrideForm.target || overrideForm.reason.trim().length < 5 || overridingStatus" @click="applyOverride">
+              {{ overridingStatus ? 'Updating...' : 'Apply Status Change' }}
+            </button>
+          </div>
+
           <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToReferral(detailTarget)">View Case File</button>
         </div>
       </div>
@@ -378,8 +409,10 @@ import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
 
 const toast  = inject('toast');
+const auth   = useAuthStore();
 const router = useRouter();
 const route  = useRoute();
 
@@ -425,6 +458,57 @@ const cancelTarget    = ref(null);
 const cancelForm      = ref({ cancellation_reason: '' });
 
 const detailTarget = ref(null);
+
+// Reset the inline panels whenever a different appointment is opened.
+watch(detailTarget, () => {
+  callSlipPrompt.value = false;
+  overrideForm.value = { target: '', reason: '' };
+});
+
+// ---- Send Call Slip (student has not picked a schedule yet) ----
+const callSlipPrompt = ref(false);
+const sendingCallSlip = ref(false);
+function canSendCallSlip(a) {
+  return !!a && a.status === 'pending' && a.request_status === 'awaiting_student' && !a.no_show_escalated;
+}
+async function sendCallSlip() {
+  if (!detailTarget.value || sendingCallSlip.value) return;
+  sendingCallSlip.value = true;
+  try {
+    const res = await appointmentAPI.sendCallSlipUnscheduled(detailTarget.value.id);
+    toast?.success(res.data.message || 'Call Slip sent.');
+    callSlipPrompt.value = false;
+    detailTarget.value = null;
+    fetchAppointments(pagination.value?.current_page || 1, true);
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to send the Call Slip.');
+  } finally {
+    sendingCallSlip.value = false;
+  }
+}
+
+// ---- GCU Head: manual status override ----
+const overrideForm = ref({ target: '', reason: '' });
+const overridingStatus = ref(false);
+async function applyOverride() {
+  if (!detailTarget.value || overridingStatus.value) return;
+  overridingStatus.value = true;
+  try {
+    const res = await appointmentAPI.overrideStatus(detailTarget.value.id, {
+      target: overrideForm.value.target,
+      reason: overrideForm.value.reason.trim(),
+    });
+    toast?.success(res.data.message || 'Appointment status updated.');
+    detailTarget.value = null;
+    fetchAppointments(pagination.value?.current_page || 1, true);
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to update the status.');
+  } finally {
+    overridingStatus.value = false;
+  }
+}
 
 function openApptDetail(a) {
   detailTarget.value = a;
