@@ -15,30 +15,30 @@
       </div>
     </div>
 
+    <!-- Filter Bar: above both columns, so the list and the calendar start level -->
+    <div class="filter-bar">
+      <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
+        <option value="">All Units</option>
+        <option value="GCU">GCU</option>
+        <option value="SDU">SDU</option>
+        <option value="TMDU">TMDU</option>
+      </select>
+      <select v-model="filters.status" class="fsm" @change="fetchAppointments">
+        <option value="">All</option>
+        <option value="pending">Pending</option>
+        <option value="confirmed">Confirmed</option>
+        <option value="no_show">No Show</option>
+        <option value="rescheduled">Rescheduled</option>
+        <option value="cancelled">Cancelled</option>
+        <option value="completed">Completed</option>
+      </select>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+    </div>
+
     <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
 
       <!-- Left: Appointments List -->
       <div style="display:flex;flex-direction:column;gap:16px">
-
-        <!-- Filter Bar -->
-        <div class="filter-bar">
-          <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
-            <option value="">All Units</option>
-            <option value="GCU">GCU</option>
-            <option value="SDU">SDU</option>
-            <option value="TMDU">TMDU</option>
-          </select>
-          <select v-model="filters.status" class="fsm" @change="fetchAppointments">
-            <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="no_show">No Show</option>
-            <option value="rescheduled">Rescheduled</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="completed">Completed</option>
-          </select>
-          <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-        </div>
 
         <!-- Appointments -->
         <div class="icard">
