@@ -74,7 +74,7 @@
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Counselor</div>
-              <div style="font-size:13px;color:var(--ink)">{{ caseFile.counselor?.name || '—' }}</div>
+              <div style="font-size:13px;color:var(--ink)">{{ caseFile.counselor?.name || '-' }}</div>
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Last Session</div>
@@ -127,7 +127,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Student ID</div>
-                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.student?.student_id || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink);font-family:var(--mono)">{{ caseFile.student?.student_id || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Full Name</div>
@@ -135,23 +135,23 @@
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.college || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.college || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.program || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.program || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Level</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.year_level || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.year_level || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Section</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.section || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.section || '-' }}</div>
                   </div>
                   <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Sex</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.sex || '—' }}</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ caseFile.student?.sex || '-' }}</div>
                 </div>
                 </div>
               </div>
@@ -165,11 +165,11 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Name</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.latest_referral?.referrer_name || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ caseFile.latest_referral?.referrer_name || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Role</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referrer_role) || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referrer_role) || '-' }}</div>
                   </div>
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
@@ -191,7 +191,7 @@
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
                   <div>
                     <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
-                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referral_type) || '—' }}</div>
+                    <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(caseFile.latest_referral?.referral_type) || '-' }}</div>
                   </div>
                   <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral Source</div>
@@ -200,11 +200,11 @@
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
-                  <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.latest_referral?.nature_of_concern || '—' }}</div>
+                  <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ caseFile.latest_referral?.nature_of_concern || '-' }}</div>
                 </div>
               </div>
 
-              <!-- Interventions — dated, authored list (B87, B92) -->
+              <!-- Interventions - dated, authored list (B87, B92) -->
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:8px">
                   Interventions
@@ -298,7 +298,7 @@
             </div>
           </div>
 
-          <!-- Session Notes — GCU only -->
+          <!-- Session Notes - GCU only -->
           <div class="icard" v-if="isGCU">
             <div class="icard-header">
               <span class="icard-title">Session Notes</span>
@@ -315,7 +315,7 @@
               <div v-for="note in sessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">
-                    Session #{{ note.session_number }} — {{ toTitleCase(note.session_type) }}
+                    Session #{{ note.session_number }} - {{ toTitleCase(note.session_type) }}
                   </div>
                   <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
                 </div>
@@ -468,7 +468,7 @@
                   <label class="ifl">Related Referral (optional)</label>
                   <select v-model="interventionForm.referral_id" class="ifse">
                     <option value="">Not linked to a specific referral</option>
-                    <option v-for="r in caseFile.referrals" :key="r.id" :value="r.id">{{ r.referral_code }} — {{ toTitleCase(r.referral_type) }}</option>
+                    <option v-for="r in caseFile.referrals" :key="r.id" :value="r.id">{{ r.referral_code }} - {{ toTitleCase(r.referral_type) }}</option>
                   </select>
                 </div>
                 <div v-if="interventionShowsExcused">
@@ -622,7 +622,7 @@
                   {{ step.label }}{{ referralStatusOrder.indexOf(step.key) < referralStatusOrder.indexOf(caseFile.latest_referral?.status) ? ' (already completed)' : !isReferralStatusSelectable(step.key) ? ' (complete previous step first)' : '' }}
                 </option>
               </select>
-              <div style="font-size:11px;color:var(--stone)">Steps must be completed in order — you can only move to the next step in the pipeline.</div>
+              <div style="font-size:11px;color:var(--stone)">Steps must be completed in order - you can only move to the next step in the pipeline.</div>
               <button
                 class="ibtn ibtn-p"
                 style="width:100%;justify-content:center"
@@ -1068,7 +1068,7 @@ async function updateStatus() {
   }
 }
 
-// Update Referral Status — moved here from the Referral Queue page, since
+// Update Referral Status - moved here from the Referral Queue page, since
 // this is where day-to-day case work happens. Kept separate from the case's
 // own status (above) so the two don't collide.
 const showReferralStatusModal = ref(false);
@@ -1108,7 +1108,7 @@ async function updateReferralStatus() {
   }
 }
 
-// Document Code Header for the Referral Form card (QF-OSS-01) — read only
+// Document Code Header for the Referral Form card (QF-OSS-01) - read only
 // here. Revision No. / Effectivity / Ctrl No. are edited in Management by
 // admin, same as on the Referral Queue's detail page.
 const referralDoc = ref({});
@@ -1238,7 +1238,7 @@ function initials(first, last) {
 }
 
 function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : '—';
+  return date ? new Date(date).toLocaleDateString() : '-';
 }
 
 // Family/Siblings/Educational Attainment on the Student Information card
@@ -1292,7 +1292,7 @@ function formatReferralSource(source) {
     dean:    "Dean's Office",
     parent:  'Parent / Guardian',
   };
-  return labels[source] || source || '—';
+  return labels[source] || source || '-';
 }
 
 async function fetchCase() {

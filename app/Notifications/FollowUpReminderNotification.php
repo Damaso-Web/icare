@@ -32,7 +32,7 @@ class FollowUpReminderNotification extends Notification
             $mail->line('**Notes:** ' . $this->case->follow_up_notes);
         }
 
-        return $mail->salutation('iCARE — BSU Office of Student Services');
+        return $mail->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

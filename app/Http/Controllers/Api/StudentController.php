@@ -562,7 +562,7 @@ class StudentController extends Controller
                 continue;
             }
 
-            // New row — build the insert payload
+            // New row - build the insert payload
             // Password uses student_id as the temp; hash at cost 4 for bulk speed
             $inserts[] = array_merge($payload, [
                 'student_id'            => $rowData['student_id'],
@@ -575,7 +575,7 @@ class StudentController extends Controller
             $created++;
         }
 
-        // Bulk insert — one query per 500 rows
+        // Bulk insert - one query per 500 rows
         if (!empty($inserts)) {
             DB::transaction(function () use ($inserts) {
                 foreach (array_chunk($inserts, 500) as $chunk) {

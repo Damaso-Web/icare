@@ -687,7 +687,7 @@ const editChanges = computed(() => {
   const after = editForm.value || {};
   return Object.keys(EDIT_LABELS)
     .filter(k => String(before[k] ?? '') !== String(after[k] ?? ''))
-    .map(k => ({ label: EDIT_LABELS[k], before: before[k] || '—', after: after[k] || '—' }));
+    .map(k => ({ label: EDIT_LABELS[k], before: before[k] || '-', after: after[k] || '-' }));
 });
 
 function openEdit() {

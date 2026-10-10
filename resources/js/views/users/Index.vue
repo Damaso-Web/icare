@@ -487,7 +487,7 @@
                       <div v-for="(r, i) in item.reasons" :key="i" style="color:var(--red)">• {{ r }}</div>
                     </template>
                     <span v-else-if="item.is_duplicate" style="color:var(--amber)">Email already exists</span>
-                    <span v-else style="color:var(--fog)">—</span>
+                    <span v-else style="color:var(--fog)">-</span>
                   </td>
                 </tr>
               </tbody>

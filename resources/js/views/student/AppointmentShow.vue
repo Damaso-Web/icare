@@ -162,7 +162,7 @@
         </div>
       </div>
 
-      <!-- Reschedule / Cancel — only when confirmed or no-show -->
+      <!-- Reschedule / Cancel - only when confirmed or no-show -->
       <div v-if="showActions" class="icard">
         <div class="icard-body" style="display:flex;flex-direction:column;gap:12px">
           <div v-if="rescheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px">{{ rescheduleError }}</div>
@@ -228,7 +228,7 @@
           <div>
             <label class="ifl">Reason for Rescheduling</label>
             <textarea v-model="rescheduleReason" class="ifi" rows="3" maxlength="1000" placeholder="Please tell us why you need to reschedule..."></textarea>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ rescheduleReason.length }}/1000 characters. This is a preference, not a confirmed booking — staff will confirm the actual new time.</div>
+            <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ rescheduleReason.length }}/1000 characters. This is a preference, not a confirmed booking - staff will confirm the actual new time.</div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!canSubmitReschedule" @click="requestReschedule">
@@ -389,7 +389,7 @@ async function fetchMonthAvailability() {
   try {
     const res = await axios.get(`${API_BASE}/schedule/${appointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
     // The backend response has been seen marking past dates as still
-    // "available" — this always forces any date before today back to
+    // "available" - this always forces any date before today back to
     // "past" client-side, regardless of what the API returned (B232).
     const todayStr = new Date().toISOString().split('T')[0];
     calDays.value = (res.data.days || []).map(day =>

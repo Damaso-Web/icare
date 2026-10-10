@@ -40,7 +40,7 @@ class ManagementFormOptionController extends Controller
         return response()->json(ReferralFormOption::create($validated), 201);
     }
 
-    // value is intentionally not editable — it's the stored value on existing
+    // value is intentionally not editable - it's the stored value on existing
     // referral records, so renaming it would silently reinterpret history.
     // Only the display label and ordering can change; retire+recreate for a real rename.
     public function update(Request $request, ReferralFormOption $formOption)

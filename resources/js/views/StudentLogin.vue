@@ -16,7 +16,7 @@
       >
         <h3>Data Privacy Notice</h3>
         <p>
-          Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS)—including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and Materials Development Unit (TMDU) at the La Trinidad Campus—is committed to keeping all sensitive personal information collected from students with the utmost confidentiality.
+          Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS), including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and Materials Development Unit (TMDU) at the La Trinidad Campus, is committed to keeping all sensitive personal information collected from students with the utmost confidentiality.
         </p>
         <p>
           Personal information is collected, accessed, used, and disclosed strictly on a "need to know basis" and only as reasonably required. Confidential information will not be communicated within or outside the University except to authorized personnel. Furthermore, only authorized hardware, software, and equipment shall be used in accessing, processing, and transmitting your personal data.

@@ -220,13 +220,13 @@
                 <span v-if="parReleaseAppointment?.on_hold_at"> The release is currently on hold.</span>
               </div>
               <div v-if="parReleaseAppointment?.status === 'no_show'" style="background:var(--red-lt);border:1px solid #f0a8a8;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
-                ⚠ PAR copy held — the student did not come for the scheduled face-to-face release on {{ formatDate(parReleaseAppointment.appointment_date) }}.
+                ⚠ PAR copy held - the student did not come for the scheduled face-to-face release on {{ formatDate(parReleaseAppointment.appointment_date) }}.
               </div>
               <div v-else-if="parReleased" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--moss)">
                 ✓ PAR copy released to the student in person on {{ formatDate(parReleaseAppointment.appointment_date) }}.
               </div>
               <div v-else-if="parReleaseAppointment" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
-                PAR release scheduled for {{ formatDate(parReleaseAppointment.appointment_date) }} — not yet marked attended or no-show.
+                PAR release scheduled for {{ formatDate(parReleaseAppointment.appointment_date) }} - not yet marked attended or no-show.
               </div>
               <div>
                 <label class="ifl">PAR / Result File</label>

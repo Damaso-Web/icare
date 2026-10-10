@@ -110,7 +110,7 @@ class ManagementDataSeeder extends Seeder
         }
 
         // NOTE: source departments.js keyed Nursing as "College of Nursing (CON)",
-        // which never matched colleges.js's "College of Nursing (CN)" — the Nursing
+        // which never matched colleges.js's "College of Nursing (CN)" - the Nursing
         // department dropdown has been silently empty. Fixed here.
         $departments = [
             'College of Agriculture (CA)' => ['Agronomy', 'Animal Science', 'Agricultural Engineering'],

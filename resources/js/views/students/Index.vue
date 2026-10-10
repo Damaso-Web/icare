@@ -897,7 +897,7 @@
                       <div v-for="(r, i) in item.reasons" :key="i" style="color:var(--red)">• {{ r }}</div>
                     </template>
                     <span v-else-if="item.is_duplicate" style="color:var(--amber)">Student ID already exists</span>
-                    <span v-else style="color:var(--fog)">—</span>
+                    <span v-else style="color:var(--fog)">-</span>
                   </td>
                 </tr>
               </tbody>
@@ -1031,7 +1031,7 @@
             You are about to deactivate <strong>{{ studentToGraduate?.first_name }} {{ studentToGraduate?.last_name }}</strong>'s account.
           </div>
           <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
-            <div><strong>Reason:</strong> {{ graduateReasonLabel || '—' }}</div>
+            <div><strong>Reason:</strong> {{ graduateReasonLabel || '-' }}</div>
             <div v-if="graduateReason === 'other' && graduateNotes" style="margin-top:4px"><strong>Details:</strong> {{ graduateNotes }}</div>
           </div>
           <div v-if="deactivating" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);background:var(--foam);border-radius:var(--r-sm);padding:10px 14px">
@@ -1230,7 +1230,7 @@ const editChanges = computed(() => {
       const a = before[key] ?? '';
       const b = after[key]  ?? '';
       if (String(a) !== String(b)) {
-        out.push({ label: labels[key], before: a || '—', after: b || '—' });
+        out.push({ label: labels[key], before: a || '-', after: b || '-' });
       }
     }
     return out;

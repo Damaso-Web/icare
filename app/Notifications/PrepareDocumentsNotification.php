@@ -30,7 +30,7 @@ class PrepareDocumentsNotification extends Notification
             $mail->line('• ' . $doc);
         }
 
-        return $mail->salutation('iCARE — BSU Office of Student Services');
+        return $mail->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

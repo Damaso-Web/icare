@@ -28,7 +28,7 @@ class ReferralSubmittedToCollegeNotification extends Notification
             ->line('**Student:** ' . $this->referral->student->first_name . ' ' . $this->referral->student->last_name)
             ->line('**Referral Type:** ' . str_replace('_', ' ', ucfirst($this->referral->referral_type)))
             ->line('**Urgency:** ' . ucfirst($this->referral->urgency_level))
-            ->salutation('iCARE — BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

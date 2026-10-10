@@ -28,7 +28,7 @@ class TesterAssignedNotification extends Notification
             ->line('You have been assigned as the tester for a psychological testing record.')
             ->line('**Student:** ' . $this->testingRecord->student->first_name . ' ' . $this->testingRecord->student->last_name)
             ->line('You can now proceed with this record\'s testing workflow.')
-            ->salutation('iCARE — BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array

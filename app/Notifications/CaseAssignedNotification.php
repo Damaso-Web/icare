@@ -36,7 +36,7 @@ class CaseAssignedNotification extends Notification
             $mail->line('**Notes:** ' . $this->notes);
         }
 
-        return $mail->salutation('iCARE — BSU Office of Student Services');
+        return $mail->salutation('iCARE - BSU Office of Student Services');
     }
 
     public function toArray(object $notifiable): array
