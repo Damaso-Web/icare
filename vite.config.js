@@ -53,12 +53,13 @@ export default defineConfig({
                     console.log('✓ Templates copied to build output');
                 }
 
-                // Copy the logo into the build output so Netlify can serve it too
-                const logoSrc = './public/icare-logo.png';
-                if (fs.existsSync(logoSrc)) {
-                    fs.copyFileSync(logoSrc, './public/build/icare-logo.png');
-                    console.log('✓ Logo copied to build output');
+                // Copy the logos into the build output so Netlify can serve them too
+                for (const logo of ['icare-logo.png', 'bsu-logo.jpg', 'oss-logo.jpg']) {
+                    if (fs.existsSync(`./public/${logo}`)) {
+                        fs.copyFileSync(`./public/${logo}`, `./public/build/${logo}`);
+                    }
                 }
+                console.log('✓ Logos copied to build output');
 
                 console.log('✓ index.html and _redirects generated successfully');
             }
