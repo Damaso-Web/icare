@@ -1,20 +1,40 @@
 <template>
-  <div class="login-wrap">
-    <div class="login-card">
+  <div class="login-wrap auth-page">
+    <div class="login-card" :style="{ maxWidth: agreed ? '400px' : '540px' }">
 
-      <button @click="router.push({ name: 'login-choice' })" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
+      <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
       <!-- Logo -->
-      <div style="text-align:center;margin-bottom:28px">
-        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
-          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
-        </div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
-        <div style="font-size:12px;color:var(--fog);margin-top:2px">BSU · Office of Student Services</div>
-      </div>
+      <AuthBrand subtitle="BSU Personnel Sign In" />
 
+      <!-- Confidentiality agreement - shown every time, before the sign-in form -->
+      <ConsentGate
+        v-if="!agreed"
+        checkbox-label="I acknowledge my data protection responsibilities and agree to the Confidentiality Agreement."
+        @accept="agreed = true"
+        @decline="router.push({ name: 'login-choice' })"
+      >
+        <h3>Personnel Confidentiality and Data Handling Agreement</h3>
+        <p>
+          Pursuant to the Data Privacy Act of 2012 and the BSU Data Privacy Policy, authorized personnel are legally obligated to maintain the absolute confidentiality of all student records, referrals, and case files accessed through the iCARE system.
+        </p>
+        <p>
+          As an authorized user (Admin, GCU, SDU, TMDU, Faculty, or Dean's Secretary), you acknowledge that the information within this system is highly sensitive.
+        </p>
+        <p>By proceeding, you formally agree to the following terms:</p>
+        <ol>
+          <li><strong>Authorized Access Only:</strong> You will access, process, and disclose student information strictly on a "need to know" basis to facilitate official student support, academic, or disciplinary functions.</li>
+          <li><strong>Strict Non-Disclosure:</strong> You will not share, download, verbally communicate, or transmit confidential student profiles, session notes, or disciplinary records to any unauthorized individuals within or outside the University.</li>
+          <li><strong>System Security:</strong> You will secure your account credentials, ensure you log out of shared devices, and only access the iCARE platform using authorized institutional or secured personal hardware.</li>
+        </ol>
+        <p>
+          Violations of this confidentiality agreement may result in the revocation of system access and subject the user to university disciplinary action.
+        </p>
+      </ConsentGate>
+
+      <template v-else>
       <!-- Error -->
       <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:11px 14px;border-radius:var(--r-sm);font-size:13px;margin-bottom:16px">
         {{ error }}
@@ -80,7 +100,10 @@
           </div>
           <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
         </div>
-        <div style="text-align:right;margin:-10px 0 16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-10px 0 16px">
+          <label class="remember" title="Fills in your email next time and keeps you signed in after closing the browser. Leave it off on a shared computer.">
+            <input v-model="rememberMe" type="checkbox" /> Remember me
+          </label>
           <router-link :to="{ name: 'forgot-password', query: { type: 'staff' } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
         </div>
         <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
@@ -88,6 +111,7 @@
           {{ loading ? 'Signing in...' : 'Sign In' }}
         </button>
       </form>
+      </template>
 
       <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
         iCARE - Integrated Case Management and Referral System<br>
@@ -99,14 +123,29 @@
 </template>
 
 <script setup>
+import AuthBrand from '../components/AuthBrand.vue';
+import ConsentGate from '../components/ConsentGate.vue';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { applyRememberMe, rememberedId } from '../utils/session';
 
 const router = useRouter();
 const auth   = useAuthStore();
 
-const form = ref({ email: '', password: '' });
+// The Confidentiality Agreement is agreed to afresh on every visit to this page.
+const agreed = ref(false);
+function goBack() {
+  if (agreed.value && !otpToken.value) {
+    agreed.value = false;
+  } else {
+    router.push({ name: 'login-choice' });
+  }
+}
+
+// An email remembered on this browser is filled in, with the box already ticked.
+const form = ref({ email: rememberedId('staff'), password: '' });
+const rememberMe = ref(!!rememberedId('staff'));
 const error       = ref('');
 const loading     = ref(false);
 const showPassword = ref(false);
@@ -128,6 +167,7 @@ async function handleLogin() {
       otpToken.value  = r.otpToken;
       emailHint.value = r.emailHint;
     } else {
+      applyRememberMe('staff', rememberMe.value, form.value.email);
       router.push({ name: 'dashboard' });
     }
   } catch (e) {
@@ -144,6 +184,7 @@ async function handleVerify() {
   loading.value = true;
   try {
     await auth.verifyOtp(otpToken.value, otp.value);
+    applyRememberMe('staff', rememberMe.value, form.value.email);
     router.push({ name: 'dashboard' });
   } catch (e) {
     error.value = e.response?.status === 429
@@ -174,5 +215,6 @@ async function handleVerify() {
   padding: 36px 32px;
   width: 100%;
   max-width: 400px;
+  transition: max-width .2s;
 }
 </style>

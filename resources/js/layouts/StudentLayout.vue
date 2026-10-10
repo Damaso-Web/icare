@@ -58,7 +58,11 @@
           <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
           <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
         </div>
-        <div style="display:flex;align-items:center;gap:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div v-if="sealBsu || sealOss" class="tb-seals">
+            <img v-show="sealBsu" class="seal" :src="'/bsu-logo.png'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
+            <img v-show="sealOss" class="seal" :src="'/oss-logo.png'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
+          </div>
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
             <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block">
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -121,6 +125,9 @@ const router = useRouter();
 
 // Phone menu: closed by default, and closes again after choosing a page.
 const menuOpen = ref(false);
+// The two seals in the top bar are hidden if a file is missing.
+const sealBsu = ref(true);
+const sealOss = ref(true);
 watch(() => route.fullPath, () => { menuOpen.value = false; });
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
 

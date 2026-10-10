@@ -1,8 +1,21 @@
 <template>
   <div class="fade-up">
-    <div class="ph" style="margin-bottom:20px">
-      <h1>Welcome, {{ student.first_name }}</h1>
-      <p>{{ student.student_id }} · {{ student.college }}</p>
+    <div class="hero">
+      <div class="hero-row">
+        <div>
+          <div class="hero-kicker">Student Portal</div>
+          <h1>Welcome, {{ student.first_name }}</h1>
+          <p>Your appointments, referrals and testing with the Office of Student Services, in one place.</p>
+          <div class="hero-chips">
+            <span class="hero-chip">{{ student.student_id }}</span>
+            <span v-if="student.college" class="hero-chip">{{ student.college }}</span>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <router-link :to="{ name: 'student-appointments' }" class="hero-btn gold"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>My Appointments</router-link>
+          <router-link :to="{ name: 'student-referrals' }" class="hero-btn"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>My Referrals</router-link>
+        </div>
+      </div>
     </div>
 
     <div v-if="student.must_change_password" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">

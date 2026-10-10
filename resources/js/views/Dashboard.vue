@@ -1,9 +1,23 @@
 <template>
   <div class="fade-up">
     <!-- Page Header -->
-    <div class="ph" style="margin-bottom:20px">
-      <h1>{{ greeting }}, {{ firstName }}!</h1>
-      <p>Here's what needs your attention today.</p>
+    <div class="hero">
+      <div class="hero-row">
+        <div>
+          <div class="hero-kicker">{{ roleTitle }}</div>
+          <h1>{{ greeting }}, {{ firstName }}!</h1>
+          <p>Here's what needs your attention today.</p>
+          <div class="hero-chips">
+            <span class="hero-chip"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>{{ todayLabel }}</span>
+            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
+          </div>
+        </div>
+        <div class="hero-actions">
+          <button v-for="(a, i) in quickActions" :key="a.name" type="button" class="hero-btn" :class="{ gold: i === 0 }" @click="router.push({ name: a.name })">
+            <svg viewBox="0 0 24 24" v-html="a.icon"></svg>{{ a.label }}
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Stat Cards -->
@@ -50,14 +64,14 @@
                   {{ r.student?.first_name }} {{ r.student?.last_name }}
                   <span class="qid">{{ r.student?.student_id }}</span>
                 </div>
-                <div class="qmeta">{{ r.referral_type?.replace(/_/g, ' ') }} · {{ r.referrer_name }}</div>
+                <div class="qmeta">{{ toTitleCase(r.referral_type) }} · {{ r.referrer_name }}</div>
                 <!-- Urgency badge/row-highlight removed - urgency_level is
                      never actually set by anyone (no form exposes it; it's
                      just the DB column default, or hardcoded 'medium' for
                      complaint-based referrals in ComplaintController), so
                      the "Medium" tag it always showed was meaningless. -->
                 <div class="qtags">
-                  <span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span>
+                  <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
                 </div>
               </div>
             </div>
@@ -80,7 +94,7 @@
                 {{ a.student?.first_name }} {{ a.student?.last_name }}
               </div>
               <div style="font-size:10px;color:var(--stone);margin-top:2px">
-                {{ a.appointment_type?.replace(/_/g, ' ') }} · {{ a.start_time }}
+                {{ toTitleCase(a.appointment_type) }} · {{ formatTime12(a.start_time) }}
               </div>
               <div style="font-size:9px;color:var(--sage);margin-top:3px;font-style:italic">
                 {{ a.staff?.name }}
@@ -172,8 +186,8 @@
                 <tr v-for="r in dashboard.recent_referrals" :key="r.id">
                   <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
                   <td>{{ r.student?.first_name }} {{ r.student?.last_name }}</td>
-                  <td>{{ r.referral_type?.replace(/_/g, ' ') }}</td>
-                  <td><span class="ibadge" :class="'ibadge-' + r.status">{{ r.status?.replace(/_/g, ' ') }}</span></td>
+                  <td>{{ toTitleCase(r.referral_type) }}</td>
+                  <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                   <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
                 </tr>
               </tbody>
@@ -230,7 +244,7 @@ import { ref, computed, onMounted, onUnmounted, inject } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
-import { toTitleCase } from '../utils/validators';
+import { toTitleCase, formatTime12 } from '../utils/validators';
 
 const auth      = useAuthStore();
 const router    = useRouter();
@@ -247,6 +261,40 @@ function goToReferral(c) {
 }
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
+
+// ---- Welcome banner ----
+const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+const ROLE_TITLES = {
+  admin: 'Admin · GCU Head', gcu_staff: 'Guidance and Counseling Unit', sdu_head: 'Student Discipline Unit',
+  tmdu_staff: 'Testing and Measurement Development Unit', faculty: 'Faculty', dean: 'Dean',
+  dept_chair: 'Department Chair', dean_secretary: "Dean's Secretary", system_admin: 'System Administrator',
+};
+const roleTitle = computed(() => ROLE_TITLES[auth.user?.role] || 'iCARE');
+
+// The two or three places each role goes most, one tap from the banner.
+const ICONS = {
+  plus:     '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  pulse:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  file:     '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  alert:    '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/>',
+  check:    '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>',
+  phone:    '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
+};
+const quickActions = computed(() => {
+  const refer = { name: 'referral-create', label: 'Refer a Student', icon: ICONS.plus };
+  switch (auth.user?.role) {
+    case 'admin':
+    case 'gcu_staff':      return [refer, { name: 'referrals', label: 'Referrals', icon: ICONS.pulse }, { name: 'appointments', label: 'Appointments', icon: ICONS.calendar }];
+    case 'sdu_head':       return [{ name: 'incident-reports', label: 'Incident Reports', icon: ICONS.file }, { name: 'complaints', label: 'Complaints', icon: ICONS.alert }, refer];
+    case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'Appointments', icon: ICONS.calendar }];
+    case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, refer];
+    case 'faculty':
+    case 'dean':
+    case 'dept_chair':     return [refer, { name: 'referrals', label: 'My Referrals', icon: ICONS.pulse }];
+    default:               return [];
+  }
+});
 
 const greeting = computed(() => {
   const hour = new Date().getHours();

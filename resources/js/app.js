@@ -5,6 +5,11 @@ import App from './App.vue';
 import router from './router';
 import './assets/app.css';
 import { watchMobileTables } from './utils/mobileTables';
+import { endSessionOnlySignIns } from './utils/session';
+
+// A sign-in made without "Remember me" ends when the browser is closed. This
+// has to run before the app (and its router guard) reads the saved sign-in.
+endSessionOnlySignIns();
 
 const app = createApp(App);
 const pinia = createPinia();

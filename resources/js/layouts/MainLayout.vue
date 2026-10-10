@@ -73,7 +73,12 @@
         <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
-          <span class="tb-email" style="font-size:12px;color:var(--stone)">{{ auth.user?.email }}</span>
+          <span class="tb-date">{{ todayLabel }}</span>
+          <!-- University and office seals (public/bsu-logo.png, public/oss-logo.png) -->
+          <div v-if="sealBsu || sealOss" class="tb-seals">
+            <img v-show="sealBsu" class="seal" :src="'/bsu-logo.png'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
+            <img v-show="sealOss" class="seal" :src="'/oss-logo.png'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
+          </div>
 
           <!-- Notification Bell -->
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
@@ -112,6 +117,14 @@
             </div>
           </div>
 
+          <!-- Who is signed in -->
+          <div class="tb-user" :title="auth.user?.email">
+            <div class="tb-user-av">{{ initials }}</div>
+            <div class="tb-user-txt">
+              <div class="tb-user-nm">{{ auth.user?.name }}</div>
+              <div class="tb-user-rl">{{ roleLabel }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -195,6 +208,11 @@ const menuOpen = ref(false);
 watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
+
+// Top bar: today's date, and the two seals (hidden if a file is missing).
+const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+const sealBsu = ref(true);
+const sealOss = ref(true);
 const notifications = ref([]);
 
 const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);

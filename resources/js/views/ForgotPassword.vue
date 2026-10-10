@@ -1,15 +1,11 @@
 <template>
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
+  <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div style="width:100%;max-width:400px">
       <button type="button" @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
-      <div style="text-align:center;margin-bottom:24px">
-        <img :src="'/icare-logo.png'" alt="iCARE" style="width:52px;height:52px;border-radius:14px;object-fit:cover;margin:0 auto 12px;display:block" />
-        <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
-        <div style="font-size:12px;color:var(--fog);margin-top:2px">{{ isStudent ? 'Student Portal' : 'BSU Personnel' }} · Forgot Password</div>
-      </div>
+      <AuthBrand :subtitle="(isStudent ? 'Student Portal' : 'BSU Personnel') + ' · Forgot Password'" />
 
       <div class="icard" style="padding:22px">
         <template v-if="!sent">
@@ -39,6 +35,7 @@
 </template>
 
 <script setup>
+import AuthBrand from '../components/AuthBrand.vue';
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';

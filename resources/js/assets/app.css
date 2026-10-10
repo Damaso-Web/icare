@@ -194,6 +194,162 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .sb-backdrop{display:none}
 .tabbar{display:none}
 
+/* ══════════════════════════════════════════════════════════════════════════
+   VISUAL REFRESH
+   Depth, colour and texture on top of the base styles above, so every page
+   of every role changes together. BSU green stays the identity; its gold is
+   the accent. Nothing here changes layout or behaviour.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --gold-lt:#fdf3cf;--gold-dk:#a67c0a;
+  --grad-forest:linear-gradient(135deg,#0a2114 0%,#12392a 52%,#1e6e43 100%);
+  --grad-moss:linear-gradient(135deg,#1e6e43 0%,#2e9458 100%);
+  --grad-gold:linear-gradient(90deg,#1e6e43 0%,#e8b422 100%);
+  --sh-card:0 1px 2px rgba(14,45,30,.05),0 10px 28px rgba(14,45,30,.07);
+}
+
+/* ── Page background: soft green and gold light instead of flat grey ── */
+.content-area,.stu-content{
+  background:
+    radial-gradient(1100px 480px at 100% -8%,rgba(46,148,88,.13),transparent 62%),
+    radial-gradient(820px 420px at -6% 104%,rgba(232,180,34,.10),transparent 60%),
+    linear-gradient(180deg,#eef5f0 0%,#e8f0eb 100%) !important;
+}
+
+/* The student pages scroll with the document, so their background must reach the bottom of the screen. */
+.stu-content{min-height:calc(100vh - 58px)}
+
+/* ── Sidebar ── */
+.sidebar,.stu-sidebar{background:linear-gradient(180deg,#081d12 0%,#0e2d1e 42%,#134029 100%) !important}
+.sidebar::after{background:
+  radial-gradient(ellipse 95% 34% at 50% 100%,rgba(46,148,88,.26) 0%,transparent 62%),
+  radial-gradient(ellipse 80% 22% at 0% 0%,rgba(232,180,34,.13) 0%,transparent 60%)}
+.sb-head{padding:18px 16px 16px;gap:11px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-mark{width:40px;height:40px;border-radius:11px;padding:4px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(232,180,34,.35)}
+.sb-brand{font-family:var(--serif);font-style:italic;font-size:22px;font-weight:400;line-height:1;letter-spacing:.3px}
+.sb-sub{font-size:9.5px;color:rgba(255,255,255,.5);letter-spacing:.9px;margin-top:4px}
+.sb-sec{color:rgba(255,255,255,.34);padding:16px 10px 6px}
+.nb{padding:10px 12px;color:rgba(255,255,255,.64);border-radius:10px;margin-bottom:2px}
+.nb:hover{background:rgba(255,255,255,.08);color:#fff}
+.nb.active{background:linear-gradient(90deg,rgba(90,184,122,.28),rgba(90,184,122,.06));color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(168,216,184,.14)}
+.nb.active::before{width:3px;height:22px;background:var(--gold);box-shadow:0 0 10px rgba(232,180,34,.6)}
+.nb.active svg{color:var(--gold)}
+.sb-foot{border-top:1px solid rgba(255,255,255,.08)}
+.u-row{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:9px 10px}
+.u-av{width:32px;height:32px;background:var(--gold);color:var(--forest);font-size:11.5px;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.u-rl{color:rgba(255,255,255,.52);font-size:10px}
+.logbtn{color:rgba(255,255,255,.45)}
+
+/* ── Top bar: a green-to-gold line under it ── */
+.topbar,.stu-topbar{border-bottom:none !important;box-shadow:0 1px 0 rgba(14,45,30,.06),0 6px 18px rgba(14,45,30,.05)}
+.topbar::after,.stu-topbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--moss) 0%,var(--gold) 46%,rgba(232,180,34,0) 100%);pointer-events:none}
+.breadcrumb-nav strong{font-weight:600}
+
+/* ── Page titles ── */
+.ph h1{font-size:30px;letter-spacing:.1px}
+.ph h1::after{content:'';display:block;width:46px;height:3px;margin-top:7px;border-radius:3px;background:var(--grad-gold)}
+.ph p{margin-top:7px;font-size:13.5px}
+
+/* ── Cards ── */
+.icard{border:1px solid rgba(14,45,30,.07);box-shadow:var(--sh-card)}
+.icard-header{position:relative;padding-left:22px;background:linear-gradient(180deg,#fcfefd 0%,#f3f8f5 100%);border-bottom:1px solid #e6eeea}
+.icard-header::before{content:'';position:absolute;left:0;top:11px;bottom:11px;width:4px;border-radius:0 4px 4px 0;background:linear-gradient(180deg,var(--moss),var(--sage))}
+.icard-title{font-size:14px;font-weight:700;color:var(--forest);letter-spacing:.1px}
+
+/* ── Summary tiles: each one picks up a colour ── */
+.stat-card{position:relative;overflow:hidden;--acc:#1e6e43;border:1px solid rgba(14,45,30,.07);box-shadow:var(--sh-card);background:linear-gradient(155deg,#fff 58%,color-mix(in srgb,var(--acc) 9%,#fff) 100%);padding:18px 18px 16px}
+.stat-card::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 45%,#fff))}
+.stat-card::after{content:'';position:absolute;right:-26px;bottom:-30px;width:104px;height:104px;border-radius:50%;background:var(--acc);opacity:.07;pointer-events:none}
+.stat-card:nth-child(6n+2){--acc:#c97020}
+.stat-card:nth-child(6n+3){--acc:#2a6fc9}
+.stat-card:nth-child(6n+4){--acc:#7c3aed}
+.stat-card:nth-child(6n+5){--acc:#b8860b}
+.stat-card:nth-child(6n+6){--acc:#0f8a8a}
+.stat-card:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(14,45,30,.06),0 16px 34px rgba(14,45,30,.11)}
+.stat-num{font-size:38px;color:var(--forest);margin-bottom:5px}
+.stat-label{font-size:12px;color:var(--slate);font-weight:600}
+.stat-icon{width:42px;height:42px;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(14,45,30,.05)}
+.stat-icon svg{width:19px;height:19px}
+
+/* ── Buttons ── */
+.ibtn{border-radius:10px;font-weight:600;transition:background .13s,box-shadow .13s,transform .1s}
+.ibtn:active{transform:translateY(1px)}
+.ibtn-p{background:var(--grad-moss);box-shadow:0 2px 6px rgba(30,110,67,.28),inset 0 1px 0 rgba(255,255,255,.16)}
+.ibtn-p:hover{background:linear-gradient(135deg,#164d30 0%,#1e6e43 100%);box-shadow:0 6px 16px rgba(30,110,67,.32)}
+.ibtn-o{box-shadow:0 1px 2px rgba(14,45,30,.05)}
+.ibtn-o:hover{box-shadow:0 3px 10px rgba(30,110,67,.12)}
+
+/* ── Tables ── */
+.itable thead th{padding:11px 16px;color:var(--slate);background:linear-gradient(180deg,#f2f7f4 0%,#e9f1ec 100%);border-bottom:2px solid var(--mint)}
+.itable tbody tr:nth-child(even){background:#fafcfb}
+.itable tbody tr:hover{background:var(--foam);box-shadow:inset 3px 0 0 var(--sage)}
+
+/* ── Status labels: a small dot of their own colour ── */
+[class*="ibadge-"]{text-transform:capitalize}
+[class*="ibadge-"],.ibadge[class*=" ir-"],.ibadge[class*=" unit-"]{gap:6px;padding:3px 10px 3px 8px}
+[class*="ibadge-"]::before,.ibadge[class*=" ir-"]::before,.ibadge[class*=" unit-"]::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8;flex-shrink:0}
+
+/* ── Forms, filters, avatars ── */
+.ifi,.ifse,.ifta{border-radius:10px;background:#fff}
+.fsm,.sin{border-radius:10px;box-shadow:0 1px 2px rgba(14,45,30,.04)}
+.iav,.qav{background:linear-gradient(135deg,#dff0e7 0%,#bfe2cd 100%);color:var(--pine);box-shadow:inset 0 0 0 1px rgba(30,110,67,.12)}
+
+/* ── Empty states: an illustration instead of bare text ── */
+.empty-state{padding:38px 20px 44px}
+.empty-state::before{content:'';display:block;width:66px;height:66px;margin:0 auto 14px;border-radius:50%;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231e6e43' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='22 12 16 12 14 15 10 15 8 12 2 12'/%3E%3Cpath d='M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'/%3E%3C/svg%3E") center/30px no-repeat,
+    linear-gradient(135deg,#e3f2ea,#f6efd2)}
+.empty-state h3{font-size:15px;font-weight:600;color:var(--slate);margin-bottom:5px}
+.empty-state p{font-size:12.5px;color:var(--stone)}
+
+/* ── Scrollbars ── */
+.content-area::-webkit-scrollbar{width:8px}
+.content-area::-webkit-scrollbar-thumb{background:#c5d3ca;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+
+/* ── Dashboard welcome banner ── */
+.hero{position:relative;overflow:hidden;border-radius:20px;padding:24px 28px;margin-bottom:20px;color:#fff;background:var(--grad-forest);box-shadow:0 14px 34px rgba(14,45,30,.22)}
+.hero::before{content:'';position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(232,180,34,.30),rgba(232,180,34,0) 68%);pointer-events:none}
+.hero::after{content:'';position:absolute;right:120px;bottom:-130px;width:260px;height:260px;border-radius:50%;border:34px solid rgba(255,255,255,.045);pointer-events:none}
+.hero-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.hero-kicker{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
+.hero-kicker::before{content:'';width:18px;height:2px;border-radius:2px;background:var(--gold)}
+.hero h1{font-family:var(--serif);font-style:italic;font-weight:400;font-size:34px;line-height:1.12;color:#fff;margin:0}
+.hero p{margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.74);max-width:560px}
+.hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.hero-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.15)}
+.hero-chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.hero-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hero-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,transform .1s}
+.hero-btn:hover{background:rgba(255,255,255,.2)}
+.hero-btn.gold{background:var(--gold);border-color:var(--gold);color:var(--forest);box-shadow:0 6px 16px rgba(232,180,34,.3)}
+.hero-btn.gold:hover{background:#f2c33a}
+.hero-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+/* ── Sign-in pages: green and gold shapes in the corners, a fine dotted texture ── */
+.auth-page{position:relative;background:
+    radial-gradient(circle at 0% 100%,#12392a 0,#12392a 21%,transparent 21.2%),
+    radial-gradient(circle at 0% 100%,rgba(30,110,67,.30) 0,rgba(30,110,67,.30) 30%,transparent 30.2%),
+    radial-gradient(circle at 100% 0%,#e8b422 0,#e8b422 13%,transparent 13.2%),
+    radial-gradient(circle at 100% 0%,rgba(232,180,34,.26) 0,rgba(232,180,34,.26) 22%,transparent 22.2%),
+    radial-gradient(rgba(30,110,67,.11) 1px,transparent 1.6px) 0 0/22px 22px,
+    linear-gradient(160deg,#f5faf7 0%,#e3efe8 100%) !important}
+.auth-page>*{position:relative;z-index:1}
+
+/* "Remember me" on the sign-in forms */
+.remember{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--slate);cursor:pointer;user-select:none}
+.remember input{width:15px;height:15px;accent-color:var(--moss);cursor:pointer}
+
+/* ── University and office seals ── */
+.seal{object-fit:contain;flex-shrink:0;background:#fff;border-radius:50%}
+.tb-seals{display:flex;align-items:center;gap:8px;padding-right:12px;margin-right:4px;border-right:1px solid var(--cloud)}
+.tb-seals .seal{width:32px;height:32px;box-shadow:0 1px 4px rgba(14,45,30,.18)}
+.tb-date{font-size:12px;color:var(--stone);white-space:nowrap}
+.tb-user{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:22px;background:var(--foam);border:1px solid #e1ece6}
+.tb-user-av{width:28px;height:28px;border-radius:50%;background:var(--grad-moss);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700}
+.tb-user-nm{font-size:12px;font-weight:600;color:var(--ink);line-height:1.15;white-space:nowrap}
+.tb-user-rl{font-size:10px;color:var(--stone);line-height:1.15;white-space:nowrap}
+
 @media (max-width:860px){
   /* The menu becomes a panel that slides in from the left. */
   .menu-btn{display:inline-flex}
@@ -280,6 +436,16 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .itable.cards tbody td>div[style*="justify-content:flex-end"]{flex-wrap:wrap}
   /* No sideways scroll (or its edge shadows) once a table is cards. */
   .ts:has(>.itable.cards){background:none;overflow-x:visible}
+
+  /* ---------- Refreshed shell on a phone ---------- */
+  .tb-date,.tb-user-txt,.tb-user{display:none}
+  .tb-seals{padding-right:8px;margin-right:0;gap:6px;border-right:none}
+  .tb-seals .seal{width:28px;height:28px}
+  .hero{padding:18px 18px 20px;border-radius:16px}
+  .hero h1{font-size:26px}
+  .hero-actions{width:100%}
+  .hero-btn{flex:1 1 auto;justify-content:center}
+  .ph h1{font-size:24px !important}
 
   /* ---------- Small comforts ---------- */
   .filter-bar{gap:8px}

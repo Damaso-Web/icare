@@ -1,37 +1,35 @@
 <template>
-  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
+  <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div style="background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:36px 32px;width:100%" :style="{ maxWidth: consentGiven ? '400px' : '520px' }">
       <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
-      <div style="text-align:center;margin-bottom:28px">
-        <div style="display:inline-block;background:#fff;border-radius:var(--r-lg);padding:9px;border:1px solid rgba(0,0,0,.05);box-shadow:var(--sh-sm);margin-bottom:12px">
-          <img :src="'/icare-logo.png'" alt="iCARE" style="width:60px;height:60px;object-fit:contain;display:block" />
-        </div>
-        <div style="font-family:var(--serif);font-style:italic;font-size:22px;color:var(--forest)">iCARE</div>
-        <div style="font-size:12px;color:var(--fog);margin-top:2px">Student Portal · BSU OSS</div>
-      </div>
+      <AuthBrand subtitle="Student Portal" />
 
       <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
-      <div v-if="!consentGiven">
-        <div style="max-height:42vh;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:14px 16px;margin-bottom:16px">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Confidentiality Notice</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.7;margin-bottom:16px">
-            Pursuant to the Data Privacy Act of 2012 and its Implementing Rules and Regulations (IRR) and the BSU Data Privacy Policy, personnel from the OSS-SDS-Student Discipline Unit (SDU) - La Trinidad Campus are committed to keep with utmost confidentiality all sensitive personal information collected from students. Personal Information are collected, accessed, used, and disclosed on a "need to know basis" and only as reasonably required. Confidential information either within or outside the University will not be communicated except to persons authorized to receive such information. Authorized hardware, software, or other authorized equipment shall be used only in accessing, processing, and transmitting such personal information.
-          </div>
+      <ConsentGate
+        v-if="!consentGiven"
+        checkbox-label="I agree to the Data Privacy Notice and Consent Authorization."
+        @accept="acceptConsent"
+        @decline="declineConsent"
+      >
+        <h3>Data Privacy Notice</h3>
+        <p>
+          Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS)—including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and Materials Development Unit (TMDU) at the La Trinidad Campus—is committed to keeping all sensitive personal information collected from students with the utmost confidentiality.
+        </p>
+        <p>
+          Personal information is collected, accessed, used, and disclosed strictly on a "need to know basis" and only as reasonably required. Confidential information will not be communicated within or outside the University except to authorized personnel. Furthermore, only authorized hardware, software, and equipment shall be used in accessing, processing, and transmitting your personal data.
+        </p>
 
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin:6px 0 10px">Student's Agreement, Consent and Authorization</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.7">
-            I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Student Discipline Unit (SDU), OSS-SWS-Guidance Counseling Unit (GCU), an OSS-SWS-Testing and Materials Development Unit (TMDU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Student Discipline Unit (SDU), OSS-SWS-Guidance Counseling Unit (GCU), an OSS-SWS-Testing and Materials Development Unit (TMDU) necessary and relevant data pertaining to my personal data.
-          </div>
-
-        </div>
-        <div style="display:flex;gap:9px">
-          <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="acceptConsent">Accept</button>
-          <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="declineConsent">Decline</button>
-        </div>
-      </div>
+        <h3>Student's Agreement, Consent, and Authorization</h3>
+        <p>
+          I have read and understood the Data Privacy Notice of Benguet State University (BSU). I hereby grant my full consent to the OSS-SDU, OSS-GCU, and OSS-TMDU to collect, process, and utilize necessary and relevant personal data through this medium for official university support purposes.
+        </p>
+        <p>
+          I understand that the aforementioned units will abide by the data privacy policies, except in cases mandated by law or outside of institutional control. By proceeding, I authorize the secure handling of my information across these designated student support units.
+        </p>
+      </ConsentGate>
 
       <div v-else>
         <div>
@@ -87,7 +85,10 @@
               </div>
               <div v-if="capsLockOn" style="font-size:11px;color:var(--amber);margin-top:4px">⚠ Caps Lock is on</div>
             </div>
-            <div style="text-align:right;margin:-6px 0 14px">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-6px 0 14px">
+              <label class="remember" title="Fills in your Student ID next time and keeps you signed in after closing the browser. Leave it off on a shared computer.">
+                <input v-model="rememberMe" type="checkbox" /> Remember me
+              </label>
               <router-link :to="{ name: 'forgot-password', query: { type: 'student' } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
             </div>
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
@@ -106,9 +107,12 @@
 </template>
 
 <script setup>
+import AuthBrand from '../components/AuthBrand.vue';
+import ConsentGate from '../components/ConsentGate.vue';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { applyRememberMe, rememberedId } from '../utils/session';
 
 const router = useRouter();
 const loading = ref(false);
@@ -133,7 +137,9 @@ function goBack() {
   }
 }
 
-const form = ref({ student_id: '', password: '' });
+// A Student ID remembered on this browser is filled in, with the box already ticked.
+const form = ref({ student_id: rememberedId('student'), password: '' });
+const rememberMe = ref(!!rememberedId('student'));
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -144,6 +150,7 @@ async function handleLogin() {
     const res = await axios.post(`${API_BASE}/student/login`, { ...form.value, consent_accepted: true });
     localStorage.setItem('student_token', res.data.token);
     localStorage.setItem('student', JSON.stringify(res.data.student));
+    applyRememberMe('student', rememberMe.value, form.value.student_id);
     router.push({ name: 'student-dashboard' });
   } catch (e) {
     const data = e.response?.data || {};
