@@ -22,7 +22,7 @@
     <!-- Which report of that unit: the full year-end report, or one part of it on its own -->
     <div class="rt-tabs">
       <button
-        v-for="t in REPORT_TYPES"
+        v-for="t in reportTabs"
         :key="t.value"
         type="button"
         class="rt-tab"
@@ -163,6 +163,79 @@
               </tbody>
             </table>
           </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- SDU Referrals report: the students SDU itself referred -->
+    <template v-else-if="unit === 'SDU'">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--mist);margin-bottom:12px"><svg viewBox="0 0 24 24" style="color:var(--moss)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+          <div class="stat-num">{{ sduReferrals.total ?? 0 }}</div>
+          <div class="stat-label">Referrals Made by SDU</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon" style="background:var(--blue-lt);margin-bottom:12px"><svg viewBox="0 0 24 24" style="color:var(--blue)"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+          <div class="stat-num">{{ sduReferrals.students ?? 0 }}</div>
+          <div class="stat-label">Students Referred</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+        <div v-for="panel in [{ title: 'By Type of Referral', rows: sduReferrals.by_type }, { title: 'By Status', rows: sduReferrals.by_status }]" :key="panel.title" class="icard">
+          <div class="icard-header"><span class="icard-title">{{ panel.title }}</span></div>
+          <div class="icard-body">
+            <div v-if="!panel.rows?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in panel.rows" :key="item.label" style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+                <span>{{ item.label }}</span>
+                <span style="color:var(--stone)">{{ item.count }} · {{ pct(item.count, sduReferrals.total) }}%</span>
+              </div>
+              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+                <div :style="{ width: pct(item.count, sduReferrals.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="icard">
+        <div class="icard-header">
+          <span class="icard-title">Students Referred by SDU</span>
+          <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ sduReferrals.total ?? 0 }} referral{{ sduReferrals.total === 1 ? '' : 's' }}</span>
+        </div>
+        <div class="ts">
+          <table class="itable">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>College</th>
+                <th>Type of Referral</th>
+                <th>Date Referred</th>
+                <th>Referral No.</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in sduReferrals.list || []" :key="row.id">
+                <td>
+                  <div style="font-weight:600;color:var(--ink)">{{ row.student_name }}</div>
+                  <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ row.student_number }}</div>
+                </td>
+                <td>{{ collegeShort(row.college) }}</td>
+                <td>{{ row.referral_type }}</td>
+                <td>{{ prettyDate(row.date) || '-' }}</td>
+                <td style="font-family:var(--mono);font-size:12px">{{ row.referral_code }}</td>
+                <td><span class="ibadge" :class="'ibadge-' + row.status.toLowerCase().replace(/ /g, '_')">{{ row.status }}</span></td>
+                <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click="$router.push({ name: 'referral-show', params: { id: row.id } })">View</button></td>
+              </tr>
+              <tr v-if="!sduReferrals.list?.length">
+                <td colspan="7" style="text-align:center;color:var(--fog)">SDU did not refer any student in this period</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </template>
@@ -708,10 +781,13 @@ const REPORT_TYPES = [
   { value: 'appointments', label: 'Appointment Reports', file: 'Appointment-Report', blurb: 'appointments by status and type, and attendance.' },
 ];
 const reportType = ref('year_end');
+// SDU has only two reports: its year-end (complaints) and the students it referred.
+const reportTabs = computed(() => unit.value === 'SDU' ? REPORT_TYPES.filter(t => ['year_end', 'referrals'].includes(t.value)) : REPORT_TYPES);
 const currentReport = computed(() => {
   const t = REPORT_TYPES.find(x => x.value === reportType.value);
   // SDU's year-end report is its complaints.
-  return unit.value === 'SDU' && t.value === 'year_end' ? { ...t, blurb: UNIT_BLURB.SDU } : t;
+  if (unit.value !== 'SDU') return t;
+  return { ...t, blurb: t.value === 'referrals' ? 'the students SDU referred to the other units.' : UNIT_BLURB.SDU };
 });
 // A section shows in the year-end report and in the report it belongs to.
 function shows(section) {
@@ -726,6 +802,8 @@ const unit = ref(ownUnit || 'GCU');
 function selectUnit(u) {
   if (unit.value === u) return;
   unit.value = u;
+  // SDU has no Case or Appointment report - fall back to its year-end one.
+  if (u === 'SDU' && !['year_end', 'referrals'].includes(reportType.value)) reportType.value = 'year_end';
   fetchAll();
 }
 
@@ -891,6 +969,7 @@ function sumOf(rows, key) {
   return (rows || []).reduce((n, r) => n + (Number(r[key]) || 0), 0);
 }
 const sduData       = ref({});
+const sduReferrals  = ref({});
 
 const sduStats = computed(() => {
   const look = {
@@ -960,12 +1039,19 @@ async function fetchAll() {
   loadError.value = false;
   try {
     const params = { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value };
-    // SDU's year-end report is its complaints; its other reports use the same
-    // referral / case / appointment figures as the other units.
-    const sdu = unit.value === 'SDU' ? reportAPI.complaints(params) : Promise.resolve({ data: {} });
+    // SDU has its own two reports: its complaints (year-end) and the students it referred.
+    if (unit.value === 'SDU') {
+      const [cp, rf] = await Promise.all([
+        reportAPI.complaints(params),
+        axios.get(`${API_BASE}/reports/sdu-referrals`, { ...authHeaders(), params }),
+      ]);
+      sduData.value = cp.data;
+      sduReferrals.value = rf.data;
+      return;
+    }
     // GCU's printed-report sections load alongside the other figures.
     const gcu = unit.value === 'GCU' ? reportAPI.gcuAccomplishment(params) : Promise.resolve({ data: {} });
-    const [r, c, a, d, rc, sv, g, sd] = await Promise.all([
+    const [r, c, a, d, rc, sv, g] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
       reportAPI.appointments(params),
@@ -973,9 +1059,7 @@ async function fetchAll() {
       reportAPI.recurringConcerns(params),
       reportAPI.services(params),
       gcu,
-      sdu,
     ]);
-    sduData.value       = sd.data;
     referralData.value  = r.data;
     caseData.value      = c.data;
     apptData.value      = a.data;

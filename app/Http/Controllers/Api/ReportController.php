@@ -14,6 +14,7 @@ use App\Models\Referral;
 use App\Models\SessionNote;
 use App\Models\Student;
 use App\Models\TestingRecord;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Support\ReportWorkbook;
@@ -112,7 +113,15 @@ class ReportController extends Controller
     // Each unit has its own report. Admin (GCU Head) may open any of them;
     // unit staff always get their own unit, whatever the request asks for.
 
-    private const UNIT_BY_ROLE = ['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'sdu_head' => 'SDU'];
+    /** SDU only: the students SDU itself referred. */
+    public function sduReferrals(Request $request)
+    {
+        abort_unless($this->unit($request) === 'SDU', 403, 'This report belongs to the Student Discipline Unit.');
+
+        return response()->json($this->buildSduReferrals($request));
+    }
+
+    private const UNIT_BY_ROLE =['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'sdu_head' => 'SDU'];
 
     private function unit(Request $request): string
     {
@@ -258,6 +267,80 @@ class ReportController extends Controller
                 ['service' => 'Students referred to TMDU for testing', 'count' => $between(TestingRecord::query(), 'created_at')->count()],
             ],
         };
+    }
+
+    /**
+     * SDU's Referrals report: the students SDU itself referred to the other
+     * units (as opposed to the complaints it received). A referral counts
+     * when its recorded source is SDU or it was filed from an SDU Head's account.
+     */
+    private function buildSduReferrals(Request $request): array
+    {
+        $sduUserIds = User::where('role', 'sdu_head')->pluck('id');
+
+        $referrals = Referral::with('student:id,student_id,first_name,middle_name,last_name,college,program,year_level,sex')
+            ->where(fn($q) => $q->where('referrer_source', 'sdu')
+                ->orWhere('referrer_role', 'sdu_head')
+                ->orWhereIn('referred_by_user_id', $sduUserIds))
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
+            ->orderByDesc('created_at')
+            ->get();
+
+        $tally = fn(string $field) => $referrals->groupBy($field)
+            ->map(fn($group, $key) => ['label' => $this->label($key), 'count' => $group->count()])
+            ->sortByDesc('count')->values()->all();
+
+        return [
+            'total'     => $referrals->count(),
+            'students'  => $referrals->pluck('student_id')->unique()->count(),
+            'by_type'   => $tally('referral_type'),
+            'by_status' => $tally('status'),
+            'list'      => $referrals->map(fn($r) => [
+                'id'             => $r->id,
+                'referral_code'  => $r->referral_code,
+                'date'           => $r->created_at?->format('Y-m-d'),
+                'student_pk'     => $r->student_id,
+                'student_number' => $r->student?->student_id,
+                'student_name'   => $r->student ? trim("{$r->student->last_name}, {$r->student->first_name} {$r->student->middle_name}") : 'Unknown student',
+                'college'        => $r->student?->college ?: 'Not specified',
+                'program'        => $r->student?->program ?: 'Not specified',
+                'year_level'     => $r->student?->year_level ?: '-',
+                'sex'            => $r->student?->sex ?: '-',
+                'referral_type'  => $this->label($r->referral_type),
+                'status'         => $this->label($r->status),
+                'referred_by'    => $r->referrer_name ?: 'SDU',
+            ])->all(),
+        ];
+    }
+
+    /** SDU's Referrals report as sheets: a summary, then one row per referral. */
+    private function fillSduReferralsWorkbook(ReportWorkbook $book, Request $request): void
+    {
+        $data  = $this->buildSduReferrals($request);
+        $share = fn(int $count) => $data['total'] ? $count / $data['total'] : 0;
+
+        $book->sheet('Summary', 'Students Referred by the Student Discipline Unit', [46, 16, 16])
+            ->section('A. Key Figures')
+            ->table(['Indicator', 'Number', ''], [
+                ['Referrals made by SDU', $data['total'], ''],
+                ['Students referred', $data['students'], ''],
+            ], ['center' => [1]])
+            ->section('B. By Type of Referral')
+            ->table(['Type of Referral', 'Number', '% of Total'], array_map(fn($r) => [$r['label'], $r['count'], $share($r['count'])], $data['by_type']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('C. By Status')
+            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$r['label'], $r['count'], $share($r['count'])], $data['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
+
+        // Like every other export, the list carries no student names or ID
+        // numbers: the file leaves the office.
+        $rows = array_values(array_map(fn($r, $i) => [
+            $i + 1, $r['referral_code'], $r['date'] ? date('M j, Y', strtotime($r['date'])) : '-',
+            $r['college'], $r['program'], $r['year_level'], $r['sex'], $r['referral_type'], $r['status'],
+        ], $data['list'], array_keys($data['list'])));
+
+        $book->sheet('Students Referred', 'List of Students Referred by SDU', [6, 18, 14, 38, 38, 12, 10, 24, 16])
+            ->table(['No.', 'Referral No.', 'Date Referred', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true])
+            ->signatures();
     }
 
     private function buildComplaintsReport(Request $request): array
@@ -724,6 +807,9 @@ class ReportController extends Controller
         // The year-end report is the unit's full accomplishment report; the
         // other three are its referral, case and appointment parts on their own.
         $report = $request->input('report') ?: 'year_end';
+        if ($unit === 'SDU' && $report !== 'referrals') {
+            $report = 'year_end';
+        }
         [$title, $file] = [
             'year_end'     => ['Accomplishment Report', 'Report'],
             'referrals'    => ['Referrals Report', 'Referrals-Report'],
@@ -733,10 +819,13 @@ class ReportController extends Controller
 
         $book = new ReportWorkbook($unitNames[$unit], "{$unit} {$title}", $period, now()->format('F j, Y g:i A'));
 
-        // SDU's year-end report is its complaints; its other reports use the shared sheets.
-        $unit === 'SDU' && $report === 'year_end'
-            ? $this->fillSduWorkbook($book, $request)
-            : $this->fillUnitWorkbook($book, $request, $unit, $report);
+        // SDU has two reports of its own: year-end (its complaints) and
+        // referrals (the students it referred). The other units share the same sheets.
+        if ($unit === 'SDU') {
+            $report === 'referrals' ? $this->fillSduReferralsWorkbook($book, $request) : $this->fillSduWorkbook($book, $request);
+        } else {
+            $this->fillUnitWorkbook($book, $request, $unit, $report);
+        }
 
         return [$book, $unit, $file];
     }
