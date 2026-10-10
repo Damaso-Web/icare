@@ -315,6 +315,15 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero-kicker{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
 .hero h1{font-family:var(--serif);font-style:italic;font-weight:400;font-size:34px;line-height:1.12;color:#fff;margin:0}
 .hero p{margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.74);max-width:560px}
+.hero-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.hero-stat{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:138px;padding:11px 14px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.09);color:#fff;font-family:var(--font);text-align:left;cursor:pointer;transition:background .13s,transform .12s,border-color .13s}
+.hero-stat:hover{background:rgba(255,255,255,.16);border-color:rgba(232,180,34,.55);transform:translateY(-2px)}
+.hero-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-bottom:6px}
+.hero-stat-icon{width:28px;height:28px;border-radius:8px;background:rgba(232,180,34,.18);color:var(--gold);display:flex;align-items:center;justify-content:center}
+.hero-stat-icon svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.hero-stat-period{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.hero-stat-num{font-family:var(--serif);font-style:italic;font-size:32px;line-height:1;color:#fff}
+.hero-stat-label{font-size:11.5px;font-weight:600;color:rgba(255,255,255,.82)}
 .hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .hero-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.15)}
 .hero-chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
@@ -340,9 +349,16 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .remember input{width:15px;height:15px;accent-color:var(--moss);cursor:pointer}
 
 /* ── University and office seals ── */
-.seal{object-fit:contain;flex-shrink:0;background:#fff;border-radius:50%}
-.tb-seals{display:flex;align-items:center;gap:8px;padding-right:12px;margin-right:4px;border-right:1px solid var(--cloud)}
-.tb-seals .seal{width:32px;height:32px;box-shadow:0 1px 4px rgba(14,45,30,.18)}
+.logo-bsu,.logo-oss{object-fit:contain;flex-shrink:0;width:auto;background:#fff;box-shadow:0 2px 8px rgba(14,45,30,.22)}
+.logo-bsu{border-radius:50%}                 /* the BSU seal is round */
+.logo-oss{border-radius:5px;padding:1px}       /* the OSS logo is an upright rectangle */
+.sb-head{gap:8px}
+/* Same gold ring as the iCARE mark beside them. */
+.sb-logo{height:40px;padding:2px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(232,180,34,.35)}
+.sb-logo.logo-oss{border-radius:7px}
+/* In the top bar on phones only - on desktop the sidebar carries the logos. */
+.tb-seals{display:none;align-items:center;gap:6px}
+.tb-seals img{height:28px}
 .tb-date{font-size:12px;color:var(--stone);white-space:nowrap}
 .tb-user{display:flex;align-items:center;gap:8px;padding:4px 10px 4px 4px;border-radius:22px;background:var(--foam);border:1px solid #e1ece6}
 .tb-user-av{width:28px;height:28px;border-radius:50%;background:var(--grad-moss);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700}
@@ -438,11 +454,12 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 
   /* ---------- Refreshed shell on a phone ---------- */
   .tb-date,.tb-user-txt,.tb-user{display:none}
-  .tb-seals{padding-right:8px;margin-right:0;gap:6px;border-right:none}
-  .tb-seals .seal{width:28px;height:28px}
+  .tb-seals{display:flex}
   .hero{padding:18px 18px 20px;border-radius:16px}
   .hero h1{font-size:26px}
   .hero-actions{width:100%}
+  .hero-stats{display:grid;grid-template-columns:1fr 1fr}
+  .hero-stat{min-width:0}
   .hero-btn{flex:1 1 auto;justify-content:center}
   .ph h1{font-size:24px !important}
 

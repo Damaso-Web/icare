@@ -7,6 +7,17 @@
           <div class="hero-kicker">{{ roleTitle }}</div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>
+          <!-- The figures that sentence is about; each one opens its page -->
+          <div class="hero-stats">
+            <button v-for="stat in stats" :key="stat.label" type="button" class="hero-stat" @click="goToStat(stat)">
+              <span class="hero-stat-top">
+                <span class="hero-stat-icon"><svg viewBox="0 0 24 24" v-html="stat.icon"></svg></span>
+                <span class="hero-stat-period">{{ stat.period }}</span>
+              </span>
+              <span class="hero-stat-num">{{ stat.value }}</span>
+              <span class="hero-stat-label">{{ stat.label }}</span>
+            </button>
+          </div>
           <div class="hero-chips">
             <span class="hero-chip"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>{{ todayLabel }}</span>
             <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
@@ -17,22 +28,6 @@
             <svg viewBox="0 0 24 24" v-html="a.icon"></svg>{{ a.label }}
           </button>
         </div>
-      </div>
-    </div>
-
-    <!-- Stat Cards -->
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
-      <div class="stat-card" v-for="stat in stats" :key="stat.label" style="cursor:pointer" @click="goToStat(stat)">
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
-          <div class="stat-icon" :style="{ background: stat.iconBg }">
-            <svg viewBox="0 0 24 24" :style="{ color: stat.iconColor }" v-html="stat.icon"></svg>
-          </div>
-          <span style="font-size:10px;font-weight:600;color:var(--stone);background:var(--cloud);padding:2px 7px;border-radius:20px">
-            {{ stat.period }}
-          </span>
-        </div>
-        <div class="stat-num">{{ stat.value }}</div>
-        <div class="stat-label">{{ stat.label }}</div>
       </div>
     </div>
 

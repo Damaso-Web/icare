@@ -6,6 +6,8 @@
     <div class="sidebar" :class="{ open: menuOpen }">
       <div class="sb-head">
         <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
+        <img v-show="sealBsu" class="logo-bsu sb-logo" :src="'/bsu-logo.jpg'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
+        <img v-show="sealOss" class="logo-oss sb-logo" :src="'/oss-logo.jpg'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
         <div>
           <div class="sb-brand">iCARE</div>
           <div class="sb-sub">BSU · OSS</div>
@@ -74,10 +76,10 @@
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
           <span class="tb-date">{{ todayLabel }}</span>
-          <!-- University and office seals (public/bsu-logo.png, public/oss-logo.png) -->
+          <!-- Phones only (the sidebar that carries the logos is tucked away there) -->
           <div v-if="sealBsu || sealOss" class="tb-seals">
-            <img v-show="sealBsu" class="seal" :src="'/bsu-logo.png'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
-            <img v-show="sealOss" class="seal" :src="'/oss-logo.png'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
+            <img v-show="sealBsu" class="logo-bsu" :src="'/bsu-logo.jpg'" alt="Benguet State University" @error="sealBsu = false" />
+            <img v-show="sealOss" class="logo-oss" :src="'/oss-logo.jpg'" alt="Office of Student Services" @error="sealOss = false" />
           </div>
 
           <!-- Notification Bell -->
@@ -209,7 +211,7 @@ watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
 
-// Top bar: today's date, and the two seals (hidden if a file is missing).
+// Today's date for the top bar; the BSU and OSS logos are hidden if a file is missing.
 const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 const sealBsu = ref(true);
 const sealOss = ref(true);

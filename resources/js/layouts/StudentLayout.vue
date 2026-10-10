@@ -7,8 +7,10 @@
          logout button far down the page instead of staying reachable. -->
     <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
     <div class="stu-sidebar" :class="{ open: menuOpen }" style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
-      <div style="padding:20px;display:flex;align-items:center;gap:10px">
-        <img :src="'/icare-logo.png'" alt="iCARE" style="width:32px;height:32px;background:#fff;border-radius:8px;padding:3px;object-fit:contain;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)" />
+      <div class="sb-head">
+        <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
+        <img v-show="sealBsu" class="logo-bsu sb-logo" :src="'/bsu-logo.jpg'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
+        <img v-show="sealOss" class="logo-oss sb-logo" :src="'/oss-logo.jpg'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
         <div>
           <div style="font-family:var(--serif);font-style:italic;font-size:16px">iCARE</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">Student Portal</div>
@@ -60,8 +62,8 @@
         </div>
         <div style="display:flex;align-items:center;gap:12px">
           <div v-if="sealBsu || sealOss" class="tb-seals">
-            <img v-show="sealBsu" class="seal" :src="'/bsu-logo.png'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
-            <img v-show="sealOss" class="seal" :src="'/oss-logo.png'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
+            <img v-show="sealBsu" class="logo-bsu" :src="'/bsu-logo.jpg'" alt="Benguet State University" @error="sealBsu = false" />
+            <img v-show="sealOss" class="logo-oss" :src="'/oss-logo.jpg'" alt="Office of Student Services" @error="sealOss = false" />
           </div>
           <button @click="showNotifs = !showNotifs" style="position:relative;background:none;border:none;cursor:pointer;padding:7px;color:var(--stone);border-radius:var(--r-sm)">
             <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;display:block">
