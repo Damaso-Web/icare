@@ -137,7 +137,11 @@ class ComplaintController extends Controller
 
     public function show(Complaint $complaint)
     {
-        return $complaint->load(['complainee', 'filedBy', 'attachments']);
+        $complaint->load(['complainee', 'filedBy', 'attachments']);
+        // The download link is an accessor, so it has to be asked for.
+        $complaint->attachments->each->append('url');
+
+        return $complaint;
     }
 
     public function updateStatus(Request $request, Complaint $complaint)

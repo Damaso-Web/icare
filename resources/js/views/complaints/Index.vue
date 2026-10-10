@@ -2,30 +2,24 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>Complaints</h1>
-      <p>Incident reports filed against students.</p>
+      <p>Every complaint filed against a student, newest first. Each one is kept in that student's Incident Report, where its status is set.</p>
     </div>
 
     <div class="filter-bar">
-      <div class="sw" style="flex:1;max-width:400px">
+      <div class="sw" style="flex:1;min-width:220px;max-width:400px">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input
           v-model="filters.search"
           type="text"
           class="sin"
           maxlength="50"
-          placeholder="Search complainee name..."
+          placeholder="Search complaint code or student..."
           style="width:100%"
           @keypress="blockSpecialKeypress"
           @input="onSearchInput"
         />
       </div>
-      <select v-model="filters.status" class="fsm" @change="fetchComplaints">
-        <option value="">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="under_review">Under Review</option>
-        <option value="resolved">Resolved</option>
-      </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
     </div>
 
     <div class="icard">
@@ -34,116 +28,69 @@
       </div>
       <div v-else-if="complaints.length === 0" class="empty-state">
         <h3>No complaints found</h3>
-        <p>Try adjusting your search or filters.</p>
+        <p>{{ filters.search ? 'Try a different search.' : 'Complaints filed against students will appear here.' }}</p>
       </div>
       <div class="ts" v-else>
-        <table style="table-layout:fixed;width:100%;min-width:760px">
-          <colgroup>
-            <col style="width:12%"><col style="width:20%"><col style="width:24%"><col style="width:16%"><col style="width:12%"><col style="width:10%"><col style="width:6%">
-          </colgroup>
+        <table class="itable">
           <thead>
             <tr>
-              <th>Code</th>
-              <th>Complainee</th>
+              <th>Complaint No.</th>
+              <th>Student</th>
               <th>Act of Misconduct</th>
               <th>Filed By</th>
               <th>Date Filed</th>
-              <th>Status</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="c in complaints" :key="c.id">
-              <td style="word-break:break-word">{{ c.complaint_code }}</td>
-              <td style="word-break:break-word;white-space:normal">{{ c.complainee?.last_name }}, {{ c.complainee?.first_name }}</td>
-              <td style="word-break:break-word;white-space:normal">{{ c.violation_type }}</td>
-              <td style="word-break:break-word;white-space:normal">{{ c.filed_by?.name || c.filed_by?.first_name }}</td>
-              <td>{{ formatDate(c.created_at) }}</td>
+            <tr v-for="c in complaints" :key="c.id" style="cursor:pointer" @click="openDetail(c)">
+              <td style="font-family:var(--mono);font-size:12px">{{ c.complaint_code }}</td>
               <td>
-                <span :style="statusStyle(c.status)" style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">{{ statusLabel(c.status) }}</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <div class="iav">{{ initials(c.complainee) }}</div>
+                  <div>
+                    <div style="font-weight:600;color:var(--ink)">{{ c.complainee?.last_name }}, {{ c.complainee?.first_name }}</div>
+                    <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ c.complainee?.student_id }}</div>
+                  </div>
+                </div>
               </td>
-              <td>
-                <button class="ibtn ibtn-o ibtn-sm" @click="openDetail(c)">View</button>
+              <td>{{ c.violation_type }}</td>
+              <td>{{ c.filed_by?.name || '-' }}</td>
+              <td style="font-size:12px;white-space:nowrap">{{ formatDate(c.created_at) }}</td>
+              <td style="text-align:right">
+                <button class="ibtn ibtn-o ibtn-sm" @click.stop="openDetail(c)">View</button>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}</span>
+        <div style="display:flex;gap:6px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="fetchComplaints(pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="fetchComplaints(pagination.current_page + 1)">Next</button>
+        </div>
+      </div>
     </div>
 
-    <!-- Detail / Status Modal -->
-    <div v-if="showDetail" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDetail = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ activeComplaint?.complaint_code }}</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="showDetail = false">&#10005;</button>
+    <!-- The whole complaint. Its status lives in the student's Incident Report, not here. -->
+    <div v-if="activeComplaint" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="activeComplaint = null">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:680px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;display:flex;flex-direction:column">
+        <div style="padding:16px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div>
+            <div style="font-size:16px;font-weight:600;color:var(--ink)">Complaint <span style="font-family:var(--mono)">{{ activeComplaint.complaint_code }}</span></div>
+            <div style="font-size:11.5px;color:var(--fog);margin-top:2px">Filed {{ formatDate(activeComplaint.created_at) }}</div>
+          </div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="activeComplaint = null">✕</button>
         </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px" v-if="activeComplaint">
-
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainant Information</div>
-            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px">
-              <div><strong>{{ activeComplaint.complainant_name }}</strong></div>
-              <div style="color:var(--stone)">{{ activeComplaint.complainant_address }}</div>
-            </div>
-          </div>
-
-          <div>
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Complainee Information</div>
-            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:4px">
-              <div><strong>{{ activeComplaint.complainee?.last_name }}, {{ activeComplaint.complainee?.first_name }}</strong></div>
-              <div v-if="activeComplaint.complainee_position">Position: {{ activeComplaint.complainee_position }}</div>
-              <div v-if="activeComplaint.complainee_college">College: {{ activeComplaint.complainee_college }}</div>
-              <div v-if="activeComplaint.complainee_department">Department: {{ activeComplaint.complainee_department }}</div>
-              <div v-if="activeComplaint.complainee_office">Office: {{ activeComplaint.complainee_office }}</div>
-              <div v-if="activeComplaint.complainee_address">Address: {{ activeComplaint.complainee_address }}</div>
-            </div>
-          </div>
-
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-            <div><strong>Act of Misconduct:</strong> {{ activeComplaint.violation_type }}</div>
-            <div><strong>Date of Incident:</strong> {{ activeComplaint.incident_date }}</div>
-            <div><strong>Filed By:</strong> {{ activeComplaint.filed_by?.name || activeComplaint.filed_by?.first_name }}</div>
-            <div>
-              <strong>Narration of Facts:</strong>
-              <div style="margin-top:4px;line-height:1.6">{{ activeComplaint.description }}</div>
-            </div>
-          </div>
-
-          <div v-if="activeComplaint.attachments?.length">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Attachments</div>
-            <div style="display:flex;flex-direction:column;gap:6px">
-              <a
-                v-for="att in activeComplaint.attachments"
-                :key="att.id"
-                :href="att.url"
-                target="_blank"
-                style="font-size:12.5px;color:var(--blue);text-decoration:underline"
-              >
-                {{ att.category === 'evidence' ? 'Evidence' : 'Affidavit' }}: {{ att.original_filename }}
-              </a>
-            </div>
-          </div>
-
-          <div style="font-size:11px;color:var(--fog)">
-            ✓ Certification / Statement of Non-Forum Shopping was agreed to at submission.
-          </div>
-
-          <div>
-            <label class="ifl">Status</label>
-            <select v-model="statusUpdate" class="ifse">
-              <option value="pending">Pending</option>
-              <option value="under_review">Under Review</option>
-              <option value="resolved">Resolved</option>
-            </select>
-          </div>
-
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="savingStatus" @click="saveStatus">
-              {{ savingStatus ? 'Saving...' : 'Update Status' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="showDetail = false">Close</button>
-          </div>
+        <div style="padding:18px 22px;overflow-y:auto">
+          <div v-if="loadingDetail" style="text-align:center;padding:30px;color:var(--fog);font-size:13px">Loading...</div>
+          <ComplaintDetail v-else :complaint="activeComplaint" />
+        </div>
+        <div style="padding:12px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">
+          <button class="ibtn ibtn-o ibtn-sm" @click="activeComplaint = null">Close</button>
+          <button class="ibtn ibtn-p ibtn-sm" @click="openIncidentReport(activeComplaint)">Open Student Incident Report</button>
         </div>
       </div>
     </div>
@@ -151,11 +98,13 @@
 </template>
 
 <script setup>
-import { ref, inject, onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import axios from 'axios';
+import ComplaintDetail from '../../components/ComplaintDetail.vue';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
-const toast = inject('toast');
+const router = useRouter();
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
@@ -163,17 +112,16 @@ function authHeaders() {
 }
 
 const complaints = ref([]);
-const loading     = ref(false);
-const pagination  = ref({});
-const filters      = ref({ search: '', status: '' });
+const loading    = ref(false);
+const pagination = ref({});
+const filters    = ref({ search: '' });
 let searchTimeout = null;
 
 async function fetchComplaints(page = 1) {
   loading.value = true;
   try {
-    const params = { ...filters.value, page };
-    if (!params.status) delete params.status;
-    if (!params.search) delete params.search;
+    const params = { page };
+    if (filters.value.search) params.search = filters.value.search;
     const res = await axios.get(`${API_BASE}/complaints`, { ...authHeaders(), params });
     complaints.value = res.data.data;
     pagination.value = res.data;
@@ -191,55 +139,37 @@ function onSearchInput() {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '' };
+  filters.value = { search: '' };
   fetchComplaints();
 }
 
 function formatDate(d) {
-  if (!d) return '-';
-  return new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+  return d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';
 }
 
-function statusLabel(s) {
-  return { pending: 'Pending', under_review: 'Under Review', resolved: 'Resolved' }[s] || s;
-}
-function statusStyle(s) {
-  const styles = {
-    pending:      { background: '#fdf1d6', color: '#a4780a' },
-    under_review: { background: '#e0edfb', color: '#1a5fa8' },
-    resolved:     { background: 'var(--mint)', color: 'var(--moss)' },
-  };
-  return styles[s] || {};
+function initials(s) {
+  return `${s?.first_name?.[0] || ''}${s?.last_name?.[0] || ''}`.toUpperCase() || '?';
 }
 
-const showDetail       = ref(false);
-const activeComplaint  = ref(null);
-const statusUpdate     = ref('');
-const savingStatus     = ref(false);
+const activeComplaint = ref(null);
+const loadingDetail   = ref(false);
 
-function openDetail(c) {
+// The list row has everything but the attachments; fetch the full complaint for the popup.
+async function openDetail(c) {
   activeComplaint.value = c;
-  statusUpdate.value = c.status;
-  showDetail.value = true;
+  loadingDetail.value = true;
+  try {
+    const res = await axios.get(`${API_BASE}/complaints/${c.id}`, authHeaders());
+    if (activeComplaint.value?.id === c.id) activeComplaint.value = res.data;
+  } catch (e) {
+    /* the row's own data is still shown */
+  } finally {
+    loadingDetail.value = false;
+  }
 }
 
-async function saveStatus() {
-  if (!activeComplaint.value) return;
-  savingStatus.value = true;
-  try {
-    await axios.patch(
-      `${API_BASE}/complaints/${activeComplaint.value.id}/status`,
-      { status: statusUpdate.value },
-      authHeaders()
-    );
-    toast?.success('Status updated.');
-    showDetail.value = false;
-    fetchComplaints();
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to update status.');
-  } finally {
-    savingStatus.value = false;
-  }
+function openIncidentReport(c) {
+  router.push({ name: 'incident-report-show', params: { id: c.complainee_student_id }, query: { complaint: c.id } });
 }
 
 onMounted(() => fetchComplaints());

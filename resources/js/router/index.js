@@ -18,6 +18,8 @@ import ReferralCreate from '../views/referrals/Create.vue';
 import ReferralShow from '../views/referrals/Show.vue';
 import ComplaintCreate from '../views/complaints/Create.vue';
 import Complaints from '../views/complaints/Index.vue';
+import IncidentReports from '../views/incident-reports/Index.vue';
+import IncidentReportShow from '../views/incident-reports/Show.vue';
 import Cases from '../views/cases/Index.vue';
 import Appointments from '../views/appointments/Index.vue';
 import TestingRecords from '../views/testing/Index.vue';
@@ -193,6 +195,18 @@ const routes = [
                 path: 'complaints',
                 name: 'complaints',
                 component: Complaints,
+                meta: { roles: ['sdu_head'] },
+            },
+            {
+                path: 'incident-reports',
+                name: 'incident-reports',
+                component: IncidentReports,
+                meta: { roles: ['sdu_head'] },
+            },
+            {
+                path: 'incident-reports/:id',
+                name: 'incident-report-show',
+                component: IncidentReportShow,
                 meta: { roles: ['sdu_head'] },
             },
             {

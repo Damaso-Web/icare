@@ -11,6 +11,11 @@
       </div>
     </div>
 
+    <!-- Opened from somewhere that already knows the student (a Student Incident Report) -->
+    <div v-if="prefillSource" style="max-width:820px;margin:0 auto 12px;background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:var(--forest)">
+      Filled in from the <strong>{{ prefillSource.from_label || 'previous page' }}</strong>. Check the details, choose the <strong>Service Requested</strong>, then submit.
+    </div>
+
     <div class="icard" style="max-width:820px;margin:0 auto">
 
       <!-- Document Code Header -->
@@ -487,6 +492,13 @@ const isCreateFormEmpty = computed(() =>
 
 // Referral Source used to default to a hardcoded 'faculty'. It now defaults
 // to the submitting user's own role, since we already know who's referring.
+// The Referral Source that matches who is filling in the form. The options
+// are named by office ("sdu"), not by account role ("sdu_head").
+function defaultReferralSource() {
+  const role = auth.user?.role;
+  return { dept_chair: 'faculty', sdu_head: 'sdu' }[role] || role || 'faculty';
+}
+
 const form = ref({
   student_id_input:      '',
   last_name:             '',
@@ -502,7 +514,7 @@ const form = ref({
   referrer_first_name:   '',
   referrer_middle_name:  '',
   referral_type:         '',
-  referral_source:       (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty',
+  referral_source:       defaultReferralSource(),
   nature_of_concern:     '',
 });
 
@@ -633,8 +645,13 @@ async function confirmSubmit() {
     toast?.success('Student referred.');
     success.value = 'Student referred. GCU has been notified.';
 
+    // Sent from somewhere that asked to come back (a Student Incident Report).
+    const backTo = prefillSource.value?.return_to;
+
     setTimeout(() => {
-      if (isFacultyOrDean.value) {
+      if (backTo) {
+        router.push(backTo);
+      } else if (isFacultyOrDean.value) {
         router.push({ name: 'dashboard' });
       } else {
         router.push({ name: 'referrals' });
@@ -662,7 +679,7 @@ function clearForm() {
     referrer_last_name:   auth.user?.last_name || '',
     referrer_first_name:  auth.user?.first_name || '',
     referrer_middle_name: auth.user?.middle_name || '',
-    referral_type: '', referral_source: (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty', nature_of_concern: '',
+    referral_type: '', referral_source: defaultReferralSource(), nature_of_concern: '',
   };
   fieldErrors.value = {};
 }
@@ -676,9 +693,34 @@ onMounted(() => {
   form.value.referrer_last_name   = auth.user?.last_name || '';
   form.value.referrer_first_name  = auth.user?.first_name || '';
   form.value.referrer_middle_name = auth.user?.middle_name || '';
-  form.value.referral_source      = (auth.user?.role === 'dept_chair' ? 'faculty' : auth.user?.role) || 'faculty';
+  form.value.referral_source      = defaultReferralSource();
   fetchManagementData();
   fetchFormOptions();
   fetchDocSettings();
+  applyPrefill();
 });
+
+// ---- Prefill ----
+// Another page can hand this form a student and a concern to start from, by
+// leaving them in sessionStorage before coming here. SDU's "Refer to GCU"
+// does: the referral then goes out as a normal referral from SDU, which the
+// student's Incident Report lists as a handoff.
+const prefillSource = ref(null);
+async function applyPrefill() {
+  let prefill = null;
+  try { prefill = JSON.parse(sessionStorage.getItem('icare.referPrefill') || 'null'); } catch (e) { /* ignore a bad value */ }
+  sessionStorage.removeItem('icare.referPrefill');
+  if (!prefill?.student_pk) return;
+
+  try {
+    const res = await studentAPI.show(prefill.student_pk);
+    const student = res.data?.student || res.data;
+    if (!student?.student_id) return;
+    await selectStudent(student);
+    form.value.nature_of_concern = String(prefill.nature_of_concern || '').slice(0, 1000);   // the field's limit
+    prefillSource.value = prefill;
+  } catch (e) {
+    /* the form simply opens empty */
+  }
+}
 </script>s

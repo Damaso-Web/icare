@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\ManagementProgramController;
 use App\Http\Controllers\Api\ManagementDepartmentController;
 use App\Http\Controllers\Api\ManagementFormOptionController;
 use App\Http\Controllers\Api\ComplaintController;
+use App\Http\Controllers\Api\IncidentReportController;
 use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\DocumentSettingController;
 use App\Http\Controllers\Api\ManagementAcademicYearController;
@@ -305,6 +306,12 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::get('complaints',                      [ComplaintController::class, 'index']);
         Route::get('complaints/{complaint}',          [ComplaintController::class, 'show']);
         Route::patch('complaints/{complaint}/status', [ComplaintController::class, 'updateStatus']);
+
+        // Student Incident Reports: one per student, holding their complaints,
+        // the IR status and SDU's handoffs to GCU.
+        Route::get('incident-reports',                    [IncidentReportController::class, 'index']);
+        Route::get('incident-reports/{student}',          [IncidentReportController::class, 'show']);
+        Route::patch('incident-reports/{student}/status', [IncidentReportController::class, 'updateStatus']);
     });
 });
 

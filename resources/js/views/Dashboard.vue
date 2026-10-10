@@ -183,8 +183,40 @@
 
       </div>
 
+      <!-- SDU: the incident reports still open, and the newest complaints -->
+      <div v-if="auth.isSDUHead" class="sdu-panels">
+        <div class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Incident Reports Needing Action</span>
+            <a href="#" class="sdu-link" @click.prevent="router.push({ name: 'incident-reports' })">View all</a>
+          </div>
+          <div v-if="!sduOpenReports.length" class="icard-body" style="font-size:13px;color:var(--stone)">Nothing waiting - every Incident Report is resolved.</div>
+          <div v-for="r in sduOpenReports" :key="r.student.id" class="sdu-row" @click="router.push({ name: 'incident-report-show', params: { id: r.student.id } })">
+            <div style="min-width:0">
+              <div class="sdu-name">{{ r.student.last_name }}, {{ r.student.first_name }}</div>
+              <div class="sdu-meta">{{ r.complaints_count }} complaint{{ r.complaints_count === 1 ? '' : 's' }} · latest: {{ r.latest_violation }}</div>
+            </div>
+            <span class="ibadge" :class="'ir-' + r.status">{{ toTitleCase(r.status) }}</span>
+          </div>
+        </div>
+        <div class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Newest Complaints</span>
+            <a href="#" class="sdu-link" @click.prevent="router.push({ name: 'complaints' })">View all</a>
+          </div>
+          <div v-if="!sduComplaints.length" class="icard-body" style="font-size:13px;color:var(--stone)">No complaints have been filed yet.</div>
+          <div v-for="c in sduComplaints" :key="c.id" class="sdu-row" @click="router.push({ name: 'incident-report-show', params: { id: c.complainee_student_id }, query: { complaint: c.id } })">
+            <div style="min-width:0">
+              <div class="sdu-name">{{ c.complainee?.last_name }}, {{ c.complainee?.first_name }}</div>
+              <div class="sdu-meta">{{ c.violation_type }}</div>
+            </div>
+            <span class="sdu-meta" style="white-space:nowrap">{{ formatDate(c.created_at) }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Empty state -->
-      <div class="empty-state" v-if="isEmpty">
+      <div class="empty-state" v-if="isEmpty && !auth.isSDUHead">
         <h3>No data yet</h3>
         <p>Start by submitting a referral or checking the queue.</p>
       </div>
@@ -223,6 +255,21 @@ const greeting = computed(() => {
   return 'Good evening';
 });
 
+
+// ---- SDU dashboard panels ----
+const sduReports    = ref([]);
+const sduComplaints = ref([]);
+const sduOpenReports = computed(() => sduReports.value.filter(r => r.status !== 'resolved').slice(0, 6));
+async function fetchSduPanels() {
+  if (!auth.isSDUHead) return;
+  try {
+    const [ir, cp] = await Promise.all([api.get('/incident-reports'), api.get('/complaints')]);
+    sduReports.value    = ir.data.data || [];
+    sduComplaints.value = (cp.data.data || []).slice(0, 6);
+  } catch (e) {
+    /* the tiles above still show */
+  }
+}
 
 const isEmpty = computed(() => {
   const d = dashboard.value;
@@ -296,6 +343,7 @@ async function fetchDashboard(isInitial = false) {
 
 onMounted(() => {
   fetchDashboard(true);
+  fetchSduPanels();
   refreshTimer = setInterval(() => fetchDashboard(false), 30000);
 });
 
@@ -303,3 +351,15 @@ onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer);
 });
 </script>
+
+<style scoped>
+/* SDU dashboard panels */
+.sdu-panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; align-items: start; }
+.sdu-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 18px; border-bottom: 1px solid var(--cloud); cursor: pointer; transition: background .1s; }
+.sdu-row:last-child { border-bottom: none; }
+.sdu-row:hover { background: var(--foam); }
+.sdu-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.sdu-meta { font-size: 11.5px; color: var(--stone); overflow: hidden; text-overflow: ellipsis; }
+.sdu-link { font-size: 12px; color: var(--moss); text-decoration: underline; }
+@media (max-width: 860px) { .sdu-panels { grid-template-columns: 1fr; } }
+</style>
