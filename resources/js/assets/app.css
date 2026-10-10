@@ -328,11 +328,11 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.15)}
 .hero-chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .hero-actions{display:flex;gap:8px;flex-wrap:wrap}
-.hero-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 15px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,transform .1s}
-.hero-btn:hover{background:rgba(255,255,255,.2)}
-.hero-btn.gold{background:var(--gold);border-color:var(--gold);color:var(--forest);box-shadow:0 6px 16px rgba(232,180,34,.3)}
-.hero-btn.gold:hover{background:#f2c33a}
-.hero-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+/* The shortcuts are one set: the same look and the same size as each other. */
+.hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:158px;padding:11px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,border-color .13s,transform .1s}
+.hero-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(232,180,34,.6)}
+.hero-btn:active{transform:translateY(1px)}
+.hero-btn svg{width:16px;height:16px;flex-shrink:0;color:var(--gold);stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* ── Sign-in pages: a green gradient, with soft lighter-green shapes ── */
 .auth-page{position:relative;background:
@@ -480,10 +480,12 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .tb-seals{display:flex}
   .hero{padding:18px 18px 20px;border-radius:16px}
   .hero h1{font-size:26px}
-  .hero-actions{width:100%}
+  /* Equal columns, icon above the name, so no button is wider than another. */
+  .hero-actions{width:100%;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
   .hero-stats{display:grid;grid-template-columns:1fr 1fr}
   .hero-stat{min-width:0}
-  .hero-btn{flex:1 1 auto;justify-content:center}
+  .hero-btn{flex-direction:column;gap:6px;min-width:0;padding:11px 6px;font-size:11.5px;line-height:1.25;text-align:center;white-space:normal}
+  .hero-btn svg{width:18px;height:18px}
   .ph h1{font-size:24px !important}
 
   /* ---------- Small comforts ---------- */

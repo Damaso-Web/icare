@@ -24,7 +24,7 @@
           </div>
         </div>
         <div class="hero-actions">
-          <button v-for="(a, i) in quickActions" :key="a.name" type="button" class="hero-btn" :class="{ gold: i === 0 }" @click="router.push({ name: a.name })">
+          <button v-for="a in quickActions" :key="a.name" type="button" class="hero-btn" @click="router.push({ name: a.name })">
             <svg viewBox="0 0 24 24" v-html="a.icon"></svg>{{ a.label }}
           </button>
         </div>
@@ -267,6 +267,7 @@ const ROLE_TITLES = {
 const roleTitle = computed(() => ROLE_TITLES[auth.user?.role] || 'iCARE');
 
 // The two or three places each role goes most, one tap from the banner.
+// Named exactly as in the menu, so a shortcut and its menu item read the same.
 const ICONS = {
   plus:     '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
   pulse:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
@@ -277,16 +278,16 @@ const ICONS = {
   phone:    '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>',
 };
 const quickActions = computed(() => {
-  const refer = { name: 'referral-create', label: 'Refer a Student', icon: ICONS.plus };
+  const refer = { name: 'referral-create', label: 'Refer Student', icon: ICONS.plus };
   switch (auth.user?.role) {
     case 'admin':
-    case 'gcu_staff':      return [refer, { name: 'referrals', label: 'Referrals', icon: ICONS.pulse }, { name: 'appointments', label: 'Appointments', icon: ICONS.calendar }];
-    case 'sdu_head':       return [{ name: 'incident-reports', label: 'Incident Reports', icon: ICONS.file }, { name: 'complaints', label: 'Complaints', icon: ICONS.alert }, refer];
-    case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'Appointments', icon: ICONS.calendar }];
+    case 'gcu_staff':      return [refer, { name: 'referrals', label: 'Referrals', icon: ICONS.pulse }, { name: 'appointments', label: 'GCU Appointments', icon: ICONS.calendar }];
+    case 'sdu_head':       return [{ name: 'incident-reports', label: 'Student Incident Reports', icon: ICONS.file }, { name: 'complaints', label: 'Complaints', icon: ICONS.alert }, refer];
+    case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'TMDU Appointments', icon: ICONS.calendar }];
     case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, refer];
     case 'faculty':
     case 'dean':
-    case 'dept_chair':     return [refer, { name: 'referrals', label: 'My Referrals', icon: ICONS.pulse }];
+    case 'dept_chair':     return [refer, { name: 'referrals', label: 'Referral Queue', icon: ICONS.pulse }];
     default:               return [];
   }
 });
