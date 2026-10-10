@@ -59,7 +59,7 @@
                so showing them here made it look like a date was already
                set before the student had chosen anything. -->
           <div v-if="a.request_status === 'awaiting_student'" style="font-size:13.5px;font-weight:600;color:var(--stone);font-style:italic">Awaiting your schedule selection</div>
-          <div v-else style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} - {{ a.end_time }}</div>
+          <div v-else style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ formatDateShort(a.appointment_date) }} · {{ formatTime12(a.start_time) }} – {{ formatTime12(a.end_time) }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px;display:flex;align-items:center;gap:6px">
             <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
             {{ toTitleCase(a.appointment_type) }}
@@ -76,6 +76,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { formatTime12, formatDateShort } from '../../utils/validators';
 
 const router = useRouter();
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;

@@ -1,5 +1,5 @@
 <template>
-  <div style="display:flex;height:100vh;overflow:hidden">
+  <div class="app-shell" style="display:flex;height:100vh;overflow:hidden">
 
     <!-- Sidebar (slides in over the page on phones) -->
     <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
@@ -119,6 +119,18 @@
       <div class="content-area" @click="showNotifs = false">
         <router-view />
       </div>
+
+      <!-- Phones: the main pages one tap away at the bottom; "More" opens the full menu -->
+      <nav class="tabbar" aria-label="Main pages">
+        <router-link v-for="t in tabItems" :key="t.name" :to="{ name: t.name }" class="tab" :class="{ active: isActive(t.name) }">
+          <svg viewBox="0 0 24 24" v-html="t.icon"></svg>
+          <span>{{ t.short }}</span>
+        </router-link>
+        <button type="button" class="tab" :class="{ active: menuOpen || !tabItems.some(t => isActive(t.name)) }" @click="menuOpen = true">
+          <svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+          <span>More</span>
+        </button>
+      </nav>
 
     </div>
 
@@ -433,6 +445,21 @@ const menuItems = computed(() => {
 
   return result;
 });
+// Phone tab bar: the first four of this role's pages, in order of how often
+// they are needed on the go. Everything else stays under "More".
+const TAB_ORDER = [
+  ['dashboard', 'Home'], ['referrals', 'Referrals'], ['complaints', 'Complaints'], ['appointments', 'Appointments'],
+  ['testing', 'Testing'], ['testing-appointments', 'Appointments'], ['call-slips', 'Call Slips'], ['cases', 'Files'],
+  ['referral-create', 'Refer'], ['management', 'Manage'], ['students', 'Students'], ['reports', 'Reports'], ['my-account', 'Account'],
+];
+const tabItems = computed(() => {
+  const mine = menuItems.value.filter(i => i.name);
+  return TAB_ORDER
+    .map(([name, short]) => ({ ...mine.find(i => i.name === name), short }))
+    .filter(t => t.name)
+    .slice(0, 4);
+});
+
 function isActive(name) {
   const routeName = route.name || '';
   // Student Profile and Referral Details are shared pages. The ?ctx= flag set by

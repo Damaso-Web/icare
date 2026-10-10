@@ -62,3 +62,17 @@ export function localDateStr(date = new Date()) {
   const pad = n => String(n).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
+
+// 24h "HH:MM(:SS)" from the database -> "h:mm AM/PM"
+export function formatTime12(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':');
+  const hh = Number(h);
+  if (Number.isNaN(hh)) return t;
+  return `${((hh + 11) % 12) + 1}:${(m || '00').slice(0, 2)} ${hh >= 12 ? 'PM' : 'AM'}`;
+}
+
+// "Mon, Oct 26, 2026"
+export function formatDateShort(date) {
+  return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-';
+}

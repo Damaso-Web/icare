@@ -8,7 +8,7 @@
 
     <!-- Search Bar -->
     <div class="filter-bar">
-      <div class="sw" style="flex:1;max-width:400px">
+      <div class="sw" style="flex:1;min-width:220px;max-width:400px">
         <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input
           v-model="filters.search"

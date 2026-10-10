@@ -53,6 +53,7 @@
             <div
               v-for="a in appointments"
               :key="a.id"
+              class="appt-row"
               style="display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid var(--cloud);transition:background .1s;cursor:pointer"
               @mouseover="$event.currentTarget.style.background='var(--foam)'"
               @mouseleave="$event.currentTarget.style.background=''"
@@ -80,8 +81,9 @@
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ statusText(a) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
-                  <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
-                    {{ a.reschedule_reason ? 'Rescheduling' : 'Awaiting Student' }}
+                  <!-- The status badge already says "Awaiting Student"; this one only adds that it is a reschedule. -->
+                  <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled' && a.reschedule_reason" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
+                    Rescheduling
                   </span>
                   <!-- rescheduled_from_id stays set once the student picks a
                        new date/time (request_status moves off
@@ -97,7 +99,7 @@
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
-              <div style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
+              <div class="appt-actions" style="display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;max-width:220px;justify-content:flex-end">
                 <button v-if="a.status === 'pending' && a.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click.stop="openConfirm(a)">Confirm</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click.stop="checkIn(a)">Student Attended</button>
                 <button v-if="a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click.stop="openNoShow(a)">No-Show</button>
@@ -127,7 +129,7 @@
            overflow-y here - that made this column scroll internally on
            top of the page's own scroll, which felt like a glitchy double
            scroll instead of one smooth motion. -->
-      <div style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start">
+      <div class="appt-cal" style="display:flex;flex-direction:column;gap:16px;position:sticky;top:16px;align-self:start">
         <div class="icard">
           <div class="icard-header">
             <span class="icard-title">{{ currentMonthLabel }}</span>
@@ -874,6 +876,12 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
 .ad-override-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto; gap: 8px; align-items: center; }
 .ad-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 22px; border-top: 1px solid var(--cloud); background: var(--snow); }
 @media (max-width: 860px) {
+  /* Phones: the calendar comes first, and each row's buttons sit under its text instead of squeezing it. */
+  .appt-cal { order: -1; }
+  .appt-cal [title] { aspect-ratio: auto !important; height: 40px; }
+  .appt-row { flex-wrap: wrap; }
+  .appt-actions { flex: 1 1 100%; max-width: none !important; justify-content: flex-start !important; padding-left: 60px; }
+  .appt-actions:empty { display: none; }
   .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ad-override-row { grid-template-columns: 1fr; }
   .ad-foot > div { margin-left: 0 !important; width: 100%; }

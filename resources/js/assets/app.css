@@ -188,6 +188,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .menu-btn{display:none;background:none;border:none;cursor:pointer;padding:7px;margin-left:-7px;color:var(--slate);border-radius:var(--r-sm);flex-shrink:0}
 .menu-btn svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;display:block}
 .sb-backdrop{display:none}
+.tabbar{display:none}
 
 @media (max-width:860px){
   /* The menu becomes a panel that slides in from the left. */
@@ -208,17 +209,18 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
      Grids built with repeat() (calendars, tile rows) keep their own layout. */
   [style*="grid-template-columns"]:not([style*="repeat("]){grid-template-columns:minmax(0,1fr) !important}
   /* A column must not stay sticky once it sits above or below its neighbour. */
-  .content-area [style*="position:sticky"],.stu-content [style*="position:sticky"]{position:static !important}
+  .content-area [style*="position:sticky"],.stu-content [style*="position:sticky"],.content-area [style*="position: sticky"],.stu-content [style*="position: sticky"]{position:static !important}
 
   /* Filters: one control per line, full width. */
-  .filter-bar>.sw,.filter-bar>.fsm,.filter-bar>.ifi,.filter-bar>select,.filter-bar>input{flex:1 1 100%;width:100% !important}
+  .filter-bar>.sw,.filter-bar>.ifi,.filter-bar>input{flex:1 1 100% !important;width:100% !important;max-width:none !important}
+  .filter-bar>.fsm,.filter-bar>select{flex:1 1 calc(50% - 4px);min-width:0;width:auto !important}
   .filter-bar .sin{width:100% !important}
   .filter-bar>.ifi,.filter-bar>select,.filter-bar>input{max-width:none !important}
   .filter-bar>.ibtn{flex:1 1 auto;justify-content:center}
   .content-area input[style*="width"],.content-area select[style*="width"],.stu-content input[style*="width"],.stu-content select[style*="width"]{max-width:100%}
 
   /* Wide tables keep readable columns and scroll within the card. */
-  .ts>.itable{min-width:620px}
+  .ts>.itable:not(.cards){min-width:620px}
   .itable thead th,.itable tbody td{padding-left:12px;padding-right:12px}
 
   /* Card headers with a title and a badge or button wrap instead of overflowing. */
@@ -241,8 +243,45 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .content-area,.stu-content{padding-bottom:calc(14px + env(safe-area-inset-bottom)) !important}
 
   /* Floating modals: never wider than the screen, always scrollable. */
-  [style*="position:fixed"][style*="inset:0"]>div{max-width:100% !important;max-height:92vh !important;overflow-y:auto}
+  /* Inline styles are read back as "position: fixed; inset: 0px" (with spaces), so both spellings are matched. */
+  [style*="position:fixed"][style*="inset:0"],[style*="position: fixed"][style*="inset: 0"]{align-items:flex-end !important;padding:0 !important}
+  [style*="position:fixed"][style*="inset:0"]>div,[style*="position: fixed"][style*="inset: 0"]>div{width:100% !important;max-width:100% !important;max-height:90vh !important;max-height:90dvh !important;overflow-y:auto;border-radius:18px 18px 0 0 !important;padding-bottom:env(safe-area-inset-bottom);animation:sheet-up .22s ease}
 
   /* Notification panel fits the screen. */
-  .topbar [style*="width:320px"],.stu-topbar [style*="width:320px"]{width:calc(100vw - 24px) !important;right:12px !important}
+  .topbar [style*="width:320px"],.stu-topbar [style*="width:320px"],.topbar [style*="width: 320px"],.stu-topbar [style*="width: 320px"]{width:calc(100vw - 24px) !important;right:12px !important}
+  /* ---------- Bottom tab bar ---------- */
+  .app-shell{height:100dvh !important}
+  .tabbar{display:flex;flex:none;background:#fff;border-top:1px solid var(--cloud);box-shadow:0 -2px 12px rgba(0,0,0,.06);padding:4px 4px calc(4px + env(safe-area-inset-bottom));z-index:20}
+  .tabbar-fixed{position:fixed;left:0;right:0;bottom:0}
+  .tab{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px 4px;border:none;background:none;border-radius:10px;font-family:var(--font);font-size:10px;font-weight:500;letter-spacing:-.1px;color:var(--stone);text-decoration:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .tab svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .tab span{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tab.active{color:var(--moss);font-weight:600;background:var(--mist)}
+  /* The student pages scroll with the document, so they need room for the fixed bar. */
+  .stu-content{padding-bottom:calc(84px + env(safe-area-inset-bottom)) !important}
+
+  /* ---------- Tables as cards (labels come from utils/mobileTables.js) ---------- */
+  .itable.cards{display:block;width:100% !important;min-width:0 !important;margin:0 !important}
+  .itable.cards thead{display:none}
+  .itable.cards tbody{display:block}
+  .itable.cards tbody tr{display:block;padding:10px 14px}
+  .itable.cards tbody td{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;width:auto !important;padding:4px 0 !important;border:none !important;text-align:right !important;font-size:13px;white-space:normal !important;overflow-wrap:anywhere}
+  .itable.cards tbody td::before{content:attr(data-label);flex:none;max-width:42%;padding-top:2px;text-align:left;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--fog);overflow-wrap:normal}
+  /* First value is the card's title; cells with no heading (the action buttons) take the full row. */
+  .itable.cards tbody td:first-child{font-size:14px;font-weight:600;color:var(--ink)}
+  .itable.cards tbody td[data-label=""]{justify-content:flex-end;text-align:right !important;padding-top:8px !important}
+  .itable.cards tbody td[data-label=""]::before{content:none}
+  .itable.cards tbody td[colspan]{justify-content:center;text-align:center !important}
+  .itable.cards tbody td:empty{display:none}
+  .itable.cards tbody td>div[style*="justify-content:flex-end"]{flex-wrap:wrap}
+  /* No sideways scroll (or its edge shadows) once a table is cards. */
+  .ts:has(>.itable.cards){background:none;overflow-x:visible}
+
+  /* ---------- Small comforts ---------- */
+  .filter-bar{gap:8px}
+  .icard-body{padding:14px}
+  .ph p{font-size:12.5px}
+  .breadcrumb-nav{min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ibtn{min-height:38px}
 }
+@keyframes sheet-up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}

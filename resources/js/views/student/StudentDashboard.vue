@@ -52,7 +52,7 @@
             <div v-if="a.request_status === 'awaiting_student'" style="font-size:13px;font-weight:600;color:var(--stone);font-style:italic">
               Awaiting your schedule selection
             </div>
-            <div v-else style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+            <div v-else style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDateShort(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
             <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block">{{ toTitleCase(a.status) }}</span>
           </div>
         </div>
@@ -77,6 +77,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
+import { formatTime12, formatDateShort } from '../../utils/validators';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 

@@ -100,6 +100,14 @@
         <router-view />
       </div>
     </div>
+
+    <!-- Phones: every student page one tap away at the bottom -->
+    <nav class="tabbar tabbar-fixed" aria-label="Main pages">
+      <router-link v-for="item in menuItems" :key="item.name" :to="{ name: item.name }" class="tab" :class="{ active: isActive(item.name) }">
+        <svg viewBox="0 0 24 24" v-html="item.icon"></svg>
+        <span>{{ item.label.replace(/^My /, '') }}</span>
+      </router-link>
+    </nav>
   </div>
 </template>
 
