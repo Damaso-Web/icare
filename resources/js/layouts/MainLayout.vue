@@ -3,12 +3,11 @@
 
     <!-- Sidebar (slides in over the page on phones) -->
     <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
-    <div class="sidebar" :class="{ open: menuOpen }">
+    <div class="sidebar" :class="{ open: menuOpen, 'sb-collapsed': collapsed }">
       <div class="sb-head">
-        <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
         <img v-show="sealBsu" class="logo-bsu sb-logo" :src="'/bsu-logo.jpg'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
         <img v-show="sealOss" class="logo-oss sb-logo" :src="'/oss-logo.jpg'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
-        <div>
+        <div class="sb-hide">
           <div class="sb-brand">iCARE</div>
           <div class="sb-sub">BSU · OSS</div>
         </div>
@@ -22,15 +21,16 @@
             :to="{ name: item.name }"
             class="nb"
             :class="{ active: isActive(item.name) }"
+            :title="item.label"
           >
             <svg viewBox="0 0 24 24" v-html="item.icon"></svg>
-            {{ item.label }}
+            <span class="sb-hide">{{ item.label }}</span>
           </router-link>
         </template>
       </div>
 
       <div class="sb-foot">
-        <div v-if="isTester" style="padding:0 2px 10px">
+        <div v-if="isTester" class="sb-hide" style="padding:0 2px 10px">
           <div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px">Switch Test Role</div>
           <select
             v-model="devRole"
@@ -51,8 +51,8 @@
           </select>
         </div>
         <div class="u-row">
-          <div class="u-av">{{ initials }}</div>
-          <div>
+          <div class="u-av" :title="auth.user?.name">{{ initials }}</div>
+          <div class="sb-hide">
             <div class="u-nm">{{ auth.user?.name }}</div>
             <div class="u-rl">{{ roleLabel }}</div>
           </div>
@@ -72,6 +72,7 @@
 
       <!-- Topbar -->
       <div class="topbar" style="position:relative">
+        <button class="collapse-btn" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'" :title="collapsed ? 'Expand menu' : 'Collapse menu'" @click="toggleCollapsed"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline v-if="collapsed" points="13 9 16 12 13 15"/><polyline v-else points="16 9 13 12 16 15"/></svg></button>
         <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
@@ -210,6 +211,14 @@ const menuOpen = ref(false);
 watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
+
+// Desktop: the menu can be folded down to a strip of icons. Remembered on this browser.
+const collapsed = ref(false);
+try { collapsed.value = localStorage.getItem('sidebar_collapsed') === '1'; } catch (e) { /* stays open */ }
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value;
+  try { localStorage.setItem('sidebar_collapsed', collapsed.value ? '1' : '0'); } catch (e) { /* not remembered */ }
+}
 
 // Today's date for the top bar; the BSU and OSS logos are hidden if a file is missing.
 const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });

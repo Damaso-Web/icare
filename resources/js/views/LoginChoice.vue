@@ -1,6 +1,6 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div style="width:100%;max-width:420px">
+    <div class="auth-card" style="width:100%;max-width:480px">
       <AuthBrand subtitle="Integrated Case Management and Referral System" />
 
       <div style="font-size:14px;color:var(--stone);text-align:center;margin-bottom:20px">

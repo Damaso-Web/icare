@@ -6,44 +6,45 @@
          flex child grow to match the content's height, pushing the
          logout button far down the page instead of staying reachable. -->
     <div v-if="menuOpen" class="sb-backdrop" @click="menuOpen = false"></div>
-    <div class="stu-sidebar" :class="{ open: menuOpen }" style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
+    <div class="stu-sidebar" :class="{ open: menuOpen, 'sb-collapsed': collapsed }" style="width:240px;background:var(--forest);color:#fff;display:flex;flex-direction:column;flex-shrink:0;position:sticky;top:0;align-self:flex-start;height:100vh;overflow-y:auto">
       <div class="sb-head">
-        <img class="sb-mark" :src="'/icare-logo.png'" alt="iCARE" />
         <img v-show="sealBsu" class="logo-bsu sb-logo" :src="'/bsu-logo.jpg'" alt="Benguet State University" title="Benguet State University" @error="sealBsu = false" />
         <img v-show="sealOss" class="logo-oss sb-logo" :src="'/oss-logo.jpg'" alt="Office of Student Services" title="Office of Student Services" @error="sealOss = false" />
-        <div>
+        <div class="sb-hide">
           <div style="font-family:var(--serif);font-style:italic;font-size:16px">iCARE</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">Student Portal</div>
         </div>
       </div>
 
-      <div v-if="showBackToStaff" style="padding:0 12px;margin-top:6px">
+      <div v-if="showBackToStaff" class="sb-hide" style="padding:0 12px;margin-top:6px">
         <button @click="backToStaff" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">
           <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
           Back to Staff View
         </button>
       </div>
 
-      <div style="padding:0 12px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.4);margin:12px 0 6px 8px">Main</div>
+      <div class="sb-hide" style="padding:0 12px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.4);margin:12px 0 6px 8px">Main</div>
 
       <nav style="flex:1;display:flex;flex-direction:column;gap:2px;padding:0 12px">
         <router-link
           v-for="item in menuItems"
           :key="item.name"
           :to="{ name: item.name }"
+          class="stu-nb"
+          :title="item.label"
           style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;transition:background .15s"
           :style="isActive(item.name) ? 'background:rgba(255,255,255,.12);color:#fff;font-weight:600' : ''"
         >
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2" v-html="item.icon"></svg>
-          {{ item.label }}
+          <span class="sb-hide">{{ item.label }}</span>
         </router-link>
       </nav>
 
-      <div style="padding:14px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px">
+      <div class="stu-foot" style="padding:14px;border-top:1px solid rgba(255,255,255,.1);display:flex;align-items:center;gap:10px">
         <div style="width:32px;height:32px;border-radius:50%;background:var(--gold);color:var(--forest);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700">
           {{ initials }}
         </div>
-        <div style="flex:1;min-width:0">
+        <div class="sb-hide" style="flex:1;min-width:0">
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ student.first_name }} {{ student.last_name }}</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">{{ student.student_id }}</div>
         </div>
@@ -57,6 +58,7 @@
     <div style="flex:1;background:var(--snow);min-width:0">
       <div class="stu-topbar" style="background:#fff;border-bottom:1px solid var(--cloud);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:relative">
         <div style="display:flex;align-items:center;gap:10px;min-width:0">
+          <button class="collapse-btn" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'" :title="collapsed ? 'Expand menu' : 'Collapse menu'" @click="toggleCollapsed"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline v-if="collapsed" points="13 9 16 12 13 15"/><polyline v-else points="16 9 13 12 16 15"/></svg></button>
           <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
           <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
         </div>
@@ -127,6 +129,14 @@ const router = useRouter();
 
 // Phone menu: closed by default, and closes again after choosing a page.
 const menuOpen = ref(false);
+
+// Desktop: the menu can be folded down to a strip of icons. Remembered on this browser.
+const collapsed = ref(false);
+try { collapsed.value = localStorage.getItem('sidebar_collapsed') === '1'; } catch (e) { /* stays open */ }
+function toggleCollapsed() {
+  collapsed.value = !collapsed.value;
+  try { localStorage.setItem('sidebar_collapsed', collapsed.value ? '1' : '0'); } catch (e) { /* not remembered */ }
+}
 // The two seals in the top bar are hidden if a file is missing.
 const sealBsu = ref(true);
 const sealOss = ref(true);

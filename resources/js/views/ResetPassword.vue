@@ -1,6 +1,6 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div style="width:100%;max-width:400px">
+    <div class="auth-card" style="width:100%;max-width:460px">
       <AuthBrand subtitle="Reset Password" />
 
       <div class="icard" style="padding:22px">

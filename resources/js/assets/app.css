@@ -334,14 +334,17 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero-btn.gold:hover{background:#f2c33a}
 .hero-btn svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
-/* ── Sign-in pages: green and gold shapes in the corners, a fine dotted texture ── */
+/* ── Sign-in pages: a green gradient, with soft lighter-green shapes ── */
 .auth-page{position:relative;background:
-    radial-gradient(circle at 0% 100%,#12392a 0,#12392a 21%,transparent 21.2%),
-    radial-gradient(circle at 0% 100%,rgba(30,110,67,.30) 0,rgba(30,110,67,.30) 30%,transparent 30.2%),
-    radial-gradient(circle at 100% 0%,#e8b422 0,#e8b422 13%,transparent 13.2%),
-    radial-gradient(circle at 100% 0%,rgba(232,180,34,.26) 0,rgba(232,180,34,.26) 22%,transparent 22.2%),
-    radial-gradient(rgba(30,110,67,.11) 1px,transparent 1.6px) 0 0/22px 22px,
-    linear-gradient(160deg,#f5faf7 0%,#e3efe8 100%) !important}
+    radial-gradient(circle at 0% 100%,rgba(90,184,122,.20) 0,rgba(90,184,122,.20) 24%,transparent 24.2%),
+    radial-gradient(circle at 0% 100%,rgba(90,184,122,.11) 0,rgba(90,184,122,.11) 36%,transparent 36.2%),
+    radial-gradient(circle at 100% 0%,rgba(168,216,184,.20) 0,rgba(168,216,184,.20) 16%,transparent 16.2%),
+    radial-gradient(circle at 100% 0%,rgba(168,216,184,.10) 0,rgba(168,216,184,.10) 27%,transparent 27.2%),
+    radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.6px) 0 0/22px 22px,
+    linear-gradient(135deg,#0a2114 0%,#134029 38%,#1e6e43 72%,#2e9458 100%) !important}
+/* The white card the sign-in content sits on. */
+.auth-card{background:#fff;border-radius:20px;padding:32px 30px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+.auth-card>.icard{box-shadow:none;border:1px solid #e1ebe5}
 .auth-page>*{position:relative;z-index:1}
 
 /* "Remember me" on the sign-in forms */
@@ -352,7 +355,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .logo-bsu,.logo-oss{object-fit:contain;flex-shrink:0;width:auto;background:#fff;box-shadow:0 2px 8px rgba(14,45,30,.22)}
 .logo-bsu{border-radius:50%}                 /* the BSU seal is round */
 .logo-oss{border-radius:5px;padding:1px}       /* the OSS logo is an upright rectangle */
-.sb-head{gap:8px}
+.sb-head{gap:9px}
 /* Same gold ring as the iCARE mark beside them. */
 .sb-logo{height:40px;padding:2px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(232,180,34,.35)}
 .sb-logo.logo-oss{border-radius:7px}
@@ -365,7 +368,27 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .tb-user-nm{font-size:12px;font-weight:600;color:var(--ink);line-height:1.15;white-space:nowrap}
 .tb-user-rl{font-size:10px;color:var(--stone);line-height:1.15;white-space:nowrap}
 
+/* ── Collapsible sidebar (desktop): folds to a strip of icons ── */
+.collapse-btn{display:inline-flex;background:none;border:none;cursor:pointer;padding:7px;margin-left:-7px;color:var(--stone);border-radius:var(--r-sm);flex-shrink:0;transition:background .12s,color .12s}
+.collapse-btn:hover{background:var(--cloud);color:var(--moss)}
+.collapse-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+@media (min-width:861px){
+  .sidebar,.stu-sidebar{transition:width .2s var(--ease)}
+  .sb-collapsed{width:72px !important}
+  .sb-collapsed .sb-hide,.sb-collapsed .sb-logo.logo-oss{display:none !important}
+  .sb-collapsed .sb-head{justify-content:center;padding-left:8px;padding-right:8px}
+  .sb-collapsed .sb-nav{padding-left:10px;padding-right:10px}
+  .sb-collapsed .nb,.sb-collapsed .stu-nb{justify-content:center;padding:12px 0 !important}
+  .sb-collapsed .nb svg,.sb-collapsed .stu-nb svg{width:19px !important;height:19px !important}
+  .sb-collapsed .sb-sec{font-size:0;padding:0;margin:8px 10px;border-top:1px solid rgba(255,255,255,.12)}
+  .sb-collapsed .sb-sec:first-child{display:none}
+  .sb-collapsed .sb-foot{padding:10px 8px}
+  .sb-collapsed .u-row,.sb-collapsed .stu-foot{flex-direction:column;gap:8px;padding:8px 4px !important}
+  .sb-collapsed .logbtn{margin-left:0}
+}
+
 @media (max-width:860px){
+  .collapse-btn{display:none}
   /* The menu becomes a panel that slides in from the left. */
   .menu-btn{display:inline-flex}
   .sidebar,.stu-sidebar{position:fixed !important;top:0;left:0;height:100vh !important;height:100dvh !important;z-index:200;transform:translateX(-105%);transition:transform .22s ease,box-shadow .22s ease;box-shadow:none;max-width:84vw}
