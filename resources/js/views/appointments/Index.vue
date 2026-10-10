@@ -241,15 +241,6 @@
             <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
           </div>
 
-          <!-- Send Call Slip confirmation (student has not picked a schedule yet) -->
-          <div v-if="callSlipPrompt && canSendCallSlip(detailTarget)" style="border:1px solid var(--amber);background:var(--amber-lt);border-radius:var(--r-sm);padding:12px 14px;display:flex;flex-direction:column;gap:10px">
-            <div style="font-size:12.5px;color:var(--ink);line-height:1.5"><strong>Send Call Slip?</strong> This asks the Dean's Secretary to follow up with the student, who has not picked a schedule yet. It does not mark a no-show.</div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p ibtn-sm" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="sendCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes, Send Call Slip' }}</button>
-              <button class="ibtn ibtn-o ibtn-sm" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="callSlipPrompt = false">Cancel</button>
-            </div>
-          </div>
-
           <!-- GCU Head only: manually override the appointment's status -->
           <div v-if="auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" style="border-top:1px solid var(--cloud);padding-top:12px;display:flex;flex-direction:column;gap:8px">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Override Status (GCU Head)</div>
@@ -271,6 +262,28 @@
           </div>
 
           <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToReferral(detailTarget)">View Case File</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Send Call Slip confirmation (student has not picked a schedule yet).
+         Floats over Appointment Details instead of stretching it. -->
+    <div v-if="callSlipPrompt && detailTarget && canSendCallSlip(detailTarget)" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!sendingCallSlip && (callSlipPrompt = false)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:400px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:18px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Send Call Slip?</div>
+          <div style="font-size:11px;color:var(--fog);font-family:var(--mono);margin-top:2px">{{ detailTarget.appointment_code }}</div>
+        </div>
+        <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--ink);line-height:1.55">
+            This asks the Dean's Secretary to follow up with
+            <strong>{{ detailTarget.student?.first_name }} {{ detailTarget.student?.last_name }}</strong>,
+            who has not picked a schedule yet. It does not mark a no-show.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="sendCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes, Send Call Slip' }}</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="sendingCallSlip" @click="callSlipPrompt = false">Cancel</button>
+          </div>
         </div>
       </div>
     </div>
