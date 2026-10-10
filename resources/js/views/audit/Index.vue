@@ -157,7 +157,7 @@
           </div>
           <div v-if="selectedLog.model_type">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Affected Record</div>
-            <div style="font-size:13px;color:var(--ink)">{{ selectedLog.model_type }} #{{ selectedLog.model_id }}</div>
+            <div style="font-size:13px;color:var(--ink)">{{ recordLabel(selectedLog.model_type) }}</div>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">IP Address</div>
@@ -356,6 +356,28 @@ function actionStyle(action) {
     report_sent:    'background:var(--purple-lt);color:var(--purple)',
   };
   return styles[action] || 'background:var(--cloud);color:var(--stone)';
+}
+
+// What kind of record an entry is about, in plain words. The log stores the
+// internal class name and database id ("App\Models\Student #5006"), which is
+// not shown: it means nothing to a reader, and the description already says
+// which student or referral it was.
+function recordLabel(modelType) {
+  const name = String(modelType || '').split('\\').pop();
+  const labels = {
+    Student:          'Student record',
+    User:             'User account',
+    Referral:         'Referral',
+    CaseFile:         'Student Information File',
+    Appointment:      'Appointment',
+    TestingRecord:    'Testing record',
+    SessionNote:      'Session note',
+    CaseIntervention: 'Case intervention',
+    FeedbackSlip:     'Feedback slip',
+    Complaint:        'Complaint',
+  };
+  // Any other record type: "ParentConferenceSlip" -> "Parent Conference Slip"
+  return labels[name] || name.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
 function roleLabel(role) {
