@@ -687,16 +687,16 @@ class ReportController extends Controller
         ini_set('memory_limit', '384M');
         set_time_limit(180);
 
-        [$book, $unit] = $this->makeWorkbook($request);
-        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.pdf';
+        [$book, $unit, $file] = $this->makeWorkbook($request);
+        $filename = "iCARE-{$unit}-{$file}-" . now()->format('Y-m-d') . '.pdf';
 
         return response()->download($book->savePdf($filename), $filename)->deleteFileAfterSend(true);
     }
 
     public function exportExcel(Request $request)
     {
-        [$book, $unit] = $this->makeWorkbook($request);
-        $filename = "iCARE-{$unit}-Report-" . now()->format('Y-m-d') . '.xlsx';
+        [$book, $unit, $file] = $this->makeWorkbook($request);
+        $filename = "iCARE-{$unit}-{$file}-" . now()->format('Y-m-d') . '.xlsx';
 
         return response()->download($book->save($filename), $filename)->deleteFileAfterSend(true);
     }
@@ -708,6 +708,7 @@ class ReportController extends Controller
             'date_from' => 'nullable|date',
             'date_to'   => 'nullable|date',
             'period_label' => 'nullable|string|max:100',
+            'report'    => 'nullable|in:year_end,referrals,cases,appointments',
         ]);
 
         $unit = $this->unit($request);
@@ -720,11 +721,24 @@ class ReportController extends Controller
                . ' to ' . ($request->date_to ? date('F j, Y', strtotime($request->date_to)) : 'present');
         $period = ($request->period_label ? $request->period_label . '  |  ' : '') . $range;
 
-        $book = new ReportWorkbook($unitNames[$unit], "{$unit} Accomplishment Report", $period, now()->format('F j, Y g:i A'));
+        // The year-end report is the unit's full accomplishment report; the
+        // other three are its referral, case and appointment parts on their own.
+        $report = $request->input('report') ?: 'year_end';
+        [$title, $file] = [
+            'year_end'     => ['Accomplishment Report', 'Report'],
+            'referrals'    => ['Referrals Report', 'Referrals-Report'],
+            'cases'        => ['Case Report', 'Case-Report'],
+            'appointments' => ['Appointment Report', 'Appointment-Report'],
+        ][$report];
 
-        $unit === 'SDU' ? $this->fillSduWorkbook($book, $request) : $this->fillUnitWorkbook($book, $request, $unit);
+        $book = new ReportWorkbook($unitNames[$unit], "{$unit} {$title}", $period, now()->format('F j, Y g:i A'));
 
-        return [$book, $unit];
+        // SDU's year-end report is its complaints; its other reports use the shared sheets.
+        $unit === 'SDU' && $report === 'year_end'
+            ? $this->fillSduWorkbook($book, $request)
+            : $this->fillUnitWorkbook($book, $request, $unit, $report);
+
+        return [$book, $unit, $file];
     }
 
     /** "in_review" -> "In Review" */
@@ -734,9 +748,12 @@ class ReportController extends Controller
     }
 
     /** GCU and TMDU workbook: summary, breakdowns and the detailed referral list. */
-    private function fillUnitWorkbook(ReportWorkbook $book, Request $request, string $unit): void
+    private function fillUnitWorkbook(ReportWorkbook $book, Request $request, string $unit, string $report = 'year_end'): void
     {
-        if ($unit === 'GCU') {
+        // A sheet is printed in the year-end report and in the report it belongs to.
+        $in = fn(string $part) => $report === 'year_end' || $report === $part;
+
+        if ($unit === 'GCU' && $report === 'year_end') {
             $this->fillGcuAccomplishmentSheets($book, $request);
         }
         $referrals    = $this->buildReferralsReport($request);
@@ -750,117 +767,132 @@ class ReportController extends Controller
         $byType = array_map(fn($r) => [$this->label($r['referral_type']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_type']);
         usort($byType, fn($a, $b) => $b[1] <=> $a[1]);
 
-        // ----- Summary -----
-        $figures = [
-            ['Total referrals received', (int) $referrals['total']],
-            ['Total cases handled', (int) $cases['total']],
-            ['Pending cases', (int) $cases['pending']],
-            ['Resolved / closed cases', (int) $cases['completed']],
-            ['Case completion rate', $cases['completion_rate'] === null ? '-' : $cases['completion_rate'] . '%'],
-            ['Average days to close a case', (float) $cases['avg_days_to_close']],
-            ['Total appointments', (int) $appointments['total']],
-            ['Appointment attendance rate', $appointments['attendance']['rate'] === null ? '-' : $appointments['attendance']['rate'] . '%'],
-            ['Students with recurring referrals', (int) $recurring['total_recurring_students']],
-        ];
-        if ($unit === 'GCU') {
-            $figures[] = ['Cases referred to TMDU for testing', (int) $cases['referred_tmdu']];
+        if ($report === 'year_end') {
+            // ----- Summary -----
+            $figures = [
+                ['Total referrals received', (int) $referrals['total']],
+                ['Total cases handled', (int) $cases['total']],
+                ['Pending cases', (int) $cases['pending']],
+                ['Resolved / closed cases', (int) $cases['completed']],
+                ['Case completion rate', $cases['completion_rate'] === null ? '-' : $cases['completion_rate'] . '%'],
+                ['Average days to close a case', (float) $cases['avg_days_to_close']],
+                ['Total appointments', (int) $appointments['total']],
+                ['Appointment attendance rate', $appointments['attendance']['rate'] === null ? '-' : $appointments['attendance']['rate'] . '%'],
+                ['Students with recurring referrals', (int) $recurring['total_recurring_students']],
+            ];
+            if ($unit === 'GCU') {
+                $figures[] = ['Cases referred to TMDU for testing', (int) $cases['referred_tmdu']];
+            }
+
+            $book->sheet('Summary', 'Summary of Accomplishments', [46, 16, 16])
+                ->section('A. Key Figures')
+                ->table(['Indicator', 'Number', ''], array_map(fn($r) => [$r[0], $r[1], ''], $figures), ['center' => [1]])
+                ->section('B. Referrals Received, by Type')
+                ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('C. Services Rendered')
+                ->table(['Service', 'Number', ''], array_map(fn($r) => [$r['service'], (int) $r['count'], ''], $services), ['center' => [1]])
+                ->signatures();
         }
 
-        $book->sheet('Summary', 'Summary of Accomplishments', [46, 16, 16])
-            ->section('A. Key Figures')
-            ->table(['Indicator', 'Number', ''], array_map(fn($r) => [$r[0], $r[1], ''], $figures), ['center' => [1]])
-            ->section('B. Referrals Received, by Type')
-            ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('C. Services Rendered')
-            ->table(['Service', 'Number', ''], array_map(fn($r) => [$r['service'], (int) $r['count'], ''], $services), ['center' => [1]])
-            ->signatures();
+        if ($in('referrals')) {
+            // ----- Referrals -----
+            $months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+            $book->sheet('Referrals', 'Referrals Received', [46, 16, 16])
+                ->section('A. By Type of Referral')
+                ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('B. By Source of Referral')
+                ->table(['Referred By', 'Number', '% of Total'], array_map(fn($r) => [$r['source'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_source']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('C. By Status')
+                ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
 
-        // ----- Referrals -----
-        $months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        $book->sheet('Referrals', 'Referrals Received', [46, 16, 16])
-            ->section('A. By Type of Referral')
-            ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('B. By Source of Referral')
-            ->table(['Referred By', 'Number', '% of Total'], array_map(fn($r) => [$r['source'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_source']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('C. By Status')
-            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
+            // ----- By College and by Month -----
+            $book->sheet('By College', 'Referrals by College and by Month', [56, 16, 16])
+                ->section('A. By College of the Student')
+                ->table(['College', 'Number', '% of Total'], array_map(fn($r) => [$r['college'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_student_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('B. By Month')
+                ->table(['Month', 'Year', 'Number'], array_map(fn($r) => [$months[(int) $r['month']], (int) $r['year'], (int) $r['count']], $referrals['monthly_trend']), ['total' => [2], 'center' => [1, 2]]);
+        }
 
-        // ----- By College and by Month -----
-        $book->sheet('By College', 'Referrals by College and by Month', [56, 16, 16])
-            ->section('A. By College of the Student')
-            ->table(['College', 'Number', '% of Total'], array_map(fn($r) => [$r['college'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_student_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('B. By Month')
-            ->table(['Month', 'Year', 'Number'], array_map(fn($r) => [$months[(int) $r['month']], (int) $r['year'], (int) $r['count']], $referrals['monthly_trend']), ['total' => [2], 'center' => [1, 2]]);
+        if ($in('cases')) {
+            // ----- Cases: status, completion and backlog -----
+            $caseShare = fn(int $count) => $cases['total'] ? $count / $cases['total'] : 0;
+            $book->sheet('Cases', 'Cases: Status, Completion and Backlog', [46, 16, 16])
+                ->section('A. Cases by Status')
+                ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $caseShare((int) $r['count'])], $cases['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('B. Case Completion: Resolved Against Open Cases')
+                ->table(['Cases', 'Number', '% of Total'], [
+                    ['Resolved / closed', (int) $cases['completed'], $caseShare((int) $cases['completed'])],
+                    ['Open / pending', (int) $cases['pending'], $caseShare((int) $cases['pending'])],
+                ], ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+                ->section('C. Pending Cases, by How Long They Have Been Open')
+                ->table(['Open For', 'Number', ''], array_map(fn($r) => [$r['label'], (int) $r['count'], ''], $cases['pending_aging']), ['total' => [1], 'center' => [1]]);
 
-        // ----- Cases: status, completion and backlog -----
-        $caseShare = fn(int $count) => $cases['total'] ? $count / $cases['total'] : 0;
-        $book->sheet('Cases', 'Cases: Status, Completion and Backlog', [46, 16, 16])
-            ->section('A. Cases by Status')
-            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $caseShare((int) $r['count'])], $cases['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('B. Case Completion: Resolved Against Open Cases')
-            ->table(['Cases', 'Number', '% of Total'], [
-                ['Resolved / closed', (int) $cases['completed'], $caseShare((int) $cases['completed'])],
-                ['Open / pending', (int) $cases['pending'], $caseShare((int) $cases['pending'])],
-            ], ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('C. Pending Cases, by How Long They Have Been Open')
-            ->table(['Open For', 'Number', ''], array_map(fn($r) => [$r['label'], (int) $r['count'], ''], $cases['pending_aging']), ['total' => [1], 'center' => [1]]);
+            // ----- Case resolutions -----
+            // Case numbers only - no student names leave the office.
+            $caseDate = fn(?string $d) => $d ? date('M j, Y', strtotime($d)) : '-';
+            $book->sheet('Case Resolutions', 'Resolved and Closed Cases', [8, 22, 30, 44, 18, 18, 14, 16])
+                ->table(['No.', 'Case No.', 'Concern', 'College', 'Date Opened', 'Date Closed', 'Days to Close', 'Status'],
+                    array_values(array_map(fn($r, $i) => [
+                        $i + 1, $r['case_number'], $this->label($r['case_type']), $r['college'],
+                        $caseDate($r['opened_date']), $caseDate($r['closed_date']), $r['days_to_close'] ?? '-', $this->label($r['status']),
+                    ], $cases['resolutions'], array_keys($cases['resolutions']))),
+                    ['center' => [0, 4, 5, 6], 'repeat' => true]);
+        }
 
-        // ----- Case resolutions -----
-        // Case numbers only - no student names leave the office.
-        $caseDate = fn(?string $d) => $d ? date('M j, Y', strtotime($d)) : '-';
-        $book->sheet('Case Resolutions', 'Resolved and Closed Cases', [8, 22, 30, 44, 18, 18, 14, 16])
-            ->table(['No.', 'Case No.', 'Concern', 'College', 'Date Opened', 'Date Closed', 'Days to Close', 'Status'],
-                array_values(array_map(fn($r, $i) => [
-                    $i + 1, $r['case_number'], $this->label($r['case_type']), $r['college'],
-                    $caseDate($r['opened_date']), $caseDate($r['closed_date']), $r['days_to_close'] ?? '-', $this->label($r['status']),
-                ], $cases['resolutions'], array_keys($cases['resolutions']))),
-                ['center' => [0, 4, 5, 6], 'repeat' => true]);
+        if ($in('appointments')) {
+            // ----- Appointments -----
+            $statusCount = fn(string $status) => (int) (collect($appointments['by_status'])->firstWhere('status', $status)['count'] ?? 0);
+            $attendance  = $appointments['attendance'];
+            $book->sheet('Appointments', 'Appointments and Attendance', [46, 16, 16])
+                ->section('A. Appointments by Status')
+                ->table(['Status', 'Number', ''], array_map(fn($s) => [$this->label($s), $statusCount($s), ''], ['pending', 'confirmed', 'completed', 'cancelled', 'no_show']), ['total' => [1], 'center' => [1]])
+                ->section('B. Attendance')
+                ->table(['Outcome', 'Number', ''], [
+                    ['Attended', $attendance['attended'], ''],
+                    ['No-show', $attendance['no_show'], ''],
+                    ['Cancelled', $attendance['cancelled'], ''],
+                    ['Attendance rate (attended against no-show)', $attendance['rate'] === null ? '-' : $attendance['rate'] . '%', ''],
+                ], ['center' => [1]])
+                ->section('C. Appointments by Type')
+                ->table(['Type of Appointment', 'Number', ''], array_map(fn($r) => [$this->label($r['appointment_type']), (int) $r['count'], ''], $appointments['by_type']), ['total' => [1], 'center' => [1]]);
+        }
 
-        // ----- Appointments -----
-        $statusCount = fn(string $status) => (int) (collect($appointments['by_status'])->firstWhere('status', $status)['count'] ?? 0);
-        $attendance  = $appointments['attendance'];
-        $book->sheet('Appointments', 'Appointments and Attendance', [46, 16, 16])
-            ->section('A. Appointments by Status')
-            ->table(['Status', 'Number', ''], array_map(fn($s) => [$this->label($s), $statusCount($s), ''], ['pending', 'confirmed', 'completed', 'cancelled', 'no_show']), ['total' => [1], 'center' => [1]])
-            ->section('B. Attendance')
-            ->table(['Outcome', 'Number', ''], [
-                ['Attended', $attendance['attended'], ''],
-                ['No-show', $attendance['no_show'], ''],
-                ['Cancelled', $attendance['cancelled'], ''],
-                ['Attendance rate (attended against no-show)', $attendance['rate'] === null ? '-' : $attendance['rate'] . '%', ''],
-            ], ['center' => [1]])
-            ->section('C. Appointments by Type')
-            ->table(['Type of Appointment', 'Number', ''], array_map(fn($r) => [$this->label($r['appointment_type']), (int) $r['count'], ''], $appointments['by_type']), ['total' => [1], 'center' => [1]]);
+        if ($in('referrals')) {
+            // ----- Recurring Concerns -----
+            $book->sheet('Recurring Concerns', 'Recurring Concerns', [40, 16, 18, 20])
+                ->table(['Type of Referral', 'Total Referrals', 'Distinct Students', 'Students Referred More Than Once'],
+                    array_map(fn($r) => [$this->label($r['referral_type']), (int) $r['total_referrals'], (int) $r['distinct_students'], (int) $r['recurring_students']], $recurring['by_type']),
+                    ['total' => [1], 'center' => [1, 2, 3]]);
 
-        // ----- Recurring Concerns -----
-        $book->sheet('Recurring Concerns', 'Recurring Concerns', [40, 16, 18, 20])
-            ->table(['Type of Referral', 'Total Referrals', 'Distinct Students', 'Students Referred More Than Once'],
-                array_map(fn($r) => [$this->label($r['referral_type']), (int) $r['total_referrals'], (int) $r['distinct_students'], (int) $r['recurring_students']], $recurring['by_type']),
-                ['total' => [1], 'center' => [1, 2, 3]]);
+            // ----- Detailed list -----
+            // One row per referral. Student names and ID numbers are left out on
+            // purpose: this file leaves the office, and guidance records are confidential.
+            $rows = $this->forUnit(Referral::with('student'), $unit)
+                ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+                ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
+                ->orderBy('created_at')
+                ->get()
+                ->values()
+                ->map(fn($r, $i) => [
+                    $i + 1,
+                    $r->referral_code,
+                    $r->created_at?->format('M j, Y'),
+                    $r->student?->college ?: 'Not specified',
+                    $r->student?->program ?: 'Not specified',
+                    $r->student?->year_level ?: '-',
+                    $r->student?->sex ?: '-',
+                    $this->label($r->referral_type),
+                    $this->label($r->status),
+                ])->all();
 
-        // ----- Detailed list -----
-        // One row per referral. Student names and ID numbers are left out on
-        // purpose: this file leaves the office, and guidance records are confidential.
-        $rows = $this->forUnit(Referral::with('student'), $unit)
-            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
-            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
-            ->orderBy('created_at')
-            ->get()
-            ->values()
-            ->map(fn($r, $i) => [
-                $i + 1,
-                $r->referral_code,
-                $r->created_at?->format('M j, Y'),
-                $r->student?->college ?: 'Not specified',
-                $r->student?->program ?: 'Not specified',
-                $r->student?->year_level ?: '-',
-                $r->student?->sex ?: '-',
-                $this->label($r->referral_type),
-                $this->label($r->status),
-            ])->all();
+            $book->sheet('Referral List', 'Detailed List of Referrals', [6, 18, 14, 38, 38, 12, 10, 24, 16])
+                ->table(['No.', 'Referral No.', 'Date Received', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true]);
+        }
 
-        $book->sheet('Referral List', 'Detailed List of Referrals', [6, 18, 14, 38, 38, 12, 10, 24, 16])
-            ->table(['No.', 'Referral No.', 'Date Received', 'College', 'Program', 'Year Level', 'Sex', 'Type of Referral', 'Status'], $rows, ['center' => [0, 2, 5, 6], 'repeat' => true]);
+        // The year-end report is signed on its Summary sheet; the others on their last sheet.
+        if ($report !== 'year_end') {
+            $book->signatures();
+        }
     }
 
     /** The three sections of the printed GCU Accomplishment Report. */

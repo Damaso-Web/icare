@@ -117,6 +117,12 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 .ibadge-open{background:var(--mist);color:var(--moss)}
 .ibadge-pending{background:var(--amber-lt);color:var(--amber)}
 .ibadge-cancelled{background:var(--red-lt);color:var(--red)}
+.ibadge-no_show{background:#fde8d7;color:#b4541a}
+.ibadge-rescheduled{background:var(--blue-lt);color:var(--blue)}
+.ibadge-callslip{background:#f3e8ff;color:#6b21a8}
+.ibadge-awaiting_testing,.ibadge-awaiting_external{background:#f3e8ff;color:#6b21a8}
+.ibadge-on_hold,.ibadge-on_observation{background:var(--amber-lt);color:var(--amber)}
+.ibadge-resolved{background:var(--mist);color:var(--moss)}
 .ibadge-confirmed{background:var(--mist);color:var(--moss)}
 .unit-gcu{background:var(--mist);color:var(--moss)}
 .unit-sdu{background:var(--amber-lt);color:var(--amber)}

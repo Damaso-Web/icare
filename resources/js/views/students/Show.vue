@@ -31,8 +31,10 @@
           v-if="primaryCase"
           style="font-family:var(--serif);font-style:italic;font-size:26px;color:var(--forest);font-weight:400"
         >
-          {{ primaryCase.case_number }}
+          {{ caseName }}
         </span>
+        <!-- Until a client no. is entered the case still goes by its old number -->
+        <span v-if="primaryCase && !hasCtrlNo && fromCases && sifDoc.ctrl_no" style="font-size:11.5px;color:var(--fog)">No Ctrl No. yet</span>
         <span
           v-if="primaryCase && ['closed', 'resolved'].includes(primaryCase.status)"
           class="ibadge"
@@ -192,14 +194,14 @@
               <div style="text-align:right"><strong>Effectivity:</strong> {{ formatDocDate(sifDoc.effectivity_date) }}</div>
               <div><strong>Revision No.:</strong> {{ sifDoc.revision_no || '01' }}</div>
               <div></div>
-              <div style="grid-column:1 / -1;display:flex;align-items:center;gap:6px;margin-top:2px">
-                <strong>Ctrl No.:</strong>
+              <div class="ctrl-row">
+                <span class="ctrl-label">Ctrl No.</span>
                 <template v-if="!editingClientNo">
-                  <span style="font-family:var(--mono)">{{ sifCtrlNo }}</span>
-                  <button v-if="isGCU" type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" @click="startClientNoEdit">Edit</button>
+                  <span class="ctrl-value" :class="{ unset: !hasCtrlNo }">{{ sifCtrlNo }}</span>
+                  <button v-if="isGCU" type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" @click="startClientNoEdit">{{ hasCtrlNo ? 'Edit' : 'Set' }}</button>
                 </template>
                 <template v-else>
-                  <span style="font-family:var(--mono)">{{ sifDoc.ctrl_no || '-' }}-</span>
+                  <span class="ctrl-value">{{ sifDoc.ctrl_no || '-' }}-</span>
                   <input v-model="clientNoDraft" class="ifi" style="width:70px;padding:3px 8px;font-family:var(--mono)" maxlength="4" inputmode="numeric" placeholder="____" @input="clientNoDraft = String(clientNoDraft ?? '').replace(/\D/g, '')" @keyup.enter="saveClientNo" />
                   <button type="button" class="ibtn ibtn-p ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="saveClientNo">{{ savingClientNo ? '...' : 'Save' }}</button>
                   <button type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="editingClientNo = false">Cancel</button>
@@ -757,6 +759,11 @@ const sifCtrlNo = computed(() => {
   return `${sifDoc.value?.ctrl_no || '-'}-${tail}`;
 });
 
+// The Ctrl No. is the case's name once the student has a client no.; until
+// then the case keeps its old "CASE-<student id>" number.
+const hasCtrlNo = computed(() => Boolean(student.value?.sif_client_no && sifDoc.value?.ctrl_no));
+const caseName  = computed(() => hasCtrlNo.value ? sifCtrlNo.value : (primaryCase.value?.case_number || ''));
+
 function startClientNoEdit() {
   clientNoDraft.value = student.value?.sif_client_no ? String(student.value.sif_client_no) : '';
   editingClientNo.value = true;
@@ -971,6 +978,8 @@ function formatDate(date) {
 }
 
 onMounted(async () => {
+  // Ctrl No. prefix, loaded alongside the page so the case name is right from the start.
+  studentAPI.documentSettings('QF-OSS-GCU-01').then(res => { sifDoc.value = res.data || {}; }).catch(() => { /* header falls back to the defaults */ });
   try {
     const [studentRes, historyRes] = await Promise.all([
       studentAPI.show(route.params.id),
@@ -986,10 +995,13 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-  if (fromCases.value) {
-    try {
-      sifDoc.value = (await studentAPI.documentSettings('QF-OSS-GCU-01')).data || {};
-    } catch (e) { /* header falls back to the defaults */ }
-  }
 });
 </script>
+
+<style scoped>
+/* SIF document header: the Ctrl No. is the case's name, so it stands out. */
+.ctrl-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--silver); }
+.ctrl-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); }
+.ctrl-value { font-family: var(--mono); font-size: 17px; font-weight: 700; letter-spacing: .5px; color: var(--forest); background: var(--mist); border: 1px solid var(--mint); border-radius: 6px; padding: 2px 10px; }
+.ctrl-value.unset { color: var(--stone); background: #fff; border-style: dashed; border-color: var(--silver); font-weight: 500; }
+</style>

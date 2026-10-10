@@ -49,7 +49,7 @@
         <table class="itable">
           <thead>
             <tr>
-              <th>Case No.</th>
+              <th>Ctrl No.</th>
               <th>Student Name</th>
               <th>Date Submitted</th>
               <th></th>
@@ -62,7 +62,11 @@
               style="cursor:pointer"
               @click="$router.push({ name: 'student-show', params: { id: c.student?.id }, query: { ctx: 'cases' } })"
             >
-              <td style="font-family:var(--mono);font-size:11px">{{ c.case_number }}</td>
+              <!-- The Ctrl No. is the case's name; cases whose student has no client no. yet show the old number -->
+              <td>
+                <span v-if="ctrlNo(c)" style="font-family:var(--mono);font-size:13px;font-weight:700;color:var(--forest)">{{ ctrlNo(c) }}</span>
+                <span v-else style="font-family:var(--mono);font-size:11px;color:var(--stone)" title="No Ctrl No. yet - open the file to set the client number">{{ c.case_number }}</span>
+              </td>
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
                   <div class="iav">{{ initials(c.student?.first_name, c.student?.last_name) }}</div>
@@ -98,12 +102,19 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
-import { caseAPI } from '../../api/index';
+import { caseAPI, studentAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const route = useRoute();
 
 const cases      = ref([]);
+
+// Ctrl No. = "<year>-<term>" (set in Management for QF-OSS-GCU-01) + the student's client no.
+const ctrlPrefix = ref('');
+function ctrlNo(c) {
+  const n = c.student?.sif_client_no;
+  return n && ctrlPrefix.value ? `${ctrlPrefix.value}-${String(n).padStart(4, '0')}` : '';
+}
 const loading    = ref(true);
 const pagination = ref({});
 const filters    = ref({ search: '', status: '', unit: '' });
@@ -142,6 +153,7 @@ function formatDate(date) {
 }
 
 onMounted(() => {
+  studentAPI.documentSettings('QF-OSS-GCU-01').then(res => { ctrlPrefix.value = res.data?.ctrl_no || ''; }).catch(() => {});
   // Arriving from a Dashboard stat card (?status=open) pre-filters the list
   // to match what the card said, instead of dumping the user on an
   // unfiltered "All Status" view.

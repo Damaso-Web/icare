@@ -75,7 +75,7 @@
                   {{ a.reschedule_reason ? 'Reschedule Needed - Waiting for Student' : 'Waiting for Student to Pick a Schedule' }}
                 </div>
                 <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
-                  {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} - {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
+                  {{ toTitleCase(a.appointment_type) }} · {{ fmt12(a.start_time) }} – {{ fmt12(a.end_time) }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ statusText(a) }}</span>
@@ -92,6 +92,8 @@
                   <span v-if="a.rescheduled_from_id && a.request_status !== 'awaiting_student'" class="ibadge" style="background:var(--blue-lt);color:var(--blue)" title="This appointment was created from a reschedule request.">
                     Rescheduled
                   </span>
+                  <!-- A Call Slip went to the Dean's Secretary for this appointment -->
+                  <span v-if="callSlipLabel(a)" class="ibadge ibadge-callslip" :title="callSlipTitle(a)">{{ callSlipLabel(a) }}</span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
@@ -173,78 +175,74 @@
       </div>
     </div>
 
-    <!-- Appointment Detail Modal -->
+    <!-- Appointment Detail Modal: wide and short - the facts in three columns,
+         the actions in one row, and the GCU Head's status override folded
+         away until it is needed. -->
     <div v-if="detailTarget" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="detailTarget = null">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-          <div>
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Appointment Details</div>
-            <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ detailTarget.appointment_code }}</div>
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:680px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:16px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;gap:12px">
+          <div style="min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ detailTarget.student?.last_name }}, {{ detailTarget.student?.first_name }}</span>
+              <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
+              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
+              <span v-if="callSlipLabel(detailTarget)" class="ibadge ibadge-callslip" :title="callSlipTitle(detailTarget)">{{ callSlipLabel(detailTarget) }}</span>
+            </div>
+            <div style="font-size:11.5px;color:var(--fog);margin-top:3px">
+              Appointment <span style="font-family:var(--mono)">{{ detailTarget.appointment_code }}</span>
+              <template v-if="detailTarget.case?.case_number"> · <span style="font-family:var(--mono)">{{ detailTarget.case.case_number }}</span></template>
+            </div>
           </div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="detailTarget = null">✕</button>
+          <button class="ibtn ibtn-g ibtn-sm" style="flex:none" @click="detailTarget = null">✕</button>
         </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+
+        <div style="padding:18px 22px;display:flex;flex-direction:column;gap:14px">
+          <div class="ad-grid">
             <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Student</div>
-              <div style="font-size:13px;color:var(--ink)">{{ detailTarget.student?.last_name }}, {{ detailTarget.student?.first_name }}</div>
+              <div class="ad-label">Date</div>
+              <div class="ad-value">{{ formatApptDate(detailTarget.appointment_date) }}</div>
             </div>
             <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Unit</div>
+              <div class="ad-label">Time</div>
+              <div class="ad-value">{{ fmt12(detailTarget.start_time) }} – {{ fmt12(detailTarget.end_time) }}</div>
+            </div>
+            <div>
+              <div class="ad-label">Type</div>
+              <div class="ad-value">{{ toTitleCase(detailTarget.appointment_type) }}</div>
+            </div>
+            <div>
+              <div class="ad-label">Staff</div>
+              <div class="ad-value">{{ detailTarget.staff?.name || 'TBA' }}</div>
+            </div>
+            <div>
+              <div class="ad-label">Unit</div>
               <span class="ibadge" :class="'unit-' + detailTarget.unit?.toLowerCase()">{{ detailTarget.unit }}</span>
             </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
-              <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(detailTarget.appointment_type) }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-              <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
-              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
-              <div style="font-size:13px;color:var(--ink)">{{ formatApptDate(detailTarget.appointment_date) }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Time</div>
-              <div style="font-size:13px;color:var(--ink)">{{ detailTarget.start_time }} - {{ detailTarget.end_time }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Staff</div>
-              <div style="font-size:13px;color:var(--ink)">{{ detailTarget.staff?.name || 'TBA' }}</div>
-            </div>
             <div v-if="detailTarget.reschedule_count">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Times Rescheduled</div>
-              <div style="font-size:13px;color:var(--ink)">{{ detailTarget.reschedule_count }}</div>
+              <div class="ad-label">Times Rescheduled</div>
+              <div class="ad-value">{{ detailTarget.reschedule_count }}</div>
+            </div>
+            <div v-if="detailTarget.location">
+              <div class="ad-label">Location</div>
+              <div class="ad-value">{{ detailTarget.location }}</div>
             </div>
           </div>
-          <div v-if="detailTarget.location">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Location</div>
-            <div style="font-size:13px;color:var(--ink)">{{ detailTarget.location }}</div>
-          </div>
-          <div v-if="detailTarget.required_documents">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
-            <div style="font-size:13px;color:var(--ink);background:var(--snow);padding:8px 10px;border-radius:var(--r-sm)">{{ detailTarget.required_documents }}</div>
-          </div>
-          <div v-if="detailTarget.notes">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Notes</div>
-            <div style="font-size:13px;color:var(--ink)">{{ detailTarget.notes }}</div>
-          </div>
-          
-          <div v-if="!['cancelled','completed'].includes(detailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
-            <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
-            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
-            <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
-            <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
-            <button v-if="canSendCallSlip(detailTarget)" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="callSlipPrompt = true">Send Call Slip</button>
-            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
+
+          <div v-if="detailTarget.required_documents || detailTarget.notes" class="ad-notes">
+            <div v-if="detailTarget.required_documents">
+              <div class="ad-label">Required Documents</div>
+              <div class="ad-value" style="white-space:pre-line">{{ detailTarget.required_documents }}</div>
+            </div>
+            <div v-if="detailTarget.notes">
+              <div class="ad-label">Notes</div>
+              <div class="ad-value" style="white-space:pre-line">{{ detailTarget.notes }}</div>
+            </div>
           </div>
 
           <!-- GCU Head only: manually override the appointment's status -->
-          <div v-if="auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" style="border-top:1px solid var(--cloud);padding-top:12px;display:flex;flex-direction:column;gap:8px">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Override Status (GCU Head)</div>
-            <div style="display:grid;grid-template-columns:1fr;gap:8px">
+          <div v-if="overrideOpen && auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" class="ad-override">
+            <div class="ad-label" style="margin-bottom:6px">Override Status (GCU Head)</div>
+            <div class="ad-override-row">
               <select v-model="overrideForm.target" class="ifse">
                 <option value="">Change status to...</option>
                 <option value="awaiting_student">Waiting for Student to Pick a Schedule</option>
@@ -254,14 +252,30 @@
                 <option value="no_show">No-Show</option>
                 <option value="cancelled">Cancelled</option>
               </select>
-              <input v-model="overrideForm.reason" class="ifi" maxlength="255" placeholder="Reason for the change (required)" />
+              <input v-model="overrideForm.reason" class="ifi" maxlength="255" placeholder="Reason for the change (required)" @keyup.enter="applyOverride" />
+              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!overrideForm.target || overrideForm.reason.trim().length < 5 || overridingStatus" @click="applyOverride">
+                {{ overridingStatus ? 'Updating...' : 'Apply' }}
+              </button>
             </div>
-            <button class="ibtn ibtn-o ibtn-sm" style="justify-content:center" :disabled="!overrideForm.target || overrideForm.reason.trim().length < 5 || overridingStatus" @click="applyOverride">
-              {{ overridingStatus ? 'Updating...' : 'Apply Status Change' }}
-            </button>
           </div>
+        </div>
 
-          <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToReferral(detailTarget)">View Case File</button>
+        <!-- Actions: what can be done with this appointment on the left, the case file on the right -->
+        <div class="ad-foot">
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <template v-if="!['cancelled','completed'].includes(detailTarget.status)">
+              <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
+              <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+              <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
+              <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
+              <button v-if="canSendCallSlip(detailTarget)" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="callSlipPrompt = true">Send Call Slip</button>
+              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel Appointment</button>
+            </template>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
+            <button v-if="auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" class="ibtn ibtn-g ibtn-sm" @click="overrideOpen = !overrideOpen">{{ overrideOpen ? 'Hide Override' : 'Override Status' }}</button>
+            <button class="ibtn ibtn-o ibtn-sm" @click="goToReferral(detailTarget)">View Case File</button>
+          </div>
         </div>
       </div>
     </div>
@@ -525,7 +539,38 @@ async function applyOverride() {
 
 function openApptDetail(a) {
   detailTarget.value = a;
+  overrideOpen.value = false;
+  overrideForm.value = { target: '', reason: '' };
 }
+
+// 24h "HH:MM(:SS)" -> "h:mm AM/PM"
+function fmt12(t) {
+  if (!t) return '';
+  const [h, m] = String(t).split(':');
+  const hh = Number(h);
+  if (Number.isNaN(hh)) return t;
+  return `${((hh + 11) % 12) + 1}:${(m || '00').slice(0, 2)} ${hh >= 12 ? 'PM' : 'AM'}`;
+}
+
+// Label for an appointment a Call Slip was sent for (to the Dean's Secretary),
+// worded by how far the follow-up has got. Empty when there is none.
+const CALL_SLIP_LABELS = {
+  pending:     'Call Slip Sent',
+  contacted:   'Call Slip · Student Contacted',
+  rescheduled: 'Call Slip · Rescheduled',
+  dept_chair:  'Call Slip · With Dept. Chair',
+};
+function callSlipLabel(a) {
+  if (!a || !(a.no_show_escalated || a.call_slip_stage)) return '';
+  return CALL_SLIP_LABELS[a.call_slip_stage] || 'Call Slip Sent';
+}
+function callSlipTitle(a) {
+  const when = a?.no_show_escalated_at ? new Date(a.no_show_escalated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  return `A Call Slip was sent to the Dean's Secretary${when ? ' on ' + when : ''}.`;
+}
+
+// The status override is folded away each time a different appointment is opened.
+const overrideOpen = ref(false);
 
 function formatApptDate(date) {
   return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-';
@@ -818,3 +863,20 @@ onMounted(() => {
 });
 onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer); });
 </script>
+
+<style scoped>
+/* Appointment Details popup */
+.ad-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 18px; }
+.ad-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); margin-bottom: 3px; }
+.ad-value { font-size: 13px; color: var(--ink); }
+.ad-notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 18px; background: var(--snow); border-radius: var(--r-sm); padding: 10px 12px; }
+.ad-override { border: 1px dashed var(--silver); border-radius: var(--r-sm); padding: 10px 12px; }
+.ad-override-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) auto; gap: 8px; align-items: center; }
+.ad-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 22px; border-top: 1px solid var(--cloud); background: var(--snow); }
+@media (max-width: 860px) {
+  .ad-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ad-override-row { grid-template-columns: 1fr; }
+  .ad-foot > div { margin-left: 0 !important; width: 100%; }
+  .ad-foot .ibtn { flex: 1 1 auto; justify-content: center; }
+}
+</style>

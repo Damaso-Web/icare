@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Reports & Analytics</h1>
-      <p>{{ UNIT_NAMES[unit] }} {{ UNIT_BLURB[unit] }}</p>
+      <p>{{ UNIT_NAMES[unit] }}: {{ currentReport.blurb }}</p>
     </div>
 
     <!-- Each unit has its own report. Admin can open any of them; unit staff only see their own. -->
@@ -16,6 +16,20 @@
         @click="selectUnit(u)"
       >
         {{ u }} Report
+      </button>
+    </div>
+
+    <!-- Which report of that unit: the full year-end report, or one part of it on its own -->
+    <div class="rt-tabs">
+      <button
+        v-for="t in REPORT_TYPES"
+        :key="t.value"
+        type="button"
+        class="rt-tab"
+        :class="{ active: reportType === t.value }"
+        @click="reportType = t.value"
+      >
+        {{ t.label }}
       </button>
     </div>
 
@@ -78,7 +92,7 @@
     </div>
 
     <!-- SDU report: complaints received, by misconduct, college and department -->
-    <template v-else-if="unit === 'SDU'">
+    <template v-else-if="unit === 'SDU' && reportType === 'year_end'">
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:14px;margin-bottom:20px">
         <div class="stat-card" v-for="stat in sduStats" :key="stat.label">
           <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
@@ -168,7 +182,7 @@
       </div>
 
       <!-- GCU: "Guidance and Counseling Unit by the Numbers", laid out like the printed GCU Accomplishment Report -->
-      <template v-if="unit === 'GCU'">
+      <template v-if="unit === 'GCU' && shows('year_end')">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:4px 0 10px">
           <div style="font-size:13px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--forest)">Guidance and Counseling Unit by the Numbers</div>
           <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--stone);cursor:pointer">
@@ -329,7 +343,7 @@
       </template>
 
       <!-- Charts Row -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+      <div v-if="shows('referrals')" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
         <!-- Referrals by College (college of the referred student) -->
         <div class="icard">
@@ -371,7 +385,7 @@
       </div>
 
       <!-- Services Rendered - what the office delivered, as opposed to referrals received -->
-      <div class="icard" style="margin-bottom:16px">
+      <div v-if="shows('year_end')" class="icard" style="margin-bottom:16px">
         <div class="icard-header"><span class="icard-title">Services Rendered</span></div>
         <div class="svc-wrap">
           <div v-if="!servicesData.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
@@ -388,7 +402,7 @@
       </div>
 
       <!-- Referral patterns: who refers, and how many per month -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+      <div v-if="shows('referrals')" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
         <!-- Referrals by Source -->
         <div class="icard">
@@ -441,7 +455,7 @@
       </div>
 
       <!-- Cases: completion and backlog beside the status breakdown -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+      <div v-if="shows('cases')" style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
         <!-- Case Completion -->
         <div class="icard">
@@ -490,7 +504,7 @@
       </div>
 
       <!-- Case Resolutions: the cases that were resolved or closed -->
-      <div class="icard" style="margin-bottom:16px">
+      <div v-if="shows('cases')" class="icard" style="margin-bottom:16px">
         <div class="icard-header">
           <span class="icard-title">Case Resolutions</span>
           <span class="ibadge" style="background:var(--mist);color:var(--moss)">Avg. {{ caseData.avg_days_to_close ?? 0 }} days to close</span>
@@ -529,7 +543,7 @@
       </div>
 
       <!-- Recurring Concerns -->
-      <div class="icard" style="margin-bottom:16px">
+      <div v-if="shows('referrals')" class="icard" style="margin-bottom:16px">
         <div class="icard-header">
           <span class="icard-title">Recurring Concerns</span>
           <span class="ibadge" style="background:var(--blue-lt);color:var(--blue)">{{ recurringData.total_recurring_students ?? 0 }} students with recurring referrals</span>
@@ -579,8 +593,25 @@
         </div>
       </div>
 
+      <!-- Appointments by Type (Appointment Reports only - the year-end report keeps to the summary) -->
+      <div v-if="reportType === 'appointments'" class="icard" style="margin-bottom:16px">
+        <div class="icard-header"><span class="icard-title">Appointments by Type</span></div>
+        <div class="icard-body"><div class="narrow">
+          <div v-if="!apptData.by_type?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+          <div v-for="item in apptData.by_type" :key="item.appointment_type" style="margin-bottom:11px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+              <span>{{ toTitleCase(item.appointment_type) }}</span>
+              <span style="color:var(--stone)">{{ item.count }} · {{ pct(item.count, apptData.total) }}%</span>
+            </div>
+            <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+              <div :style="{ width: pct(item.count, apptData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+            </div>
+          </div>
+        </div></div>
+      </div>
+
       <!-- Appointments Summary -->
-      <div class="icard">
+      <div v-if="shows('appointments')" class="icard">
         <div class="icard-header"><span class="icard-title">Appointment Summary</span></div>
         <div class="ts">
           <table class="itable gcu-num">
@@ -666,6 +697,27 @@ const UNIT_BLURB = {
   TMDU: 'report on referrals received, services rendered, appointments, and case outcomes.',
   SDU:  'report on complaints received, by misconduct, college and department.',
 };
+// ---- Kind of report ----
+// "Year-end" is the unit's full accomplishment report. The other three are
+// its referral, case and appointment parts on their own - on the page and in
+// the PDF / Excel export.
+const REPORT_TYPES = [
+  { value: 'year_end',     label: 'Year-end Reports',    file: 'Report',             blurb: 'year-end report on referrals received, services rendered, appointments, and case outcomes.' },
+  { value: 'referrals',    label: 'Referrals Reports',   file: 'Referrals-Report',   blurb: 'referrals received, by type, college, source and month, and recurring concerns.' },
+  { value: 'cases',        label: 'Case Reports',        file: 'Case-Report',        blurb: 'cases by status, case completion, pending cases, and resolved cases.' },
+  { value: 'appointments', label: 'Appointment Reports', file: 'Appointment-Report', blurb: 'appointments by status and type, and attendance.' },
+];
+const reportType = ref('year_end');
+const currentReport = computed(() => {
+  const t = REPORT_TYPES.find(x => x.value === reportType.value);
+  // SDU's year-end report is its complaints.
+  return unit.value === 'SDU' && t.value === 'year_end' ? { ...t, blurb: UNIT_BLURB.SDU } : t;
+});
+// A section shows in the year-end report and in the report it belongs to.
+function shows(section) {
+  return reportType.value === 'year_end' || reportType.value === section;
+}
+
 const auth = useAuthStore();
 const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
 const canPickUnit = !ownUnit;
@@ -781,14 +833,14 @@ async function exportReport(format) {
   try {
     const res = await axios.get(`${API_BASE}/reports/export/${format}`, {
       ...authHeaders(),
-      params: { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value, period_label: periodLabel.value },
+      params: { unit: unit.value, report: reportType.value, date_from: dateFrom.value, date_to: dateTo.value, period_label: periodLabel.value },
       responseType: 'blob',
     });
     const ext = format === 'pdf' ? 'pdf' : 'xlsx';
     const blobUrl = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = blobUrl;
-    link.download = `iCARE-${unit.value}-Report-${localDateStr()}.${ext}`;
+    link.download = `iCARE-${unit.value}-${currentReport.value.file}-${localDateStr()}.${ext}`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -867,17 +919,17 @@ function collegeShort(name) {
   return name.match(/\(([^)]+)\)\s*$/)?.[1] || name;
 }
 
-const summaryStats = computed(() => allStats.value.filter(st => !st.only || st.only === unit.value));
+const summaryStats = computed(() => allStats.value.filter(st => (!st.only || st.only === unit.value) && shows(st.group)));
 
 const allStats = computed(() => [
-  { label: 'Total Referrals',    value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { label: 'Total Cases',        value: caseData.value.total        ?? 0, iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
-  { label: 'Pending Cases',      value: caseData.value.pending      ?? 0, iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label: 'Resolved / Closed',  value: caseData.value.completed ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
-  { label: 'Case Completion',    value: (caseData.value.completion_rate ?? 0) + '%', iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
-  { label: 'Avg. Days to Close', value: caseData.value.avg_days_to_close ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label: 'Total Appointments', value: apptData.value.total        ?? 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)',  icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
-  { label: 'Referred to TMDU',   value: caseData.value.referred_tmdu ?? 0, only: 'GCU', iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
+  { label: 'Total Referrals', group: 'referrals', value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { label: 'Total Cases', group: 'cases', value: caseData.value.total        ?? 0, iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
+  { label: 'Pending Cases', group: 'cases', value: caseData.value.pending      ?? 0, iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+  { label: 'Resolved / Closed', group: 'cases', value: caseData.value.completed ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Case Completion', group: 'cases', value: (caseData.value.completion_rate ?? 0) + '%', iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
+  { label: 'Avg. Days to Close', group: 'cases', value: caseData.value.avg_days_to_close ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+  { label: 'Total Appointments', group: 'appointments', value: apptData.value.total        ?? 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)',  icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+  { label: 'Referred to TMDU', group: 'cases', value: caseData.value.referred_tmdu ?? 0, only: 'GCU', iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
 ]);
 
 const maxMonthlyCount = computed(() => {
@@ -908,14 +960,12 @@ async function fetchAll() {
   loadError.value = false;
   try {
     const params = { unit: unit.value, date_from: dateFrom.value, date_to: dateTo.value };
-    // SDU's report is its complaints, not the referral/case figures.
-    if (unit.value === 'SDU') {
-      sduData.value = (await reportAPI.complaints(params)).data;
-      return;
-    }
+    // SDU's year-end report is its complaints; its other reports use the same
+    // referral / case / appointment figures as the other units.
+    const sdu = unit.value === 'SDU' ? reportAPI.complaints(params) : Promise.resolve({ data: {} });
     // GCU's printed-report sections load alongside the other figures.
     const gcu = unit.value === 'GCU' ? reportAPI.gcuAccomplishment(params) : Promise.resolve({ data: {} });
-    const [r, c, a, d, rc, sv, g] = await Promise.all([
+    const [r, c, a, d, rc, sv, g, sd] = await Promise.all([
       reportAPI.referrals(params),
       reportAPI.cases(params),
       reportAPI.appointments(params),
@@ -923,7 +973,9 @@ async function fetchAll() {
       reportAPI.recurringConcerns(params),
       reportAPI.services(params),
       gcu,
+      sdu,
     ]);
+    sduData.value       = sd.data;
     referralData.value  = r.data;
     caseData.value      = c.data;
     apptData.value      = a.data;
@@ -964,6 +1016,18 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+/* Kind-of-report tabs, under the unit buttons */
+.rt-tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid var(--silver); overflow-x: auto; scrollbar-width: none; }
+.rt-tabs::-webkit-scrollbar { display: none; }
+.rt-tab {
+  flex: none; padding: 8px 14px; border: none; background: none; cursor: pointer;
+  font-family: var(--font); font-size: 13px; font-weight: 500; color: var(--stone);
+  border-bottom: 2px solid transparent; margin-bottom: -1px; white-space: nowrap;
+  transition: color .12s, border-color .12s;
+}
+.rt-tab:hover { color: var(--ink); }
+.rt-tab.active { color: var(--moss); font-weight: 700; border-bottom-color: var(--moss); }
+
 /* Period filter - same pattern as the Audit Trail filter bar. */
 .rp-bar { flex-wrap: nowrap; }
 .rp-field { display: flex; align-items: center; gap: 6px; flex: 0 1 auto; min-width: 0; }
