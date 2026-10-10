@@ -73,10 +73,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::middleware('role:admin,gcu_staff')->group(function () {
         Route::apiResource('students', StudentController::class)->only(['store', 'update', 'destroy']);
         Route::post('students/import', [StudentController::class, 'import']);
-<<<<<<< HEAD
-=======
         Route::patch('students/{student}/client-no', [StudentController::class, 'updateClientNo']);
->>>>>>> 8387956 (Fix migration order for academic years; add student reset tokens and SIF client no.)
         // Activating and deactivating a student account is for the GCU Head (admin) only.
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive'])->middleware('role:admin');
         Route::post('students/{student}/graduate', [StudentController::class, 'graduate'])->middleware('role:admin');
