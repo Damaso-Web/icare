@@ -387,47 +387,144 @@
         </div>
       </div>
 
-      <div style="margin-bottom:16px">
+      <!-- Referral patterns: who refers, and how many per month -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
 
-        <!-- Cases by Status -->
+        <!-- Referrals by Source -->
         <div class="icard">
-          <div class="icard-header"><span class="icard-title">Cases by Status</span></div>
-          <div class="icard-body"><div class="narrow">
-            <div v-if="!caseData.by_status?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-            <div v-for="item in caseData.by_status" :key="item.status" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cloud)">
-              <span class="ibadge" :class="'ibadge-' + item.status">{{ toTitleCase(item.status) }}</span>
-              <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ item.count }}</span>
+          <div class="icard-header">
+            <span class="icard-title">Referrals by Source</span>
+            <span v-if="sourceRows.length" class="ibadge" style="background:var(--mist);color:var(--moss)">Most from: {{ sourceRows[0].source }}</span>
+          </div>
+          <div class="icard-body">
+            <div v-if="!sourceRows.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in sourceRows" :key="item.source" style="margin-bottom:11px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--slate);margin-bottom:5px">
+                <span>{{ item.source }}</span>
+                <span style="color:var(--stone)">{{ item.count }} · {{ pct(item.count, referralData.total) }}%</span>
+              </div>
+              <div style="background:var(--cloud);border-radius:4px;height:7px;overflow:hidden">
+                <div :style="{ width: pct(item.count, referralData.total) + '%', background: 'var(--moss)', height: '100%', borderRadius: '4px' }"></div>
+              </div>
             </div>
-          </div></div>
+          </div>
+        </div>
+
+        <!-- Monthly Trend -->
+        <div class="icard">
+          <div class="icard-header"><span class="icard-title">Monthly Referral Trend</span></div>
+          <div class="icard-body">
+            <div v-if="!referralData.monthly_trend?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-else style="display:flex;align-items:flex-end;gap:8px;height:150px;padding:0 8px">
+              <div
+                v-for="item in referralData.monthly_trend"
+                :key="item.month + '-' + item.year"
+                style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;max-width:90px"
+              >
+                <div style="font-size:11px;color:var(--stone);font-weight:500">{{ item.count }}</div>
+                <div
+                  :style="{
+                    width: '100%',
+                    height: (item.count / maxMonthlyCount * 100) + 'px',
+                    background: 'var(--moss)',
+                    borderRadius: '4px 4px 0 0',
+                    minHeight: '4px',
+                    transition: 'height .5s',
+                  }"
+                ></div>
+                <div style="font-size:10px;color:var(--fog)">{{ monthLabel(item.month) }}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
       </div>
 
-      <!-- Monthly Trend -->
-      <div class="icard" style="margin-bottom:16px">
-        <div class="icard-header"><span class="icard-title">Monthly Referral Trend</span></div>
-        <div class="icard-body">
-          <div v-if="!referralData.monthly_trend?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
-          <div v-else class="narrow" style="display:flex;align-items:flex-end;gap:8px;height:120px">
-            <div
-              v-for="item in referralData.monthly_trend"
-              :key="item.month + '-' + item.year"
-              style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"
-            >
-              <div style="font-size:11px;color:var(--stone);font-weight:500">{{ item.count }}</div>
-              <div
-                :style="{
-                  width: '100%',
-                  height: (item.count / maxMonthlyCount * 100) + 'px',
-                  background: 'var(--moss)',
-                  borderRadius: '4px 4px 0 0',
-                  minHeight: '4px',
-                  transition: 'height .5s',
-                }"
-              ></div>
-              <div style="font-size:10px;color:var(--fog)">{{ monthLabel(item.month) }}</div>
+      <!-- Cases: completion and backlog beside the status breakdown -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;align-items:start">
+
+        <!-- Case Completion -->
+        <div class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Case Completion</span>
+            <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ caseData.completed ?? 0 }} of {{ caseData.total ?? 0 }} cases</span>
+          </div>
+          <div class="icard-body">
+            <div v-if="!caseData.total" style="text-align:center;color:var(--fog);font-size:13px">No cases in this period</div>
+            <template v-else>
+              <div class="cc-top">
+                <div class="cc-rate">{{ caseData.completion_rate ?? 0 }}<span>%</span></div>
+                <div class="cc-note">of the cases opened in this period are <strong>resolved or closed</strong>.</div>
+              </div>
+              <div class="cc-bar" :title="`${caseData.completed} resolved or closed, ${caseData.pending} open`">
+                <div class="cc-done" :style="{ width: (caseData.completion_rate ?? 0) + '%' }"></div>
+              </div>
+              <div class="cc-legend">
+                <span><i style="background:var(--moss)"></i> Resolved / closed <strong>{{ caseData.completed }}</strong></span>
+                <span><i style="background:var(--amber)"></i> Open / pending <strong>{{ caseData.pending }}</strong></span>
+              </div>
+
+              <div class="cc-sub">Pending cases, by how long they have been open</div>
+              <div class="cc-aging">
+                <div v-for="(b, i) in caseData.pending_aging || []" :key="b.label" class="cc-age" :class="{ warn: i >= 2 && b.count > 0 }">
+                  <div class="cc-age-num">{{ b.count }}</div>
+                  <div class="cc-age-label">{{ b.label }}</div>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- Cases by Status -->
+        <div class="icard">
+          <div class="icard-header"><span class="icard-title">Cases by Status</span></div>
+          <div class="icard-body">
+            <div v-if="!caseData.by_status?.length" style="text-align:center;color:var(--fog);font-size:13px">No data</div>
+            <div v-for="item in caseData.by_status" :key="item.status" style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--cloud)">
+              <span class="ibadge" :class="'ibadge-' + item.status">{{ toTitleCase(item.status) }}</span>
+              <span style="font-size:13px;font-weight:600;color:var(--ink)">{{ item.count }} <span style="font-weight:400;color:var(--stone);font-size:11.5px">· {{ pct(item.count, caseData.total) }}%</span></span>
             </div>
           </div>
+        </div>
+
+      </div>
+
+      <!-- Case Resolutions: the cases that were resolved or closed -->
+      <div class="icard" style="margin-bottom:16px">
+        <div class="icard-header">
+          <span class="icard-title">Case Resolutions</span>
+          <span class="ibadge" style="background:var(--mist);color:var(--moss)">Avg. {{ caseData.avg_days_to_close ?? 0 }} days to close</span>
+        </div>
+        <div class="ts">
+          <table class="itable gcu-num cr-table">
+            <thead>
+              <tr>
+                <th>Case No.</th>
+                <th>Concern</th>
+                <th>College</th>
+                <th>Opened</th>
+                <th>Closed</th>
+                <th class="num">Days to Close</th>
+                <th>Status</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in caseData.resolutions || []" :key="row.id">
+                <td style="font-family:var(--mono)">{{ row.case_number }}</td>
+                <td>{{ toTitleCase(row.case_type) }}</td>
+                <td>{{ collegeShort(row.college) }}</td>
+                <td>{{ prettyDate(row.opened_date) || '-' }}</td>
+                <td>{{ prettyDate(row.closed_date) || '-' }}</td>
+                <td class="num">{{ row.days_to_close ?? '-' }}</td>
+                <td><span class="ibadge" :class="'ibadge-' + row.status">{{ toTitleCase(row.status) }}</span></td>
+                <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click="$router.push({ name: 'student-show', params: { id: row.student_id }, query: { ctx: 'reports' } })">View</button></td>
+              </tr>
+              <tr v-if="!caseData.resolutions?.length">
+                <td colspan="8" style="text-align:center;color:var(--fog)">No cases were resolved or closed in this period</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -513,6 +610,23 @@
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Attendance: attended against no-show, for appointments that reached their day -->
+        <div v-if="attendance && (attendance.attended + attendance.no_show + attendance.cancelled) > 0" class="narrow att-wrap">
+          <div class="att-rate">
+            <div class="att-num">{{ attendance.rate ?? '-' }}<span v-if="attendance.rate !== null">%</span></div>
+            <div class="att-label">Attendance rate</div>
+          </div>
+          <div class="att-detail">
+            <div class="cc-bar"><div class="cc-done" :style="{ width: (attendance.rate ?? 0) + '%' }"></div></div>
+            <div class="cc-legend">
+              <span><i style="background:var(--moss)"></i> Attended <strong>{{ attendance.attended }}</strong></span>
+              <span><i style="background:var(--amber)"></i> No-show <strong>{{ attendance.no_show }}</strong></span>
+              <span><i style="background:var(--silver)"></i> Cancelled <strong>{{ attendance.cancelled }}</strong></span>
+              <span><i style="background:var(--blue)"></i> Upcoming <strong>{{ attendance.upcoming }}</strong></span>
+            </div>
+            <div class="att-note">The rate compares attended with no-show. Cancelled and upcoming appointments are not counted in it.</div>
+          </div>
         </div>
       </div>
 
@@ -745,6 +859,8 @@ function topOf(rows) {
 }
 
 const collegeRows = computed(() => referralData.value.by_student_college || []);
+const sourceRows  = computed(() => referralData.value.by_source || []);
+const attendance  = computed(() => apptData.value.attendance || null);
 const topCollege  = computed(() => collegeRows.value.find(c => c.count > 0) || null);
 // "College of Nursing (CN)" -> "CN"
 function collegeShort(name) {
@@ -757,7 +873,8 @@ const allStats = computed(() => [
   { label: 'Total Referrals',    value: referralData.value.total    ?? 0, iconBg: 'var(--mist)',      iconColor: 'var(--moss)',   icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
   { label: 'Total Cases',        value: caseData.value.total        ?? 0, iconBg: 'var(--blue-lt)',   iconColor: 'var(--blue)',   icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>' },
   { label: 'Pending Cases',      value: caseData.value.pending      ?? 0, iconBg: 'var(--amber-lt)',  iconColor: 'var(--amber)',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label: 'Closed Cases',       value: caseData.value.by_status?.find(s => s.status === 'closed')?.count ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Resolved / Closed',  value: caseData.value.completed ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  { label: 'Case Completion',    value: (caseData.value.completion_rate ?? 0) + '%', iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>' },
   { label: 'Avg. Days to Close', value: caseData.value.avg_days_to_close ?? 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
   { label: 'Total Appointments', value: apptData.value.total        ?? 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)',  icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
   { label: 'Referred to TMDU',   value: caseData.value.referred_tmdu ?? 0, only: 'GCU', iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>' },
@@ -892,6 +1009,37 @@ onMounted(async () => {
   .rp-export { margin-left: 0; flex: 1 1 auto; }
   .rp-export > .ibtn { width: 100%; justify-content: center; }
 }
+/* Case Completion and Attendance */
+.cc-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+.cc-rate { font-family: var(--serif); font-style: italic; font-size: 40px; line-height: 1; color: var(--forest); font-weight: 700; }
+.cc-rate span { font-size: 20px; margin-left: 2px; }
+.cc-note { font-size: 12.5px; color: var(--stone); line-height: 1.45; }
+.cc-note strong { color: var(--ink); }
+.cc-bar { height: 10px; border-radius: 6px; background: var(--amber-lt); overflow: hidden; }
+.cc-done { height: 100%; background: var(--moss); border-radius: 6px; transition: width .5s; }
+.cc-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; font-size: 12px; color: var(--stone); }
+.cc-legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+.cc-legend strong { color: var(--ink); margin-left: 2px; }
+.cc-sub { margin: 18px 0 8px; font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); }
+.cc-aging { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.cc-age { background: var(--snow); border: 1px solid var(--cloud); border-radius: var(--r-sm); padding: 8px 6px; text-align: center; }
+.cc-age.warn { background: var(--amber-lt); border-color: var(--amber); }
+.cc-age-num { font-size: 18px; font-weight: 700; color: var(--ink); line-height: 1.1; }
+.cc-age-label { font-size: 10.5px; color: var(--stone); margin-top: 3px; }
+.cr-table { width: 92%; }
+.att-wrap { display: flex; align-items: center; gap: 22px; padding: 14px 0 16px; border-top: 1px solid var(--cloud); }
+.att-rate { flex: none; text-align: center; min-width: 96px; }
+.att-num { font-family: var(--serif); font-style: italic; font-size: 32px; line-height: 1; color: var(--forest); font-weight: 700; }
+.att-num span { font-size: 16px; margin-left: 2px; }
+.att-label { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); margin-top: 5px; }
+.att-detail { flex: 1; min-width: 0; }
+.att-note { font-size: 11px; color: var(--fog); margin-top: 6px; }
+@media (max-width: 860px) {
+  .cc-aging { grid-template-columns: repeat(2, 1fr); }
+  .att-wrap { flex-direction: column; align-items: stretch; }
+  .cr-table { width: 100%; }
+}
+
 /* Compact tables for the GCU "by the Numbers" sections, centred in the card
    so the numbers sit near the course names instead of at the far edge. */
 .gcu-num{font-size:12px;width:70%;margin:6px auto 10px}

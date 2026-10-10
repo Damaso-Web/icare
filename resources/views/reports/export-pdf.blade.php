@@ -26,7 +26,7 @@
 <head>
 <meta charset="utf-8">
 <style>
-    @page { margin: 20mm 16mm 18mm 16mm; }
+    @page { margin: 17mm 16mm 16mm 16mm; }
     * { box-sizing: border-box; }
     body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.2pt; color: #1d1d1d; line-height: 1.25; }
 
@@ -46,12 +46,12 @@
     .page-break { page-break-before: always; }
 
     h2 { font-size: 11pt; color: #1f5c3a; margin: 0 0 10px; padding-left: 7px; border-left: 3px solid #1f5c3a; }
-    h3 { font-size: 9.4pt; color: #1f5c3a; margin: 12px 0 5px; }
-    .keep h3 { margin-top: 12px; }
+    h3 { font-size: 9.4pt; color: #1f5c3a; margin: 9px 0 4px; }
+    .keep h3 { margin-top: 9px; }
     .line { font-size: 9.2pt; font-weight: bold; margin: 2px 0 6px; }
     .note { font-size: 7.4pt; color: #666; font-style: italic; margin: 8px 0 4px; }
 
-    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 9px; }
     thead { display: table-header-group; }
     tr { page-break-inside: avoid; }
     th, td { border: .6px solid #b9c2bc; padding: 2.6px 6px; vertical-align: middle; }

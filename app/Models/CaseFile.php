@@ -77,6 +77,18 @@ class CaseFile extends Model
         static::updating(function (CaseFile $case) {
             if ($case->isDirty('status')) {
                 $case->status_changed_at = now();
+
+                // The closing date follows the status too, unless the caller
+                // set one itself: stamped when the case is resolved or closed,
+                // cleared when it is reopened. Reports measure days-to-close from it.
+                if (!$case->isDirty('closed_date')) {
+                    $done = in_array($case->status, ['resolved', 'closed'], true);
+                    if ($done && !$case->closed_date) {
+                        $case->closed_date = today();
+                    } elseif (!$done) {
+                        $case->closed_date = null;
+                    }
+                }
             }
         });
     }

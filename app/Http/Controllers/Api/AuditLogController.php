@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
@@ -60,6 +61,49 @@ class AuditLogController extends Controller
                             ->orderBy('name')
                             ->get(['id', 'name', 'role']),
         ]);
+    }
+
+    /**
+     * Account-activity overview shown above the Audit Trail: sign-ins, failed
+     * attempts, password changes and how many accounts were active. Follows
+     * the page's date and user filters (not the action filter or the search,
+     * which would empty every other figure).
+     */
+    public function summary(Request $request)
+    {
+        $query = AuditLog::query()
+            ->when($request->user_id,   fn($q) => $q->where('user_id', $request->user_id))
+            ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
+            ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to));
+
+        $byAction = $query->clone()->select('action', DB::raw('count(*) as count'))->groupBy('action')->pluck('count', 'action');
+        $count = fn(string ...$actions) => (int) collect($actions)->sum(fn($a) => $byAction[$a] ?? 0);
+
+        return response()->json([
+            'total_events'     => (int) $byAction->sum(),
+            'logins'           => $count('login'),
+            'failed_logins'    => $count('login_failed'),
+            'password_changes' => $count('password_change', 'password_reset'),
+            'records_viewed'   => $count('viewed'),
+            'exports'          => $count('exported'),
+            // Distinct accounts that signed in - staff and students are logged under different ids.
+            'active_accounts'  => $query->clone()->where('action', 'login')->distinct()->count(DB::raw("CONCAT(COALESCE(user_role, ''), ':', COALESCE(user_name, ''))")),
+            // Accounts with repeated failed sign-ins, most first.
+            'failed_by_account' => $query->clone()->where('action', 'login_failed')
+                ->select('description', DB::raw('count(*) as count'), DB::raw('MAX(created_at) as last_at'))
+                ->groupBy('description')->orderByDesc('count')->limit(5)->get()
+                ->map(fn($r) => [
+                    'what'    => $this->readable($r->description),
+                    'count'   => (int) $r->count,
+                    'last_at' => \Carbon\Carbon::parse($r->last_at)->format('M j, Y g:i A'),
+                ]),
+        ]);
+    }
+
+    /** snake_case field names in a description read as words; an email address keeps its underscores. */
+    private function readable(?string $text): string
+    {
+        return preg_replace_callback('/\b[a-z]+(?:_[a-z]+)+\b(?![\w.]*@)/', fn($m) => str_replace('_', ' ', $m[0]), (string) $text);
     }
 
     public function exportPdf(Request $request)
@@ -117,8 +161,7 @@ class AuditLogController extends Controller
             $log->user_name ?: '-',
             self::ROLE_LABELS[$log->user_role] ?? $words($log->user_role),
             $words($log->action),
-            // snake_case field names only - an email address keeps its underscores
-            preg_replace_callback('/\b[a-z]+(?:_[a-z]+)+\b(?![\w.]*@)/', fn($m) => str_replace('_', ' ', $m[0]), (string) $log->description),
+            $this->readable($log->description),
             $log->ip_address ?? '',
         ])->all();
     }

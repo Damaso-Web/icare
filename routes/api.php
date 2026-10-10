@@ -258,6 +258,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('users/import', [UserController::class, 'import']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/filter-options', [AuditLogController::class, 'filterOptions']);
+        Route::get('audit-logs/summary', [AuditLogController::class, 'summary']);
         Route::get('audit-logs/export/pdf',   [AuditLogController::class, 'exportPdf']);
         Route::get('audit-logs/export/excel', [AuditLogController::class, 'exportExcel']);
         Route::get('audit-logs/{auditLog}', [AuditLogController::class, 'show']);

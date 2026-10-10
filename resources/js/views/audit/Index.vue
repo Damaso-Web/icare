@@ -48,6 +48,28 @@
       </div>
     </div>
 
+    <!-- Account Activity: sign-ins, failed attempts and other access events
+         for the dates / user picked above. Clicking a figure filters the log. -->
+    <div class="icard aa-card">
+      <div class="aa-head">
+        <span class="icard-title">Account Activity</span>
+        <span class="aa-range">{{ summaryRangeLabel }}</span>
+      </div>
+      <div class="aa-grid">
+        <button v-for="t in activityTiles" :key="t.label" type="button" class="aa-tile" :class="{ warn: t.warn && t.value > 0, on: t.action && filters.action === t.action, plain: !t.action }" :title="t.hint" @click="t.action && filterByAction(t.action)">
+          <span class="aa-num">{{ t.value }}</span>
+          <span class="aa-label">{{ t.label }}</span>
+        </button>
+      </div>
+      <div v-if="summary.failed_by_account?.length" class="aa-failed">
+        <div class="aa-sub">Failed sign-in attempts, most repeated first</div>
+        <div v-for="f in summary.failed_by_account" :key="f.what" class="aa-row">
+          <span class="aa-what">{{ f.what }}</span>
+          <span class="aa-meta">{{ f.count }}× · last {{ f.last_at }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Audit Log Table -->
     <div class="icard">
       <div v-if="loading" style="text-align:center;padding:44px">
@@ -157,7 +179,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, inject } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, inject } from 'vue';
 import axios from 'axios';
 import { auditAPI } from '../../api/index';
 import { toTitleCase, localDateStr } from '../../utils/validators';
@@ -228,6 +250,7 @@ let requestSeq = 0;
 async function fetchLogs(page = 1) {
   const seq = ++requestSeq;
   loading.value = true;
+  if (page === 1) fetchSummary();
   try {
     const res = await auditAPI.index({ ...filters.value, page });
     if (seq !== requestSeq) return;
@@ -238,6 +261,44 @@ async function fetchLogs(page = 1) {
   } finally {
     if (seq === requestSeq) loading.value = false;
   }
+}
+
+// ---- Account Activity overview ----
+// Follows the date and user filters only; the action filter and the search
+// box narrow the list below, not these totals.
+const summary = ref({});
+async function fetchSummary() {
+  const { user_id, date_from, date_to } = filters.value;
+  try {
+    const res = await axios.get(`${API_BASE}/audit-logs/summary`, { ...authHeaders(), params: { user_id, date_from, date_to } });
+    summary.value = res.data || {};
+  } catch (e) {
+    summary.value = {};
+  }
+}
+
+const activityTiles = computed(() => [
+  { label: 'Successful Sign-ins',   value: summary.value.logins ?? 0,           action: 'login',           hint: 'Show sign-ins in the list below' },
+  { label: 'Failed Sign-in Attempts', value: summary.value.failed_logins ?? 0,  action: 'login_failed',    hint: 'Show failed sign-in attempts in the list below', warn: true },
+  { label: 'Accounts That Signed In', value: summary.value.active_accounts ?? 0, hint: 'Different staff and student accounts that signed in' },
+  { label: 'Password Changes',      value: summary.value.password_changes ?? 0, action: 'password_change', hint: 'Show password changes in the list below' },
+  { label: 'Records Viewed',        value: summary.value.records_viewed ?? 0,   action: 'viewed',          hint: 'Show record views in the list below' },
+  { label: 'All Events',            value: summary.value.total_events ?? 0,     hint: 'Every action recorded in this range' },
+]);
+
+const summaryRangeLabel = computed(() => {
+  const { date_from, date_to } = filters.value;
+  const nice = d => new Date(d + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  if (date_from && date_to) return `${nice(date_from)} – ${nice(date_to)}`;
+  if (date_from) return `Since ${nice(date_from)}`;
+  if (date_to) return `Up to ${nice(date_to)}`;
+  return 'All dates';
+});
+
+// Clicking a figure filters the list to that action; clicking it again clears it.
+function filterByAction(action) {
+  filters.value.action = filters.value.action === action ? '' : action;
+  fetchLogs();
 }
 
 let searchTimer = null;
@@ -333,6 +394,31 @@ onMounted(() => {
 });
 </script>
 <style scoped>
+/* Account Activity overview */
+.aa-card { margin-bottom: 16px; padding: 14px 18px 16px; }
+.aa-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.aa-range { font-size: 12px; color: var(--stone); }
+.aa-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; }
+.aa-tile {
+  display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; text-align: left;
+  background: var(--snow); border: 1px solid var(--cloud); border-radius: var(--r-sm);
+  font-family: var(--font); cursor: pointer; transition: border-color .12s, background .12s;
+}
+.aa-tile:hover { border-color: var(--moss); }
+.aa-tile.plain { cursor: default; }
+.aa-tile.plain:hover { border-color: var(--cloud); }
+.aa-tile.on { background: var(--mist); border-color: var(--moss); }
+.aa-tile.warn { background: var(--red-lt); border-color: #f5c0c0; }
+.aa-tile.warn .aa-num { color: var(--red); }
+.aa-num { font-family: var(--serif); font-style: italic; font-size: 24px; line-height: 1; color: var(--ink); font-weight: 700; }
+.aa-label { font-size: 11px; color: var(--stone); font-weight: 500; }
+.aa-failed { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--cloud); }
+.aa-sub { font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); margin-bottom: 6px; }
+.aa-row { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12.5px; color: var(--ink); }
+.aa-what { min-width: 0; }
+.aa-meta { flex: none; color: var(--stone); font-size: 12px; white-space: nowrap; }
+@media (max-width: 1100px) { .aa-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px)  { .aa-grid { grid-template-columns: repeat(2, 1fr); } .aa-row { flex-direction: column; gap: 0; } }
 /* Desktop: everything stays on one line - the search box takes the spare
    room and gives it up first, the rest shrink a little before anything wraps. */
 .audit-bar { flex-wrap: nowrap; }

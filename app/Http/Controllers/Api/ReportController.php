@@ -150,6 +150,7 @@ class ReportController extends Controller
                                     ->select('referral_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
             'by_student_college' => $this->buildCollegeBreakdown($request),
+            'by_source'       => $this->buildSourceBreakdown($query->clone()),
             'by_college'      => $query->clone()->groupBy('referrer_college')
                                     ->select('referrer_college', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
@@ -164,6 +165,39 @@ class ReportController extends Controller
                                     ->orderBy('month')
                                     ->get()->toArray(),
         ];
+    }
+
+    private const SOURCE_LABELS = [
+        'self'           => 'Self-referral (Student)',
+        'faculty'        => 'Faculty',
+        'dean'           => 'Dean',
+        'dept_chair'     => 'Department Chair',
+        'dean_secretary' => "Dean's Secretary",
+        'parent'         => 'Parent / Guardian',
+        'admin'          => 'GCU Office (Admin / GCU Head)',
+        'gcu_staff'      => 'GCU Staff',
+        'sdu'            => 'Student Discipline Unit',
+        'tmdu'           => 'Testing and Measurement Development Unit',
+        'none'           => 'Not specified',
+    ];
+
+    /** Who the referrals came from (faculty, dean, parent, the student...), highest first. */
+    private function buildSourceBreakdown($query): array
+    {
+        $counts = [];
+        foreach ($query->select('referrer_source', 'is_self_referred', DB::raw('count(*) as count'))
+                     ->groupBy('referrer_source', 'is_self_referred')->get() as $row) {
+            $key = $row->is_self_referred ? 'self' : (strtolower(trim((string) $row->referrer_source)) ?: 'none');
+            $counts[$key] = ($counts[$key] ?? 0) + (int) $row->count;
+        }
+
+        $rows = [];
+        foreach ($counts as $key => $count) {
+            $rows[] = ['source' => self::SOURCE_LABELS[$key] ?? $this->label($key), 'count' => $count];
+        }
+        usort($rows, fn($a, $b) => [$b['count'], $a['source']] <=> [$a['count'], $b['source']]);
+
+        return $rows;
     }
 
     /**
@@ -472,6 +506,7 @@ class ReportController extends Controller
                                     ->select('appointment_type', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
             'no_show_rate'   => $query->clone()->where('status', 'no_show')->count(),
+            'attendance'     => $this->buildAttendance($query->clone()),
             'monthly_trend'  => $query->clone()
                                     ->select(
                                         DB::raw('MONTH(appointment_date) as month'),
@@ -485,6 +520,70 @@ class ReportController extends Controller
         ];
     }
 
+    /**
+     * Attendance for appointments that reached their day: attended against
+     * no-show. Cancelled ones are listed but kept out of the rate, since the
+     * student was never expected.
+     */
+    private function buildAttendance($query): array
+    {
+        $by = $query->select('status', DB::raw('count(*) as count'))->groupBy('status')->pluck('count', 'status');
+        $attended = (int) ($by['completed'] ?? 0);
+        $noShow   = (int) ($by['no_show'] ?? 0);
+
+        return [
+            'attended'  => $attended,
+            'no_show'   => $noShow,
+            'cancelled' => (int) ($by['cancelled'] ?? 0),
+            'upcoming'  => (int) ($by['pending'] ?? 0) + (int) ($by['confirmed'] ?? 0),
+            'rate'      => ($attended + $noShow) ? round($attended / ($attended + $noShow) * 100, 1) : null,
+        ];
+    }
+
+    /** Statuses that count as a finished case. */
+    private const DONE_CASE_STATUSES = ['resolved', 'closed'];
+
+    /** Open cases by how long they have been open, as of today. */
+    private function buildPendingAging($query): array
+    {
+        $buckets = ['7 days or less' => 0, '8 to 30 days' => 0, '31 to 60 days' => 0, 'More than 60 days' => 0];
+        foreach ($query->whereNotIn('status', self::DONE_CASE_STATUSES)->pluck('opened_date') as $opened) {
+            $days = $opened ? (int) \Carbon\Carbon::parse($opened)->startOfDay()->diffInDays(now()->startOfDay()) : 0;
+            $key = $days <= 7 ? '7 days or less' : ($days <= 30 ? '8 to 30 days' : ($days <= 60 ? '31 to 60 days' : 'More than 60 days'));
+            $buckets[$key]++;
+        }
+
+        return array_map(fn($label, $count) => ['label' => $label, 'count' => $count], array_keys($buckets), $buckets);
+    }
+
+    /** The finished cases of the period, most recently closed first. */
+    private function buildResolutions($query): array
+    {
+        return $query->whereIn('status', self::DONE_CASE_STATUSES)
+            ->with('student:id,college,program')
+            ->get()
+            ->map(function ($c) {
+                // Cases closed before the closing date was recorded automatically
+                // fall back to when their status last changed.
+                $closed = $c->closed_date ?? $c->status_changed_at;
+
+                return [
+                    'id'            => $c->id,
+                    'student_id'    => $c->student_id,
+                    'case_number'   => $c->case_number,
+                    'case_type'     => $c->case_type,
+                    'college'       => $c->student?->college ?: 'Not specified',
+                    'status'        => $c->status,
+                    'opened_date'   => $c->opened_date?->format('Y-m-d'),
+                    'closed_date'   => $closed?->format('Y-m-d'),
+                    'days_to_close' => ($c->opened_date && $closed)
+                        ? (int) $c->opened_date->copy()->startOfDay()->diffInDays($closed->copy()->startOfDay())
+                        : null,
+                ];
+            })
+            ->sortByDesc('closed_date')->values()->all();
+    }
+
     private function buildCasesReport(Request $request): array
     {
         $query = CaseFile::where('current_unit', $this->unit($request))
@@ -493,7 +592,12 @@ class ReportController extends Controller
 
         return [
             'total'          => $query->count(),
-            'pending'        => $query->clone()->whereNotIn('status', ['resolved', 'closed'])->count(),
+            'pending'        => $query->clone()->whereNotIn('status', self::DONE_CASE_STATUSES)->count(),
+            'completed'      => $completed = $query->clone()->whereIn('status', self::DONE_CASE_STATUSES)->count(),
+            // Share of the period's cases that are resolved or closed.
+            'completion_rate' => ($total = $query->count()) ? round($completed / $total * 100, 1) : null,
+            'pending_aging'  => $this->buildPendingAging($query->clone()),
+            'resolutions'    => $this->buildResolutions($query->clone()),
             'by_status'      => $query->clone()->groupBy('status')
                                     ->select('status', DB::raw('count(*) as count'))
                                     ->get()->toArray(),
@@ -510,8 +614,8 @@ class ReportController extends Controller
                                     ->when($request->date_to,   fn($q) => $q->whereDate('opened_date', '<=', $request->date_to))
                                     ->count(),
             'avg_days_to_close' => round(
-                (clone $query)->where('status', 'closed')->whereNotNull('closed_date')
-                    ->avg(DB::raw('DATEDIFF(closed_date, opened_date)')) ?? 0,
+                (clone $query)->whereIn('status', self::DONE_CASE_STATUSES)
+                    ->avg(DB::raw('DATEDIFF(COALESCE(closed_date, DATE(status_changed_at)), opened_date)')) ?? 0,
                 1
             ),
             'monthly_trend'  => $query->clone()
@@ -651,8 +755,11 @@ class ReportController extends Controller
             ['Total referrals received', (int) $referrals['total']],
             ['Total cases handled', (int) $cases['total']],
             ['Pending cases', (int) $cases['pending']],
+            ['Resolved / closed cases', (int) $cases['completed']],
+            ['Case completion rate', $cases['completion_rate'] === null ? '-' : $cases['completion_rate'] . '%'],
             ['Average days to close a case', (float) $cases['avg_days_to_close']],
             ['Total appointments', (int) $appointments['total']],
+            ['Appointment attendance rate', $appointments['attendance']['rate'] === null ? '-' : $appointments['attendance']['rate'] . '%'],
             ['Students with recurring referrals', (int) $recurring['total_recurring_students']],
         ];
         if ($unit === 'GCU') {
@@ -673,22 +780,55 @@ class ReportController extends Controller
         $book->sheet('Referrals', 'Referrals Received', [46, 16, 16])
             ->section('A. By Type of Referral')
             ->table(['Type of Referral', 'Number', '% of Total'], $byType, ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('B. By Status')
-            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
-            ->section('C. By Month')
+            ->section('B. By Source of Referral')
+            ->table(['Referred By', 'Number', '% of Total'], array_map(fn($r) => [$r['source'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_source']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('C. By Status')
+            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $share((int) $r['count'])], $referrals['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
+
+        // ----- By College and by Month -----
+        $book->sheet('By College', 'Referrals by College and by Month', [56, 16, 16])
+            ->section('A. By College of the Student')
+            ->table(['College', 'Number', '% of Total'], array_map(fn($r) => [$r['college'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_student_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('B. By Month')
             ->table(['Month', 'Year', 'Number'], array_map(fn($r) => [$months[(int) $r['month']], (int) $r['year'], (int) $r['count']], $referrals['monthly_trend']), ['total' => [2], 'center' => [1, 2]]);
 
-        // ----- By College -----
-        $book->sheet('By College', 'Referrals by College of the Student', [56, 16, 16])
-            ->table(['College', 'Number', '% of Total'], array_map(fn($r) => [$r['college'], (int) $r['count'], $share((int) $r['count'])], $referrals['by_student_college']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]]);
-
-        // ----- Cases and Appointments -----
-        $statusCount = fn(string $status) => (int) (collect($appointments['by_status'])->firstWhere('status', $status)['count'] ?? 0);
-        $book->sheet('Cases & Appointments', 'Cases and Appointments', [46, 16, 16])
+        // ----- Cases: status, completion and backlog -----
+        $caseShare = fn(int $count) => $cases['total'] ? $count / $cases['total'] : 0;
+        $book->sheet('Cases', 'Cases: Status, Completion and Backlog', [46, 16, 16])
             ->section('A. Cases by Status')
-            ->table(['Status', 'Number', ''], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], ''], $cases['by_status']), ['total' => [1], 'center' => [1]])
-            ->section('B. Appointments by Status')
+            ->table(['Status', 'Number', '% of Total'], array_map(fn($r) => [$this->label($r['status']), (int) $r['count'], $caseShare((int) $r['count'])], $cases['by_status']), ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('B. Case Completion: Resolved Against Open Cases')
+            ->table(['Cases', 'Number', '% of Total'], [
+                ['Resolved / closed', (int) $cases['completed'], $caseShare((int) $cases['completed'])],
+                ['Open / pending', (int) $cases['pending'], $caseShare((int) $cases['pending'])],
+            ], ['total' => [1], 'percent' => [2], 'center' => [1, 2]])
+            ->section('C. Pending Cases, by How Long They Have Been Open')
+            ->table(['Open For', 'Number', ''], array_map(fn($r) => [$r['label'], (int) $r['count'], ''], $cases['pending_aging']), ['total' => [1], 'center' => [1]]);
+
+        // ----- Case resolutions -----
+        // Case numbers only - no student names leave the office.
+        $caseDate = fn(?string $d) => $d ? date('M j, Y', strtotime($d)) : '-';
+        $book->sheet('Case Resolutions', 'Resolved and Closed Cases', [8, 22, 30, 44, 18, 18, 14, 16])
+            ->table(['No.', 'Case No.', 'Concern', 'College', 'Date Opened', 'Date Closed', 'Days to Close', 'Status'],
+                array_values(array_map(fn($r, $i) => [
+                    $i + 1, $r['case_number'], $this->label($r['case_type']), $r['college'],
+                    $caseDate($r['opened_date']), $caseDate($r['closed_date']), $r['days_to_close'] ?? '-', $this->label($r['status']),
+                ], $cases['resolutions'], array_keys($cases['resolutions']))),
+                ['center' => [0, 4, 5, 6], 'repeat' => true]);
+
+        // ----- Appointments -----
+        $statusCount = fn(string $status) => (int) (collect($appointments['by_status'])->firstWhere('status', $status)['count'] ?? 0);
+        $attendance  = $appointments['attendance'];
+        $book->sheet('Appointments', 'Appointments and Attendance', [46, 16, 16])
+            ->section('A. Appointments by Status')
             ->table(['Status', 'Number', ''], array_map(fn($s) => [$this->label($s), $statusCount($s), ''], ['pending', 'confirmed', 'completed', 'cancelled', 'no_show']), ['total' => [1], 'center' => [1]])
+            ->section('B. Attendance')
+            ->table(['Outcome', 'Number', ''], [
+                ['Attended', $attendance['attended'], ''],
+                ['No-show', $attendance['no_show'], ''],
+                ['Cancelled', $attendance['cancelled'], ''],
+                ['Attendance rate (attended against no-show)', $attendance['rate'] === null ? '-' : $attendance['rate'] . '%', ''],
+            ], ['center' => [1]])
             ->section('C. Appointments by Type')
             ->table(['Type of Appointment', 'Number', ''], array_map(fn($r) => [$this->label($r['appointment_type']), (int) $r['count'], ''], $appointments['by_type']), ['total' => [1], 'center' => [1]]);
 
