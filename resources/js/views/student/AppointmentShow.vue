@@ -28,7 +28,7 @@
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
             <span class="ibadge" :class="'ibadge-' + appointment.status">{{ toTitleCase(appointment.status) }}</span>
-            <span v-if="appointment.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">🔁 Rescheduled</span>
+            <span v-if="appointment.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date &amp; Time</div>

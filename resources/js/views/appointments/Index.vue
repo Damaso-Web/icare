@@ -90,7 +90,7 @@
                        instead of disappearing once it's no longer waiting
                        on the student. -->
                   <span v-if="a.rescheduled_from_id && a.request_status !== 'awaiting_student'" class="ibadge" style="background:var(--blue-lt);color:var(--blue)" title="This appointment was created from a reschedule request.">
-                    🔁 Rescheduled
+                    Rescheduled
                   </span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
@@ -200,7 +200,7 @@
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
               <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
-              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">🔁 Rescheduled</span>
+              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
