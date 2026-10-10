@@ -313,7 +313,6 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero::after{content:'';position:absolute;right:120px;bottom:-130px;width:260px;height:260px;border-radius:50%;border:34px solid rgba(255,255,255,.045);pointer-events:none}
 .hero-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .hero-kicker{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
-.hero-kicker::before{content:'';width:18px;height:2px;border-radius:2px;background:var(--gold)}
 .hero h1{font-family:var(--serif);font-style:italic;font-weight:400;font-size:34px;line-height:1.12;color:#fff;margin:0}
 .hero p{margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.74);max-width:560px}
 .hero-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
