@@ -90,10 +90,11 @@
       <div class="icard" style="margin-bottom:16px">
         <div class="icard-header"><span class="icard-title">{{ isIncidentReport ? 'Incident Report Status' : 'Referral Status' }}</span></div>
         <div style="padding:16px 18px">
-          <div style="display:flex;gap:0;overflow-x:auto">
+          <div class="pipe" style="display:flex;gap:0;overflow-x:auto">
             <div
               v-for="(step, i) in pipeline"
               :key="step.key"
+              class="pipe-step"
               style="flex:1;min-width:80px;padding:10px 14px;text-align:center;font-size:11px;font-weight:600;border:1px solid var(--cloud)"
               :style="{
                 background: isStepDone(step.key) ? 'var(--mist)' : isCurrentStep(step.key) ? 'var(--moss)' : '#fff',

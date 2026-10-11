@@ -56,7 +56,7 @@
             <div class="u-nm">{{ auth.user?.name }}</div>
             <div class="u-rl">{{ roleLabel }}</div>
           </div>
-          <button class="logbtn" @click="handleLogout" title="Sign out">
+          <button class="logbtn" @click="session.askLogout()" title="Sign out">
             <svg viewBox="0 0 24 24">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
@@ -150,6 +150,8 @@
 
     </div>
 
+    <!-- Log out confirmation, and the automatic log out after a period of no activity -->
+    <SessionGuard ref="session" @logout="handleLogout" />
   </div>
 </template>
 
@@ -158,6 +160,7 @@ import { ref, computed, onMounted, watch, inject } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
+import SessionGuard from '../components/SessionGuard.vue';
 
 const router = useRouter();
 const route  = useRoute();
@@ -211,6 +214,7 @@ const menuOpen = ref(false);
 watch(() => route.fullPath, () => { menuOpen.value = false; });
 
 const showNotifs = ref(false);
+const session = ref(null);
 
 // Desktop: the menu can be folded down to a strip of icons. Remembered on this browser.
 const collapsed = ref(false);
@@ -351,7 +355,7 @@ const menuItems = computed(() => {
       name:    'faculty-directory',
       label:   'Faculty',
       icon:    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-      roles:   ['admin', 'dean', 'dept_chair'],
+      roles:   ['dean', 'dept_chair'],
       section: null,
     },
     {

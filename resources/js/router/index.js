@@ -48,7 +48,7 @@ const MANAGEMENT_ROLES = ['admin', 'system_admin'];
 // Refer Student is open to every role that has a Dashboard.
 const REFERRAL_SUBMITTERS = ALL_ROLES;
 // Faculty page: Dean (whole college) and Dept Chair (own department).
-const FACULTY_ROLES = ['admin', 'dean', 'dept_chair'];
+const FACULTY_ROLES = ['dean', 'dept_chair'];   // the Admin manages accounts in User Management instead
 // Testing Records (TMDU): shared with the GCU staff who referred the
 // student, since the Testing Record Details page displays their original
 // referral information too (a "shared case" the referring GCU staff can

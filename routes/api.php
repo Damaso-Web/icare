@@ -45,6 +45,7 @@ Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'subm
 
 // External cron endpoints (secured via X-Cron-Secret header, checked inside the controller)
 Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminders'])->middleware('throttle:public-form');
+Route::post('cron/appointment-reminders', [CronController::class, 'appointmentReminders'])->middleware('throttle:public-form');
 Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows'])->middleware('throttle:public-form');
 Route::post('cron/backup',              [CronController::class, 'backup'])->middleware('throttle:public-form');
 
@@ -239,7 +240,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
        // Faculty module - Dean (college-wide) and Dept Chair (own department).
     // FacultyController scopes every query/write to the caller's college/department.
-    Route::middleware('role:admin,dean,dept_chair')->prefix('faculty')->group(function () {
+    Route::middleware('role:dean,dept_chair')->prefix('faculty')->group(function () {
         Route::get('/',                             [FacultyController::class, 'index']);
         Route::post('/',                            [FacultyController::class, 'store']);
         Route::post('import-preview',               [FacultyController::class, 'importPreview']);

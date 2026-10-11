@@ -163,13 +163,17 @@
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">IP Address</div>
             <div style="font-family:var(--mono);font-size:13px">{{ selectedLog.ip_address }}</div>
           </div>
-          <div v-if="selectedLog.old_values">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Before</div>
-            <pre style="background:var(--snow);border-radius:var(--r-sm);padding:10px 12px;font-size:11px;font-family:var(--mono);overflow-x:auto;border:1px solid var(--cloud)">{{ JSON.stringify(selectedLog.old_values, null, 2) }}</pre>
-          </div>
-          <div v-if="selectedLog.new_values">
-            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">After</div>
-            <pre style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:11px;font-family:var(--mono);overflow-x:auto;border:1px solid var(--mint)">{{ JSON.stringify(selectedLog.new_values, null, 2) }}</pre>
+          <!-- What changed: one row per field, old value beside new. Passwords are never listed. -->
+          <div v-if="changeRows.length">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Changes Made</div>
+            <div class="chg">
+              <div class="chg-head"><span>Field</span><span>Before</span><span>After</span></div>
+              <div v-for="row in changeRows" :key="row.field" class="chg-row">
+                <span class="chg-field">{{ row.label }}</span>
+                <span class="chg-old">{{ row.before }}</span>
+                <span class="chg-new">{{ row.after }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -380,6 +384,25 @@ function recordLabel(modelType) {
   return labels[name] || name.replace(/([a-z])([A-Z])/g, '$1 $2');
 }
 
+// ---- What an entry changed ----
+// Entries that edit a record carry its values before and after. Only the
+// fields that actually differ are listed, and never anything secret.
+const HIDDEN_FIELDS = ['password', 'temp_password', 'remember_token', 'created_at', 'updated_at', 'deleted_at', 'id'];
+function showValue(v) {
+  if (v === null || v === undefined || v === '') return '(blank)';
+  if (typeof v === 'boolean') return v ? 'Yes' : 'No';
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+const changeRows = computed(() => {
+  const before = selectedLog.value?.old_values || {};
+  const after  = selectedLog.value?.new_values || {};
+  if (Array.isArray(before) || Array.isArray(after)) return [];
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    .filter(k => !HIDDEN_FIELDS.includes(k) && showValue(before[k]) !== showValue(after[k]))
+    .map(k => ({ field: k, label: toTitleCase(k), before: showValue(before[k]), after: showValue(after[k]) }));
+});
+
 function roleLabel(role) {
   const labels = {
     admin:          'Admin / GCU Head',
@@ -416,6 +439,14 @@ onMounted(() => {
 });
 </script>
 <style scoped>
+/* Changes Made table in the entry popup */
+.chg { border: 1px solid var(--cloud); border-radius: var(--r-sm); overflow: hidden; font-size: 12.5px; }
+.chg-head, .chg-row { display: grid; grid-template-columns: 1fr 1.2fr 1.2fr; gap: 10px; padding: 7px 12px; }
+.chg-head { background: var(--snow); font-size: 10px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--fog); }
+.chg-row { border-top: 1px solid var(--cloud); overflow-wrap: anywhere; }
+.chg-field { font-weight: 600; color: var(--ink); }
+.chg-old { color: var(--stone); text-decoration: line-through; }
+.chg-new { color: var(--moss); font-weight: 600; }
 /* Account Activity overview */
 .aa-card { margin-bottom: 16px; padding: 14px 18px 16px; }
 .aa-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }

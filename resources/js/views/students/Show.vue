@@ -23,12 +23,13 @@
 
     <template v-else>
       <!-- Back + Case pill + Edit -->
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <div class="case-head" style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
         <button class="ibtn ibtn-o ibtn-sm" @click="$router.back()">
           <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
         <span
           v-if="primaryCase"
+          class="case-name"
           style="font-family:var(--serif);font-style:italic;font-size:26px;color:var(--forest);font-weight:400"
         >
           {{ caseName }}
@@ -47,7 +48,7 @@
         <span v-if="primaryCase" style="font-size:12px;color:var(--stone)">
           Assigned to: <strong style="color:var(--ink)">{{ primaryCase.counselor?.name || 'Unassigned' }}</strong>
         </span>
-        <div style="margin-left:auto;display:flex;gap:8px">
+        <div class="case-actions" style="margin-left:auto;display:flex;gap:8px">
           <!-- Update Case Status - moved here from Referral Details (B242),
                since this is the actual Case Details view for the SIF. -->
           <button v-if="isGCU && fromCases && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="newCaseStatus = primaryCase.status; showCaseStatusModal = true">
@@ -66,7 +67,7 @@
           </button>
           <!-- Editing a student record belongs to the Student/Client module.
                Case Files is a read-only case view, so the action is hidden there. -->
-          <button v-if="!fromCases" class="ibtn ibtn-o ibtn-sm" @click="openEdit">
+          <button v-if="!fromCases" class="ibtn ibtn-o ibtn-sm" :disabled="student?.is_active === false" :title="student?.is_active === false ? 'This account is deactivated, so its profile cannot be edited.' : ''" @click="openEdit">
             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             Edit Student Profile
           </button>
@@ -455,7 +456,7 @@
               </div>
               <div>
                 <label class="ifl">Sex</label>
-                <select v-model="editForm.sex" class="ifse">
+                <select v-model="editForm.sex" class="ifse" :disabled="auth.user?.role !== 'admin'" :title="auth.user?.role !== 'admin' ? 'Only the Admin can change this after the account is created.' : ''">
                   <option value="">Select...</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
@@ -463,7 +464,7 @@
               </div>
               <div>
                 <label class="ifl">Student ID</label>
-                <input v-model="editForm.student_id" class="ifi" maxlength="15" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
+                <input v-model="editForm.student_id" class="ifi" :disabled="auth.user?.role !== 'admin'" :title="auth.user?.role !== 'admin' ? 'Only the Admin can change this after the account is created.' : ''" maxlength="15" placeholder="e.g. 2302021" @input="editForm.student_id = onlyDigits(editForm.student_id)" />
               </div>
               <div>
                 <label class="ifl">Year Level</label>
@@ -500,7 +501,7 @@
               </div>
               <div>
                 <label class="ifl">Email Address</label>
-                <input v-model="editForm.email" class="ifi" maxlength="100" placeholder="student@bsu.edu.ph" />
+                <input v-model="editForm.email" class="ifi" :disabled="auth.user?.role !== 'admin'" :title="auth.user?.role !== 'admin' ? 'Only the Admin can change this after the account is created.' : ''" maxlength="100" placeholder="student@bsu.edu.ph" />
               </div>
               <div>
                 <label class="ifl">Contact Number</label>
@@ -553,7 +554,7 @@
                 <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ saving ? 'Saving...' : 'Save Changes' }}
               </button>
-              <button class="ibtn ibtn-o" @click="closeEdit">Cancel</button>
+              <button class="ibtn ibtn-o" @click="cancelEditProfile">Cancel</button>
             </div>
           </div>
         </div>
@@ -664,6 +665,7 @@
 </template>
 
 <script setup>
+import { useDiscardGuard } from '../../utils/discardGuard';
 import { ref, computed, onMounted, inject } from 'vue';
 import { toTitleCase } from '../../utils/validators';
 import { useRoute } from 'vue-router';
@@ -1033,6 +1035,9 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+// Cancel asks before throwing away a changed form (B401).
+const cancelEditProfile = useDiscardGuard(showEditModal, editForm, closeEdit);
 </script>
 
 <style scoped>

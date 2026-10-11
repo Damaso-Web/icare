@@ -31,19 +31,30 @@ class StudentAuthController extends Controller
             'consent_accepted'  => 'required|accepted',
         ]);
 
+        // Too many wrong passwords in a row locks this Student ID for a few minutes.
+        $guard = new \App\Support\LoginGuard('student', $request->student_id);
+        if ($minutes = $guard->lockedMinutes()) {
+            AuditLog::record('login_locked', "Student sign-in refused for {$request->student_id}: locked after repeated incorrect attempts.");
+            return response()->json(['message' => \App\Support\LoginGuard::lockedMessage($minutes), 'locked' => true], 429);
+        }
+
         $student = Student::where('student_id', $request->student_id)
             ->where('is_active', true)
             ->first();
 
         if (!$student) {
             AuditLog::record('login_failed', "Failed student login: no active account with Student ID {$request->student_id}.");
-            return response()->json(['message' => 'Invalid Student ID or password.'], 401);
+            $left = $guard->fail();
+            return response()->json(['message' => 'Invalid Student ID or password.' . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
 
         if (!$student->password || !Hash::check($request->password, $student->password)) {
-            AuditLog::record('login_failed', "Failed student login for {$student->student_id}: incorrect password.", $student, [], [], $student);
-            return response()->json(['message' => 'Invalid Student ID or password.'], 401);
+            $left = $guard->fail();
+            AuditLog::record('login_failed', "Failed student login for {$student->student_id}: incorrect password" . ($left === 0 ? ' - sign-in locked for ' . \App\Support\LoginGuard::LOCK_MINUTES . ' minutes.' : " ({$left} attempt(s) left)."), $student, [], [], $student);
+            return response()->json(['message' => 'Invalid Student ID or password.' . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
+
+        $guard->clear();
 
         // The consent notice is shown every time on the login page (not just
         // once), so we simply stamp the latest acceptance on every successful

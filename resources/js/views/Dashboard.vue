@@ -77,7 +77,8 @@
         <div class="icard" v-if="dashboard.upcoming_appointments?.length">
           <div class="icard-header">
             <span class="icard-title">Today's Sessions</span>
-            <router-link :to="{ name: 'appointments' }" class="ibtn ibtn-g ibtn-sm">Calendar</router-link>
+            <!-- Each unit has its own calendar page -->
+            <router-link v-if="calendarRoute" :to="{ name: calendarRoute }" class="ibtn ibtn-g ibtn-sm">Calendar</router-link>
           </div>
           <div style="padding:10px">
             <div
@@ -98,9 +99,35 @@
           </div>
         </div>
 
+        <!-- Testing Queue -->
+        <div class="icard" v-if="dashboard.testing_queue?.length">
+          <div class="icard-header">
+            <span class="icard-title">Testing Queue</span>
+            <router-link :to="{ name: 'testing' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+          </div>
+          <div class="ts">
+            <table class="itable">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Referred By</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="t in dashboard.testing_queue" :key="t.id">
+                  <td>{{ t.student?.first_name }} {{ t.student?.last_name }}</td>
+                  <td>{{ t.referred_by?.name }}</td>
+                  <td><span class="ibadge" :class="'ibadge-' + t.status">{{ toTitleCase(t.status) }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
 
-      <!-- My Cases / Testing Queue -->
+      <!-- My Cases -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
         <!-- My Active Cases -->
@@ -128,32 +155,6 @@
                   <td style="font-family:var(--mono);font-size:11px">{{ c.case_number }}</td>
                   <td>{{ c.student?.first_name }} {{ c.student?.last_name }}</td>
                   <td><span class="ibadge" :class="'ibadge-' + c.status">{{ toTitleCase(c.status) }}</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Testing Queue -->
-        <div class="icard" v-if="dashboard.testing_queue?.length">
-          <div class="icard-header">
-            <span class="icard-title">Testing Queue</span>
-            <router-link :to="{ name: 'testing' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
-          </div>
-          <div class="ts">
-            <table class="itable">
-              <thead>
-                <tr>
-                  <th>Student</th>
-                  <th>Referred By</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="t in dashboard.testing_queue" :key="t.id">
-                  <td>{{ t.student?.first_name }} {{ t.student?.last_name }}</td>
-                  <td>{{ t.referred_by?.name }}</td>
-                  <td><span class="ibadge" :class="'ibadge-' + t.status">{{ toTitleCase(t.status) }}</span></td>
                 </tr>
               </tbody>
             </table>
@@ -254,6 +255,8 @@ function goToReferral(c) {
     toast?.error('No linked referral found for this case.');
   }
 }
+
+const calendarRoute = computed(() => ({ admin: 'appointments', gcu_staff: 'appointments', tmdu_staff: 'testing-appointments' }[auth.user?.role] || null));
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 

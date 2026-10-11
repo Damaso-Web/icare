@@ -62,7 +62,8 @@
             </div>
             <div>
               <label class="ifl">Email</label>
-              <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" />
+              <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" :style="profileForm.email && emailProblem ? 'border-color:var(--red)' : ''" />
+              <div v-if="profileForm.email && emailProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ emailProblem }}</div>
               <div v-if="emailChanged" style="font-size:11px;color:var(--amber);margin-top:4px">
                 This is your login email. You'll be asked for your current password to confirm the change.
               </div>
@@ -70,9 +71,11 @@
             <div>
               <label class="ifl">Contact Number</label>
               <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11"
+         :style="contactProblem ? 'border-color:var(--red)' : ''"
          @input="profileForm.contact_number = profileForm.contact_number.replace(/\D/g, '')" />
+              <div v-if="contactProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ contactProblem }}</div>
             </div>
-            <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="!isDirty || saving" @click="saveProfile">
+            <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="!isDirty || saving || !!emailProblem || !!contactProblem" @click="saveProfile">
               {{ saving ? 'Saving...' : 'Save Changes' }}
             </button>
           </div>
@@ -97,7 +100,7 @@
             </div>
           </div>
           <div style="font-size:11.5px;color:var(--stone);line-height:1.6">
-            Password must be 8-64 characters with an uppercase letter, a lowercase letter, a number and a symbol (e.g. ! @ # $).
+            <PasswordChecklist :password="pwForm.password" />
             <div v-if="pwSameAsCurrent" style="color:var(--red)">New password must be different from your current password.</div>
           </div>
           <div>
@@ -165,7 +168,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, watch, onMounted, inject } from 'vue';
+import PasswordChecklist from '../components/PasswordChecklist.vue';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
 
@@ -220,6 +224,28 @@ const showNewPw     = ref(false);
 const showConfirmPw = ref(false);
 const showEmailPw   = ref(false);
 
+
+// ---- Checked as the user types (B379, B380) ----
+const emailProblem = computed(() => {
+  const v = String(profileForm.value.email || '').trim();
+  if (!v) return 'Email address is required.';
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : 'Enter a complete email address, like name@bsu.edu.ph.';
+});
+const contactProblem = computed(() => {
+  const v = String(profileForm.value.contact_number || '');
+  if (!v) return '';
+  if (!v.startsWith('09')) return 'The contact number must start with 09.';
+  return v.length === 11 ? '' : `The contact number must be 11 digits (${v.length} so far).`;
+});
+
+// Leaving the Password tab clears whatever was typed there (B381).
+watch(tab, (now, before) => {
+  if (before === 'password' && now !== 'password') {
+    pwForm.value = { current_password: '', password: '', password_confirmation: '' };
+    pwError.value = '';
+    showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
+  }
+});
 const isDirty      = computed(() => JSON.stringify(profileForm.value) !== snapshot.value);
 const emailChanged = computed(() =>
   profileForm.value.email.trim().toLowerCase() !== (auth.user?.email || '').toLowerCase()

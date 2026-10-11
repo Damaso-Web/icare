@@ -207,12 +207,10 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student.</div>
           </div>
 
-          <router-link v-if="viewedStudent.is_active" :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
+          <!-- Records stay viewable for a deactivated account; only editing is switched off -->
+          <router-link :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
             View Full Profile &amp; Referral History
           </router-link>
-          <div v-else style="font-size:12px;color:var(--fog);text-align:center">
-            View Full Profile &amp; Referral History (unavailable while inactive)
-          </div>
 
           <div style="display:flex;gap:8px;margin-top:4px">
             <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :style="!viewedStudent.is_active ? 'opacity:.5;cursor:not-allowed' : ''" :disabled="!viewedStudent.is_active" @click="openEditFromView">Edit</button>
@@ -241,6 +239,7 @@
               <label class="ifl">Student ID <span style="color:var(--red)">*</span></label>
               <input
                 v-model="editForm.student_id"
+                :disabled="!auth.isAdmin" :title="!auth.isAdmin ? 'Only the Admin can change this after the account is created.' : ''"
                 class="ifi"
                 maxlength="15"
                 placeholder="e.g. 2302021"
@@ -252,6 +251,7 @@
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
               <select
                 v-model="editForm.sex"
+                :disabled="!auth.isAdmin" :title="!auth.isAdmin ? 'Only the Admin can change this after the account is created.' : ''"
                 class="ifse"
                 :style="editErrorStyle('sex')"
                 @change="clearEditFieldError('sex')"
@@ -350,6 +350,7 @@
               <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
               <input
                 v-model="editForm.email"
+                :disabled="!auth.isAdmin" :title="!auth.isAdmin ? 'Only the Admin can change this after the account is created.' : ''"
                 class="ifi"
                 placeholder="student@bsu.edu.ph"
                 :style="editErrorStyle('email')"
@@ -449,7 +450,7 @@
               <span v-if="editSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ editSaving ? 'Saving...' : 'Save Changes' }}
             </button>
-            <button class="ibtn ibtn-o" @click="showEditModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="cancelEditStudent">Cancel</button>
           </div>
         </div>
       </div>
@@ -727,7 +728,7 @@
               @click="handleClearAddForm"
               :disabled="isAddFormEmpty"
             >Clear Form</button>
-            <button class="ibtn ibtn-o" type="button" @click="showAddModal = false">Close</button>
+            <button class="ibtn ibtn-o" type="button" @click="cancelAddStudent">Close</button>
           </div>
         </div>
       </div>
@@ -986,6 +987,25 @@
       </div>
     </div>
 
+    <!-- Confirm before adding a student -->
+    <div v-if="showAddConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAddConfirm = false">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">Add this student?</div>
+        <div style="padding:20px 22px;display:flex;flex-direction:column;gap:14px">
+          <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;display:flex;flex-direction:column;gap:4px">
+            <div><strong>Student ID:</strong> <span style="font-family:var(--mono)">{{ addForm.student_id }}</span></div>
+            <div><strong>Name:</strong> {{ addForm.last_name }}, {{ addForm.first_name }}</div>
+            <div v-if="addForm.email"><strong>Email:</strong> {{ addForm.email }}</div>
+          </div>
+          <div style="font-size:12.5px;color:var(--amber);line-height:1.5">Student ID and email can't be changed after saving, except by the Admin. Please check them before you continue.</div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="saving" @click="doSaveStudent">Yes, Add Student</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="saving" @click="showAddConfirm = false">Go Back</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Deactivate Student Modal -->
     <div v-if="showGraduateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showGraduateModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;box-shadow:var(--sh-lg)">
@@ -1058,11 +1078,12 @@
 </template>
 
 <script setup>
+import { useDiscardGuard } from '../../utils/discardGuard';
 import { ref, computed, inject, onMounted } from 'vue';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
 
 const toast   = inject('toast');
 
@@ -1305,7 +1326,7 @@ const availablePrograms = computed(() => programsByCollege.value[addForm.value.c
 const addYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 
 function titleCase(str) {
-  return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return titleCaseName(str);
 }
 
 function contactNumberBlockingNonZero(value) {
@@ -1635,10 +1656,14 @@ async function saveStudent() {
     // continue if check fails
   }
 
-  await doSaveStudent();
+  // Ask first: the Student ID and email are fixed once the account exists.
+  showAddConfirm.value = true;
 }
 
+const showAddConfirm = ref(false);
+
 async function doSaveStudent() {
+  showAddConfirm.value = false;
   saving.value = true;
   try {
     const res = await studentAPI.store(addForm.value);
@@ -1650,6 +1675,8 @@ async function doSaveStudent() {
   } catch (e) {
     if (e.response?.data?.errors?.student_id) {
       addError.value = 'This Student ID is already taken.';
+    } else if (e.response?.data?.errors?.email) {
+      addError.value = e.response.data.errors.email[0];
     } else {
       addError.value = 'Please fill in all required fields.';
     }
@@ -1883,4 +1910,8 @@ onMounted(() => {
   fetchStudents();
   fetchManagementData();
 });
+
+// Cancel asks before throwing away a changed form (B401).
+const cancelEditStudent = useDiscardGuard(showEditModal, editForm, () => { showEditModal.value = false; });
+const cancelAddStudent  = useDiscardGuard(showAddModal, addForm, () => { showAddModal.value = false; });
 </script>

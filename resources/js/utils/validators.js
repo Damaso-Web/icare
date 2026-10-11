@@ -4,8 +4,17 @@ export function onlyDigits(value, maxLen = null) {
   return v;
 }
 
+// Names: letters (including ñ and accented ones), spaces, hyphens and
+// apostrophes - "Niño", "O'Connor", "Dela-Cruz".
 export function onlyLetters(value) {
-  return value.replace(/[^a-zA-Z\s\-]/g, '');
+  return String(value ?? '').replace(/[^a-zA-Z\u00C0-\u024F'\s\-]/g, '');
+}
+
+// "o'connor" -> "O'Connor", "niño" -> "Niño": the first letter of each part is
+// capitalised, where a part starts at the beginning, after a space, a hyphen
+// or an apostrophe.
+export function titleCaseName(str) {
+  return String(str ?? '').toLowerCase().replace(/(^|[\s\-'])(\p{L})/gu, (m, sep, letter) => sep + letter.toUpperCase());
 }
 
 export function onlyLettersStrict(value) {

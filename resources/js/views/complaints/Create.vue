@@ -119,6 +119,9 @@
             class="ifi"
             placeholder="Complainee's address..."
             maxlength="255"
+            :readonly="studentFound"
+            :style="studentFound ? 'background:var(--snow);color:var(--slate);cursor:default' : ''"
+            :title="studentFound ? 'Taken from the student\'s record. Search a different student to change it.' : ''"
           />
         </div>
 

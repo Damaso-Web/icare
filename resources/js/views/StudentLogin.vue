@@ -166,7 +166,7 @@ async function handleLogin() {
     };
 
     error.value = e.response?.status === 429
-      ? 'Too many attempts. Please wait a minute and try again.'
+      ? (data.locked ? data.message : 'Too many attempts. Please wait a minute and try again.')
       : MESSAGES[code]
       || data.message
       || 'Invalid Student ID or password.';

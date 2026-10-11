@@ -49,6 +49,21 @@ class CronController extends Controller
         ]);
     }
 
+    // Hourly: reminds students of confirmed appointments tomorrow and in the next few hours.
+    public function appointmentReminders(Request $request)
+    {
+        if (!$this->secretOk($request)) {
+            abort(403, 'Unauthorized.');
+        }
+
+        Artisan::call('reminders:appointments');
+
+        return response()->json([
+            'message' => 'Appointment reminders executed.',
+            'output'  => Artisan::output(),
+        ]);
+    }
+
     public function detectNoShows(Request $request)
 {
     if (!$this->secretOk($request)) {

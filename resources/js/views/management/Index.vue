@@ -6,7 +6,7 @@
     </div>
 
     <!-- Tabs -->
-    <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+    <div class="swipe-tabs" style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button
         v-for="t in tabs"
         :key="t.key"

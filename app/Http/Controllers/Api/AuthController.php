@@ -27,6 +27,13 @@ class AuthController extends Controller
             'password' => 'required|string|max:255',
         ]);
 
+        // Too many wrong passwords in a row locks this email for a few minutes.
+        $guard = new \App\Support\LoginGuard('staff', $request->email);
+        if ($minutes = $guard->lockedMinutes()) {
+            AuditLog::record('login_locked', "Staff sign-in refused for {$request->email}: locked after repeated incorrect attempts.");
+            return response()->json(['message' => \App\Support\LoginGuard::lockedMessage($minutes), 'locked' => true], 429);
+        }
+
         $user = User::where('email', $request->email)->first();
 
         // Always run a hash check so response time doesn't reveal whether the email exists.
@@ -34,12 +41,14 @@ class AuthController extends Controller
 
         if (!$user) {
             AuditLog::record('login_failed', "Failed staff login: no account with email {$request->email}.");
-            return response()->json(['message' => self::BAD_LOGIN], 401);
+            $left = $guard->fail();
+            return response()->json(['message' => self::BAD_LOGIN . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
 
         if (!$hashOk) {
-            AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password.", $user, [], [], $user);
-            return response()->json(['message' => self::BAD_LOGIN], 401);
+            $left = $guard->fail();
+            AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password" . ($left === 0 ? ' - sign-in locked for ' . \App\Support\LoginGuard::LOCK_MINUTES . ' minutes.' : " ({$left} attempt(s) left)."), $user, [], [], $user);
+            return response()->json(['message' => self::BAD_LOGIN . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
 
         // Only reveal the deactivated state AFTER a correct password.
@@ -47,6 +56,8 @@ class AuthController extends Controller
             AuditLog::record('login_failed', "Failed staff login for {$user->name}: account is deactivated.", $user, [], [], $user);
             return response()->json(['message' => 'This account has been deactivated. Please contact the OSS administrator.'], 401);
         }
+
+        $guard->clear();
 
         // Optional 2nd step: 6-digit code emailed to the registered address.
         if (config('security.otp_enabled')) {

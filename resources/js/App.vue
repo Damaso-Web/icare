@@ -2,6 +2,20 @@
   <div v-if="navigating" class="nav-loading-bar"></div>
   <router-view />
   <Toast ref="toast" />
+
+  <!-- "Discard your changes?" - asked by any form through inject('confirmDiscard') -->
+  <div v-if="discardAsk" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">Discard your changes?</div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:13px;color:var(--ink);line-height:1.55">What you changed on this form has not been saved and will be lost.</div>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerDiscard(false)">Keep Editing</button>
+          <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="answerDiscard(true)">Discard</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -31,6 +45,14 @@ router.afterEach(() => {
 router.onError(() => {
   navigating.value = false;
 });
+
+// "Discard your changes?" - resolves true to discard, false to keep editing.
+const discardAsk = ref(null);
+function answerDiscard(yes) {
+  discardAsk.value?.(yes);
+  discardAsk.value = null;
+}
+provide('confirmDiscard', () => new Promise(resolve => { discardAsk.value = resolve; }));
 
 provide('toast', {
   success: (msg) => toast.value?.show(msg, 'success'),

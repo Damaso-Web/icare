@@ -377,7 +377,7 @@
               :style="isAddFormEmpty ? '' : 'color:var(--red);border-color:#f5c0c0'"
               @click="handleClearForm"
             >Clear Form</button>
-            <button class="ibtn ibtn-o" @click="showModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="cancelUserForm">Cancel</button>
           </div>
         </div>
       </div>
@@ -616,12 +616,13 @@
 </template>
 
 <script setup>
+import { useDiscardGuard } from '../../utils/discardGuard';
 import { ref, onMounted, watch, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress , titleCaseName } from '../../utils/validators';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
@@ -629,7 +630,7 @@ function authHeaders() {
 }
 
 function titleCase(str) {
-  return (str || '').replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+  return titleCaseName(str);
 }
 
 const fieldErrors = ref({});
@@ -1157,4 +1158,7 @@ watch(() => route.name, () => {
   sortOption.value = 'created_at:desc';
   fetchUsers();
 });
+
+// Cancel asks before throwing away a changed form (B401).
+const cancelUserForm = useDiscardGuard(showModal, userForm, () => { showModal.value = false; });
 </script>

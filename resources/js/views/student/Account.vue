@@ -64,7 +64,8 @@
           </div>
           <div>
             <label class="ifl">Email Address</label>
-            <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" />
+            <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" :style="profileForm.email && emailProblem ? 'border-color:var(--red)' : ''" />
+              <div v-if="profileForm.email && emailProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ emailProblem }}</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
@@ -122,11 +123,12 @@
             class="ifi"
             placeholder="09XXXXXXXXX"
             maxlength="11"
-            :style="profileError ? 'border-color:var(--red);border-width:1.5px' : ''"
+            :style="profileError || contactProblem ? 'border-color:var(--red);border-width:1.5px' : ''"
             @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11); profileError = ''"
           />
+              <div v-if="contactProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ contactProblem }}</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged" @click="requestSave('profile')">Save Changes</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged || (!!profileForm.email && !!emailProblem) || !!contactProblem" @click="requestSave('profile')">Save Changes</button>
         </div>
       </div>
 
@@ -397,7 +399,7 @@
             </div>
           </div>
           <div style="font-size:11.5px;color:var(--stone);line-height:1.6">
-            Password must be 8-64 characters with an uppercase letter, a lowercase letter, a number and a symbol (e.g. ! @ # $).
+            <PasswordChecklist :password="pwForm.password" />
             <div v-if="pwSameAsCurrent" style="color:var(--red)">New password must be different from your current password.</div>
           </div>
           <div>
@@ -453,7 +455,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, watch, onMounted, inject } from 'vue';
+import PasswordChecklist from '../../components/PasswordChecklist.vue';
 import axios from 'axios';
 
 const toast = inject('toast', null);
@@ -494,6 +497,28 @@ const profileSuccess = ref('');
 const pwForm = ref({ current_password: '', password: '', password_confirmation: '' });
 const pwError = ref('');
 // Checked as the user types, so a mismatch shows before they submit.
+
+// ---- Checked as the user types (B379, B380) ----
+const emailProblem = computed(() => {
+  const v = String(profileForm.value.email || '').trim();
+  if (!v) return 'Email address is required.';
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : 'Enter a complete email address, like name@bsu.edu.ph.';
+});
+const contactProblem = computed(() => {
+  const v = String(profileForm.value.contact_number || '');
+  if (!v) return '';
+  if (!v.startsWith('09')) return 'The contact number must start with 09.';
+  return v.length === 11 ? '' : `The contact number must be 11 digits (${v.length} so far).`;
+});
+
+// Leaving the Password tab clears whatever was typed there (B381).
+watch(tab, (now, before) => {
+  if (before === 'password' && now !== 'password') {
+    pwForm.value = { current_password: '', password: '', password_confirmation: '' };
+    pwError.value = '';
+    showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
+  }
+});
 const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
 const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
 const pwSuccess = ref('');

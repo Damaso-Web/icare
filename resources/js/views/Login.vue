@@ -170,8 +170,9 @@ async function handleLogin() {
       router.push({ name: 'dashboard' });
     }
   } catch (e) {
+    // A lock set by the server comes with its own message (how long is left).
     error.value = e.response?.status === 429
-      ? 'Too many attempts. Please wait a minute and try again.'
+      ? (e.response?.data?.locked ? e.response.data.message : 'Too many attempts. Please wait a minute and try again.')
       : (e.response?.data?.message || 'Invalid email or password.');
   } finally {
     loading.value = false;

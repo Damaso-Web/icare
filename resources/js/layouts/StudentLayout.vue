@@ -48,7 +48,7 @@
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ student.first_name }} {{ student.last_name }}</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">{{ student.student_id }}</div>
         </div>
-        <button @click="logout" title="Logout" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px">
+        <button @click="session.askLogout()" title="Logout" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px">
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
@@ -116,6 +116,9 @@
         <span>{{ item.label.replace(/^My /, '') }}</span>
       </router-link>
     </nav>
+
+    <!-- Log out confirmation, and the automatic log out after a period of no activity -->
+    <SessionGuard ref="session" @logout="logout" />
   </div>
 </template>
 
@@ -123,6 +126,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import SessionGuard from '../components/SessionGuard.vue';
 
 const route  = useRoute();
 const router = useRouter();
@@ -149,6 +153,7 @@ function authHeaders() {
 }
 
 const showNotifs = ref(false);
+const session = ref(null);
 const notifications = ref([]);
 const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
 

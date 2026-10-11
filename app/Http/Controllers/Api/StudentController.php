@@ -67,6 +67,11 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
+        // No two student accounts may share an email address.
+        if ($request->filled('email') && Student::where('email', $request->email)->exists()) {
+            return response()->json(['message' => 'This email address is already used by another student.', 'errors' => ['email' => ['This email address is already used by another student.']]], 422);
+        }
+
         $validated = $request->validate([
             'student_id'             => ['required', 'string', 'regex:' . self::ID_REGEX, 'unique:students,student_id'],
             'first_name'             => ['required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
@@ -97,7 +102,7 @@ class StudentController extends Controller
             'is_active'             => true,
         ]);
 
-        AuditLog::record('created', "Added student profile for {$student->first_name} {$student->last_name}.", $student);
+        AuditLog::record('created', "Created student account {$student->student_id} ({$student->first_name} {$student->last_name}). Created by " . ($request->user()->name ?? 'unknown') . '.', $student);
 
         return response()->json([
             ...$student->toArray(),
@@ -161,6 +166,22 @@ class StudentController extends Controller
             if (array_key_exists($optionalField, $validated) && $validated[$optionalField] === '') {
                 unset($validated[$optionalField]);
             }
+        }
+
+        // Student ID, email and sex identify the account: after it is created
+        // only the Admin may change them.
+        if ($request->user()->role !== 'admin') {
+            foreach (['student_id' => 'Student ID', 'email' => 'email address', 'sex' => 'sex'] as $field => $label) {
+                if (array_key_exists($field, $validated) && (string) $validated[$field] !== (string) $student->{$field}) {
+                    abort(403, "Only the Admin can change a student's {$label}.");
+                }
+            }
+        }
+
+        // A changed email must not belong to another student.
+        if (isset($validated['email']) && $validated['email'] !== $student->email
+            && Student::where('email', $validated['email'])->where('id', '!=', $student->id)->exists()) {
+            return response()->json(['message' => 'This email address is already used by another student.', 'errors' => ['email' => ['This email address is already used by another student.']]], 422);
         }
 
         $old = $student->toArray();
@@ -692,6 +713,15 @@ class StudentController extends Controller
         $data = $request->validate([
             'sif_client_no' => ['nullable', 'integer', 'min:1', 'max:9999'],
         ]);
+
+        // One client number per student (B404).
+        if (!empty($data['sif_client_no'])) {
+            $taken = Student::where('sif_client_no', $data['sif_client_no'])->where('id', '!=', $student->id)->first();
+            if ($taken) {
+                $msg = 'Client number ' . str_pad((string) $data['sif_client_no'], 4, '0', STR_PAD_LEFT) . " is already used by another student ({$taken->student_id}).";
+                return response()->json(['message' => $msg, 'errors' => ['sif_client_no' => [$msg]]], 422);
+            }
+        }
 
         $old = $student->sif_client_no;
         $student->sif_client_no = $data['sif_client_no'] ?? null;

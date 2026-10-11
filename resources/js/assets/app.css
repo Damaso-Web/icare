@@ -482,6 +482,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .itable.cards tbody td[data-label=""]::before{content:none}
   .itable.cards tbody td[colspan]{justify-content:center;text-align:center !important}
   .itable.cards tbody td:empty{display:none}
+  .itable.cards .iav{display:none}
   .itable.cards tbody td>div[style*="justify-content:flex-end"]{flex-wrap:wrap}
   /* No sideways scroll (or its edge shadows) once a table is cards. */
   .ts:has(>.itable.cards){background:none;overflow-x:visible}
@@ -498,6 +499,30 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .hero-btn{flex-direction:column;gap:6px;min-width:0;padding:11px 6px;font-size:11.5px;line-height:1.25;text-align:center;white-space:normal}
   .hero-btn svg{width:18px;height:18px}
   .ph h1{font-size:24px !important}
+
+  /* ---------- Bug sheet: phone layout ---------- */
+  /* B385: the main button on its own row, the others side by side under it. */
+  .form-actions{flex-wrap:wrap}
+  .form-actions>.ibtn{flex:1 1 calc(50% - 5px);justify-content:center}
+  .form-actions>.ibtn-p{flex:1 1 100%}
+  /* B386: status steps keep their full names and scroll sideways instead of being cut off. */
+  .pipe{-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .pipe::-webkit-scrollbar{display:none}
+  .pipe-step{flex:0 0 auto !important;white-space:nowrap}
+  /* B387, B388: case header - the case name never breaks mid-number; badges wrap; buttons get their own full-width row. */
+  .case-head{flex-wrap:wrap}
+  .case-name{white-space:nowrap;font-family:var(--mono) !important;font-style:normal !important;font-size:20px !important;font-weight:700 !important}
+  .case-actions{margin-left:0 !important;width:100%;flex-wrap:wrap}
+  .case-actions>.ibtn{flex:1 1 auto;justify-content:center}
+  /* B391: tab pills in one row that swipes, instead of four stacked rows. */
+  .swipe-tabs{flex-wrap:nowrap !important;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .swipe-tabs::-webkit-scrollbar{display:none}
+  .swipe-tabs>*{flex:none}
+  /* B392: a dropdown in a card header stays inside the card. */
+  .icard-header>div{min-width:0;max-width:100%;flex-wrap:wrap}
+  .icard-header .fsm,.icard-header select{max-width:100%;min-width:0}
+  /* B395: filter buttons share the row evenly. */
+  .filter-bar>.ibtn{flex:1 1 calc(50% - 4px)}
 
   /* ---------- Small comforts ---------- */
   .filter-bar{gap:8px}
