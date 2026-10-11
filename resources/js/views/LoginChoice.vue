@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div class="auth-card" style="width:100%;max-width:480px">
-      <AuthBrand subtitle="Integrated Case Management and Referral System" />
+    <div class="auth-card auth-panel" style="width:100%;max-width:480px">
+      <AuthBrand subtitle="An Integrated Case Management System for Benguet State University-Office of Student Services" />
 
       <div style="font-size:14px;color:var(--stone);text-align:center;margin-bottom:20px">
         Please select how you'd like to sign in

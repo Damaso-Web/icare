@@ -29,10 +29,10 @@ const ossOk = ref(true);
 .ab { text-align: center; margin-bottom: 24px; }
 .ab-row { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 12px; }
 /* A white edge and a soft gold ring around each logo. */
-.ab-seal { height: 84px; padding: 4px; box-shadow: 0 6px 18px rgba(14, 45, 30, .14), 0 0 0 3px rgba(232, 180, 34, .28); }
+.ab-seal { height: 84px; padding: 4px; box-shadow: 0 6px 18px rgba(14, 45, 30, .14), 0 0 0 3px rgba(143, 224, 176, .28); }
 .ab-seal.logo-oss { border-radius: 12px; }
 .ab-name { font-family: var(--serif); font-style: italic; font-size: 30px; line-height: 1; color: var(--forest); }
 .ab-org { font-size: 11px; font-weight: 700; letter-spacing: 1.1px; text-transform: uppercase; color: var(--moss); margin-top: 8px; }
 .ab-office { font-size: 12px; color: var(--stone); margin-top: 2px; }
-.ab-sub { display: inline-block; margin-top: 9px; padding: 3px 11px; border-radius: 20px; font-size: 11.5px; font-weight: 600; color: var(--gold-dk); background: var(--gold-lt); }
+.ab-sub { display: inline-block; max-width: 340px; margin-top: 9px; padding: 5px 13px; border-radius: 12px; line-height: 1.4; font-size: 11.5px; font-weight: 600; color: var(--gold-dk); background: #fff; box-shadow: 0 1px 3px rgba(14, 45, 30, .10); }
 </style>

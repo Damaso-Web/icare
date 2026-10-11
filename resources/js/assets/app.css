@@ -2,7 +2,7 @@
 :root{
   --forest:#0e2d1e;--pine:#164d30;--moss:#1e6e43;--fern:#2e9458;
   --sage:#5ab87a;--mint:#a8d8b8;--mist:#dff0e7;--foam:#f0f8f3;
-  --gold:#e8b422;--red:#d63d3d;--red-lt:#fde8e8;
+  --gold:#8fe0b0;--red:#d63d3d;--red-lt:#fde8e8;
   --amber:#c97020;--amber-lt:#fef0dc;--blue:#2a6fc9;--blue-lt:#ddeeff;
   --purple:#7c3aed;--purple-lt:#ede9fe;
   --ink:#0f1a13;--slate:#3a4a3f;--stone:#6b7e72;--fog:#a0afa6;
@@ -201,19 +201,19 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
    the accent. Nothing here changes layout or behaviour.
    ══════════════════════════════════════════════════════════════════════════ */
 :root{
-  --gold-lt:#fdf3cf;--gold-dk:#a67c0a;
+  --gold-lt:#e3f6ea;--gold-dk:#1e6e43;
   --grad-forest:linear-gradient(135deg,#0a2114 0%,#12392a 52%,#1e6e43 100%);
   --grad-moss:linear-gradient(135deg,#1e6e43 0%,#2e9458 100%);
-  --grad-gold:linear-gradient(90deg,#1e6e43 0%,#e8b422 100%);
+  --grad-gold:linear-gradient(90deg,#1e6e43 0%,#8fe0b0 100%);
   --sh-card:0 1px 2px rgba(14,45,30,.05),0 10px 28px rgba(14,45,30,.07);
 }
 
 /* ── Page background: soft green and gold light instead of flat grey ── */
 .content-area,.stu-content{
   background:
-    radial-gradient(1100px 480px at 100% -8%,rgba(46,148,88,.13),transparent 62%),
-    radial-gradient(820px 420px at -6% 104%,rgba(232,180,34,.10),transparent 60%),
-    linear-gradient(180deg,#eef5f0 0%,#e8f0eb 100%) !important;
+    linear-gradient(118deg,transparent 0 30%,rgba(255,255,255,.38) 42%,transparent 56%),
+    linear-gradient(118deg,transparent 0 62%,rgba(255,255,255,.24) 74%,transparent 88%),
+    linear-gradient(160deg,#f4fbf7 0%,#edf7f1 55%,#e6f3ec 100%) !important;
 }
 
 /* The student pages scroll with the document, so their background must reach the bottom of the screen. */
@@ -223,16 +223,16 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .sidebar,.stu-sidebar{background:linear-gradient(180deg,#081d12 0%,#0e2d1e 42%,#134029 100%) !important}
 .sidebar::after{background:
   radial-gradient(ellipse 95% 34% at 50% 100%,rgba(46,148,88,.26) 0%,transparent 62%),
-  radial-gradient(ellipse 80% 22% at 0% 0%,rgba(232,180,34,.13) 0%,transparent 60%)}
+  radial-gradient(ellipse 80% 22% at 0% 0%,rgba(143,224,176,.13) 0%,transparent 60%)}
 .sb-head{padding:18px 16px 16px;gap:11px;border-bottom:1px solid rgba(255,255,255,.08)}
-.sb-mark{width:40px;height:40px;border-radius:11px;padding:4px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(232,180,34,.35)}
+.sb-mark{width:40px;height:40px;border-radius:11px;padding:4px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(143,224,176,.35)}
 .sb-brand{font-family:var(--serif);font-style:italic;font-size:22px;font-weight:400;line-height:1;letter-spacing:.3px}
 .sb-sub{font-size:9.5px;color:rgba(255,255,255,.5);letter-spacing:.9px;margin-top:4px}
 .sb-sec{color:rgba(255,255,255,.34);padding:16px 10px 6px}
 .nb{padding:10px 12px;color:rgba(255,255,255,.64);border-radius:10px;margin-bottom:2px}
 .nb:hover{background:rgba(255,255,255,.08);color:#fff}
 .nb.active{background:linear-gradient(90deg,rgba(90,184,122,.28),rgba(90,184,122,.06));color:#fff;font-weight:600;box-shadow:inset 0 0 0 1px rgba(168,216,184,.14)}
-.nb.active::before{width:3px;height:22px;background:var(--gold);box-shadow:0 0 10px rgba(232,180,34,.6)}
+.nb.active::before{width:3px;height:22px;background:var(--gold);box-shadow:0 0 10px rgba(143,224,176,.6)}
 .nb.active svg{color:var(--gold)}
 .sb-foot{border-top:1px solid rgba(255,255,255,.08)}
 .u-row{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);border-radius:12px;padding:9px 10px}
@@ -242,7 +242,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 
 /* ── Top bar: a green-to-gold line under it ── */
 .topbar,.stu-topbar{border-bottom:none !important;box-shadow:0 1px 0 rgba(14,45,30,.06),0 6px 18px rgba(14,45,30,.05)}
-.topbar::after,.stu-topbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--moss) 0%,var(--gold) 46%,rgba(232,180,34,0) 100%);pointer-events:none}
+.topbar::after,.stu-topbar::after{content:'';position:absolute;left:0;right:0;bottom:0;height:2px;background:linear-gradient(90deg,var(--moss) 0%,var(--gold) 46%,rgba(143,224,176,0) 100%);pointer-events:none}
 .breadcrumb-nav strong{font-weight:600}
 
 /* ── Page titles ── */
@@ -260,16 +260,19 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .stat-card{position:relative;overflow:hidden;--acc:#1e6e43;border:1px solid rgba(14,45,30,.07);box-shadow:var(--sh-card);background:linear-gradient(155deg,#fff 58%,color-mix(in srgb,var(--acc) 9%,#fff) 100%);padding:18px 18px 16px}
 .stat-card::before{content:'';position:absolute;left:0;right:0;top:0;height:4px;background:linear-gradient(90deg,var(--acc),color-mix(in srgb,var(--acc) 45%,#fff))}
 .stat-card::after{content:'';position:absolute;right:-26px;bottom:-30px;width:104px;height:104px;border-radius:50%;background:var(--acc);opacity:.07;pointer-events:none}
-.stat-card:nth-child(6n+2){--acc:#c97020}
-.stat-card:nth-child(6n+3){--acc:#2a6fc9}
-.stat-card:nth-child(6n+4){--acc:#7c3aed}
-.stat-card:nth-child(6n+5){--acc:#b8860b}
-.stat-card:nth-child(6n+6){--acc:#0f8a8a}
+.stat-card:nth-child(6n+2){--acc:#0f8a8a}
+.stat-card:nth-child(6n+3){--acc:#2e9458}
+.stat-card:nth-child(6n+4){--acc:#1b6f7a}
+.stat-card:nth-child(6n+5){--acc:#3a8f6f}
+.stat-card:nth-child(6n+6){--acc:#164d30}
 .stat-card:hover{transform:translateY(-3px);box-shadow:0 2px 4px rgba(14,45,30,.06),0 16px 34px rgba(14,45,30,.11)}
 .stat-num{font-size:38px;color:var(--forest);margin-bottom:5px}
 .stat-label{font-size:12px;color:var(--slate);font-weight:600}
 .stat-icon{width:42px;height:42px;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(14,45,30,.05)}
 .stat-icon svg{width:19px;height:19px}
+/* The tile's icon takes the tile's own colour, whatever the page asked for. */
+.stat-card .stat-icon{background:color-mix(in srgb,var(--acc) 13%,#fff) !important}
+.stat-card .stat-icon svg{color:var(--acc) !important}
 
 /* ── Buttons ── */
 .ibtn{border-radius:10px;font-weight:600;transition:background .13s,box-shadow .13s,transform .1s}
@@ -305,11 +308,11 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 
 /* ── Scrollbars ── */
 .content-area::-webkit-scrollbar{width:8px}
-.content-area::-webkit-scrollbar-thumb{background:#c5d3ca;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
+.content-area::-webkit-scrollbar-thumb{background:#b9d3c4;border-radius:6px;border:2px solid transparent;background-clip:padding-box}
 
 /* ── Dashboard welcome banner ── */
 .hero{position:relative;overflow:hidden;border-radius:20px;padding:24px 28px;margin-bottom:20px;color:#fff;background:var(--grad-forest);box-shadow:0 14px 34px rgba(14,45,30,.22)}
-.hero::before{content:'';position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(232,180,34,.30),rgba(232,180,34,0) 68%);pointer-events:none}
+.hero::before{content:'';position:absolute;right:-70px;top:-90px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(143,224,176,.30),rgba(143,224,176,0) 68%);pointer-events:none}
 .hero::after{content:'';position:absolute;right:120px;bottom:-130px;width:260px;height:260px;border-radius:50%;border:34px solid rgba(255,255,255,.045);pointer-events:none}
 .hero-row{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
 .hero-kicker{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:var(--gold);margin-bottom:8px}
@@ -317,9 +320,9 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero p{margin-top:8px;font-size:13.5px;color:rgba(255,255,255,.74);max-width:560px}
 .hero-stats{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .hero-stat{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:138px;padding:11px 14px 12px;border-radius:14px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.09);color:#fff;font-family:var(--font);text-align:left;cursor:pointer;transition:background .13s,transform .12s,border-color .13s}
-.hero-stat:hover{background:rgba(255,255,255,.16);border-color:rgba(232,180,34,.55);transform:translateY(-2px)}
+.hero-stat:hover{background:rgba(255,255,255,.16);border-color:rgba(143,224,176,.55);transform:translateY(-2px)}
 .hero-stat-top{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;margin-bottom:6px}
-.hero-stat-icon{width:28px;height:28px;border-radius:8px;background:rgba(232,180,34,.18);color:var(--gold);display:flex;align-items:center;justify-content:center}
+.hero-stat-icon{width:28px;height:28px;border-radius:8px;background:rgba(143,224,176,.18);color:var(--gold);display:flex;align-items:center;justify-content:center}
 .hero-stat-icon svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .hero-stat-period{font-size:9.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.6)}
 .hero-stat-num{font-family:var(--serif);font-style:italic;font-size:32px;line-height:1;color:#fff}
@@ -330,7 +333,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero-actions{display:flex;gap:8px;flex-wrap:wrap}
 /* The shortcuts are one set: the same look and the same size as each other. */
 .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:158px;padding:11px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,border-color .13s,transform .1s}
-.hero-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(232,180,34,.6)}
+.hero-btn:hover{background:rgba(255,255,255,.2);border-color:rgba(143,224,176,.6)}
 .hero-btn:active{transform:translateY(1px)}
 .hero-btn svg{width:16px;height:16px;flex-shrink:0;color:var(--gold);stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
@@ -342,8 +345,16 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
     radial-gradient(circle at 100% 0%,rgba(168,216,184,.10) 0,rgba(168,216,184,.10) 27%,transparent 27.2%),
     radial-gradient(rgba(255,255,255,.07) 1px,transparent 1.6px) 0 0/22px 22px,
     linear-gradient(135deg,#0a2114 0%,#134029 38%,#1e6e43 72%,#2e9458 100%) !important}
-/* The white card the sign-in content sits on. */
-.auth-card{background:#fff;border-radius:20px;padding:32px 30px;box-shadow:0 24px 60px rgba(0,0,0,.28)}
+/* The panel the sign-in content sits on: white, with a breath of mint at the corners. */
+.auth-panel{background:
+    linear-gradient(118deg,transparent 0 28%,rgba(255,255,255,.5) 44%,transparent 60%),
+    linear-gradient(160deg,#f7fcf9 0%,#ecf7f0 100%) !important;
+  border:1px solid rgba(255,255,255,.7);box-shadow:0 24px 60px rgba(0,0,0,.30) !important}
+.auth-panel .ab-org{color:var(--pine)}
+.auth-panel .ab-office{color:var(--slate)}
+/* Pale grey notes are too faint on the lime panel. */
+.auth-panel [style*="color:var(--fog)"],.auth-panel [style*="color: var(--fog)"]{color:var(--slate) !important}
+.auth-card{border-radius:20px;padding:32px 30px}
 .auth-card>.icard{box-shadow:none;border:1px solid #e1ebe5}
 .auth-page>*{position:relative;z-index:1}
 
@@ -357,7 +368,7 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .logo-oss{border-radius:5px;padding:1px}       /* the OSS logo is an upright rectangle */
 .sb-head{gap:9px}
 /* Same gold ring as the iCARE mark beside them. */
-.sb-logo{height:40px;padding:2px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(232,180,34,.35)}
+.sb-logo{height:40px;padding:2px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 2px rgba(143,224,176,.35)}
 .sb-logo.logo-oss{border-radius:7px}
 /* In the top bar on phones only - on desktop the sidebar carries the logos. */
 .tb-seals{display:none;align-items:center;gap:6px}

@@ -1,6 +1,6 @@
 <template>
   <div class="login-wrap auth-page">
-    <div class="login-card" :style="{ maxWidth: agreed ? '400px' : '540px' }">
+    <div class="login-card auth-panel" :style="{ maxWidth: agreed ? '400px' : '540px' }">
 
       <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
@@ -114,8 +114,7 @@
       </template>
 
       <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
-        iCARE - Integrated Case Management and Referral System<br>
-        Benguet State University
+        iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
 
     </div>
