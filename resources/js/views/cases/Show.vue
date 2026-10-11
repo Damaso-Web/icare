@@ -281,7 +281,7 @@
               <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
                   <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ a.start_time }} – {{ a.end_time }}</div>
+                    <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }} – {{ formatTime12(a.end_time) }}</div>
                     <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ toTitleCase(a.appointment_type) }} · {{ a.staff?.name || 'TBA' }}</div>
                   </div>
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
@@ -320,7 +320,7 @@
                   <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
                 </div>
                 <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
-                  {{ note.session_start_time }} – {{ note.session_end_time }}
+                  {{ formatTime12(note.session_start_time) }} – {{ formatTime12(note.session_end_time) }}
                 </div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Observations</div>
                 <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ note.observations }}</div>
@@ -409,7 +409,7 @@
             <div class="icard-header"><span class="icard-title">Parent Conference Slip History</span></div>
             <div>
               <div v-for="s in caseFile.parent_conference_slips" :key="s.id" style="padding:12px 16px;border-bottom:1px solid var(--cloud)">
-                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ s.conference_time }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ formatTime12(s.conference_time) }}</div>
                 <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
                 <div v-if="s.remarks" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ s.remarks }}</div>
                 <div style="font-size:11px;color:var(--fog);margin-top:4px">Issued by {{ s.issued_by?.name }} · {{ formatDate(s.issued_at) }}</div>
@@ -525,7 +525,7 @@
                 <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
                 <div v-if="parentConferenceConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:10px">
                   <div style="font-size:13px;color:var(--slate);line-height:1.6">
-                    Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ parentConferenceForm.conference_time }}</strong>? The student will be notified.
+                    Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ formatTime12(parentConferenceForm.conference_time) }}</strong>? The student will be notified.
                   </div>
                   <div style="display:flex;gap:8px">
                     <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="submitParentConferenceSlip" :disabled="savingParentConference">
@@ -897,7 +897,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { caseAPI, sessionNoteAPI, appointmentAPI, caseHandoffAPI, userAPI, caseInterventionAPI, referralAPI } from '../../api/index';

@@ -79,7 +79,7 @@
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
                 <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
-                  {{ toTitleCase(a.appointment_type) }} · {{ a.start_time }} - {{ a.end_time }} · {{ a.staff?.name || 'TBA' }}
+                  {{ toTitleCase(a.appointment_type) }} · {{ formatTime12(a.start_time) }} - {{ formatTime12(a.end_time) }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
@@ -197,7 +197,7 @@
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Time</div>
-              <div style="font-size:13px;color:var(--ink)">{{ detailTarget.start_time }} - {{ detailTarget.end_time }}</div>
+              <div style="font-size:13px;color:var(--ink)">{{ formatTime12(detailTarget.start_time) }} - {{ formatTime12(detailTarget.end_time) }}</div>
             </div>
             <div>
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Staff</div>
@@ -311,7 +311,7 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, testingAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 
 const toast  = inject('toast');
 const router = useRouter();

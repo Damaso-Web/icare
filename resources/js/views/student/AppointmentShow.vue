@@ -240,28 +240,6 @@
       </div>
     </div>
 
-    <!-- Cancel Modal -->
-    <div v-if="showCancelModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCancelModal = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Cancel Appointment?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div v-if="modalError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px">{{ modalError }}</div>
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">This cannot be undone. If you still need help, you'll need to submit a new request.</div>
-          <div>
-            <label class="ifl">Reason for cancelling <span style="color:var(--red)">*</span></label>
-            <textarea v-model="cancelReason" class="ifi" rows="3" placeholder="Let us know why you're cancelling..." maxlength="1000"></textarea>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="cancellingAppointment || !cancelReason.trim()" @click="cancelAppointment">
-              {{ cancellingAppointment ? 'Cancelling...' : 'Confirm Cancellation' }}
-            </button>
-            <button class="ibtn ibtn-o" @click="showCancelModal = false">Keep Appointment</button>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -310,9 +288,6 @@ const preferredEnd = ref('');
 const preferredDateWarning = ref(false);
 const preferredTimeError = ref('');
 
-const showCancelModal = ref(false);
-const cancelReason = ref('');
-const cancellingAppointment = ref(false);
 
 // Computed
 const referralSource = computed(() =>
@@ -528,12 +503,6 @@ function openRescheduleModal() {
   showRescheduleModal.value = true;
 }
 
-function openCancelModal() {
-  cancelReason.value = '';
-  modalError.value = '';
-  showCancelModal.value = true;
-}
-
 async function requestReschedule() {
   rescheduleError.value = '';
   modalError.value = '';
@@ -543,7 +512,7 @@ async function requestReschedule() {
     if (preferredDate.value) {
       const dateLabel = new Date(preferredDate.value + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
       let slot = `Preferred: ${dateLabel}`;
-      if (preferredStart.value && preferredEnd.value) slot += ` ${preferredStart.value}–${preferredEnd.value}`;
+      if (preferredStart.value && preferredEnd.value) slot += ` ${fmt12(preferredStart.value)} to ${fmt12(preferredEnd.value)}`;
       parts.push(slot);
     }
     if (rescheduleReason.value.trim()) parts.push(rescheduleReason.value.trim());
@@ -557,19 +526,6 @@ async function requestReschedule() {
     modalError.value = message;
   } finally {
     requestingReschedule.value = false;
-  }
-}
-
-async function cancelAppointment() {
-  modalError.value = '';
-  cancellingAppointment.value = true;
-  try {
-    await axios.post(`${API_BASE}/student/appointments/${route.params.id}/cancel`, { cancellation_reason: cancelReason.value }, authHeaders());
-    router.push({ name: 'student-appointments' });
-  } catch (e) {
-    modalError.value = e.response?.data?.message || 'Failed to cancel this appointment.';
-  } finally {
-    cancellingAppointment.value = false;
   }
 }
 

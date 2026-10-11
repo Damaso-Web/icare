@@ -424,7 +424,7 @@
               <div v-if="referral.admission_issued_at" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--cloud)">
                 <div style="font-size:11px;color:var(--fog)">
                   Class date: {{ formatDate(referral.admission_date) }}
-                  <span v-if="referral.admission_time_in"> · Class time duration: {{ referral.admission_time_in }}<span v-if="referral.admission_time_out"> - {{ referral.admission_time_out }}</span></span>
+                  <span v-if="referral.admission_time_in"> · Class Time Duration: {{ formatTime12(referral.admission_time_in) }}<span v-if="referral.admission_time_out"> - {{ formatTime12(referral.admission_time_out) }}</span></span>
                   <span v-if="referral.admission_excused !== null"> · {{ referral.admission_excused ? 'Excused' : 'Unexcused' }}</span>
                 </div>
                 <div v-if="referral.admission_remarks" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-top:6px">{{ referral.admission_remarks }}</div>
@@ -632,7 +632,7 @@
                   </div>
                 </div>
                 <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
-                  {{ note.session_start_time }} - {{ note.session_end_time }}
+                  {{ formatTime12(note.session_start_time) }} - {{ formatTime12(note.session_end_time) }}
                 </div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Observations</div>
                 <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ note.observations }}</div>
@@ -672,7 +672,7 @@
                 @click="viewFollowUp(fu)"
               >
                 <div>
-                  <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(fu.appointment_date) }} · {{ fu.start_time }}-{{ fu.end_time }}</div>
+                  <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(fu.appointment_date) }} · {{ formatTime12(fu.start_time) }}-{{ formatTime12(fu.end_time) }}</div>
                   <div style="font-size:12px;color:var(--stone);margin-top:2px">With {{ fu.staff?.name || 'TBA' }}</div>
                   <div v-if="fu.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ fu.notes }}</div>
                   <div v-else style="font-size:11px;color:var(--fog);margin-top:6px;font-style:italic">{{ isGCU && !isResolved ? 'No notes yet - click to add' : 'No notes recorded' }}</div>
@@ -1070,7 +1070,7 @@
                     <div v-if="a.request_status === 'awaiting_student'" style="font-size:11px;color:var(--amber);margin-top:2px">
                       Waiting for Student to Pick a Schedule
                     </div>
-                    <div v-else style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                    <div v-else style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
                     <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()" style="margin-top:4px;display:inline-block">{{ a.unit }}</span>
                   </div>
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
@@ -1105,7 +1105,7 @@
                 @mouseleave="$event.currentTarget.style.background='transparent'"
                 @click="viewParentConference(s)"
               >
-                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ s.conference_time }}</div>
+                <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ formatTime12(s.conference_time) }}</div>
                 <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
                 <div v-if="s.remarks" style="font-size:11px;color:var(--stone);margin-top:3px;font-style:italic">{{ s.remarks }}</div>
                 <div v-if="s.notes" style="font-size:12px;color:var(--slate);margin-top:6px;background:var(--snow);padding:8px 10px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ s.notes }}</div>
@@ -1193,7 +1193,7 @@
                 <div style="font-weight:600;color:var(--ink);margin-bottom:4px">Schedule for {{ followUpForm.appointment_date }}</div>
                 <div v-if="followUpAvailability?.booked_slots?.length" style="display:flex;flex-direction:column;gap:2px">
                   <div v-for="(slot, i) in followUpAvailability.booked_slots" :key="i" :style="isFollowUpOverlapping(slot) ? 'color:var(--red);font-weight:600' : ''">
-                    {{ slot.start_time }}–{{ slot.end_time }} · {{ toTitleCase(slot.appointment_type) }}
+                    {{ formatTime12(slot.start_time) }}–{{ formatTime12(slot.end_time) }} · {{ toTitleCase(slot.appointment_type) }}
                     <span v-if="isFollowUpOverlapping(slot)">(conflicts with this time)</span>
                   </div>
                 </div>
@@ -1220,7 +1220,7 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;padding:22px;text-align:center">
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Schedule this follow-up?</div>
           <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
-            {{ formatDate(followUpForm.appointment_date) }} · {{ followUpForm.start_time }}–{{ followUpForm.end_time }}
+            {{ formatDate(followUpForm.appointment_date) }} · {{ formatTime12(followUpForm.start_time) }}–{{ formatTime12(followUpForm.end_time) }}
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="schedulingFollowUp" @click="saveFollowUp">
@@ -1308,7 +1308,7 @@
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">Follow-up Session</div>
-              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedFollowUp.appointment_date) }} · {{ selectedFollowUp.start_time }}-{{ selectedFollowUp.end_time }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedFollowUp.appointment_date) }} · {{ formatTime12(selectedFollowUp.start_time) }}-{{ formatTime12(selectedFollowUp.end_time) }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="closeFollowUpDetail">✕</button>
           </div>
@@ -1451,7 +1451,7 @@
             </div>
             <div class="tf-row">
               <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 1000 characters)</span></label>
-              <textarea v-model="tmduForm.reason" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Why is this student being referred for psychological testing?" @input="tmduForm.reason = plainText(tmduForm.reason)"></textarea>
+              <textarea v-model="tmduForm.reason" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Why is this student being referred for psychological testing?"></textarea>
             </div>
 
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
@@ -1498,43 +1498,6 @@
                 {{ resolvingReferral ? 'Resolving...' : 'Resolve Referral' }}
               </button>
               <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="resolvingReferral" @click="showResolveReferralModal = false">Cancel</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Transfer Unit Modal -->
-      <div v-if="showTransferModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTransferModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Endorse Case to Another Unit</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="showTransferModal = false">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div>
-              <label class="ifl">Target Unit <span style="color:var(--red)">*</span></label>
-              <select v-model="transferForm.to_unit" class="ifse" @change="loadUnitStaff(transferForm.to_unit)">
-                <option value="">Select unit...</option>
-                <option v-for="u in ['GCU', 'SDU', 'TMDU'].filter(u => u !== referral.case?.current_unit)" :key="u" :value="u">{{ u }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Assign To <span style="color:var(--red)">*</span></label>
-              <select v-model="transferForm.to_user_id" class="ifse" :disabled="!transferForm.to_unit">
-                <option value="">Select staff member...</option>
-                <option v-for="u in unitStaffList" :key="u.id" :value="u.id">{{ u.name }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-              <textarea v-model="transferForm.reason" class="ifta" style="min-height:60px" placeholder="Why is this case being transferred?" maxlength="1000"></textarea>
-            </div>
-            <div v-if="transferError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
-              {{ transferError }}
-            </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" @click="transferUnit">Endorse</button>
-              <button class="ibtn ibtn-o" @click="showTransferModal = false">Cancel</button>
             </div>
           </div>
         </div>
@@ -1598,7 +1561,7 @@
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Time</div>
                 <div v-if="apptDetailTarget.request_status === 'awaiting_student'" style="font-size:13px;color:var(--stone)">Not set yet</div>
-                <div v-else style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.start_time }} - {{ apptDetailTarget.end_time }}</div>
+                <div v-else style="font-size:13px;color:var(--ink)">{{ formatTime12(apptDetailTarget.start_time) }} - {{ formatTime12(apptDetailTarget.end_time) }}</div>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Unit</div>
@@ -1639,7 +1602,7 @@
                  the toast afterward. -->
             <div v-else-if="apptConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px">
               <div style="font-size:13px;color:var(--slate);line-height:1.6">
-                Confirm this appointment for {{ formatDate(apptDetailTarget.appointment_date) }}, {{ apptDetailTarget.start_time }}-{{ apptDetailTarget.end_time }}?
+                Confirm this appointment for {{ formatDate(apptDetailTarget.appointment_date) }}, {{ formatTime12(apptDetailTarget.start_time) }}-{{ formatTime12(apptDetailTarget.end_time) }}?
               </div>
               <div style="display:flex;gap:8px">
                 <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmApptFromDetail">Yes, Confirm Appointment</button>
@@ -1723,7 +1686,7 @@
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">Parent Conference</div>
-              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedParentConference.conference_date) }} · {{ selectedParentConference.conference_time }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(selectedParentConference.conference_date) }} · {{ formatTime12(selectedParentConference.conference_time) }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="closeParentConferenceDetail">✕</button>
           </div>
@@ -1800,7 +1763,7 @@
             <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
             <div v-if="parentConferenceConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:10px">
               <div style="font-size:13px;color:var(--slate);line-height:1.6">
-                Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ parentConferenceForm.conference_time }}</strong>? The student will be notified.
+                Issue this Parent Conference Slip for <strong>{{ parentConferenceForm.conference_date }}</strong> at <strong>{{ formatTime12(parentConferenceForm.conference_time) }}</strong>? The student will be notified.
               </div>
               <div style="display:flex;gap:8px">
                 <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="submitParentConferenceSlip" :disabled="savingParentConference">
@@ -1841,7 +1804,7 @@ import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import { useAuthStore } from '../../stores/auth';
-import { toTitleCase, plainText, referralSourceFor } from '../../utils/validators';
+import { toTitleCase, plainText, referralSourceFor, formatTime12 } from '../../utils/validators';
 
 const route   = useRoute();
 const router  = useRouter();
@@ -1860,14 +1823,9 @@ const showFollowUpModal  = ref(false);
 const followUpError      = ref('');
 const schedulingFollowUp = ref(false);
 
-const showTransferModal    = ref(false);
-const unitStaffList         = ref([]);
-const transferError         = ref('');
-
 const selectedFollowUp  = ref(null);
 const followUpNotesForm = ref('');
 
-const transferForm = ref({ to_unit: '', to_user_id: '', reason: '' });
 const interventionForm = ref({ text: '' });
 const selectedIntervention = ref(null);
 
@@ -2574,59 +2532,6 @@ async function referToTmdu() {
     tmduError.value = e.response?.data?.message || 'Failed to refer to TMDU.';
   } finally {
     submittingTmdu.value = false;
-  }
-}
-
-async function loadUnitStaff(unit) {
-  transferForm.value.to_user_id = '';
-  unitStaffList.value = [];
-  if (!unit) return;
-  try {
-    const res = await userAPI.roster();
-    unitStaffList.value = (res.data.data || res.data).filter(u => (COUNSELING_ROLES[unit] || []).includes(u.role));
-  } catch (e) {
-    // Non-fatal - dropdown just stays empty.
-  }
-}
-
-function openTransferModal() {
-  transferError.value = '';
-  transferForm.value = { to_unit: '', to_user_id: '', reason: '' };
-  unitStaffList.value = [];
-  showTransferModal.value = true;
-}
-
-async function transferUnit() {
-  if (!transferForm.value.to_unit || !transferForm.value.to_user_id || !transferForm.value.reason) {
-    transferError.value = 'Please fill in all fields.';
-    return;
-  }
-  transferError.value = '';
-  const previousUnit = referral.value.case.current_unit;
-  try {
-    // Tag the handoff with the referral it's actually being made from, so
-    // it only shows up in THIS referral's history - not every other
-    // referral sharing the same case (e.g. a sibling TMDU referral).
-    const res = await caseAPI.handoff(referral.value.case.id, { ...transferForm.value, referral_id: referral.value.id });
-    referral.value.case.current_unit = res.data.current_unit;
-    referral.value.case.handoffs = [
-      ...(referral.value.case.handoffs || []),
-      {
-        id: Date.now(),
-        referral_id: referral.value.id,
-        from_unit: previousUnit,
-        to_unit: transferForm.value.to_unit,
-        reason: transferForm.value.reason,
-        from_user: { name: auth.user?.name },
-        to_user_id: Number(transferForm.value.to_user_id),
-        to_user: unitStaffList.value.find(u => u.id === Number(transferForm.value.to_user_id)),
-        created_at: new Date().toISOString(),
-      },
-    ];
-    showTransferModal.value = false;
-    toast?.success('Case transferred.');
-  } catch (e) {
-    transferError.value = e.response?.data?.message || 'Failed to transfer case.';
   }
 }
 

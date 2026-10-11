@@ -21,7 +21,7 @@
           </div>
           <div style="font-size:11.5px;color:var(--stone);margin-top:2px">
             <template v-if="isUnscheduled(a)">Student has not picked a schedule yet · {{ a.unit }}</template>
-            <template v-else>Missed appointment on {{ formatDate(a.appointment_date) }} at {{ a.start_time }} · {{ a.unit }}</template>
+            <template v-else>Missed appointment on {{ formatDate(a.appointment_date) }} at {{ formatTime12(a.start_time) }} · {{ a.unit }}</template>
           </div>
           <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
             <span v-if="a.no_show_escalated && !isUnscheduled(a)" class="ibadge" style="background:var(--red-lt);color:var(--red)">No-Show</span>
@@ -65,6 +65,7 @@
 </template>
 
 <script setup>
+import { formatTime12 } from '../../utils/validators';
 import { ref, onMounted, inject } from 'vue';
 import { callSlipAPI } from '../../api/index';
 

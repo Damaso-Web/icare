@@ -386,7 +386,7 @@
                 <div>
                   <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
                   <div style="font-size:11px;color:var(--stone);margin-top:2px;font-family:var(--mono)">{{ a.appointment_code }}</div>
-                  <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                  <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
                   <div style="font-size:11px;color:var(--fog);margin-top:2px">With {{ a.staff?.name || '-' }}</div>
                 </div>
                 <span class="ibadge" :class="'ibadge-' + a.status" style="flex-shrink:0">{{ toTitleCase(a.status) }}</span>
@@ -667,7 +667,7 @@
 <script setup>
 import { useDiscardGuard } from '../../utils/discardGuard';
 import { ref, computed, onMounted, inject } from 'vue';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import { studentAPI, caseAPI, userAPI } from '../../api/index';
 import { COLLEGES } from '../../constants/colleges';

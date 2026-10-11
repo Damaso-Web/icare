@@ -30,7 +30,7 @@
         </div>
         <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;margin-top:16px;text-align:left;font-size:13px">
           <div><strong>Date:</strong> {{ formatDate(form.appointment_date) }}</div>
-          <div><strong>Time:</strong> {{ form.start_time }} - {{ form.end_time }}</div>
+          <div><strong>Time:</strong> {{ formatTime12(form.start_time) }} - {{ formatTime12(form.end_time) }}</div>
         </div>
       </div>
 
@@ -144,6 +144,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
+import { formatTime12 } from '../../utils/validators';
 
 const route = useRoute();
 const token = route.params.token;

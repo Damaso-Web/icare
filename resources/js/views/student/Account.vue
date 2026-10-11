@@ -163,7 +163,8 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="backgroundForm.father_contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="backgroundForm.father_contact_number = backgroundForm.father_contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+              <input v-model="backgroundForm.father_contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" :style="contactIssue('father_contact_number') ? ERR_BORDER : ''" @input="backgroundForm.father_contact_number = backgroundForm.father_contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+              <div v-if="contactIssue('father_contact_number')" style="font-size:11px;color:var(--red);margin-top:4px">{{ contactIssue('father_contact_number') }}</div>
             </div>
           </div>
 
@@ -200,7 +201,8 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="backgroundForm.mother_contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="backgroundForm.mother_contact_number = backgroundForm.mother_contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+              <input v-model="backgroundForm.mother_contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" :style="contactIssue('mother_contact_number') ? ERR_BORDER : ''" @input="backgroundForm.mother_contact_number = backgroundForm.mother_contact_number.replace(/[^0-9]/g, '').slice(0, 11)" />
+              <div v-if="contactIssue('mother_contact_number')" style="font-size:11px;color:var(--red);margin-top:4px">{{ contactIssue('mother_contact_number') }}</div>
             </div>
           </div>
 
@@ -247,7 +249,8 @@
             </div>
             <div>
               <label class="ifl">Contact Number</label>
-              <input v-model="backgroundForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" @input="backgroundForm.guardian_contact = String(backgroundForm.guardian_contact ?? '').replace(/[^0-9]/g, '').slice(0, 11)" />
+              <input v-model="backgroundForm.guardian_contact" class="ifi" placeholder="09XXXXXXXXX" maxlength="11" :style="contactIssue('guardian_contact') ? ERR_BORDER : ''" @input="backgroundForm.guardian_contact = String(backgroundForm.guardian_contact ?? '').replace(/[^0-9]/g, '').slice(0, 11)" />
+              <div v-if="contactIssue('guardian_contact')" style="font-size:11px;color:var(--red);margin-top:4px">{{ contactIssue('guardian_contact') }}</div>
             </div>
           </div>
 
@@ -270,11 +273,11 @@
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="sib.last_name" class="ifi" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+                <input v-model="sib.last_name" class="ifi" :style="sibNamesChecked && !String(sib.last_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="sib.first_name" class="ifi" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+                <input v-model="sib.first_name" class="ifi" :style="sibNamesChecked && !String(sib.first_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
@@ -323,7 +326,8 @@
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.elementary_year_graduated" class="ifi" placeholder="e.g. 2016" maxlength="4" @input="backgroundForm.elementary_year_graduated = String(backgroundForm.elementary_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.elementary_year_graduated" class="ifi" placeholder="e.g. 2016" maxlength="4" :style="yearIssue(backgroundForm.elementary_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.elementary_year_graduated = String(backgroundForm.elementary_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.elementary_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.elementary_year_graduated) }}</div>
             </div>
           </div>
           <div v-if="'elementary_achievements'">
@@ -338,7 +342,8 @@
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" :style="yearIssue(backgroundForm.high_school_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.high_school_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.high_school_year_graduated) }}</div>
             </div>
           </div>
           <div v-if="'high_school_achievements'">
@@ -353,7 +358,8 @@
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" :style="yearIssue(backgroundForm.senior_high_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.senior_high_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.senior_high_year_graduated) }}</div>
             </div>
           </div>
           <div v-if="'senior_high_achievements'">
@@ -368,7 +374,8 @@
             </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" :style="yearIssue(backgroundForm.college_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.college_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.college_year_graduated) }}</div>
             </div>
           </div>
 
@@ -461,6 +468,25 @@ import axios from 'axios';
 
 const toast = inject('toast', null);
 const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
+
+// B311: what is wrong with a field, shown on the field itself ('' when fine).
+const ERR_BORDER = 'border-color:var(--red);border-width:1.5px';
+const sibNamesChecked = ref(false);
+function contactIssue(key) {
+  const f = backgroundForm.value;
+  const v = String(f[key] ?? '');
+  if (!v) return '';
+  if (!/^09\d{9}$/.test(v)) return 'Must start with 09 and be 11 digits long.';
+  if (key !== 'guardian_contact' && f.father_contact_number === f.mother_contact_number) return "Same as the other parent's number.";
+  return '';
+}
+function yearIssue(v) {
+  v = String(v ?? '');
+  if (!v) return '';
+  if (!/^\d{4}$/.test(v)) return 'Enter a 4-digit year.';
+  if (Number(v) < 1950 || Number(v) > new Date().getFullYear()) return 'Enter a year from 1950 up to this year.';
+  return '';
+}
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -631,11 +657,19 @@ function requestSave(kind) {
     }
   }
   if (kind === 'siblings') {
+    sibNamesChecked.value = true;
     for (const sib of backgroundForm.value.siblings) {
       if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
         backgroundError.value = 'Please fill in a first and last name for every sibling, or remove the empty row.';
         return;
       }
+    }
+  }
+  if (kind === 'education') {
+    const f = backgroundForm.value;
+    if (['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'].some(k => yearIssue(f[k]))) {
+      backgroundError.value = 'Please correct the year graduated marked in red.';
+      return;
     }
   }
   consentChecked.value = false;

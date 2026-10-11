@@ -46,7 +46,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
           <div><strong>Appointment Code:</strong> {{ appointment.appointment_code }}</div>
           <div><strong>Type:</strong> {{ toTitleCase(appointment.appointment_type) }}</div>
-          <div><strong>Original Date:</strong> {{ formatDate(appointment.appointment_date) }} · {{ appointment.start_time }}</div>
+          <div><strong>Original Date:</strong> {{ formatDate(appointment.appointment_date) }} · {{ formatTime12(appointment.start_time) }}</div>
           <div><strong>Unit:</strong> {{ appointment.unit }}</div>
           <div><strong>Times Rescheduled:</strong> {{ appointment.reschedule_count || 0 }}</div>
           <div><strong>Status:</strong> {{ toTitleCase(appointment.status) }}</div>
@@ -89,7 +89,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { appointmentAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 
 const route = useRoute();
 const loading = ref(true);

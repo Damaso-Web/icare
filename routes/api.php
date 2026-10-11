@@ -327,7 +327,6 @@ Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::post('student/appointments',                [AppointmentController::class, 'storeByStudent']);
     Route::post('student/appointments/check-conflict', [AppointmentController::class, 'checkConflictByStudent']);
     Route::post('student/appointments/{appointment}/request-reschedule', [AppointmentController::class, 'requestRescheduleByStudent']);
-    Route::post('student/appointments/{appointment}/cancel', [AppointmentController::class, 'cancelByStudent']);
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
     Route::get('student/me', [StudentAuthController::class, 'me']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);

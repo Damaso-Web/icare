@@ -510,32 +510,6 @@ class AppointmentController extends Controller
         return response()->json($appointment);
     }
 
-    public function cancelByStudent(Request $request, Appointment $appointment)
-    {
-        if ($appointment->student_id !== $request->user('student')->id) {
-            abort(403, 'This is not your appointment.');
-        }
-
-        if (!in_array($appointment->status, ['pending', 'confirmed'])) {
-            return response()->json(['message' => 'This appointment can no longer be cancelled.'], 422);
-        }
-
-        $request->validate(['cancellation_reason' => 'required|string|max:1000']);
-
-        $appointment->update([
-            'status'              => 'cancelled',
-            'cancellation_reason' => $request->cancellation_reason,
-            'cancelled_at'        => now(),
-        ]);
-
-        if ($appointment->case?->latestReferral && in_array($appointment->case->latestReferral->status, ['scheduled', 'in_progress'])) {
-            $appointment->case->latestReferral->advanceStatusTo('cancelled');
-        }
-
-        AuditLog::record('cancelled', "Student cancelled appointment {$appointment->appointment_code}. Reason: {$request->cancellation_reason}", $appointment);
-
-        return response()->json($appointment);
-    }
     public function indexByStudent(Request $request)
 {
     $student = $request->user('student');

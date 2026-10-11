@@ -431,7 +431,7 @@
                 <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
                   <div>
                     <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ toTitleCase(a.appointment_type) }}</div>
-                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ a.start_time }}</div>
+                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
                     <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()" style="margin-top:4px;display:inline-block">{{ a.unit }}</span>
                   </div>
                   <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
@@ -460,7 +460,7 @@
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ toTitleCase(apptDetail.appointment_type) }}</div>
-              <div style="font-size:12px;color:var(--stone)">{{ formatDate(apptDetail.appointment_date) }} · {{ apptDetail.start_time }} - {{ apptDetail.end_time }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ formatDate(apptDetail.appointment_date) }} · {{ formatTime12(apptDetail.start_time) }} - {{ formatTime12(apptDetail.end_time) }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="apptDetail = null">✕</button>
           </div>
@@ -555,7 +555,7 @@ import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 
 const route   = useRoute();

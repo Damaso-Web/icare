@@ -111,7 +111,9 @@ class StudentController extends Controller
     }
 
     // TMDU may open a student's record only when that student has been referred
-    // to TMDU (a TMDU-owned referral, testing record or TMDU appointment).
+    // to TMDU: a TMDU-owned referral, a referral for psychological testing (even
+    // before its testing record exists), a testing record, a TMDU appointment,
+    // or a case that is with TMDU or was handed to it.
     private function authorizeTmduScope(Student $student): void
     {
         $user = request()->user();
@@ -119,7 +121,11 @@ class StudentController extends Controller
 
         $referred = $student->referrals()->tmduOwned()->exists()
             || \App\Models\TestingRecord::where('student_id', $student->id)->exists()
-            || $student->appointments()->where('unit', 'TMDU')->exists();
+            || $student->referrals()->where('referral_type', 'psychological_testing')->exists()
+            || $student->appointments()->where('unit', 'TMDU')->exists()
+            || \App\Models\CaseFile::where('student_id', $student->id)
+                ->where(fn ($q) => $q->where('current_unit', 'TMDU')->orWhereHas('handoffs', fn ($h) => $h->where('to_unit', 'TMDU')))
+                ->exists();
 
         if (!$referred) {
             abort(403, 'This student has not been referred to TMDU.');

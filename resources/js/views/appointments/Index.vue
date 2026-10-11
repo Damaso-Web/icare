@@ -334,7 +334,7 @@
               <div style="font-weight:600;color:var(--ink);margin-bottom:4px">Schedule for {{ confirmTarget?.appointment_date?.split('T')[0] }}</div>
               <div v-if="staffAvailability?.booked_slots?.length" style="display:flex;flex-direction:column;gap:2px">
                 <div v-for="(slot, i) in staffAvailability.booked_slots" :key="i" :style="isOverlapping(slot) ? 'color:var(--red);font-weight:600' : ''">
-                  {{ slot.start_time }}–{{ slot.end_time }} · {{ toTitleCase(slot.appointment_type) }}
+                  {{ formatTime12(slot.start_time) }}–{{ formatTime12(slot.end_time) }} · {{ toTitleCase(slot.appointment_type) }}
                   <span v-if="isOverlapping(slot)">(conflicts with this appointment)</span>
                 </div>
               </div>
@@ -437,7 +437,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 
 const toast  = inject('toast');

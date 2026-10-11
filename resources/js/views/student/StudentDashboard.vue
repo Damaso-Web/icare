@@ -41,7 +41,7 @@
     <div v-if="parentConferenceSlips.length" class="icard" style="border:2px solid var(--amber);margin-bottom:20px">
       <div class="icard-header"><span class="icard-title">Parent Conference Slip</span></div>
       <div v-for="slip in parentConferenceSlips" :key="slip.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
-        <div style="font-size:13px;font-weight:600;color:var(--ink)">Your parent/guardian is asked to come to the office on {{ formatSlipDate(slip.conference_date) }}<span v-if="slip.conference_time"> at {{ slip.conference_time }}</span>.</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink)">Your parent/guardian is asked to come to the office on {{ formatSlipDate(slip.conference_date) }}<span v-if="slip.conference_time"> at {{ formatTime12(slip.conference_time) }}</span>.</div>
         <div style="font-size:12px;color:var(--slate);margin-top:3px">Reason: {{ slip.reason }}</div>
         <div v-if="slip.remarks" style="font-size:11.5px;color:var(--stone);margin-top:3px;font-style:italic">{{ slip.remarks }}</div>
       </div>
