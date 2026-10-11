@@ -64,9 +64,9 @@ class SessionNoteController extends Controller
             'session_end_time'   => 'nullable|date_format:H:i|after:session_start_time',
             'session_type'       => 'required|in:initial,follow_up,assessment,conference,final',
             'observations'       => 'required|string|max:5000',
-            'interventions'      => 'nullable|string|max:5000',
+            'interventions'      => ['nullable', 'string', 'max:5000', 'regex:' . \App\Support\PlainText::REGEX],
             'student_response'   => 'nullable|string|max:5000',
-            'next_steps'         => 'nullable|string|max:2000',
+            'next_steps'         => ['nullable', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REGEX],
             'student_showed_up'  => 'boolean',
             'follow_up_needed'   => 'boolean',
         ]);
@@ -117,9 +117,9 @@ class SessionNoteController extends Controller
             'session_end_time'   => 'nullable|date_format:H:i|after:session_start_time',
             'session_type'       => 'required|in:initial,follow_up,assessment,conference,final',
             'observations'       => 'required|string|max:5000',
-            'interventions'      => 'nullable|string|max:5000',
+            'interventions'      => ['nullable', 'string', 'max:5000', 'regex:' . \App\Support\PlainText::REGEX],
             'student_response'   => 'nullable|string|max:5000',
-            'next_steps'         => 'nullable|string|max:2000',
+            'next_steps'         => ['nullable', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REGEX],
             'student_showed_up'  => 'boolean',
             'follow_up_needed'   => 'boolean',
         ]);

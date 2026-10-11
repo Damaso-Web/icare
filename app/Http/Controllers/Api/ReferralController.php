@@ -8,6 +8,7 @@ use App\Models\CaseFile;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
+use App\Notifications\FillOutFormsNotification;
 use App\Notifications\NewReferralNotification;
 use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
@@ -130,6 +131,16 @@ class ReferralController extends Controller
         return response()->json($query->latest()->paginate(20));
     }
 
+    /** The referral source that goes with an account's role (the office it files from). */
+    public static function sourceForRole(?string $role): string
+    {
+        return [
+            'dept_chair' => 'faculty',
+            'sdu_head'   => 'sdu',
+            'tmdu_staff' => 'tmdu',
+        ][$role] ?? ($role ?: 'faculty');
+    }
+
     public function store(Request $request)
     {
         if ($request->user()->isTMDUStaff()) {
@@ -172,6 +183,11 @@ class ReferralController extends Controller
             $case->update(['status' => 'open', 'closed_date' => null]);
         }
 
+        // The source of a referral is who filed it - taken from the account,
+        // not chosen on the form.
+        $validated['referrer_source']  = self::sourceForRole($user->role);
+        $validated['is_self_referred'] = false;
+
         $referral = Referral::create([
             ...$validated,
             'case_id'             => $case->id,
@@ -199,6 +215,12 @@ class ReferralController extends Controller
         $collegeRep = User::where('role', 'dean_secretary')->where('college', $student->college)->where('is_active', true)->get();
         $recipients = $recipients->merge($collegeRep)->unique('id');
         Notification::send($recipients, new NewReferralNotification($referral));
+
+        // A Student Information File was just opened for this student: ask
+        // them to fill out their forms in My Account.
+        if (!$isExisting) {
+            $student->notify(new FillOutFormsNotification());
+        }
 
         return response()->json([
             ...$referral->load(['student', 'referredBy'])->toArray(),

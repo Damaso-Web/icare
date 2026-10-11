@@ -178,6 +178,19 @@ class StudentController extends Controller
         return response()->json(['message' => 'Student deleted.']);
     }
 
+    /** GCU Staff / GCU Head: remind a student to fill out the forms in My Account. */
+    public function remindForms(Student $student)
+    {
+        if (!$student->is_active) {
+            return response()->json(['message' => 'This student account is deactivated, so it cannot receive the reminder.'], 422);
+        }
+
+        $student->notify(new \App\Notifications\FillOutFormsNotification(reminder: true));
+        AuditLog::record('reminder_sent', "Reminded student {$student->student_id} to fill out the forms in My Account.", $student);
+
+        return response()->json(['message' => 'The student has been notified to fill out the forms in My Account.']);
+    }
+
     public function toggleActive(Student $student)
     {
         $student->update(['is_active' => !$student->is_active]);

@@ -247,9 +247,8 @@
             </div>
             <div>
               <label class="ifl">Referral Source</label>
-              <select v-model="form.referral_source" class="ifse">
-                <option v-for="opt in referralSourceOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-              </select>
+              <!-- Not a choice: it is whoever is signed in -->
+              <input :value="referralSource.label" class="ifi" readonly tabindex="-1" style="background:var(--snow);color:var(--slate);cursor:default" title="Set from your account" />
             </div>
           </div>
 
@@ -334,7 +333,7 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase, referralSourceFor } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -494,9 +493,9 @@ const isCreateFormEmpty = computed(() =>
 // to the submitting user's own role, since we already know who's referring.
 // The Referral Source that matches who is filling in the form. The options
 // are named by office ("sdu"), not by account role ("sdu_head").
+const referralSource = computed(() => referralSourceFor(auth.user?.role));
 function defaultReferralSource() {
-  const role = auth.user?.role;
-  return { dept_chair: 'faculty', sdu_head: 'sdu' }[role] || role || 'faculty';
+  return referralSource.value.value;
 }
 
 const form = ref({
@@ -637,8 +636,8 @@ async function confirmSubmit() {
       student_id:        found.id,
       referral_type:     form.value.referral_type,
       nature_of_concern: form.value.nature_of_concern,
-      is_self_referred:  form.value.referral_source === 'self',
-      referrer_source:   form.value.referral_source,
+      is_self_referred:  false,
+      referrer_source:   referralSource.value.value,
     });
 
     showPreview.value = false;

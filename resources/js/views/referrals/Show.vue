@@ -304,7 +304,7 @@
               <!-- Add entry (GCU only) - Person-In-Charge is always the logged-in staff account -->
               <div v-if="isGCU && !isResolved && canEditSif">
                 <label class="ifl">Intervention</label>
-                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..." maxlength="2000"></textarea>
+                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..." maxlength="2000" @input="interventionForm.text = plainText(interventionForm.text)"></textarea>
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px;margin-bottom:16px" @click="addIntervention">Save Entry</button>
               </div>
               <div v-else-if="isGCU && isResolved" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
@@ -1137,11 +1137,11 @@
             </div>
             <div>
               <label class="ifl">Interventions Applied</label>
-              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" maxlength="1000" placeholder="What interventions were applied?"></textarea>
+              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" maxlength="1000" placeholder="What interventions were applied?" @input="sessionForm.interventions = plainText(sessionForm.interventions)"></textarea>
             </div>
             <div>
               <label class="ifl">Remarks</label>
-              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" maxlength="1000" placeholder="Remarks..."></textarea>
+              <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" maxlength="1000" placeholder="Remarks..." @input="sessionForm.next_steps = plainText(sessionForm.next_steps)"></textarea>
             </div>
             <div style="display:flex;gap:8px;padding-top:8px">
               <button class="ibtn ibtn-p" @click="logSession">
@@ -1332,7 +1332,7 @@
             </div>
             <div v-if="isGCU && followUpNotesEditable">
               <label class="ifl">Notes</label>
-              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Add notes for this follow-up session. Notes cannot be edited once saved." :disabled="!selectedFollowUp.checked_in"></textarea>
+              <textarea v-model="followUpNotesForm" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Add notes for this follow-up session. Notes cannot be edited once saved." @input="followUpNotesForm = plainText(followUpNotesForm)" :disabled="!selectedFollowUp.checked_in"></textarea>
             </div>
             <div v-else>
               <!-- Read-only: notes are write-once and cannot be edited after saving. -->
@@ -1395,15 +1395,16 @@
            same case, linked to a new TestingRecord - see
            CaseController::referToTmdu(). -->
       <div v-if="showTmduModal && fromCases" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showTmduModal = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Referral for Psychological Testing</div>
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:780px;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Refer Student to TMDU</div>
+              <div style="font-size:11.5px;color:var(--fog);margin-top:2px">The same form as Refer a Student, filled in from this Student Information File.</div>
+            </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showTmduModal = false">✕</button>
           </div>
 
-          <!-- Document Code Header - read only, same pattern as the Referral
-               Slip / Feedback Slip headers above. Revision No. / Effectivity /
-               Ctrl No. are edited in Management by admin. -->
+          <!-- Document Code Header - read only; edited in Management by admin -->
           <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
             <div style="font-size:11px;color:var(--stone)">
               <div><strong>Document Code:</strong> QF-OSS-01</div>
@@ -1415,23 +1416,56 @@
             </div>
           </div>
 
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div class="tf" style="padding:18px 22px;overflow-y:auto">
+            <div class="tf-sec">Student Information</div>
+            <div class="tf-row">
+              <label class="ifl">Student ID</label>
+              <input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.student_id" />
+            </div>
+            <div class="tf-grid tf-names">
+              <div><label class="ifl">Last Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.last_name" /></div>
+              <div><label class="ifl">First Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.first_name" /></div>
+              <div><label class="ifl">Middle Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.middle_name" /></div>
+              <div><label class="ifl">Suffix</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.suffix || 'None'" /></div>
+              <div><label class="ifl">Sex</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.sex" /></div>
+            </div>
+            <div class="tf-grid tf-two">
+              <div><label class="ifl">College</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.college" /></div>
+              <div><label class="ifl">Program</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.program" /></div>
+              <div><label class="ifl">Year Level</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.year_level" /></div>
+              <div><label class="ifl">Section</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referral.student?.section" /></div>
+            </div>
+
+            <div class="tf-sec">Referred By</div>
+            <div class="tf-grid tf-three">
+              <div><label class="ifl">Referrer Last Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="auth.user?.last_name" /></div>
+              <div><label class="ifl">Referrer First Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="auth.user?.first_name" /></div>
+              <div><label class="ifl">Referrer Middle Name</label><input class="ifi tf-ro" readonly tabindex="-1" :value="auth.user?.middle_name" /></div>
+            </div>
+
+            <div class="tf-sec">Referral Details</div>
+            <div class="tf-grid tf-two">
+              <div><label class="ifl">Service Requested</label><input class="ifi tf-ro" readonly tabindex="-1" value="Psychological Testing" /></div>
+              <div><label class="ifl">Referral Source</label><input class="ifi tf-ro" readonly tabindex="-1" :value="referralSourceFor(auth.user?.role).label" /></div>
+            </div>
+            <div class="tf-row">
+              <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 1000 characters)</span></label>
+              <textarea v-model="tmduForm.reason" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Why is this student being referred for psychological testing?" @input="tmduForm.reason = plainText(tmduForm.reason)"></textarea>
+            </div>
+
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
               This creates a new referral for <strong>{{ referral.student?.last_name }}, {{ referral.student?.first_name }}</strong> under the same case, and moves it to TMDU for psychological assessment. That referral becomes shared between GCU and TMDU.
             </div>
-            <div>
-              <label class="ifl">Reason for Referral <span style="color:var(--red)">*</span></label>
-              <textarea v-model="tmduForm.reason" class="ifta" style="min-height:90px" maxlength="1000" placeholder="Why is this student being referred for psychological testing?"></textarea>
-            </div>
-            <div v-if="tmduError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+            <div v-if="tmduError" style="margin-top:12px;background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
               {{ tmduError }}
             </div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-blue" :disabled="submittingTmdu" @click="referToTmdu">
-                {{ submittingTmdu ? 'Referring...' : 'Refer to TMDU' }}
-              </button>
-              <button class="ibtn ibtn-o" @click="showTmduModal = false" :disabled="submittingTmdu">Cancel</button>
-            </div>
+          </div>
+
+          <div style="padding:12px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;gap:8px">
+            <button class="ibtn ibtn-p" :disabled="submittingTmdu" @click="referToTmdu">
+              {{ submittingTmdu ? 'Referring...' : 'Refer to TMDU' }}
+            </button>
+            <button class="ibtn ibtn-o" @click="showTmduModal = false" :disabled="submittingTmdu">Cancel</button>
           </div>
         </div>
       </div>
@@ -1756,11 +1790,11 @@
             </div>
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
-              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = String(parentConferenceForm.reason ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\-\/#:;!?@%+_ ]/g, '')" />
+              <input v-model="parentConferenceForm.reason" type="text" class="ifi" style="width:100%" placeholder="e.g. Repeated no-show, behavioral concern..." @input="parentConferenceForm.reason = plainText(parentConferenceForm.reason)" />
             </div>
             <div>
               <label class="ifl">Remarks</label>
-              <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000"></textarea>
+              <textarea v-model="parentConferenceForm.remarks" class="ifta" style="min-height:70px" placeholder="Optional notes..." maxlength="1000" @input="parentConferenceForm.remarks = plainText(parentConferenceForm.remarks)"></textarea>
             </div>
             <div v-if="parentConferenceError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ parentConferenceError }}</div>
             <div v-if="parentConferenceConfirming" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:10px">
@@ -1806,7 +1840,7 @@ import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import { useAuthStore } from '../../stores/auth';
-import { toTitleCase } from '../../utils/validators';
+import { toTitleCase, plainText, referralSourceFor } from '../../utils/validators';
 
 const route   = useRoute();
 const router  = useRouter();
@@ -2000,7 +2034,8 @@ const slipModal = ref(false);
 const slipLoading = ref(false);
 async function loadSlip() {
   if (!isGCU.value || !referral.value?.id) return;
-  try { tmduSlip.value = (await caseReferralAPI.forSource(referral.value.id)).data || null; }
+  // Only a real slip counts - an empty answer must not read as "already referred".
+  try { const slip = (await caseReferralAPI.forSource(referral.value.id)).data; tmduSlip.value = slip?.id ? slip : null; }
   catch { tmduSlip.value = null; }
 }
 async function openSlipModal() {
@@ -2936,3 +2971,16 @@ onMounted(async () => {
   fetchDocSettings('QF-OSS-GCU-09', admissionDoc);
 });
 </script>
+
+<style scoped>
+/* Refer to TMDU: laid out like the Refer a Student form */
+.tf-sec { display: flex; align-items: center; gap: 10px; margin: 4px 0 10px; font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--fog); }
+.tf-sec::after { content: ''; flex: 1; height: 1px; background: var(--cloud); }
+.tf-row, .tf-grid { margin-bottom: 14px; }
+.tf-grid { display: grid; gap: 12px; }
+.tf-names { grid-template-columns: 1.3fr 1.3fr 1.3fr .8fr .9fr; }
+.tf-two { grid-template-columns: 1fr 1fr; }
+.tf-three { grid-template-columns: 1fr 1fr 1fr; }
+.tf-ro { background: var(--snow); color: var(--slate); cursor: default; }
+@media (max-width: 860px) { .tf-names, .tf-two, .tf-three { grid-template-columns: 1fr 1fr; } }
+</style>

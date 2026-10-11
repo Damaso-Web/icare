@@ -54,6 +54,11 @@
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Case Status
           </button>
+          <!-- GCU Staff / GCU Head: ask the student to fill out the forms in My Account -->
+          <button v-if="isGCU && fromCases && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="showRemindModal = true">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            Notify to Fill Out Forms
+          </button>
           <!-- Reassigning a case is for the GCU Head only -->
           <button v-if="auth.user?.role === 'admin' && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -640,6 +645,21 @@
       </div>
 
     </template>
+    <!-- Confirm: notify the student to fill out their forms -->
+    <div v-if="showRemindModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!sendingReminder && (showRemindModal = false)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">Notify the student?</div>
+        <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--ink);line-height:1.55">
+            <strong>{{ student?.first_name }} {{ student?.last_name }}</strong> will get a notification in their student portal asking them to fill out the forms in <strong>My Account</strong>.
+          </div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="sendingReminder" @click="sendFormsReminder">{{ sendingReminder ? 'Sending...' : 'Yes, Notify Student' }}</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="sendingReminder" @click="showRemindModal = false">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -763,6 +783,23 @@ const sifCtrlNo = computed(() => {
 // then the case keeps its old "CASE-<student id>" number.
 const hasCtrlNo = computed(() => Boolean(student.value?.sif_client_no && sifDoc.value?.ctrl_no));
 const caseName  = computed(() => hasCtrlNo.value ? sifCtrlNo.value : (primaryCase.value?.case_number || ''));
+
+// ---- Notify the student to fill out the forms in My Account ----
+const showRemindModal = ref(false);
+const sendingReminder = ref(false);
+async function sendFormsReminder() {
+  if (sendingReminder.value) return;
+  sendingReminder.value = true;
+  try {
+    const res = await studentAPI.remindForms(student.value.id);
+    toast?.success(res.data.message || 'Student notified.');
+    showRemindModal.value = false;
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Could not notify the student.');
+  } finally {
+    sendingReminder.value = false;
+  }
+}
 
 function startClientNoEdit() {
   clientNoDraft.value = student.value?.sif_client_no ? String(student.value.sif_client_no) : '';

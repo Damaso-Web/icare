@@ -49,6 +49,11 @@ class CaseInterventionController extends Controller
             'description' => 'required|string|max:2000',
         ]);
 
+        // Previous Interventions is typed in by staff: plain text only.
+        if ($validated['type'] === 'previous_intervention') {
+            $request->validate(['description' => ['regex:' . \App\Support\PlainText::REGEX]], ['description.regex' => \App\Support\PlainText::MESSAGE]);
+        }
+
         $this->authorizeInterventionAccess($validated['type']);
 
         // The excused/unexcused determination (and its "locked once

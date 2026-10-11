@@ -214,6 +214,7 @@ export const studentAPI = {
     viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
     resetPassword:    (id)    => api.post(`/students/${id}/reset-password`),
     updateClientNo:   (id, data) => api.patch(`/students/${id}/client-no`, data),
+    remindForms:      (id)       => api.post(`/students/${id}/remind-forms`),
     documentSettings: (code)  => api.get(`/document-settings/${code}`),
 };
 
@@ -321,7 +322,7 @@ export const reportAPI = {
     dashboard:    ()       => api.get('/reports/dashboard'),
 };
 
-// Case Referrals (Internal) - GCU's read-only view of the Refer to TMDU forms.
+// Case Referral (TMDU) - GCU's read-only view of the Refer to TMDU forms.
 export const caseReferralAPI = {
     index:     (params) => api.get('/case-referrals', { params }),
     show:      (id)     => api.get(`/case-referrals/${id}`),

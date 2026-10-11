@@ -76,3 +76,28 @@ export function formatTime12(t) {
 export function formatDateShort(date) {
   return date ? new Date(date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 }
+
+// Notes that staff type in (session notes, follow-up notes, previous
+// interventions, parent conference slips): letters, numbers, spaces, line
+// breaks and sentence punctuation only. Anything else is dropped as it is
+// typed. app/Support/PlainText.php is the same rule on the server.
+export function plainText(value) {
+  return String(value ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F\s.,'\-()&:;?!/]/g, '');
+}
+
+// The referral source that goes with an account's role - the office it files
+// from. Mirrors ReferralController::sourceForRole(); the label is what the
+// Refer a Student form shows.
+const SOURCE_BY_ROLE = {
+  admin:          { value: 'admin',          label: 'GCU Office (Admin / GCU Head)' },
+  gcu_staff:      { value: 'gcu_staff',      label: 'GCU Staff' },
+  sdu_head:       { value: 'sdu',            label: 'Student Discipline Unit (SDU)' },
+  tmdu_staff:     { value: 'tmdu',           label: 'Testing and Measurement Development Unit (TMDU)' },
+  faculty:        { value: 'faculty',        label: 'Faculty' },
+  dept_chair:     { value: 'faculty',        label: 'Faculty' },
+  dean:           { value: 'dean',           label: "Dean's Office" },
+  dean_secretary: { value: 'dean_secretary', label: "Dean's Secretary" },
+};
+export function referralSourceFor(role) {
+  return SOURCE_BY_ROLE[role] || { value: role || 'faculty', label: toTitleCase(role) || 'Faculty' };
+}

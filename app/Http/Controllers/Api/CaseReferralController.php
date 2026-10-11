@@ -90,6 +90,10 @@ class CaseReferralController extends Controller
             ->latest()
             ->first();
 
-        return response()->json($slip ? $this->payload($slip) : null);
+        // json(null) is sent as "{}", which the page read as "a slip exists" and so
+        // showed View Case Referral on every referral. Say it outright instead.
+        return $slip
+            ? response()->json($this->payload($slip))
+            : response('null', 200, ['Content-Type' => 'application/json']);
     }
 }

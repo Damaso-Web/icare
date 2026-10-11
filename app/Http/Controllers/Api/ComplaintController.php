@@ -10,6 +10,7 @@ use App\Models\ComplaintAttachment;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
+use App\Notifications\FillOutFormsNotification;
 use App\Notifications\NewReferralNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -93,6 +94,7 @@ class ComplaintController extends Controller
         // same way a regular disciplinary referral would (mirrors
         // ReferralController::store()).
         $case = CaseFile::where('student_id', $student->id)->first();
+        $newCase = !$case;
 
         if (!$case) {
             $case = CaseFile::create([
@@ -131,6 +133,11 @@ class ComplaintController extends Controller
         $collegeRep = User::where('role', 'dean_secretary')->where('college', $student->college)->where('is_active', true)->get();
         $recipients = $recipients->merge($collegeRep)->unique('id');
         Notification::send($recipients, new NewReferralNotification($referral));
+
+        // The complaint opened this student's Student Information File.
+        if ($newCase) {
+            $student->notify(new FillOutFormsNotification());
+        }
 
         return $complaint->load(['complainee', 'filedBy', 'attachments']);
     }

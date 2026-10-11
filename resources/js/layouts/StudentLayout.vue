@@ -91,7 +91,7 @@
               :key="n.id"
               style="padding:12px 16px;border-bottom:1px solid var(--cloud);cursor:pointer;transition:background .1s"
               :style="{ background: n.read_at ? '#fff' : 'var(--foam)' }"
-              @click="markRead(n)"
+              @click="openNotification(n)"
             >
               <div style="display:flex;gap:10px;align-items:flex-start">
                 <div style="width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0" :style="{ background: n.read_at ? 'transparent' : 'var(--moss)' }"></div>
@@ -215,6 +215,15 @@ const pageTitle = computed(() => {
 const initials = computed(() => {
   return ((student.value.first_name?.[0] || '') + (student.value.last_name?.[0] || '')).toUpperCase() || '?';
 });
+
+// A "fill out your forms" notification takes the student to My Account.
+function openNotification(n) {
+  markRead(n);
+  if (n.data?.type === 'fill_out_forms') {
+    showNotifs.value = false;
+    router.push({ name: 'student-account' });
+  }
+}
 
 function isActive(name) {
   return route.name === name;

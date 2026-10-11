@@ -530,8 +530,8 @@ class CaseController extends Controller
         $validated = $request->validate([
             'conference_date' => 'required|date|after_or_equal:today',
             'conference_time' => 'required',
-            'reason'          => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
-            'remarks'         => 'nullable|string|max:1000',
+            'reason'          => ['required', 'string', 'max:255', 'regex:' . \App\Support\PlainText::REGEX],
+            'remarks'         => ['nullable', 'string', 'max:1000', 'regex:' . \App\Support\PlainText::REGEX],
             'referral_id'     => 'nullable|exists:referrals,id',
         ]);
 
