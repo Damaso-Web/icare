@@ -156,7 +156,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, inject } from 'vue';
+import { ref, computed, onMounted, watch, inject, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
@@ -501,6 +501,8 @@ const tabItems = computed(() => {
     .filter(t => t.name)
     .slice(0, 4);
 });
+// Pages already on the phone tab bar, so the dashboard can leave out shortcuts that repeat them.
+provide('tabNames', computed(() => tabItems.value.map(t => t.name)));
 
 function isActive(name) {
   const routeName = route.name || '';

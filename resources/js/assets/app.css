@@ -498,6 +498,10 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   .hero-stat{min-width:0}
   .hero-btn{flex-direction:column;gap:6px;min-width:0;padding:11px 6px;font-size:11.5px;line-height:1.25;text-align:center;white-space:normal}
   .hero-btn svg{width:18px;height:18px}
+  /* Shortcuts the tab bar already has are left out on a phone. */
+  .hero-btn.in-tabbar{display:none}
+  .hero-actions.phone-none{display:none}
+  .hero-actions.phone-one .hero-btn{flex-direction:row;gap:8px;padding:12px 16px;font-size:13px}
   .ph h1{font-size:24px !important}
 
   /* ---------- Bug sheet: phone layout ---------- */

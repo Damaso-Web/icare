@@ -23,8 +23,8 @@
             <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
           </div>
         </div>
-        <div class="hero-actions">
-          <button v-for="a in quickActions" :key="a.name" type="button" class="hero-btn" @click="router.push({ name: a.name })">
+        <div class="hero-actions" :class="{ 'phone-none': !phoneActions.length, 'phone-one': phoneActions.length === 1 }">
+          <button v-for="a in quickActions" :key="a.name" type="button" class="hero-btn" :class="{ 'in-tabbar': tabNames.includes(a.name) }" @click="router.push({ name: a.name })">
             <svg viewBox="0 0 24 24" v-html="a.icon"></svg>{{ a.label }}
           </button>
         </div>
@@ -245,6 +245,9 @@ import { toTitleCase, formatTime12 } from '../utils/validators';
 const auth      = useAuthStore();
 const router    = useRouter();
 const toast     = inject('toast');
+// On a phone the bottom tab bar already has some of these pages; those
+// shortcuts are hidden there so the same button doesn't show twice.
+const tabNames  = inject('tabNames', computed(() => []));
 const dashboard = ref({});
 const loading   = ref(true);
 
@@ -294,6 +297,8 @@ const quickActions = computed(() => {
     default:               return [];
   }
 });
+
+const phoneActions = computed(() => quickActions.value.filter(a => !tabNames.value.includes(a.name)));
 
 const greeting = computed(() => {
   const hour = new Date().getHours();
