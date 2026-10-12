@@ -12,7 +12,7 @@ class ManagementFormOptionController extends Controller
     // spaces and . , ' - & ( ). No other special characters. On EDIT the check is skipped when
     // the value is unchanged, so existing records saved before this rule (e.g. seeded labels
     // that contain a slash) can still have their other fields updated.
-    private const LABEL_REGEX = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+    private const LABEL_REGEX = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
 
     const CATEGORIES = ['referral_type', 'referral_source', 'act_of_misconduct'];
 
@@ -36,6 +36,11 @@ class ManagementFormOptionController extends Controller
         $exists = ReferralFormOption::where('category', $validated['category'])->where('value', $validated['value'])->exists();
         if ($exists) {
             return response()->json(['message' => 'This option already exists for that category.'], 422);
+        }
+        // New options go to the bottom: seeded options are numbered 1..n and a
+        // blank sort_order would default to 0, which sorts to the top.
+        if (!isset($validated['sort_order'])) {
+            $validated['sort_order'] = (int) ReferralFormOption::where('category', $validated['category'])->max('sort_order') + 1;
         }
         return response()->json(ReferralFormOption::create($validated), 201);
     }

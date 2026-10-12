@@ -391,6 +391,7 @@
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="pwError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwError }}</div>
           <div v-if="pwSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ pwSuccess }}</div>
+          <div style="font-size:12px;color:var(--stone);line-height:1.5;background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px">Password must be 8&ndash;64 characters with an uppercase letter, a lowercase letter, a number and a symbol (e.g. ! @ # $).</div>
           <div>
             <label class="ifl">Current Password</label>
             <div style="position:relative">

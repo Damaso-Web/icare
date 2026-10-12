@@ -228,6 +228,7 @@
           <div>
             <label class="ifl">Reason for Rescheduling</label>
             <textarea v-model="rescheduleReason" class="ifi" rows="3" maxlength="1000" placeholder="Please tell us why you need to reschedule..."></textarea>
+            <div v-if="rescheduleReason.trim() && !reasonHasLetters" style="font-size:11px;color:var(--red);margin-top:4px">Please explain the reason in words, not numbers only.</div>
             <div style="font-size:11px;color:var(--stone);margin-top:4px">{{ rescheduleReason.length }}/1000 characters. This is a preference, not a confirmed booking - staff will confirm the actual new time.</div>
           </div>
           <div style="display:flex;gap:8px">
@@ -303,9 +304,11 @@ const showActions = computed(() =>
   ['confirmed', 'no_show'].includes(appointment.value.status)
 );
 
+const reasonHasLetters = computed(() => /\p{L}/u.test(rescheduleReason.value));
 const canSubmitReschedule = computed(() =>
   !requestingReschedule.value &&
   rescheduleReason.value.trim() &&
+  reasonHasLetters.value &&
   !preferredDateWarning.value &&
   !preferredTimeError.value
 );

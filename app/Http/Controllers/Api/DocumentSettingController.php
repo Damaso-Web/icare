@@ -28,7 +28,7 @@ class DocumentSettingController extends Controller
         $ctrlOptional = $code === 'QF-TMDU-02';
 
         $validated = $request->validate([
-            'revision_no'       => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\-\s]+$/'],
+            'revision_no'       => ['required', 'string', 'max:4', 'regex:/^[0-9]{1,4}$/'],
             'effectivity_date'  => 'required|date',
             'ctrl_no_year'      => [$ctrlOptional ? 'nullable' : 'required', 'string', 'max:4', 'regex:/^[0-9]{1,4}$/'],
             'ctrl_no_term'      => [$ctrlOptional ? 'nullable' : 'required', 'in:1,2,S'],

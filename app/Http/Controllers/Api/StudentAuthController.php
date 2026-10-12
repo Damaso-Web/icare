@@ -154,7 +154,7 @@ public function updateProfile(Request $request)
         'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
-        'email'          => 'nullable|email',
+        'email'          => 'nullable|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/',
         'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Personal Information (Student Information Sheet)
@@ -215,6 +215,17 @@ public function updateProfile(Request $request)
         'high_school_achievements'        => 'nullable|string|max:1000',
         'elementary_achievements'         => 'nullable|string|max:1000',
     ]);
+
+    // The father's and mother's contact numbers cannot be the same number.
+    $fatherNo = $validated['father_contact_number'] ?? $student->father_contact_number;
+    $motherNo = $validated['mother_contact_number'] ?? $student->mother_contact_number;
+    if ($fatherNo && $motherNo && $fatherNo === $motherNo) {
+        $field = array_key_exists('mother_contact_number', $validated) ? 'mother_contact_number' : 'father_contact_number';
+        return response()->json([
+            'message' => "The father's and mother's contact numbers are the same. Please enter a different number for each parent.",
+            'errors'  => [$field => ["The father's and mother's contact numbers are the same. Please enter a different number for each parent."]],
+        ], 422);
+    }
 
     $student->fill($validated);
     $changed = array_keys($student->getDirty());

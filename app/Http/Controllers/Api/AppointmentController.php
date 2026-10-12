@@ -303,8 +303,8 @@ class AppointmentController extends Controller
     {
         $this->authorizeUnit($appointment);
         $request->validate([
-            'reschedule_reason' => 'required|string|max:1000',
-        ]);
+            'reschedule_reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u'],
+        ], ['reschedule_reason.regex' => 'Please explain the reason in words, not numbers only.']);
 
         $newToken = \Illuminate\Support\Str::random(48);
 
@@ -393,7 +393,7 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'This appointment can no longer be rescheduled.'], 422);
         }
 
-        $request->validate(['reason' => 'required|string|max:1000']);
+        $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u']], ['reason.regex' => 'Please explain the reason in words, not numbers only.']);
 
         $newCount = $appointment->reschedule_count + 1;
 

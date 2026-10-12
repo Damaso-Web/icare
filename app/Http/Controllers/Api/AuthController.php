@@ -197,7 +197,7 @@ class AuthController extends Controller
             'last_name'        => ['required', ...$name],
             'middle_name'      => ['nullable', ...$name],
             'suffix'           => 'nullable|string|max:20',
-            'email'            => 'required|email|max:255|unique:users,email,' . $user->id,
+            'email'            => 'required|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|max:255|unique:users,email,' . $user->id,
             'contact_number'   => ['nullable', 'regex:/^09\d{9}$/'],
             'current_password' => 'nullable|string',
         ], [

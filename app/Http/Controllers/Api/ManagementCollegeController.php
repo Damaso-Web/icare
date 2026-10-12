@@ -12,7 +12,7 @@ class ManagementCollegeController extends Controller
     // spaces and . , ' - & ( ). No other special characters. On EDIT the check is skipped when
     // the value is unchanged, so existing records saved before this rule (e.g. seeded labels
     // that contain a slash) can still have their other fields updated.
-    private const LABEL_REGEX = '/^[a-zA-Z0-9\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
+    private const LABEL_REGEX = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
 
     public function index()
     {
