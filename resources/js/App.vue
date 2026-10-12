@@ -16,6 +16,26 @@
       </div>
     </div>
   </div>
+
+  <!-- "Are you sure?" before an action - asked through inject('confirmAction') -->
+  <div v-if="actionAsk" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="answerAction(false)">
+    <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">{{ actionAsk.title }}</div>
+      <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
+        <div style="font-size:13px;color:var(--ink);line-height:1.55;white-space:pre-line">{{ actionAsk.message }}</div>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerAction(false)">{{ actionAsk.cancelText || 'Go Back' }}</button>
+          <button
+            class="ibtn"
+            :class="actionAsk.danger ? '' : 'ibtn-p'"
+            style="flex:1;justify-content:center"
+            :style="actionAsk.danger ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : ''"
+            @click="answerAction(true)"
+          >{{ actionAsk.confirmText || 'Yes, Continue' }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
@@ -53,6 +73,15 @@ function answerDiscard(yes) {
   discardAsk.value = null;
 }
 provide('confirmDiscard', () => new Promise(resolve => { discardAsk.value = resolve; }));
+
+// "Are you sure?" - confirmAction({ title, message, confirmText, cancelText, danger })
+// resolves true when confirmed, false when the user goes back.
+const actionAsk = ref(null);
+function answerAction(yes) {
+  actionAsk.value?.resolve(yes);
+  actionAsk.value = null;
+}
+provide('confirmAction', (opts) => new Promise(resolve => { actionAsk.value = { ...opts, resolve }; }));
 
 provide('toast', {
   success: (msg) => toast.value?.show(msg, 'success'),

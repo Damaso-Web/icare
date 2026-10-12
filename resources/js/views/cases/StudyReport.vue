@@ -102,13 +102,13 @@
       <!-- Case History -->
       <section class="sr-sec">
         <h2>Case History</h2>
-        <div v-if="!historyRows.length" class="sr-muted">No sessions recorded yet.</div>
+        <div v-if="!historyRows.length" class="sr-muted">Nothing recorded yet.</div>
         <table v-else class="sr-table sr-history">
           <thead>
             <tr>
               <th style="width:76px">Date</th>
               <th style="width:24%">Initial Concern (Service)</th>
-              <th>Session Notes</th>
+              <th>Sessions, Follow-ups, Parent Conference and Referrals</th>
               <th style="width:22%">Remarks</th>
             </tr>
           </thead>
@@ -201,36 +201,92 @@ function monthYear(date) {
   return `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
-// One row per session note, grouped under the referral (initial concern) it
-// belongs to. A referral with no session notes yet still gets one row.
-// TMDU's own Case Referral Slips are a separate record and are never listed.
+// Everything done for each referral, in date order: initial and later
+// sessions (session notes), follow-up sessions, parent conferences and
+// Refer to TMDU. Each row sits under the service of the referral it belongs
+// to (its initial concern). A referral with nothing recorded yet still gets
+// one row. TMDU's own Case Referral Slips are not listed on their own: they
+// appear as the "Referred to TMDU" row of the referral they came from.
 const historyRows = computed(() => {
-  const referrals = (Array.isArray(caseFile.value?.referrals) ? [...caseFile.value.referrals] : [])
-    .filter(r => r && !r.testing_record && !r.complaint_id)
+  const all = Array.isArray(caseFile.value?.referrals) ? caseFile.value.referrals.filter(Boolean) : [];
+  const referrals = all
+    .filter(r => !r.testing_record && !r.complaint_id)
     .sort((a, b) => new Date(a.created_at) - new Date(b.created_at) || a.id - b.id);
+  const slips = Array.isArray(caseFile.value?.parent_conference_slips) ? caseFile.value.parent_conference_slips : [];
+  const handoffs = Array.isArray(caseFile.value?.handoffs) ? caseFile.value.handoffs : [];
+  const firstId = referrals[0]?.id;
 
   const rows = [];
   for (const r of referrals) {
     const service = r.referral_type ? toTitleCase(String(r.referral_type).replace(/_/g, ' ')) : '-';
-    const concern = r.nature_of_concern || '';
-    const notes = (Array.isArray(r.session_notes) ? [...r.session_notes] : [])
-      .filter(Boolean)
-      .sort((a, b) => new Date(a.session_date) - new Date(b.session_date) || a.id - b.id);
+    const items = [];
 
-    if (!notes.length) {
-      rows.push({ key: `r${r.id}`, date: monthYear(r.created_at), service, concern, notes: '-', conductedBy: '' });
+    (Array.isArray(r.session_notes) ? r.session_notes : []).filter(Boolean).forEach((n, i) => {
+      items.push({
+        key: `n${n.id}`,
+        when: n.session_date || r.created_at,
+        notes: [
+          i === 0 ? 'Initial Session' : `Session #${n.session_number || i + 1}`,
+          n.observations,
+          n.interventions && `Interventions: ${n.interventions}`,
+          n.student_response && `Student response: ${n.student_response}`,
+          n.next_steps && `Next steps: ${n.next_steps}`,
+        ].filter(Boolean).join('\n'),
+        by: n.recorded_by?.name || '',
+      });
+    });
+
+    (Array.isArray(r.appointments) ? r.appointments : [])
+      .filter(a => a && a.appointment_type === 'follow_up_session')
+      .forEach(a => {
+        const outcome = a.checked_in ? 'Attended' : (a.status === 'no_show' ? 'No show' : (a.status === 'cancelled' ? 'Cancelled' : 'Scheduled'));
+        items.push({
+          key: `f${a.id}`,
+          when: a.appointment_date,
+          notes: [`Follow-up Session (${outcome})`, a.notes].filter(Boolean).join('\n'),
+          by: a.checked_in_by?.name || a.staff?.name || '',
+        });
+      });
+
+    // A slip without a referral (older records) goes under the first referral.
+    slips.filter(sl => (sl.referral_id ?? firstId) === r.id).forEach(sl => {
+      items.push({
+        key: `p${sl.id}`,
+        when: sl.conference_date || sl.issued_at,
+        notes: [
+          'Parent Conference',
+          sl.reason && `Reason: ${sl.reason}`,
+          sl.remarks && `Remarks: ${sl.remarks}`,
+          sl.notes && `Notes: ${sl.notes}`,
+        ].filter(Boolean).join('\n'),
+        by: sl.issued_by?.name || '',
+      });
+    });
+
+    // Refer to TMDU: the TMDU referral made from this one, with its result once released.
+    all.filter(t => t.testing_record && t.testing_record.source_referral_id === r.id).forEach(t => {
+      const tr = t.testing_record;
+      const handoff = handoffs.find(h => h.referral_id === t.id);
+      items.push({
+        key: `t${t.id}`,
+        when: t.created_at,
+        notes: [
+          'Referred to TMDU (Psychological Testing)',
+          t.nature_of_concern && `Reason: ${t.nature_of_concern}`,
+          tr.report_sent_to_gcu && tr.assessment_summary ? `PAR result: ${tr.assessment_summary}` : `TMDU status: ${toTitleCase(String(tr.status || 'pending').replace(/_/g, ' '))}`,
+          tr.report_sent_to_gcu && tr.recommendations && `Recommendations: ${tr.recommendations}`,
+        ].filter(Boolean).join('\n'),
+        by: handoff?.from_user?.name || '',
+      });
+    });
+
+    if (!items.length) {
+      rows.push({ key: `r${r.id}`, date: monthYear(r.created_at), service, notes: '-', conductedBy: '' });
       continue;
     }
-    for (const n of notes) {
-      rows.push({
-        key: `n${n.id}`,
-        date: monthYear(n.session_date || r.created_at),
-        service,
-        concern,
-        notes: [n.observations, n.interventions && `Interventions: ${n.interventions}`, n.student_response && `Student response: ${n.student_response}`, n.next_steps && `Next steps: ${n.next_steps}`].filter(Boolean).join('\n') || '-',
-        conductedBy: n.recorded_by?.name || '',
-      });
-    }
+    items
+      .sort((a, b) => new Date(a.when) - new Date(b.when))
+      .forEach(it => rows.push({ key: it.key, date: monthYear(it.when), service, notes: it.notes || '-', conductedBy: it.by }));
   }
   return rows;
 });

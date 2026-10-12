@@ -699,11 +699,23 @@ public function checkConflictByStudent(Request $request)
         $this->authorizeUnit($appointment);
 
         $data = $request->validate([
-            'target' => 'required|in:awaiting_student,pending_confirmation,confirmed,completed,no_show,cancelled',
+            'target' => 'required|in:pending,awaiting_student,pending_confirmation,confirmed,completed,no_show,cancelled',
             'reason' => 'required|string|min:5|max:255',
         ]);
 
+        // TMDU sets its own appointments face to face, so they have no
+        // student-picking or confirming step: only Pending, Attended, No Show
+        // or Cancelled apply to them.
+        $isTmdu = $appointment->unit === 'TMDU';
+        if ($isTmdu && !in_array($data['target'], ['pending', 'completed', 'no_show', 'cancelled'], true)) {
+            abort(422, 'A TMDU appointment can only be set to Pending, Attended, No Show or Cancelled.');
+        }
+        if (!$isTmdu && $data['target'] === 'pending') {
+            abort(422, 'Choose Waiting for Student or Awaiting Confirmation instead.');
+        }
+
         $map = [
+            'pending'              => ['pending',   'confirmed'],
             'awaiting_student'     => ['pending',   'awaiting_student'],
             'pending_confirmation' => ['pending',   'pending_confirmation'],
             'confirmed'            => ['confirmed', 'confirmed'],
@@ -744,7 +756,8 @@ public function checkConflictByStudent(Request $request)
 
         $appointment->update($attrs);
 
-        AuditLog::record('status_overridden', "GCU Head changed appointment {$appointment->appointment_code} from {$from} to {$status}/{$requestStatus}. Reason: {$data['reason']}", $appointment);
+        $who = $request->user()->role === 'tmdu_staff' ? 'TMDU' : 'GCU Head';
+        AuditLog::record('status_overridden', "{$who} changed appointment {$appointment->appointment_code} from {$from} to {$status}/{$requestStatus}. Reason: {$data['reason']}", $appointment);
 
         return response()->json([
             'message'     => 'Appointment status updated.',

@@ -173,8 +173,8 @@
                once the student has attended the test-taking appointment
                (marked "Student Attended" from Manage Queue below), so the
                button surfaces that 422 as a plain error if clicked early. -->
-          <div class="icard" v-if="canManage && stage === 'test_administered'">
-            <div class="icard-header"><span class="icard-title">Schedule PAR Release</span></div>
+          <div class="icard" v-if="canManage && (stage === 'test_administered' || needsParRerelease)">
+            <div class="icard-header"><span class="icard-title">{{ needsParRerelease ? 'Schedule Re-release of PAR' : 'Schedule PAR Release' }}</span></div>
             <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
             <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
@@ -202,7 +202,7 @@
                 <div v-if="parTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parTimeError }}</div>
               </div>
               <button class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" @click="confirmSchedulePar" :disabled="saving || parFormInvalid">
-                {{ saving ? 'Scheduling...' : 'Schedule PAR Release' }}
+                {{ saving ? 'Scheduling...' : (needsParRerelease ? 'Schedule Re-release' : 'Schedule PAR Release') }}
               </button>
             </div>
           </div>
@@ -484,7 +484,7 @@
               <template v-if="apptDetail.appointment_type === 'par_release'">
                 <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click="doParAction(apptDetail, 'released')">Results Released</button>
                 <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!apptDetail.on_hold_at" @click="doParAction(apptDetail, 'on_hold')">On Hold</button>
-                <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="doParAction(apptDetail, 'cancel')">Cancel</button>
+                <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="parCancelTarget = apptDetail; apptDetail = null">Cancel</button>
               </template>
               <template v-else-if="apptDetail.status === 'pending'">
                 <button class="ibtn ibtn-o ibtn-sm" :disabled="parBusy" @click="markAttended(apptDetail)">Student Attended</button>
@@ -494,6 +494,8 @@
           </div>
         </div>
       </div>
+
+      <ParCancelDialog v-if="parCancelTarget" :appointment="parCancelTarget" @close="parCancelTarget = null" @done="loadRecord" />
 
       <!-- Reassign as Test Administrator Modal -->
       <div v-if="showAssignModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAssignModal = false">
@@ -557,9 +559,14 @@ import axios from 'axios';
 import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
+import ParCancelDialog from '../../components/ParCancelDialog.vue';
 
 const route   = useRoute();
 const toast   = inject('toast');
+const confirmAction = inject('confirmAction', null);
+const ask = async (opts) => (confirmAction ? confirmAction(opts) : true);
+const fmtDay = d => (d ? new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) : '');
+const parCancelTarget = ref(null);
 const auth    = useAuthStore();
 
 const loading         = ref(true);
@@ -714,6 +721,8 @@ async function confirmScheduleTesting() {
     toast?.error(testingDateError.value || testingTimeError.value);
     return;
   }
+  const t = testingForm.value;
+  if (!(await ask({ title: 'Confirm Testing Schedule?', message: `Schedule test taking on ${fmtDay(t.appointment_date)}, ${formatTime12(t.start_time)} to ${formatTime12(t.end_time)}. The student will be notified.`, confirmText: 'Yes, Schedule' }))) return;
   saving.value = true;
   try {
     await testingAPI.scheduleTesting(record.value.id, testingForm.value);
@@ -756,6 +765,9 @@ async function confirmSchedulePar() {
     toast?.error(parDateError.value || parTimeError.value);
     return;
   }
+  const p = parScheduleForm.value;
+  const what = needsParRerelease.value ? 're-release of the PAR' : 'PAR release';
+  if (!(await ask({ title: needsParRerelease.value ? 'Schedule Re-release of PAR?' : 'Schedule PAR Release?', message: `Schedule the ${what} on ${fmtDay(p.appointment_date)}, ${formatTime12(p.start_time)} to ${formatTime12(p.end_time)}. The student will be notified.`, confirmText: 'Yes, Schedule' }))) return;
   saving.value = true;
   try {
     await testingAPI.schedulePar(record.value.id, parScheduleForm.value);
@@ -846,8 +858,13 @@ const testTakingAttended = computed(() =>
 const parReleaseAppointment = computed(() =>
   tmduAppointments.value
     .filter(a => a.appointment_type === 'par_release')
-    .sort((a, b) => new Date(b.appointment_date) - new Date(a.appointment_date))[0]
+    .sort((a, b) => b.id - a.id)[0]
 );
+
+// The last PAR release was cancelled or missed and nothing new is booked yet:
+// the PAR has to be scheduled for re-release.
+const needsParRerelease = computed(() =>
+  stage.value === 'awaiting_results' && ['cancelled', 'no_show'].includes(parReleaseAppointment.value?.status));
 
 // Appointment Details floating modal + actions.
 const apptDetail = ref(null);
@@ -859,8 +876,13 @@ const parReleased = computed(() => parReleaseAppointment.value?.status === 'comp
 
 function openApptDetail(a) { apptDetail.value = a; }
 
+const PAR_ASK = {
+  released: { title: 'Mark Results Released?', message: 'The student collected the PAR. After this you can attach the PAR results.', confirmText: 'Yes, Results Released' },
+  on_hold:  { title: 'Put PAR Release On Hold?', message: 'The student will be notified to come and collect their PAR results.', confirmText: 'Yes, Put On Hold' },
+};
 async function doParAction(a, action) {
   if (parBusy.value) return;
+  if (PAR_ASK[action] && !(await ask(PAR_ASK[action]))) return;
   parBusy.value = true;
   try {
     const res = await testingAPI.parAction(a.id, action);
@@ -876,6 +898,7 @@ async function doParAction(a, action) {
 
 async function markAttended(a) {
   if (parBusy.value) return;
+  if (!(await ask({ title: 'Mark Student Attended?', message: `${toTitleCase(a.appointment_type)} on ${fmtDay(String(a.appointment_date).split('T')[0])}. This cannot be undone.`, confirmText: 'Yes, Student Attended' }))) return;
   parBusy.value = true;
   try {
     await appointmentAPI.checkIn(a.id);

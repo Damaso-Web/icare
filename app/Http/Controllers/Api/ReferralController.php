@@ -337,6 +337,9 @@ class ReferralController extends Controller
     public function acknowledge(Request $request, Referral $referral)
 {
     $this->authorizeReferralWriter($request, $referral);
+    if ($referral->is_archived) {
+        abort(422, 'This referral is archived and can no longer be edited.');
+    }
 
     // "Psychological Testing" is also a selectable Service Requested tag on
     // the general referral form (used SWS-wide for counting/filtering by
@@ -569,6 +572,12 @@ class ReferralController extends Controller
         if ($request->status === 'completed' && !$referral->canEditSif()) {
             abort(422, 'This referral must be acknowledged and have an appointment set and attended before it can be resolved.');
         }
+        if ($request->status === 'completed' && !$referral->sessionNotes()->exists()) {
+            abort(422, 'Add at least one session note before resolving this referral.');
+        }
+        if ($referral->is_archived) {
+            abort(422, 'This referral is archived and can no longer be edited.');
+        }
 
         // Statuses cannot go backward - see Referral::canMoveStatusTo().
         if (!$referral->canMoveStatusTo($request->status)) {
@@ -584,6 +593,37 @@ class ReferralController extends Controller
         }
 
         return response()->json($referral);
+    }
+
+    // The GCU Head can set any referral's status by hand, backward too, with a
+    // reason. Meant for correcting mistakes; every change is in the audit log.
+    public function overrideStatus(Request $request, Referral $referral)
+    {
+        $this->authorizeView($referral, $request->user());
+        $data = $request->validate([
+            'status' => 'required|in:submitted,acknowledged,scheduled,in_progress,completed,closed',
+            'reason' => 'required|string|min:5|max:255',
+        ]);
+        if ($referral->is_archived) {
+            abort(422, 'This referral is archived. Restore it before changing its status.');
+        }
+        if ($data['status'] === $referral->status) {
+            abort(422, 'The referral already has this status.');
+        }
+
+        $old = ['status' => $referral->status];
+        $changes = ['status' => $data['status']];
+        // Moving it back before "acknowledged" also clears the acknowledgement.
+        if ($data['status'] === 'submitted') {
+            $changes['acknowledged_at'] = null;
+        } elseif (!$referral->acknowledged_at) {
+            $changes['acknowledged_at'] = now();
+        }
+        $referral->update($changes);
+
+        AuditLog::record('status_overridden', "GCU Head changed referral {$referral->referral_code} from {$old['status']} to {$data['status']}. Reason: {$data['reason']}", $referral, $old, ['status' => $data['status']]);
+
+        return response()->json(['message' => 'Referral status updated.', 'referral' => $referral->fresh()]);
     }
 
     public function sendFeedback(Request $request, Referral $referral)

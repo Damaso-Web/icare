@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Student Information Files</h1>
-      <p>Each student's complete record in one place.</p>
+      <p>{{ filters.archived ? 'Archived files: closed cases and deactivated students. View only.' : "Each student's complete record in one place." }}</p>
     </div>
 
     <!-- Filter Bar -->
@@ -34,6 +34,9 @@
         <option value="TMDU">TMDU</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+      <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; fetchCases()">
+        {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
+      </button>
     </div>
 
     <!-- Cases List -->
@@ -117,12 +120,12 @@ function ctrlNo(c) {
 }
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '' });
+const filters    = ref({ search: '', status: '', unit: '', archived: false });
 
 async function fetchCases(page = 1) {
   loading.value = true;
   try {
-    const res = await caseAPI.index({ ...filters.value, page });
+    const res = await caseAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
     cases.value      = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -138,7 +141,7 @@ function onSearchInput() {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '' };
+  filters.value = { search: '', status: '', unit: '', archived: filters.value.archived };
   fetchCases();
 }
 

@@ -51,17 +51,19 @@
         <div class="case-actions" style="margin-left:auto;display:flex;gap:8px">
           <!-- Update Case Status - moved here from Referral Details (B242),
                since this is the actual Case Details view for the SIF. -->
-          <button v-if="isGCU && fromCases && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="newCaseStatus = primaryCase.status; showCaseStatusModal = true">
+          <span v-if="fromCases && sifArchived" class="ibadge" style="background:var(--cloud);color:var(--stone);align-self:center">Archived · view only</span>
+          <!-- On an archived file only the GCU Head may still change the case status (to reopen it). -->
+          <button v-if="isGCU && fromCases && primaryCase && (!sifArchived || (auth.user?.role === 'admin' && student?.is_active !== false))" class="ibtn ibtn-o ibtn-sm" @click="newCaseStatus = primaryCase.status; showCaseStatusModal = true">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Case Status
           </button>
           <!-- GCU Staff / GCU Head: ask the student to fill out the forms in My Account -->
-          <button v-if="isGCU && fromCases && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="showRemindModal = true">
+          <button v-if="isGCU && fromCases && primaryCase && !sifArchived" class="ibtn ibtn-o ibtn-sm" @click="showRemindModal = true">
             <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             Notify to Fill Out Forms
           </button>
           <!-- Reassigning a case is for the GCU Head only -->
-          <button v-if="auth.user?.role === 'admin' && primaryCase" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
+          <button v-if="auth.user?.role === 'admin' && primaryCase && !sifArchived" class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Reassign
           </button>
@@ -871,6 +873,8 @@ const referralCtx = computed(() => ({ ctx: fromCases.value ? 'cases' : (route.qu
 
 const editAvailablePrograms = computed(() => PROGRAMS_BY_COLLEGE[editForm.value.college] || []);
 const primaryCase = computed(() => history.value.cases?.[0] || null);
+// Archived file: the case is closed or the student's account is deactivated. View only.
+const sifArchived = computed(() => primaryCase.value?.status === 'closed' || student.value?.is_active === false);
 const isRecurringStudent = computed(() => visibleReferrals.value.length > 1);
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 

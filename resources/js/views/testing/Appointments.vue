@@ -91,7 +91,7 @@
                   <template v-if="!['cancelled','completed'].includes(a.status)">
                     <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click.stop="doParAction(a, 'released')">Results Released</button>
                     <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!a.on_hold_at" @click.stop="doParAction(a, 'on_hold')">On Hold</button>
-                    <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click.stop="doParAction(a, 'cancel')">Cancel</button>
+                    <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click.stop="parCancelTarget = a">Cancel</button>
                   </template>
                 </template>
                 <template v-else>
@@ -226,19 +226,38 @@
               <span v-if="detailTarget.on_hold_at" class="ibadge" style="background:var(--amber-lt);color:var(--amber);align-self:center">On Hold</span>
               <button class="ibtn ibtn-p ibtn-sm" :disabled="parBusy" @click="doParAction(detailTarget, 'released')">Results Released</button>
               <button class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="parBusy || !!detailTarget.on_hold_at" @click="doParAction(detailTarget, 'on_hold')">{{ detailTarget.on_hold_at ? 'On Hold' : 'On Hold' }}</button>
-              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="doParAction(detailTarget, 'cancel')">Cancel</button>
+              <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="parBusy" @click="parCancelTarget = detailTarget; detailTarget = null">Cancel</button>
             </template>
             <template v-else>
-              <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+              <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget)">Mark Attended</button>
               <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
               <button v-if="detailTarget.status === 'pending'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
               <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancel(detailTarget); detailTarget = null">Cancel</button>
             </template>
           </div>
+          <!-- TMDU: set this appointment's status by hand -->
+          <div v-if="canOverride" style="border-top:1px solid var(--cloud);padding-top:12px">
+            <button v-if="!overrideOpen" class="ibtn ibtn-g ibtn-sm" @click="overrideOpen = true; overrideForm = { target: '', reason: '' }">Override Status</button>
+            <div v-else style="display:flex;flex-direction:column;gap:8px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Override Status</div>
+              <select v-model="overrideForm.target" class="ifse">
+                <option value="">Select new status...</option>
+                <option v-for="o in OVERRIDE_OPTIONS.filter(o => o.value !== detailTarget.status)" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+              <input v-model="overrideForm.reason" class="ifi" maxlength="255" placeholder="Reason for the change (required)" />
+              <div style="display:flex;gap:8px">
+                <button class="ibtn ibtn-p ibtn-sm" :disabled="overrideBusy || !overrideForm.target || overrideForm.reason.trim().length < 5" @click="applyOverride">{{ overrideBusy ? 'Saving...' : 'Save Status' }}</button>
+                <button class="ibtn ibtn-o ibtn-sm" @click="overrideOpen = false">Cancel</button>
+              </div>
+              <div style="font-size:11px;color:var(--fog)">The change and its reason are recorded in the Audit Logs.</div>
+            </div>
+          </div>
           <button class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:4px" @click="goToStudent(detailTarget)">View Student Testing Records</button>
         </div>
       </div>
     </div>
+
+    <ParCancelDialog v-if="parCancelTarget" :appointment="parCancelTarget" @close="parCancelTarget = null" @done="fetchAppointments(); fetchAllAppointments()" />
 
     <!-- Cancel Appointment Modal -->
     <div v-if="showCancelModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCancelModal = false">
@@ -312,8 +331,15 @@ import { ref, computed, onMounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, testingAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
+import ParCancelDialog from '../../components/ParCancelDialog.vue';
 
 const toast  = inject('toast');
+const auth   = useAuthStore();
+const confirmAction = inject('confirmAction', null);
+const ask = async (opts) => (confirmAction ? confirmAction(opts) : true);
+const fmtDay = d => (d ? new Date(String(d).split('T')[0] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }) : '');
+const parCancelTarget = ref(null);
 const router = useRouter();
 const route  = useRoute();
 
@@ -344,6 +370,37 @@ const detailTarget = ref(null);
 
 function openApptDetail(a) {
   detailTarget.value = a;
+  overrideOpen.value = false;
+}
+
+// TMDU: Override Status. TMDU appointments are set face to face, so only
+// these four apply.
+const OVERRIDE_OPTIONS = [
+  { value: 'pending',   label: 'Pending' },
+  { value: 'completed', label: 'Attended (Completed)' },
+  { value: 'no_show',   label: 'No Show' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+const canOverride  = computed(() => auth.user?.role === 'tmdu_staff');
+const overrideOpen = ref(false);
+const overrideBusy = ref(false);
+const overrideForm = ref({ target: '', reason: '' });
+async function applyOverride() {
+  const label = OVERRIDE_OPTIONS.find(o => o.value === overrideForm.value.target)?.label;
+  if (!(await ask({ title: 'Override Appointment Status?', message: `Change this appointment to "${label}". Reason: ${overrideForm.value.reason.trim()}`, confirmText: 'Yes, Change Status' }))) return;
+  overrideBusy.value = true;
+  try {
+    const res = await appointmentAPI.overrideStatus(detailTarget.value.id, { target: overrideForm.value.target, reason: overrideForm.value.reason.trim() });
+    Object.assign(detailTarget.value, res.data.appointment);
+    overrideOpen.value = false;
+    toast?.success('Appointment status updated.');
+    fetchAppointments();
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Could not change the status.');
+  } finally {
+    overrideBusy.value = false;
+  }
 }
 
 function formatApptDate(date) {
@@ -408,9 +465,12 @@ async function fetchAppointments(page = 1) {
 }
 
 async function checkIn(a) {
+  const name = a.student ? `${a.student.first_name} ${a.student.last_name}` : 'the student';
+  if (!(await ask({ title: 'Mark Student Attended?', message: `${name} attended the ${toTitleCase(a.appointment_type)} on ${fmtDay(a.appointment_date)}. This cannot be undone.`, confirmText: 'Yes, Student Attended' }))) return;
   try {
     await appointmentAPI.checkIn(a.id);
     a.status = 'completed';
+    detailTarget.value = null;
     toast?.success('Student checked in.');
     fetchAllAppointments();
   } catch (e) {
@@ -420,8 +480,13 @@ async function checkIn(a) {
 
 // PAR Release appointment: Results Released / On Hold / Cancel.
 const parBusy = ref(false);
+const PAR_ASK = {
+  released: { title: 'Mark Results Released?', message: 'The student collected the PAR. After this the PAR results can be attached on the Testing Record.', confirmText: 'Yes, Results Released' },
+  on_hold:  { title: 'Put PAR Release On Hold?', message: 'The student will be notified to come and collect their PAR results.', confirmText: 'Yes, Put On Hold' },
+};
 async function doParAction(a, action) {
   if (parBusy.value) return;
+  if (PAR_ASK[action] && !(await ask(PAR_ASK[action]))) return;
   parBusy.value = true;
   try {
     const res = await testingAPI.parAction(a.id, action);

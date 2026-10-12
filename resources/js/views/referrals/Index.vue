@@ -69,8 +69,7 @@
           v-for="r in referrals"
           :key="r.id"
           class="qr"
-          :style="r.is_archived ? 'cursor:not-allowed;opacity:.6' : ''"
-          @click="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+          @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
         >
           <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
           <div class="qi">
@@ -85,9 +84,8 @@
           <div class="qacts">
             <button
               class="ibtn ibtn-p ibtn-sm"
-              :disabled="r.is_archived"
-              :title="r.is_archived ? 'This referral is archived and no longer active.' : ''"
-              @click.stop="!r.is_archived && $router.push({ name: 'referral-show', params: { id: r.id } })"
+              :title="r.is_archived ? 'Archived: opens view-only.' : ''"
+              @click.stop="$router.push({ name: 'referral-show', params: { id: r.id } })"
             >
               View
             </button>

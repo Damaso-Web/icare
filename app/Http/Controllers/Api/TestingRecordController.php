@@ -481,11 +481,24 @@ class TestingRecordController extends Controller
     public function parAction(Request $request, Appointment $appointment)
     {
         $validated = $request->validate([
-            'action' => 'required|in:released,on_hold,cancel',
+            'action'           => 'required|in:released,on_hold,cancel',
+            // Cancel only: a new date for the PAR to be released again.
+            'appointment_date' => 'nullable|required_with:start_time|date|after_or_equal:today',
+            'start_time'       => 'nullable|required_with:appointment_date|date_format:H:i',
+            'end_time'         => 'nullable|required_with:appointment_date|date_format:H:i|after:start_time',
+            'reason'           => 'nullable|string|max:500',
         ]);
 
         abort_unless($appointment->appointment_type === 'par_release' && $appointment->unit === 'TMDU', 422, 'This is not a PAR release appointment.');
         abort_if(in_array($appointment->status, ['completed', 'cancelled'], true), 422, 'This PAR release is already ' . $appointment->status . '.');
+        if ($validated['action'] === 'cancel' && !empty($validated['appointment_date'])) {
+            if ((int) date('N', strtotime($validated['appointment_date'])) > 5) {
+                abort(422, 'TMDU is closed on weekends. Please choose Monday to Friday.');
+            }
+            if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+                abort(422, 'PAR release can only be scheduled between 8:00 AM and 4:00 PM.');
+            }
+        }
 
         $record = TestingRecord::where('case_id', $appointment->case_id)
             ->where(fn($q) => $q->where('referral_id', $appointment->referral_id)->orWhereNull('referral_id'))
@@ -515,6 +528,33 @@ class TestingRecordController extends Controller
                     'on_hold_at'     => null,
                 ]);
                 $message = 'PAR release cancelled. Schedule a new PAR release when ready.';
+                if (!empty($validated['reason'])) {
+                    $appointment->update(['cancellation_reason' => $validated['reason']]);
+                }
+
+                // "Schedule for Re-release of PAR": book the new release right away.
+                if (!empty($validated['appointment_date'])) {
+                    $rerelease = Appointment::create([
+                        'case_id'            => $appointment->case_id,
+                        'referral_id'        => $appointment->referral_id,
+                        'student_id'         => $appointment->student_id,
+                        'staff_user_id'      => $request->user()->id,
+                        'created_by_user_id' => $request->user()->id,
+                        'appointment_type'   => 'par_release',
+                        'unit'               => 'TMDU',
+                        'appointment_date'   => $validated['appointment_date'],
+                        'start_time'         => $validated['start_time'],
+                        'end_time'           => $validated['end_time'],
+                        'status'             => 'pending',
+                        'request_status'     => 'confirmed',
+                        'rescheduled_from_id' => $appointment->id,
+                    ]);
+                    if ($record && $record->student) {
+                        $this->safeNotify($record->student, new ParScheduledNotification($record, $rerelease));
+                    }
+                    AuditLog::record('par_scheduled', "Scheduled re-release of PAR ({$rerelease->appointment_code}) after cancelling {$appointment->appointment_code}.", $rerelease);
+                    $message = 'PAR release cancelled and re-release scheduled. The student was notified.';
+                }
         }
 
         AuditLog::record('par_release_' . $validated['action'], "PAR release {$validated['action']} for appointment {$appointment->appointment_code}.", $appointment);

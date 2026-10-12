@@ -99,6 +99,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);
     Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign'])->middleware('role:admin'); // reassigning: GCU Head only
     Route::patch('referrals/{referral}/status',     [ReferralController::class, 'updateStatus']);
+    Route::post('referrals/{referral}/override-status', [ReferralController::class, 'overrideStatus'])->middleware('role:admin');
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);
     Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
     Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
@@ -152,7 +153,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::post('appointments/{appointment}/send-call-slip', [AppointmentController::class, 'sendCallSlipUnscheduled']);
-    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin');
+    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin,tmdu_staff');
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 

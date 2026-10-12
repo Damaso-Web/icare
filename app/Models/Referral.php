@@ -178,13 +178,17 @@ class Referral extends Model
         return $referrals->count();
     }
 
+    // An archived referral is kept for the record only, so it is read-only too.
     public function isLocked(): bool
     {
-        return in_array($this->status, ['completed', 'closed'], true);
+        return in_array($this->status, ['completed', 'closed'], true) || (bool) $this->is_archived;
     }
 
     public function abortIfLocked(): void
     {
+        if ($this->is_archived) {
+            abort(422, 'This referral is archived and can no longer be edited.');
+        }
         if ($this->isLocked()) {
             abort(422, 'This Student Information File is closed and can no longer be edited.');
         }

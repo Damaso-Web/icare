@@ -64,8 +64,14 @@ class CaseController extends Controller
 
         $user = $request->user();
 
+        // Archived = the student's account is deactivated, or the case is
+        // closed. Those are kept out of the working list and shown, read-only,
+        // under "View Archived".
+        $archived = $request->boolean('archived');
         $query = CaseFile::with(['student', 'counselor', 'latestReferral'])
-            ->whereHas('student', fn($s) => $s->where('is_active', true))
+            ->when($archived,
+                fn($q) => $q->where(fn($a) => $a->where('status', 'closed')->orWhereHas('student', fn($s) => $s->where('is_active', false))),
+                fn($q) => $q->where('status', '!=', 'closed')->whereHas('student', fn($s) => $s->where('is_active', true)))
             // A case only belongs in Student Information Files once GCU has
             // acknowledged at least one of its referrals - an unacknowledged
             // referral's placeholder case shouldn't show up here yet.
@@ -212,8 +218,13 @@ class CaseController extends Controller
             'student',
             'counselor',
             'referrals.sessionNotes.recordedBy',
-            'referrals.testingRecord',
+            'referrals.testingRecord.tester',
             'referrals.referredBy',
+            // Follow-up sessions, parent conferences and Refer to TMDU go in
+            // the Case History too (see cases/StudyReport.vue).
+            'referrals.appointments' => fn ($q) => $q->where('appointment_type', 'follow_up_session')->with('checkedInBy', 'staff'),
+            'parentConferenceSlips.issuedBy',
+            'handoffs.fromUser',
             'sessionNotes.recordedBy',
             'sessionNotes.referral',
             'testingRecord',

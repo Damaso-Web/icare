@@ -226,6 +226,7 @@ export const referralAPI = {
     acknowledge:  (id)       => api.post(`/referrals/${id}/acknowledge`),
     assign:       (id, data) => api.post(`/referrals/${id}/assign`, data),
     updateStatus: (id, data) => api.patch(`/referrals/${id}/status`, data),
+    overrideStatus: (id, data) => api.post(`/referrals/${id}/override-status`, data),
     tracking:     (id)       => api.get(`/referrals/${id}/tracking`),
     sendFeedback:     (id, data) => api.post(`/referrals/${id}/feedback`, data),
     saveAdmissionSlip:(id, data) => api.post(`/referrals/${id}/admission-slip`, data),
@@ -308,7 +309,8 @@ export const testingAPI = {
     assign:           (id, data) => api.post(`/testing-records/${id}/assign`, data),
     availableTesters: ()         => api.get('/testing-records/available-testers'),
     // PAR release appointment actions: released | on_hold | cancel
-    parAction:        (appointmentId, action) => api.post(`/appointments/${appointmentId}/par-action`, { action }),
+    // extra: for cancel, an optional { appointment_date, start_time, end_time, reason } re-release
+    parAction:        (appointmentId, action, extra = {}) => api.post(`/appointments/${appointmentId}/par-action`, { action, ...extra }),
 };
 
 export const reportAPI = {

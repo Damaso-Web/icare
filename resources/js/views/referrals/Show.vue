@@ -57,6 +57,44 @@
           <p>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.student?.student_id }}</p>
         </div>
         <!-- "Endorse to Unit" button removed (B285/B293). -->
+        <span v-if="referral.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:auto">Archived · view only</span>
+        <!-- GCU Head: set this referral's status by hand -->
+        <button
+          v-if="auth.user?.role === 'admin' && !referral.is_archived && !isIncidentReport"
+          class="ibtn ibtn-o ibtn-sm"
+          :style="referral.is_archived ? '' : 'margin-left:auto'"
+          @click="openRefOverride"
+        >Override Status</button>
+      </div>
+
+      <!-- Override Status (GCU Head) -->
+      <div v-if="refOverride.open" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="refOverride.open = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Override Referral Status</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="refOverride.open = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
+            <div style="font-size:12.5px;color:var(--stone)">Current status: <strong style="color:var(--ink)">{{ toTitleCase(String(referral.status || '').replace(/_/g, ' ')) }}</strong></div>
+            <div>
+              <label class="ifl">New Status <span style="color:var(--red)">*</span></label>
+              <select v-model="refOverride.status" class="ifse">
+                <option value="">Select status...</option>
+                <option v-for="o in REF_OVERRIDE_OPTIONS.filter(o => o.value !== referral.status)" :key="o.value" :value="o.value">{{ o.label }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
+              <input v-model="refOverride.reason" class="ifi" maxlength="255" placeholder="Why is the status being changed?" />
+            </div>
+            <div v-if="refOverride.error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ refOverride.error }}</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="refOverride.saving || !refOverride.status || refOverride.reason.trim().length < 5" @click="applyRefOverride">{{ refOverride.saving ? 'Saving...' : 'Save Status' }}</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="refOverride.open = false">Cancel</button>
+            </div>
+            <div style="font-size:11px;color:var(--fog)">The change and its reason are recorded in the Audit Logs.</div>
+          </div>
+        </div>
       </div>
 
       <!-- Case Summary - Student Information Files only; the Referral Queue
@@ -239,7 +277,7 @@
                     style="margin-top:6px"
                     @click="goToStudentInformationFile"
                   >
-                    Go to Student Information File
+                    {{ isTMDUStaff ? 'View Student Records' : 'Go to Student Information File' }}
                   </button>
                 </div>
                 <div>
@@ -309,7 +347,7 @@
                 <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px;margin-bottom:16px" @click="addIntervention">Save Entry</button>
               </div>
               <div v-else-if="isGCU && isResolved" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
-                ✓ This referral has been resolved. It is now view-only.
+                ✓ {{ lockedText }}
               </div>
               <div v-else-if="isGCU && !canEditSif" style="background:var(--cloud);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--stone);margin-bottom:16px">
                 ⚠ This referral must be acknowledged and have an appointment set and attended before entries can be added.
@@ -370,7 +408,7 @@
               </template>
               <template v-else-if="isGCU && isResolved">
                 <div style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss)">
-                  ✓ This referral has been resolved. It is now view-only.
+                  ✓ {{ lockedText }}
                 </div>
               </template>
               <template v-else-if="isGCU && !canEditSif">
@@ -510,7 +548,7 @@
             <div class="icard-body">
               <template v-if="isGCU && isResolved">
                 <div style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss)">
-                  ✓ This referral has been resolved. It is now view-only.
+                  ✓ {{ lockedText }}
                 </div>
               </template>
               <template v-else-if="isGCU && !canEditSif">
@@ -703,7 +741,7 @@
                workflow. Acknowledging is a Referral Queue action; Case
                Files/Student Information Files opens this page read-only,
                so the prompt is hidden there. -->
-          <div class="icard" v-if="referral.status === 'submitted' && canAcknowledge && !fromCases">
+          <div class="icard" v-if="referral.status === 'submitted' && canAcknowledge && !fromCases && !referral.is_archived">
             <div class="icard-body">
               <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);margin-bottom:12px">
                 ⚠ This referral has not been acknowledged yet.
@@ -954,7 +992,7 @@
             <div class="icard-header"><span class="icard-title">Case Action</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:12px;padding:18px">
               <div v-if="isResolved" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
-                ✓ This referral has been resolved. It is now view-only.
+                ✓ {{ lockedText }}
               </div>
               <template v-else>
                 <router-link
@@ -1002,6 +1040,9 @@
 
                   <div v-if="!canEditSif" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                     ⚠ This referral must be acknowledged and have an appointment set and attended before resolving
+                  </div>
+                  <div v-else-if="!sessionNotes.length" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
+                    ⚠ Add at least one session note before resolving
                   </div>
                   <button
                     v-else
@@ -1604,6 +1645,13 @@
               <div style="font-size:13px;color:var(--slate);line-height:1.6">
                 Confirm this appointment for {{ formatDate(apptDetailTarget.appointment_date) }}, {{ formatTime12(apptDetailTarget.start_time) }}-{{ formatTime12(apptDetailTarget.end_time) }}?
               </div>
+              <div>
+                <label class="ifl">Assign Personnel</label>
+                <select v-model="apptConfirmStaffId" class="ifse">
+                  <option value="">Keep current ({{ apptDetailTarget.staff?.name || 'not assigned' }})</option>
+                  <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }}</option>
+                </select>
+              </div>
               <div style="display:flex;gap:8px">
                 <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmApptFromDetail">Yes, Confirm Appointment</button>
                 <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptConfirming = false">Never Mind</button>
@@ -1622,7 +1670,7 @@
               </div>
             </div>
 
-            <div v-else-if="isGCU && !['cancelled','completed'].includes(apptDetailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
+            <div v-else-if="isGCU && !isResolved && !['cancelled','completed'].includes(apptDetailTarget.status)" style="display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid var(--cloud);padding-top:14px;margin-top:4px">
               <!-- Confirm/Reschedule/Send Call-Slip are always shown so
                    staff can see their choices, but stay disabled (greyed
                    out) while request_status is still 'awaiting_student' -
@@ -1633,7 +1681,7 @@
                 class="ibtn ibtn-p ibtn-sm"
                 :disabled="apptDetailTarget.request_status === 'awaiting_student'"
                 :title="apptDetailTarget.request_status === 'awaiting_student' ? 'Waiting for the student to pick a date/time first' : ''"
-                @click="apptConfirming = true"
+                @click="apptConfirming = true; apptConfirmStaffId = ''"
               >Confirm Appointment</button>
               <button
                 v-if="['pending','confirmed'].includes(apptDetailTarget.status)"
@@ -1809,6 +1857,7 @@ import { toTitleCase, plainText, referralSourceFor, formatTime12 } from '../../u
 const route   = useRoute();
 const router  = useRouter();
 const toast   = inject('toast');
+const confirmAction = inject('confirmAction', null);
 const auth    = useAuthStore();
 const loading = ref(true);
 const acknowledging = ref(false);
@@ -1934,7 +1983,11 @@ const canEditSif = computed(() => referral.value.status !== 'submitted' && hasAt
 // Session, and Previous Interventions all stop offering their edit/add
 // actions (see each section's isResolved checks). There is no "reopen"
 // path anymore now that Update Status has been removed.
-const isResolved = computed(() => ['completed', 'closed'].includes(referral.value.status));
+// Archived referrals are kept for the record only, so they lock the same way.
+const isResolved = computed(() => ['completed', 'closed'].includes(referral.value.status) || !!referral.value.is_archived);
+const lockedText = computed(() => referral.value.is_archived
+  ? 'This referral is archived. It is view-only.'
+  : 'This referral has been resolved. It is now view-only.');
 
 // Shown in the Resolve Referral confirmation modal - only for whichever of
 // these three is actually still empty at the moment of resolving, since
@@ -1944,9 +1997,6 @@ const resolveWarnings = computed(() => {
   const warnings = [];
   if (!referral.value.feedback_slips?.length) {
     warnings.push('No feedback slip has been sent to the referrer yet.');
-  }
-  if (!sessionNotes.value.length) {
-    warnings.push('No session notes have been recorded yet.');
   }
   if (!followUps.value.length) {
     warnings.push('No follow-up sessions have been scheduled yet.');
@@ -2139,6 +2189,11 @@ function isCurrentStep(key) {
 function goToStudentInformationFile() {
   const studentId = referral.value.student?.id;
   if (!studentId) return;
+  // TMDU works from the student's records, never from GCU's SIF.
+  if (isTMDUStaff.value) {
+    router.push({ name: 'student-show', params: { id: studentId } });
+    return;
+  }
   router.push({ name: 'student-show', params: { id: studentId }, query: { ctx: 'cases' } });
 }
 
@@ -2404,6 +2459,35 @@ async function addDetailedReport() {
 // native confirm() popup. Once resolved, isResolved locks the rest of the
 // page down to view-only - there is no "reopen" path anymore.
 const showResolveReferralModal = ref(false);
+
+// GCU Head: Override Status for this referral.
+const REF_OVERRIDE_OPTIONS = [
+  { value: 'submitted',    label: 'Submitted' },
+  { value: 'acknowledged', label: 'Acknowledged' },
+  { value: 'scheduled',    label: 'Scheduled' },
+  { value: 'in_progress',  label: 'In Progress' },
+  { value: 'completed',    label: 'Resolved' },
+  { value: 'closed',       label: 'Closed' },
+];
+const refOverride = ref({ open: false, status: '', reason: '', saving: false, error: '' });
+function openRefOverride() {
+  refOverride.value = { open: true, status: '', reason: '', saving: false, error: '' };
+}
+async function applyRefOverride() {
+  const o = refOverride.value;
+  o.saving = true; o.error = '';
+  try {
+    const res = await referralAPI.overrideStatus(referral.value.id, { status: o.status, reason: o.reason.trim() });
+    referral.value.status = res.data.referral.status;
+    referral.value.acknowledged_at = res.data.referral.acknowledged_at;
+    o.open = false;
+    toast?.success('Referral status updated.');
+  } catch (e) {
+    o.error = e.response?.data?.message || 'Could not change the status.';
+  } finally {
+    o.saving = false;
+  }
+}
 const resolvingReferral = ref(false);
 
 async function resolveReferral() {
@@ -2489,6 +2573,12 @@ async function referToTmdu() {
     tmduError.value = 'Please provide a reason for the referral.';
     return;
   }
+  const sure = await confirmAction?.({
+    title: 'Refer to TMDU?',
+    message: `This sends ${referral.value.student?.first_name || 'the student'} ${referral.value.student?.last_name || ''} to TMDU for psychological testing, as a new referral under the same case. TMDU will be notified.`,
+    confirmText: 'Yes, Refer to TMDU',
+  });
+  if (confirmAction && !sure) return;
   submittingTmdu.value = true;
   try {
     // referral_id tells the backend which referral this escalation is
@@ -2562,6 +2652,7 @@ const apptDetailTarget = ref(null);
 const apptCancelling = ref(false);
 const apptCancelReason = ref('');
 const apptConfirming = ref(false);
+const apptConfirmStaffId = ref('');
 const apptRescheduling = ref(false);
 const apptRescheduleReason = ref('');
 
@@ -2586,7 +2677,7 @@ async function refreshReferralAfterApptChange() {
 async function confirmApptFromDetail() {
   if (!apptDetailTarget.value) return;
   try {
-    await appointmentAPI.confirm(apptDetailTarget.value.id, {});
+    await appointmentAPI.confirm(apptDetailTarget.value.id, apptConfirmStaffId.value ? { staff_user_id: apptConfirmStaffId.value } : {});
     toast?.success('Appointment confirmed.');
     apptDetailTarget.value = null;
     apptConfirming.value = false;
