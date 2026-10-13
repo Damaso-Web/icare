@@ -130,7 +130,7 @@ class ComplaintController extends Controller
         AuditLog::record('created', "Filed complaint {$complaint->complaint_code} against student {$student->student_id}, logged as referral {$referral->referral_code}.", $referral);
 
         $recipients = User::whereIn('role', ['admin', 'sdu_head'])->where('is_active', true)->get();
-        $collegeRep = User::where('role', 'dean_secretary')->where('college', $student->college)->where('is_active', true)->get();
+        $collegeRep = User::whereIn('role', ['dean', 'dean_secretary'])->where('college', $student->college)->where('is_active', true)->get();
         $recipients = $recipients->merge($collegeRep)->unique('id');
         Notification::send($recipients, new NewReferralNotification($referral));
 

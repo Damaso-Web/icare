@@ -41,11 +41,11 @@
             <option value="admin" style="color:#000">Admin / GCU Head</option>
             <option value="gcu_staff" style="color:#000">GCU Staff</option>
             <option value="sdu_head" style="color:#000">SDU Head</option>
+            <option value="tmdu_head" style="color:#000">TMDU Head</option>
             <option value="tmdu_staff" style="color:#000">TMDU Staff</option>
-            <option value="faculty" style="color:#000">Faculty Member</option>
             <option value="dean" style="color:#000">Dean</option>
             <option value="dept_chair" style="color:#000">Department Chair</option>
-            <option value="dean_secretary" style="color:#000">Dean's Secretary</option>
+            <option value="faculty" style="color:#000">Faculty Member</option>
             <option value="system_admin" style="color:#000">System Admin (Management)</option>
             <option value="student" style="color:#000">Student (Portal)</option>
           </select>
@@ -161,6 +161,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
 import SessionGuard from '../components/SessionGuard.vue';
+import { roleIn, roleLabelOf } from '../utils/roles';
 
 const router = useRouter();
 const route  = useRoute();
@@ -288,20 +289,7 @@ const initials = computed(() => {
   return auth.user?.name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'U';
 });
 
-const roleLabel = computed(() => {
-  const labels = {
-    admin:          'Admin / GCU Head',
-    gcu_staff:      'GCU Staff',
-    sdu_head:       'SDU Head',
-    tmdu_staff:     'TMDU Staff',
-    faculty:        'Faculty',
-    dean:           'Dean',
-    dept_chair:     'Department Chair',
-    dean_secretary: "Dean's Secretary",
-    system_admin:   'System Admin',
-  };
-  return labels[auth.user?.role] || auth.user?.role;
-});
+const roleLabel = computed(() => roleLabelOf(auth.user?.role));
 
 const pageTitle = computed(() => {
   const titles = {
@@ -367,7 +355,7 @@ const menuItems = computed(() => {
     },
         {
       name:    'referrals',
-      label:   role === 'tmdu_staff' ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
+      label:   roleIn(role, ['tmdu_staff']) ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
       roles:   ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'],
       section: null,
@@ -431,8 +419,9 @@ const menuItems = computed(() => {
     {
     name:    'users',
     label:   'User Management',
+    // GCU Head: every account. TMDU Head: TMDU Staff. Dean: their college's faculty and chairs.
     icon:    '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-    roles:   ['admin'],
+    roles:   ['admin', 'tmdu_head', 'dean'],
     section: null,
   },
     {
@@ -472,7 +461,7 @@ const menuItems = computed(() => {
     },
   ];
 
-  const filtered = items.filter(item => item.roles?.includes(role));
+  const filtered = items.filter(item => roleIn(role, item.roles));
 
   const result = [];
   const addedSections = new Set();

@@ -2085,7 +2085,7 @@ const admission_excused_locked = computed(() =>
   isClassAttendance.value && referral.value.admission_excused === false
 );
 
-const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head'], TMDU: ['admin', 'tmdu_staff'] };
+const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head'], TMDU: ['admin', 'tmdu_staff', 'tmdu_head'] };
 
 const sessionForm = ref({
   session_type: 'follow_up', observations: '', interventions: '',
@@ -2141,12 +2141,12 @@ const isSDUHead = computed(() => auth.user?.role === 'sdu_head');
 // (QF-OSS-01) - only the layout/labels differ, not the header values.
 const useTmduDoc = computed(() =>
   !!referral.value?.testing_record
-  || auth.user?.role === 'tmdu_staff');
+  || ['tmdu_staff', 'tmdu_head'].includes(auth.user?.role));
 // The Case Referral Slip (filled in through "Refer to TMDU") is TMDU's own
 // form - same layout as a general referral, but a different record entirely.
 const isCaseReferralSlip = computed(() => useTmduDoc.value);
 const headerDoc = computed(() => referralDoc.value || {});
-const isTMDUStaff = computed(() => auth.user?.role === 'tmdu_staff');
+const isTMDUStaff = computed(() => ['tmdu_staff', 'tmdu_head'].includes(auth.user?.role));
 
 // Who can acknowledge THIS referral: GCU for ordinary referrals, TMDU staff
 // for the shared psychological_testing referral created by "Refer to TMDU".

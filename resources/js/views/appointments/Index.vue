@@ -613,7 +613,7 @@ function clearDateFilter() {
 }
 
 function roleLabel(role) {
-  const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_staff: 'TMDU Staff' };
+  const labels = { admin: 'Admin / GCU Head', gcu_staff: 'GCU Staff', sdu_head: 'SDU Head', tmdu_head: 'TMDU Head', tmdu_staff: 'TMDU Staff' };
   return labels[role] || role;
 }
 

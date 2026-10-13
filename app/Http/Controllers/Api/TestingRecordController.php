@@ -67,7 +67,7 @@ class TestingRecordController extends Controller
     public function availableTesters()
     {
         return response()->json(
-            User::whereIn('role', ['tmdu_staff'])
+            User::whereIn('role', ['tmdu_staff', 'tmdu_head'])
                 ->where('is_active', true)
                 ->orderBy('name')
                 ->get(['id', 'name', 'role'])
@@ -85,7 +85,7 @@ class TestingRecordController extends Controller
 
         $tester = User::findOrFail($validated['tester_user_id']);
         abort_unless(
-            in_array($tester->role, ['tmdu_staff'], true),
+            in_array($tester->role, ['tmdu_staff', 'tmdu_head'], true),
             422,
             'The selected user is not TMDU staff.'
         );
@@ -291,7 +291,7 @@ class TestingRecordController extends Controller
         // TMDU staff member if no one's been assigned yet.
         $recipients = $testingRecord->tester
             ? collect([$testingRecord->tester])
-            : User::where('role', 'tmdu_staff')->get();
+            : User::whereIn('role', ['tmdu_staff', 'tmdu_head'])->get();
 
         if ($recipients->isNotEmpty()) {
             $this->safeNotify($recipients, new TestingRequestSubmittedNotification($testingRecord));

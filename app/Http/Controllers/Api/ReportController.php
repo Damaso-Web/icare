@@ -121,7 +121,7 @@ class ReportController extends Controller
         return response()->json($this->buildSduReferrals($request));
     }
 
-    private const UNIT_BY_ROLE =['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'sdu_head' => 'SDU'];
+    private const UNIT_BY_ROLE =['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'tmdu_head' => 'TMDU', 'sdu_head' => 'SDU'];
 
     private function unit(Request $request): string
     {
@@ -181,7 +181,8 @@ class ReportController extends Controller
         'faculty'        => 'Faculty',
         'dean'           => 'Dean',
         'dept_chair'     => 'Department Chair',
-        'dean_secretary' => "Dean's Secretary",
+        'dean_secretary' => 'Dean',
+        'tmdu_head'      => 'TMDU Head',
         'parent'         => 'Parent / Guardian',
         'admin'          => 'GCU Office (Admin / GCU Head)',
         'gcu_staff'      => 'GCU Staff',

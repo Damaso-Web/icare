@@ -795,7 +795,7 @@ function shows(section) {
 }
 
 const auth = useAuthStore();
-const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
+const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', tmdu_head: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
 const canPickUnit = !ownUnit;
 const unit = ref(ownUnit || 'GCU');
 

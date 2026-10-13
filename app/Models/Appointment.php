@@ -141,7 +141,7 @@ public static function hasUnitConflict(string $unit, string $date, string $start
         try {
             $roles = match ($this->unit) {
                 'SDU'   => ['sdu_head'],
-                'TMDU'  => ['tmdu_staff'],
+                'TMDU'  => ['tmdu_staff', 'tmdu_head'],
                 default => ['admin', 'gcu_staff'],
             };
             $ids = \App\Models\User::where('is_active', true)->whereIn('role', $roles)->pluck('id')

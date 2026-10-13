@@ -1909,6 +1909,8 @@ async function confirmImport(globalChoice) {
 onMounted(() => {
   fetchStudents();
   fetchManagementData();
+  // User Management > Add > Student lands here with ?add=1.
+  if (new URLSearchParams(window.location.search).get('add') === '1') openAddModal();
 });
 
 // Cancel asks before throwing away a changed form (B401).

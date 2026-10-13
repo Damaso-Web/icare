@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { roleIn } from '../utils/roles';
 
 // Layouts
 import MainLayout from '../layouts/MainLayout.vue';
@@ -36,7 +37,7 @@ import CaseReferrals from '../views/caseReferrals/Index.vue';
 import CaseReferralShow from '../views/caseReferrals/Show.vue';
 
 // Role definitions
-const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'];
+const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'];
 const STAFF_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
 const GCU_ROLES = ['admin', 'gcu_staff'];
 const ADMIN_ONLY = ['admin'];
@@ -270,7 +271,8 @@ const routes = [
                 path: 'users',
                 name: 'users',
                 component: Users,
-                meta: { roles: ADMIN_ONLY },
+                // GCU Head: every account. TMDU Head: TMDU Staff. Dean: their college's faculty and chairs.
+                meta: { roles: ['admin', 'tmdu_head', 'dean'] },
             },
             {
                 path: 'faculty',
@@ -368,7 +370,7 @@ router.beforeEach((to, from, next) => {
         }
 
         // Check role access
-        if (to.meta.roles && !to.meta.roles.includes(role)) {
+        if (to.meta.roles && !roleIn(role, to.meta.roles)) {
             return next({ name: 'unauthorized' });
         }
     }

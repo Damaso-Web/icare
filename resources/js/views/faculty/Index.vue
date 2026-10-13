@@ -328,7 +328,7 @@ import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 const auth  = useAuthStore();
 const toast = inject('toast', null);
 
-const isDean  = computed(() => auth.user?.role === 'dean');
+const isDean  = computed(() => ['dean', 'dean_secretary'].includes(auth.user?.role));
 const isChair = computed(() => auth.user?.role === 'dept_chair');
 // Admin-side roles have no college of their own, so adding faculty needs a College pick.
 const needsCollegePick = computed(() => !isDean.value && !isChair.value);

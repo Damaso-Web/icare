@@ -153,7 +153,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::post('appointments/{appointment}/send-call-slip', [AppointmentController::class, 'sendCallSlipUnscheduled']);
-    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin,tmdu_staff');
+    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin,tmdu_head');
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 
@@ -170,7 +170,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // Registered before the apiResource below so "available-testers" isn't
     // swallowed by its {testingRecord} show route.
     // Testing Records, PAR release and the TMDU tester roster belong to TMDU only.
-    Route::middleware('role:tmdu_staff')->group(function () {
+    Route::middleware('role:tmdu_staff,tmdu_head')->group(function () {
         Route::get('testing-records/available-testers', [TestingRecordController::class, 'availableTesters']);
         // Testing records come from a Refer-to-TMDU action and are never deleted.
         Route::apiResource('testing-records', TestingRecordController::class)->except(['store', 'destroy']);
@@ -196,7 +196,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     });
 
     // Documents - staff units only (faculty / dean secretaries have no business here)
-    Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff')->group(function () {
+    Route::middleware('role:admin,gcu_staff,sdu_head,tmdu_staff,tmdu_head')->group(function () {
         Route::post('documents/upload',                [DocumentController::class, 'upload']);
         Route::get('documents/{document}',             [DocumentController::class, 'show']);
         Route::delete('documents/{document}',          [DocumentController::class, 'destroy']);
@@ -211,7 +211,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
     // Reports - one per unit. Admin may open any; unit staff are held to
     // their own unit inside ReportController.
-    Route::prefix('reports')->middleware('role:admin,gcu_staff,tmdu_staff,sdu_head')->group(function () {
+    Route::prefix('reports')->middleware('role:admin,gcu_staff,tmdu_staff,tmdu_head,sdu_head')->group(function () {
         Route::get('referrals',    [ReportController::class, 'referrals']);
         Route::get('appointments', [ReportController::class, 'appointments']);
         Route::get('cases',        [ReportController::class, 'cases']);
@@ -241,7 +241,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
        // Faculty module - Dean (college-wide) and Dept Chair (own department).
     // FacultyController scopes every query/write to the caller's college/department.
-    Route::middleware('role:dean,dept_chair')->prefix('faculty')->group(function () {
+    Route::middleware('role:dean,dean_secretary,dept_chair')->prefix('faculty')->group(function () {
         Route::get('/',                             [FacultyController::class, 'index']);
         Route::post('/',                            [FacultyController::class, 'store']);
         Route::post('import-preview',               [FacultyController::class, 'importPreview']);
@@ -254,12 +254,18 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('{user}/remove-chair',          [FacultyController::class, 'removeChair']);
     });
 
-    // Admin only
-    Route::middleware('role:admin')->group(function () {
+    // User Management: GCU Head (every account), TMDU Head (TMDU Staff) and
+    // Dean (faculty and chairs of their college). UserController limits who
+    // each of them can see and change.
+    Route::middleware('role:admin,tmdu_head,dean,dean_secretary')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
+    });
+
+    // Admin only
+    Route::middleware('role:admin')->group(function () {
         Route::post('users/import', [UserController::class, 'import']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/filter-options', [AuditLogController::class, 'filterOptions']);

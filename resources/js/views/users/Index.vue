@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>{{ isFacultyView ? 'Faculty Profile' : 'User Management' }}</h1>
-      <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : 'Manage system accounts and role-based access for all iCARE users.' }}</p>
+      <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : pageIntro }}</p>
     </div>
 
     <!-- Filter Bar -->
@@ -28,15 +28,9 @@
       </select>
       <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
-        <option value="admin">Admin / GCU Head</option>
-        <option value="gcu_staff">GCU Staff</option>
-        <option value="sdu_head">SDU Head</option>
-        <option value="tmdu_staff">TMDU Staff</option>
-        <option value="faculty">Faculty</option>
-        <option value="dean">Dean</option>
-        <option value="dean_secretary">Dean's Secretary</option>
+        <option v-for="o in filterRoleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
-      <select v-model="filters.college" class="fsm" @change="fetchUsers">
+      <select v-if="!isDeanActor" v-model="filters.college" class="fsm" @change="fetchUsers">
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
@@ -54,7 +48,7 @@
         Upload Masterlist
       </button>
       <button
-        v-if="auth.isAdmin"
+        v-if="canManage"
         class="ibtn ibtn-p ibtn-sm"
         style="margin-left:auto"
         @click="openCreate"
@@ -94,7 +88,7 @@
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click="openView(u)">View</button>
                   <button
-                    v-if="auth.isAdmin"
+                    v-if="canManage"
                     class="ibtn ibtn-sm"
                     :style="u.is_active ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--mint);color:var(--forest);border:1.5px solid var(--moss)'"
                     @click="toggleActive(u)"
@@ -162,7 +156,7 @@
             <div style="font-size:13px;color:var(--ink)">{{ viewedUser.last_login_at ? formatDate(viewedUser.last_login_at) : 'Never' }}</div>
           </div>
 
-          <div v-if="auth.isAdmin && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
+          <div v-if="canManage && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
             <div style="display:flex;align-items:center;justify-content:space-between">
               <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
               <button
@@ -194,7 +188,7 @@
 
           <div style="display:flex;gap:8px;margin-top:8px">
             <button
-              v-if="auth.isAdmin"
+              v-if="canManage"
               class="ibtn ibtn-p"
               :disabled="!viewedUser.is_active"
               :style="{ flex:1, justifyContent:'center', opacity: viewedUser.is_active ? 1 : .5, cursor: viewedUser.is_active ? 'pointer' : 'not-allowed' }"
@@ -203,7 +197,7 @@
             <button class="ibtn ibtn-g" style="flex:1;justify-content:center" @click="showViewModal = false">Close</button>
           </div>
           <button
-            v-if="auth.isAdmin"
+            v-if="canManage"
             class="ibtn ibtn-sm"
             :disabled="!viewedUser.is_active"
             :style="{ width:'100%', justifyContent:'center', background:'var(--amber-lt)', color:'var(--amber)', border:'1.5px solid var(--amber)', opacity: viewedUser.is_active ? 1 : .5, cursor: viewedUser.is_active ? 'pointer' : 'not-allowed' }"
@@ -214,7 +208,7 @@
     </div>
 
     <!-- Add / Edit Employee Modal - admin only -->
-    <div v-if="showModal && auth.isAdmin" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
+    <div v-if="showModal && canManage" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? ((isFacultyView || userForm.role === 'faculty') ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}</div>
@@ -299,24 +293,21 @@
               class="ifse"
               :disabled="isFacultyView"
               :style="errorStyle('role')"
-              @change="clearFieldError('role')"
+              @change="clearFieldError('role'); onRolePicked()"
             >
               <option value="" disabled hidden>Select role...</option>
-              <option value="admin">Admin / GCU Head</option>
-              <option value="gcu_staff">GCU Staff</option>
-              <option value="sdu_head">SDU Head</option>
-              <option value="tmdu_staff">TMDU Staff</option>
-              <option value="faculty">Faculty</option>
-              <option value="dean">Dean (manages the faculty of a college)</option>
-              <option value="dean_secretary">Dean's Secretary</option>
+              <option v-for="o in addRoleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
+              <!-- An older account's role stays visible while editing it. -->
+              <option v-if="isEditing && userForm.role && !addRoleOptions.some(o => o.value === userForm.role)" :value="userForm.role" disabled>{{ ROLE_LABELS[userForm.role] || userForm.role }}</option>
             </select>
           </div>
 
-          <div v-if="['faculty','dean_secretary','dean'].includes(userForm.role)">
+          <div v-if="['faculty','dean_secretary','dean','dept_chair'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
             <select
               v-model="userForm.college"
               class="ifse"
+              :disabled="isDeanActor"
               :style="errorStyle('college')"
               @change="userForm.department = ''; clearFieldError('college')"
             >
@@ -325,7 +316,7 @@
             </select>
           </div>
 
-          <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
+          <div v-if="['faculty','dean_secretary','dept_chair'].includes(userForm.role)">
             <label class="ifl">Department <span style="color:var(--red)">*</span></label>
             <select
               v-model="userForm.department"
@@ -624,6 +615,8 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
+import { ROLE_ORDER, ROLE_LABELS, addableRoles } from '../../utils/roles';
+import { useRouter } from 'vue-router';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress , titleCaseName } from '../../utils/validators';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -652,6 +645,16 @@ function errorStyle(field) {
 const route      = useRoute();
 const toast      = inject('toast');
 const auth       = useAuthStore();
+const router     = useRouter();
+// GCU Head manages every account; TMDU Head adds TMDU Staff; the Dean adds
+// faculty and chairs for their own college (the server enforces the same).
+const canManage   = computed(() => addableRoles(auth.user?.role).length > 0);
+const isDeanActor = computed(() => ['dean', 'dean_secretary'].includes(auth.user?.role));
+const addRoleOptions = computed(() => addableRoles(auth.user?.role).map(r => ({ value: r, label: r === 'student' ? 'Student (opens Add Student)' : ROLE_LABELS[r] })));
+const filterRoleOptions = computed(() => (auth.isAdmin ? ROLE_ORDER : addableRoles(auth.user?.role)).map(r => ({ value: r, label: ROLE_LABELS[r] })));
+const pageIntro = computed(() => auth.isAdmin ? 'Manage system accounts and role-based access for all iCARE users.'
+  : isDeanActor.value ? `Manage the faculty and department chairs of ${auth.user?.college || 'your college'}.`
+  : 'Manage the TMDU Staff accounts.');
 const loading    = ref(true);
 const showModal  = ref(false);
 const showViewModal = ref(false);
@@ -920,15 +923,16 @@ function resetUserForm() {
   userForm.value = {
     first_name: '', middle_name: '', last_name: '', suffix: '', email: '', employee_id: '',
     role: isFacultyView.value ? 'faculty' : '',
-    college: '', department: '', contact_number: '',
+    college: isDeanActor.value ? (auth.user?.college || '') : '', department: '', contact_number: '',
     password: '', password_confirmation: '',
   };
+  if (addRoleOptions.value.length === 1) userForm.value.role = addRoleOptions.value[0].value;
   fieldErrors.value = {};
   generatePassword();
 }
 
 function openCreate() {
-  if (!auth.isAdmin) return;
+  if (!canManage.value) return;
   isEditing.value = false;
   formError.value = '';
   fieldErrors.value = {};
@@ -937,12 +941,21 @@ function openCreate() {
   showModal.value = true;
 }
 
+function onRolePicked() {
+  if (userForm.value.role === 'student') {
+    showModal.value = false;
+    router.push({ name: 'students', query: { add: 1 } });
+    return;
+  }
+  if (isDeanActor.value) userForm.value.college = auth.user?.college || '';
+}
+
 function handleClearForm() {
   openClearConfirm();
 }
 
 function openEdit(u) {
-  if (!auth.isAdmin) return;
+  if (!canManage.value) return;
   isEditing.value = true;
   formError.value = '';
   fieldErrors.value = {};
@@ -969,8 +982,8 @@ function validateUserForm() {
     req('email', 'Email Address');
   }
   req('contact_number', 'Contact Number');
-  req('college', 'College', ['faculty', 'dean_secretary', 'dean'].includes(userForm.value.role));
-  req('department', 'Department', ['faculty', 'dean_secretary'].includes(userForm.value.role));
+  req('college', 'College', ['faculty', 'dean_secretary', 'dean', 'dept_chair'].includes(userForm.value.role));
+  req('department', 'Department', ['faculty', 'dean_secretary', 'dept_chair'].includes(userForm.value.role));
 
   if (userForm.value.email && !isValidEmail(userForm.value.email)) errs.email = true;
   if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) errs.contact_number = true;
@@ -981,7 +994,7 @@ function validateUserForm() {
 
 function goToUserPreview() {
   formError.value = '';
-  if (!auth.isAdmin) {
+  if (!canManage.value) {
     formError.value = 'Please fill in all required fields.';
     return;
   }

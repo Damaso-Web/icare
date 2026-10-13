@@ -38,7 +38,7 @@ class DetectMissedAppointments extends Command
                 ...(!$appointment->call_slip_stage ? ['call_slip_stage' => 'pending'] : []),
             ]);
 
-            $deanSecretaries = User::where('role', 'dean_secretary')
+            $deanSecretaries = User::whereIn('role', ['dean', 'dean_secretary'])
                 ->where('college', $appointment->student->college)
                 ->where('is_active', true)
                 ->get();

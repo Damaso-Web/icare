@@ -259,7 +259,7 @@ function goToReferral(c) {
   }
 }
 
-const calendarRoute = computed(() => ({ admin: 'appointments', gcu_staff: 'appointments', tmdu_staff: 'testing-appointments' }[auth.user?.role] || null));
+const calendarRoute = computed(() => ({ admin: 'appointments', gcu_staff: 'appointments', tmdu_staff: 'testing-appointments', tmdu_head: 'testing-appointments' }[auth.user?.role] || null));
 
 const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 
@@ -268,7 +268,7 @@ const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', mon
 const ROLE_TITLES = {
   admin: 'Admin · GCU Head', gcu_staff: 'Guidance and Counseling Unit', sdu_head: 'Student Discipline Unit',
   tmdu_staff: 'Testing and Measurement Development Unit', faculty: 'Faculty', dean: 'Dean',
-  dept_chair: 'Department Chair', dean_secretary: "Dean's Secretary", system_admin: 'System Administrator',
+  dept_chair: 'Department Chair', dean_secretary: 'Dean', tmdu_head: 'TMDU Head', system_admin: 'System Administrator',
 };
 const roleTitle = computed(() => ROLE_TITLES[auth.user?.role] || 'iCARE');
 
@@ -289,10 +289,11 @@ const quickActions = computed(() => {
     case 'admin':
     case 'gcu_staff':      return [refer, { name: 'referrals', label: 'Referrals', icon: ICONS.pulse }, { name: 'appointments', label: 'GCU Appointments', icon: ICONS.calendar }];
     case 'sdu_head':       return [{ name: 'incident-reports', label: 'Student Incident Reports', icon: ICONS.file }, { name: 'complaints', label: 'Complaints', icon: ICONS.alert }, refer];
+    case 'tmdu_head':
     case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'TMDU Appointments', icon: ICONS.calendar }];
-    case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, refer];
-    case 'faculty':
     case 'dean':
+    case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'faculty-directory', label: 'Faculty', icon: ICONS.users || ICONS.file }, refer];
+    case 'faculty':
     case 'dept_chair':     return [refer, { name: 'referrals', label: 'Referral Queue', icon: ICONS.pulse }];
     default:               return [];
   }

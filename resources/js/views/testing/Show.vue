@@ -591,7 +591,7 @@ const availableTests = [
   'Sentence Completion Test',
 ];
 
-const canManage = computed(() => auth.user?.role === 'tmdu_staff');
+const canManage = computed(() => ['tmdu_staff', 'tmdu_head'].includes(auth.user?.role));
 
 // Maps the DB-level testing_records.status values onto the 5 bar stages.
 // The current flow is a straight 1:1 mapping; the old collapsed values
@@ -626,7 +626,7 @@ function isCurrentStep(key) {
 
 // Reassign as Test Administrator - adapted from the case-level Reassign
 // Counselor pattern in students/Show.vue, targeting assigned_tester_user_id.
-const TMDU_ROLES = ['admin', 'tmdu_staff'];
+const TMDU_ROLES = ['admin', 'tmdu_staff', 'tmdu_head'];
 const showAssignModal = ref(false);
 const assignForm      = ref({ to_user_id: '' });
 const assignStaffList = ref([]);

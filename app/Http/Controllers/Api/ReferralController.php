@@ -138,6 +138,8 @@ class ReferralController extends Controller
             'dept_chair' => 'faculty',
             'sdu_head'   => 'sdu',
             'tmdu_staff' => 'tmdu',
+            'tmdu_head'  => 'tmdu',
+            'dean_secretary' => 'dean',
         ][$role] ?? ($role ?: 'faculty');
     }
 
@@ -207,12 +209,13 @@ class ReferralController extends Controller
             $unitRoles[] = 'sdu_head';
         } elseif (in_array($validated['referral_type'], $tmduTypes)) {
             $unitRoles[] = 'tmdu_staff';
+            $unitRoles[] = 'tmdu_head';
         } else {
             $unitRoles[] = 'gcu_staff';
         }
 
         $recipients = User::whereIn('role', $unitRoles)->where('is_active', true)->get();
-        $collegeRep = User::where('role', 'dean_secretary')->where('college', $student->college)->where('is_active', true)->get();
+        $collegeRep = User::whereIn('role', ['dean', 'dean_secretary'])->where('college', $student->college)->where('is_active', true)->get();
         $recipients = $recipients->merge($collegeRep)->unique('id');
         Notification::send($recipients, new NewReferralNotification($referral));
 

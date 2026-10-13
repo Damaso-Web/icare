@@ -14,7 +14,7 @@ class MonitoringController extends Controller
     {
         $user = $request->user();
 
-        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])) {
+        if (!in_array($user->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head'])) {
             abort(403, 'Unauthorized.');
         }
 

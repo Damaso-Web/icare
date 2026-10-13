@@ -351,7 +351,7 @@ class CaseController extends Controller
 
         AuditLog::record('referred_tmdu', "Case {$case->case_number} referred to TMDU (referral {$referral->referral_code}).", $case);
 
-        $tmduStaff = User::where('role', 'tmdu_staff')->where('is_active', true)->get();
+        $tmduStaff = User::whereIn('role', ['tmdu_staff', 'tmdu_head'])->where('is_active', true)->get();
         Notification::send($tmduStaff, new TestingReferralNotification($case));
 
         // Let the student know they've been referred to TMDU for testing -
@@ -478,7 +478,7 @@ class CaseController extends Controller
         AuditLog::record('flagged_unreachable', "Flagged student on case {$case->case_number} as unreachable.", $case, $old, $case->toArray());
 
         if ($case->student) {
-            $deanSecretaries = User::where('role', 'dean_secretary')
+            $deanSecretaries = User::whereIn('role', ['dean', 'dean_secretary'])
                 ->where('college', $case->student->college)
                 ->where('is_active', true)
                 ->get();

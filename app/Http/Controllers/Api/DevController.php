@@ -19,6 +19,7 @@ class DevController extends Controller
         'admin'          => ['unit' => 'OSS',  'college' => null,  'department' => null],
         'gcu_staff'      => ['unit' => 'GCU',  'college' => null,  'department' => null],
         'sdu_head'       => ['unit' => 'SDU',  'college' => null,  'department' => null],
+        'tmdu_head'      => ['unit' => 'TMDU', 'college' => null,  'department' => null],
         'tmdu_staff'     => ['unit' => 'TMDU', 'college' => null,  'department' => null],
         'faculty'        => ['unit' => null,   'college' => 'CIT', 'department' => 'Information Technology'],
         'dean'           => ['unit' => null,   'college' => 'CIT', 'department' => null],

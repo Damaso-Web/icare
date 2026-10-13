@@ -142,7 +142,8 @@ class AuditLogController extends Controller
         'faculty'        => 'Faculty',
         'dean'           => 'Dean',
         'dept_chair'     => 'Department Chair',
-        'dean_secretary' => "Dean's Secretary",
+        'dean_secretary' => 'Dean',
+        'tmdu_head'      => 'TMDU Head',
         'system_admin'   => 'System Admin',
         'student'        => 'Student',
     ];

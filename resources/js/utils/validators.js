@@ -101,11 +101,12 @@ const SOURCE_BY_ROLE = {
   admin:          { value: 'admin',          label: 'GCU Office (Admin / GCU Head)' },
   gcu_staff:      { value: 'gcu_staff',      label: 'GCU Staff' },
   sdu_head:       { value: 'sdu',            label: 'Student Discipline Unit (SDU)' },
+  tmdu_head:      { value: 'tmdu',           label: 'Testing and Measurement Development Unit (TMDU)' },
   tmdu_staff:     { value: 'tmdu',           label: 'Testing and Measurement Development Unit (TMDU)' },
   faculty:        { value: 'faculty',        label: 'Faculty' },
   dept_chair:     { value: 'faculty',        label: 'Faculty' },
   dean:           { value: 'dean',           label: "Dean's Office" },
-  dean_secretary: { value: 'dean_secretary', label: "Dean's Secretary" },
+  dean_secretary: { value: 'dean',           label: "Dean's Office" },
 };
 export function referralSourceFor(role) {
   return SOURCE_BY_ROLE[role] || { value: role || 'faculty', label: toTitleCase(role) || 'Faculty' };

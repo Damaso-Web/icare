@@ -62,7 +62,7 @@ class DocumentController extends Controller
     // Confidential files (e.g. the PAR) are for GCU / TMDU only - SDU can't open them.
     private function authorizeAccess(Request $request, Document $document): void
     {
-        if ($document->is_confidential && !in_array($request->user()->role, ['admin', 'gcu_staff', 'tmdu_staff'], true)) {
+        if ($document->is_confidential && !in_array($request->user()->role, ['admin', 'gcu_staff', 'tmdu_staff', 'tmdu_head'], true)) {
             abort(403, 'You do not have access to this confidential document.');
         }
     }

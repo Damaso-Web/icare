@@ -22,25 +22,56 @@ class UserController extends Controller
      */
     protected function assignableRoles(): array
     {
-        $all = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary', 'system_admin'];
+        $actor = request()->user();
+        // TMDU Head: TMDU Staff only. Dean: the faculty and chairs of their college.
+        if ($actor?->isTMDUHead()) return ['tmdu_staff'];
+        if ($actor?->isDean())     return ['faculty', 'dept_chair'];
 
-        return request()->user()?->isSystemAdmin()
+        // dean_secretary is kept so existing accounts can still be edited;
+        // new ones are made as Dean (the two are the same role now).
+        $all = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff', 'dean', 'dept_chair', 'faculty', 'dean_secretary', 'system_admin'];
+
+        return $actor?->isSystemAdmin()
             ? $all
             : array_values(array_diff($all, ['system_admin']));
     }
+
+    // The accounts the signed-in user may see and manage in User Management.
+    private function scopeManaged($query, User $actor)
+    {
+        if ($actor->isTMDUHead()) {
+            return $query->where('role', 'tmdu_staff');
+        }
+        if ($actor->isDean()) {
+            return $query->whereIn('role', ['faculty', 'dept_chair'])->where('college', $actor->college);
+        }
+        return $query;
+    }
+
+    private function authorizeManaged(User $target): void
+    {
+        $actor = request()->user();
+        if ($actor->isAdmin() || $actor->isSystemAdmin()) {
+            return;
+        }
+        abort_unless($this->scopeManaged(User::whereKey($target->id), $actor)->exists(), 403, 'You can only manage the accounts under you.');
+    }
+
+    // The unit a staff account belongs to follows from its role.
+    private const UNIT_FOR_ROLE = ['admin' => 'OSS', 'gcu_staff' => 'GCU', 'sdu_head' => 'SDU', 'tmdu_head' => 'TMDU', 'tmdu_staff' => 'TMDU'];
 
     // Lightweight, read-only staff list for the Reassign dropdowns. Unlike
     // index() this is open to every OSS staff role (the Users route group is
     // admin-only, which is why those dropdowns used to 403 and glitch).
     public function roster(Request $request)
     {
-        abort_unless(in_array($request->user()->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'], true), 403, 'Unauthorized.');
+        abort_unless(in_array($request->user()->role, ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head'], true), 403, 'Unauthorized.');
 
         return response()->json(
             User::where('is_active', true)
                 ->when($request->role, fn($q) => $q->whereIn('role', (array) $request->role))
                 ->when($request->unit, fn($q) => $q->where('unit', $request->unit))
-                ->whereIn('role', ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'])
+                ->whereIn('role', ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head'])
                 ->orderBy('name')
                 ->get(['id', 'name', 'role', 'unit'])
         );
@@ -48,7 +79,7 @@ class UserController extends Controller
 
     public function index(Request $request)
     {
-        $query = User::query()
+        $query = $this->scopeManaged(User::query(), $request->user())
             ->when($request->search, fn($q) => $q->where(fn($sq) =>
                 $sq->where('name', 'like', "%{$request->search}%")
                    ->orWhere('email', 'like', "%{$request->search}%")
@@ -85,6 +116,14 @@ class UserController extends Controller
             'password'              => ['required', 'confirmed', 'min:8', 'max:64', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
         ]);
 
+        if ($request->user()->isDean()) {
+            $validated['college'] = $request->user()->college;
+        }
+        if (in_array($validated['role'], ['faculty', 'dept_chair'], true)) {
+            abort_if(empty($validated['college']) || empty($validated['department']), 422, 'Choose the college and department.');
+        }
+        $validated['unit'] = self::UNIT_FOR_ROLE[$validated['role']] ?? null;
+
         // A Dean manages the faculty of one college, so the college is required.
         if ($validated['role'] === 'dean') {
             abort_if(empty($validated['college']), 422, 'Choose the college this Dean manages.');
@@ -107,11 +146,13 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        $this->authorizeManaged($user);
         return response()->json($user);
     }
 
         public function update(Request $request, User $user)
 {
+    $this->authorizeManaged($user);
     $validated = $request->validate([
         'first_name'     => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
@@ -124,6 +165,14 @@ class UserController extends Controller
         'department'     => 'nullable|string|max:255',
         'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
     ]);
+
+    // A Dean's accounts stay in the Dean's college.
+    if ($request->user()->isDean()) {
+        unset($validated['college']);
+    }
+    if (isset($validated['role']) && isset(self::UNIT_FOR_ROLE[$validated['role']])) {
+        $validated['unit'] = self::UNIT_FOR_ROLE[$validated['role']];
+    }
 
     // Prevent a user from changing their own role (self-escalation guard).
     if (isset($validated['role']) && $request->user()->id === $user->id) {
@@ -144,6 +193,7 @@ class UserController extends Controller
 
     public function destroy(User $user)
     {
+        $this->authorizeManaged($user);
         $user->delete();
         AuditLog::record('deleted', "Deleted employee account for {$user->name}.");
         return response()->json(['message' => 'User deleted.']);
@@ -151,6 +201,7 @@ class UserController extends Controller
 
     public function toggleActive(User $user)
     {
+        $this->authorizeManaged($user);
         $user->update(['is_active' => !$user->is_active]);
         AuditLog::record('toggled', "User {$user->name} " . ($user->is_active ? 'activated' : 'deactivated') . ".", $user);
         return response()->json($user);
@@ -158,6 +209,7 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user)
 {
+    $this->authorizeManaged($user);
     $newPassword = Str::random(10);
     $user->update([
         'password'              => Hash::make($newPassword),
@@ -175,6 +227,7 @@ class UserController extends Controller
     // Admin-only: view current temp password if the user hasn't changed it yet
     public function viewTempPassword(User $user)
     {
+        $this->authorizeManaged($user);
         if (!$user->must_change_password || !$user->temp_password) {
             return response()->json(['message' => 'This user has already set their own password.'], 404);
         }

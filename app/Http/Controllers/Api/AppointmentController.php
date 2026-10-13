@@ -36,7 +36,7 @@ class AppointmentController extends Controller
     private function authorizeUnit(Appointment $appointment): void
     {
         $role = request()->user()?->role;
-        if ($role === 'tmdu_staff' && $appointment->unit !== 'TMDU') {
+        if (in_array($role, ['tmdu_staff', 'tmdu_head'], true) && $appointment->unit !== 'TMDU') {
             abort(403, 'This appointment belongs to another unit.');
         }
         if (in_array($role, ['admin', 'gcu_staff'], true) && $appointment->unit === 'TMDU') {
@@ -468,7 +468,7 @@ class AppointmentController extends Controller
 
     private function notifyDeanSecretaries(Appointment $appointment, $notification): void
     {
-        $deanSecretaries = User::where('role', 'dean_secretary')
+        $deanSecretaries = User::whereIn('role', ['dean', 'dean_secretary'])
             ->where('college', $appointment->student->college)
             ->where('is_active', true)
             ->get();
@@ -756,7 +756,7 @@ public function checkConflictByStudent(Request $request)
 
         $appointment->update($attrs);
 
-        $who = $request->user()->role === 'tmdu_staff' ? 'TMDU' : 'GCU Head';
+        $who = $request->user()->isTMDUStaff() ? 'TMDU Head' : 'GCU Head';
         AuditLog::record('status_overridden', "{$who} changed appointment {$appointment->appointment_code} from {$from} to {$status}/{$requestStatus}. Reason: {$data['reason']}", $appointment);
 
         return response()->json([

@@ -381,7 +381,7 @@ const OVERRIDE_OPTIONS = [
   { value: 'no_show',   label: 'No Show' },
   { value: 'cancelled', label: 'Cancelled' },
 ];
-const canOverride  = computed(() => auth.user?.role === 'tmdu_staff');
+const canOverride  = computed(() => auth.user?.role === 'tmdu_head');
 const overrideOpen = ref(false);
 const overrideBusy = ref(false);
 const overrideForm = ref({ target: '', reason: '' });
