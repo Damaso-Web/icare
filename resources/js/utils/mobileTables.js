@@ -15,7 +15,10 @@ function labelTable(table) {
   for (const body of table.tBodies) {
     for (const row of body.rows) {
       [...row.cells].forEach((cell, i) => {
-        const label = cell.colSpan > 1 ? '' : (labels[i] || '');
+        // A row that is not like the others (e.g. the referrals listed under
+        // a student on Case Referral) names its own cells with data-cell-label.
+        const own = cell.getAttribute('data-cell-label');
+        const label = own !== null ? own : (cell.colSpan > 1 ? '' : (labels[i] || ''));
         if (cell.dataset.label !== label) cell.dataset.label = label;
       });
     }

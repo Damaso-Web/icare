@@ -46,11 +46,12 @@
                 <td style="font-size:12px">{{ formatDate(g.items[0].created_at) }}</td>
               </tr>
               <tr v-for="r in (isOpen(g.key) ? g.items : [])" :key="r.id" style="cursor:pointer;background:var(--snow)" @click="selected = r">
-                <td></td>
-                <td style="font-family:var(--mono);font-size:11.5px;color:var(--stone)">{{ r.referral_code }}</td>
-                <td style="font-size:12px"><span class="ibadge" :class="badge(r).cls">{{ badge(r).label }}</span></td>
-                <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
-                <td><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
+                <!-- On phones these rows are labelled as a referral, not as the student row above. -->
+                <td data-cell-label=""></td>
+                <td data-cell-label="Referral ID" style="font-family:var(--mono);font-size:11.5px;color:var(--stone)">{{ r.referral_code }}</td>
+                <td data-cell-label="Status" style="font-size:12px"><span class="ibadge" :class="badge(r).cls">{{ badge(r).label }}</span></td>
+                <td data-cell-label="Date Referred" style="font-size:12px">{{ formatDate(r.created_at) }}</td>
+                <td data-cell-label=""><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
               </tr>
             </template>
           </tbody>
