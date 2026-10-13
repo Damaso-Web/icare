@@ -17,7 +17,17 @@
       "Bash(php -l app/Http/Controllers/Api/UserController.php)",
       "Bash(php -l app/Models/CaseFile.php)",
       "Bash(php -l app/Models/Student.php)",
-      "Bash(php -l app/Http/Controllers/Api/ReferralController.php)"
+      "Bash(php -l app/Http/Controllers/Api/ReferralController.php)",
+      "Bash(node *)",
+      "Bash(C:/xampp/php/php.exe *)",
+      "Bash(cd *)",
+      "Bash(grep *)",
+      "Bash(sed *)",
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git fetch *)",
+      "Bash(git show *)"
     ]
   }
 }
