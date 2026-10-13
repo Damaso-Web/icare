@@ -304,16 +304,19 @@
 
           <div v-if="['faculty','dean_secretary','dean','dept_chair'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
+            <!-- A Dean adds accounts to their own college only: shown, not chosen. -->
+            <input v-if="isDeanActor" class="ifi" :value="auth.user?.college" disabled />
             <select
+              v-else
               v-model="userForm.college"
               class="ifse"
-              :disabled="isDeanActor"
               :style="errorStyle('college')"
               @change="userForm.department = ''; clearFieldError('college')"
             >
               <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
             </select>
+            <div v-if="isDeanActor && colleges.length && !deanCollege" style="font-size:11.5px;color:var(--amber);background:var(--amber-lt);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px">Your account's college "{{ auth.user?.college }}" is not in the official college list, so its departments can't be shown. Ask the GCU Head to set your college in User Management.</div>
           </div>
 
           <div v-if="['faculty','dean_secretary','dept_chair'].includes(userForm.role)">
@@ -616,6 +619,7 @@ import axios from 'axios';
 import { userAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { ROLE_ORDER, ROLE_LABELS, addableRoles } from '../../utils/roles';
+import { matchCollege } from '../../utils/colleges';
 import { useRouter } from 'vue-router';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress , titleCaseName } from '../../utils/validators';
 
@@ -775,7 +779,10 @@ const userForm = ref({
 });
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
-const availableDepartments = computed(() => departmentsByCollege.value[userForm.value.college] || []);
+// The Dean's college as it appears in the official list (older accounts were
+// saved with other spellings).
+const deanCollege = computed(() => isDeanActor.value ? matchCollege(auth.user?.college, colleges.value) : '');
+const availableDepartments = computed(() => departmentsByCollege.value[isDeanActor.value ? deanCollege.value : userForm.value.college] || []);
 
 const userErrors = computed(() => {
   const f = userForm.value;

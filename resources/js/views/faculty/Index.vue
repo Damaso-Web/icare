@@ -206,6 +206,7 @@
             </div>
           </div>
           <div v-if="!needsCollegePick || editing" style="font-size:12px;color:var(--stone);margin-top:10px">College: <strong>{{ editing?.college || auth.user?.college || 'n/a' }}</strong></div>
+          <div v-if="collegeUnmatched && !editing" style="font-size:11.5px;color:var(--amber);background:var(--amber-lt);border-radius:var(--r-sm);padding:8px 10px;margin-top:6px">Your account's college "{{ auth.user?.college }}" is not in the official college list, so its departments can't be shown. Ask the GCU Head to set your college in User Management.</div>
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
         </div>
         <div class="ffoot">
@@ -331,6 +332,7 @@ import axios from 'axios';
 import { facultyAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { safeSearchInput, blockSpecialKeypress, onlyLetters, isValidPHContact } from '../../utils/validators';
+import { matchCollege } from '../../utils/colleges';
 
 const auth  = useAuthStore();
 const toast = inject('toast', null);
@@ -360,6 +362,8 @@ const viewTarget = ref(null);
 const page = ref(1);
 const lastPage = ref(1);
 const departments = ref([]);
+// A Dean/Chair whose saved college isn't in the official list (older spelling).
+const collegeUnmatched = ref(false);
 const colleges = ref([]);
 const allDepartments = ref([]);
 let timer = null;
@@ -399,13 +403,15 @@ async function fetchDepartments() {
     ]);
     colleges.value = cRes.data;
     allDepartments.value = dRes.data;
-    const mine = cRes.data.find(c => c.name === auth.user?.college);
+    const officialName = matchCollege(auth.user?.college, cRes.data.map(c => c.name));
+    const mine = cRes.data.find(c => c.name === officialName);
+    collegeUnmatched.value = !needsCollegePick.value && !mine;
     // Dean/Chair see their own college's departments; admin-side roles have no
     // college of their own, so they get every department (and pick a college
     // first when adding).
     departments.value = mine
       ? dRes.data.filter(d => d.college_id === mine.id).map(d => d.name)
-      : [...new Set(dRes.data.map(d => d.name))];
+      : (needsCollegePick.value ? [...new Set(dRes.data.map(d => d.name))] : []);
   } catch (e) { /* the list just stays empty */ }
 }
 
