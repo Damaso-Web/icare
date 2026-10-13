@@ -172,9 +172,9 @@
           <div class="grid2">
             <!-- Same labels, order and examples as User Management's Add Employee. -->
             <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" placeholder="e.g. 12345" /></div>
-            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" /></div>
-            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" /></div>
-            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" /></div>
+            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" maxlength="50" @input="form.last_name = onlyLetters(form.last_name)" /></div>
+            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" maxlength="50" @input="form.first_name = onlyLetters(form.first_name)" /></div>
+            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = onlyLetters(form.middle_name)" /></div>
             <div><label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse">
                 <option value="">None</option>
@@ -197,7 +197,13 @@
                 <option v-for="d in formDepartments" :key="d" :value="d">{{ d }}</option>
               </select>
             </div>
-            <div><label class="ifl">Contact Number</label><input v-model="form.contact_number" class="ifi" maxlength="11" placeholder="09171234567" /></div>
+            <div>
+              <label class="ifl">Contact Number</label>
+              <input v-model="form.contact_number" class="ifi" maxlength="11" inputmode="numeric" placeholder="09171234567"
+                :style="contactProblem ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="form.contact_number = String(form.contact_number ?? '').replace(/[^0-9]/g, '').slice(0, 11)" />
+              <div v-if="contactProblem" style="font-size:11px;color:var(--red);margin-top:4px">Must start with 09 and be 11 digits long.</div>
+            </div>
           </div>
           <div v-if="!needsCollegePick || editing" style="font-size:12px;color:var(--stone);margin-top:10px">College: <strong>{{ editing?.college || auth.user?.college || 'n/a' }}</strong></div>
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
@@ -324,7 +330,7 @@ import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { facultyAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { safeSearchInput, blockSpecialKeypress, onlyLetters, isValidPHContact } from '../../utils/validators';
 
 const auth  = useAuthStore();
 const toast = inject('toast', null);
@@ -430,10 +436,14 @@ function openForm(u) {
   formOpen.value = true;
 }
 
+// Contact number is optional, but when given it must be 09 + 9 digits.
+const contactProblem = computed(() => !!form.value?.contact_number && !isValidPHContact(form.value.contact_number));
+
 async function saveForm() {
   if (saving.value) return;
   formError.value = '';
   const f = form.value;
+  if (contactProblem.value) { formError.value = 'Contact number must start with 09 and be 11 digits long.'; return; }
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
   if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }

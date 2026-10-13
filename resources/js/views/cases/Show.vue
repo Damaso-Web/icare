@@ -711,17 +711,22 @@
                   <!-- Siblings Information -->
                   <template v-else-if="group.key === 'siblings'">
                     <div v-if="!profileSiblings.length" style="font-size:12.5px;color:var(--fog)">No siblings information provided.</div>
-                    <div class="ts" v-else>
-                      <table class="itable">
-                        <thead><tr><th>Name</th><th>Age</th><th>Occupation / School</th></tr></thead>
-                        <tbody>
-                          <tr v-for="(s, i) in profileSiblings" :key="i">
-                            <td style="font-size:12px">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</td>
-                            <td style="font-size:12px">{{ s.age || '-' }}</td>
-                            <td style="font-size:12px">{{ s.occupation || '-' }}</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                    <!-- Same label-over-value layout as Family Information above. -->
+                    <div v-else style="display:flex;flex-direction:column;gap:14px">
+                      <div v-for="(s, i) in profileSiblings" :key="i" style="display:flex;flex-direction:column;gap:10px" :style="i ? 'border-top:1px solid var(--cloud);padding-top:12px' : ''">
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">{{ profileSiblings.length > 1 ? `Sibling ${i + 1}'s Name` : "Sibling's Name" }}</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ fullName(s.last_name, s.first_name, s.middle_name) }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Age</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ s.age || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Occupation / School</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ s.occupation || '-' }}</div>
+                        </div>
+                      </div>
                     </div>
                   </template>
 

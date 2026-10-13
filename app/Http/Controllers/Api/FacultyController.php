@@ -20,7 +20,8 @@ use Illuminate\Support\Str;
 class FacultyController extends UserController
 {
     private const NAME_REGEX  = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
-    private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
+    // A Philippine mobile number: 09 followed by 9 digits.
+    private const PHONE_REGEX = '/^09\d{9}$/';
     private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
 
     // Roles that live on the Faculty page.
