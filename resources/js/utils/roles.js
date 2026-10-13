@@ -32,9 +32,9 @@ export const roleLabelOf = role => ROLE_LABELS[role] || role || '';
 // The order the leader set for every role list.
 export const ROLE_ORDER = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff', 'dean', 'dept_chair', 'faculty'];
 
-// What each role may add in User Management ('student' opens Students > Add Student).
+// What each role may add in User Management. Students are added from the Students page.
 export function addableRoles(role) {
-  if (role === 'admin') return [...ROLE_ORDER, 'student'];
+  if (role === 'admin') return [...ROLE_ORDER];
   if (role === 'tmdu_head') return ['tmdu_staff'];
   if (role === 'dean' || role === 'dean_secretary') return ['dept_chair', 'faculty'];
   return [];

@@ -170,33 +170,34 @@
         <div class="fhead"><span>{{ editing ? 'Edit Faculty' : 'Add Faculty' }}</span><button class="ibtn ibtn-g ibtn-sm" @click="formOpen = false">✕</button></div>
         <div class="fbody">
           <div class="grid2">
-            <div><label class="ifl">First Name *</label><input v-model="form.first_name" class="ifi" /></div>
-            <div><label class="ifl">Last Name *</label><input v-model="form.last_name" class="ifi" /></div>
-            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" /></div>
+            <!-- Same labels, order and examples as User Management's Add Employee. -->
+            <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" placeholder="e.g. 12345" /></div>
+            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" /></div>
+            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" /></div>
+            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" /></div>
             <div><label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse">
                 <option value="">None</option>
                 <option v-if="form.suffix && !SUFFIX_OPTIONS.includes(form.suffix)" :value="form.suffix">{{ form.suffix }}</option>
                 <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
               </select></div>
-            <div><label class="ifl">Email *</label><input v-model="form.email" type="email" class="ifi" /></div>
-            <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" /></div>
-            <div><label class="ifl">Contact Number</label><input v-model="form.contact_number" class="ifi" maxlength="11" /></div>
+            <div><label class="ifl">Email Address <span style="color:var(--red)">*</span></label><input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" /></div>
             <div v-if="needsCollegePick && !editing">
-              <label class="ifl">College *</label>
+              <label class="ifl">College <span style="color:var(--red)">*</span></label>
               <select v-model="form.college" class="ifse" @change="form.department = ''">
                 <option value="">Select college</option>
                 <option v-for="c in colleges" :key="c.id" :value="c.name">{{ c.name }}</option>
               </select>
             </div>
             <div>
-              <label class="ifl">Department *</label>
+              <label class="ifl">Department <span style="color:var(--red)">*</span></label>
               <input v-if="isChair" :value="auth.user?.department" class="ifi" disabled />
               <select v-else v-model="form.department" class="ifse" :disabled="needsCollegePick && !editing && !form.college">
                 <option value="">{{ needsCollegePick && !editing && !form.college ? 'Select a college first' : 'Select department' }}</option>
                 <option v-for="d in formDepartments" :key="d" :value="d">{{ d }}</option>
               </select>
             </div>
+            <div><label class="ifl">Contact Number</label><input v-model="form.contact_number" class="ifi" maxlength="11" placeholder="09171234567" /></div>
           </div>
           <div v-if="!needsCollegePick || editing" style="font-size:12px;color:var(--stone);margin-top:10px">College: <strong>{{ editing?.college || auth.user?.college || 'n/a' }}</strong></div>
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
