@@ -395,7 +395,7 @@
                 <div><strong>Revision No.:</strong> {{ admissionDoc.revision_no || '01' }}</div>
               </div>
               <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(admissionDoc.effectivity_date) || '07/04/23' }}</div>
+                <div><strong>Effectivity:</strong> {{ admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '07/04/23' }}</div>
                 <div><strong>Ctrl No.:</strong> {{ admissionDoc.ctrl_no || '26-1' }}</div>
               </div>
             </div>
@@ -417,56 +417,46 @@
                 </div>
               </template>
               <template v-else-if="isGCU">
-                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px">
-                  <div>
-                    <label class="ifl">Class Date</label>
-                    <input type="date" v-model="admissionForm.admission_date" class="ifse" />
-                  </div>
-                  <div>
-                    <label class="ifl">Class Time Duration (From)</label>
-                    <input type="time" v-model="admissionForm.admission_time_in" class="ifse" />
-                  </div>
-                  <div>
-                    <label class="ifl">Class Time Duration (To)</label>
-                    <input type="time" v-model="admissionForm.admission_time_out" class="ifse" />
-                  </div>
-                </div>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
-                    <input
-                      type="checkbox"
-                      :checked="admissionForm.admission_excused === '1'"
-                      @change="admissionForm.admission_excused = admissionForm.admission_excused === '1' ? '' : '1'"
-                      style="width:15px;height:15px;accent-color:var(--moss)"
-                    />
-                    Excused
-                  </label>
-                  <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--slate)">
-                    <input
-                      type="checkbox"
-                      :checked="admissionForm.admission_excused === '0'"
-                      @change="admissionForm.admission_excused = admissionForm.admission_excused === '0' ? '' : '0'"
-                      style="width:15px;height:15px;accent-color:var(--red)"
-                    />
-                    Unexcused
-                  </label>
-                </div>
-                <label class="ifl">Remarks</label>
-                <textarea v-model="admissionForm.admission_remarks" class="ifta" placeholder="Remarks for the admission slip..." maxlength="1000"></textarea>
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="saveAdmissionSlip">Save Admission Slip</button>
-              </template>
-              <template v-else>
-                <div v-if="!referral.admission_issued_at" style="font-size:13px;color:var(--stone)">No admission slip has been issued yet.</div>
+                <button class="ibtn ibtn-p ibtn-sm" style="margin-bottom:12px" @click="openAdmissionSlip">
+                  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  {{ referral.admission_issued_at ? 'Update Admission Slip' : 'Issue Admission Slip' }}
+                </button>
               </template>
 
-              <div v-if="referral.admission_issued_at" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--cloud)">
-                <div style="font-size:11px;color:var(--fog)">
-                  Class date: {{ formatDate(referral.admission_date) }}
-                  <span v-if="referral.admission_time_in"> · Class Time Duration: {{ formatTime12(referral.admission_time_in) }}<span v-if="referral.admission_time_out"> - {{ formatTime12(referral.admission_time_out) }}</span></span>
-                  <span v-if="referral.admission_excused !== null"> · {{ referral.admission_excused ? 'Excused' : 'Unexcused' }}</span>
+              <AdmissionSlipPaper
+                v-if="referral.admission_issued_at"
+                readonly
+                :model-value="issuedAdmissionSlip"
+                :student="referral.student"
+                :personnel="referral.admission_issued_by?.name || ''"
+                :issued-at="referral.admission_issued_at"
+                :show-doc="false"
+                :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
+              />
+              <div v-else style="font-size:13px;color:var(--stone)">No admission slip has been issued yet.</div>
+            </div>
+          </div>
+
+          <!-- Issue / Update Admission Slip (paper format) -->
+          <div v-if="showAdmissionModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto" @click.self="closeAdmissionSlip">
+            <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:640px;overflow:hidden;box-shadow:var(--sh-lg);margin:auto 0">
+              <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+                <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ referral.admission_issued_at ? 'Update Admission Slip' : 'Issue Admission Slip' }}</div>
+                <button class="ibtn ibtn-g ibtn-sm" @click="closeAdmissionSlip">✕</button>
+              </div>
+              <div style="padding:18px 22px;display:flex;flex-direction:column;gap:12px">
+                <AdmissionSlipPaper
+                  v-model="admissionForm"
+                  :student="referral.student"
+                  :personnel="auth.user?.name || ''"
+                  :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
+                />
+                <div style="font-size:11.5px;color:var(--stone)">Once saved as <strong>Unexcused</strong>, the slip can no longer be changed.</div>
+                <div v-if="admissionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ admissionError }}</div>
+                <div style="display:flex;gap:8px">
+                  <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingAdmission" @click="saveAdmissionSlip">{{ savingAdmission ? 'Saving...' : 'Save Admission Slip' }}</button>
+                  <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="savingAdmission" @click="closeAdmissionSlip">Cancel</button>
                 </div>
-                <div v-if="referral.admission_remarks" style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-top:6px">{{ referral.admission_remarks }}</div>
-                <div style="font-size:11px;color:var(--fog);margin-top:6px">Issued by {{ referral.admission_issued_by?.name || '-' }} &middot; {{ formatDate(referral.admission_issued_at) }}</div>
               </div>
             </div>
           </div>
@@ -1007,6 +997,16 @@
                 <div v-else style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone);text-align:center">
                   ⚠ Acknowledge referral first
                 </div>
+                <!-- Class Admission Slip referrals: issue the slip right from here. -->
+                <button
+                  v-if="isClassAttendance && canEditSif && !admission_excused_locked"
+                  class="ibtn ibtn-o"
+                  style="width:100%;justify-content:center"
+                  @click="openAdmissionSlip"
+                >
+                  <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  {{ referral.admission_issued_at ? 'Update Admission Slip' : 'Issue Admission Slip' }}
+                </button>
                 <template v-if="fromCases">
                   <!-- "Refer to TMDU" creates a separate, sibling Referral
                        (referral_type psychological_testing) on this same case
@@ -1851,6 +1851,8 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
+import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
+import { useDiscardGuard } from '../../utils/discardGuard';
 import { useAuthStore } from '../../stores/auth';
 import { toTitleCase, plainText, referralSourceFor, formatTime12 } from '../../utils/validators';
 
@@ -2387,29 +2389,87 @@ async function addIntervention() {
 // rather than a plain boolean so "neither checked yet" is representable and
 // distinct from "explicitly Unexcused" - the backend only locks once it
 // actually receives false, not on an empty/undecided value.
-const admissionForm = ref({
-  admission_date: '',
-  admission_time_in: '',
-  admission_time_out: '',
-  admission_excused: '',
-  admission_remarks: '',
-});
+// The slip as the paper form has it (see components/AdmissionSlipPaper.vue).
+function slipFromReferral(r) {
+  const d = r.admission_details || {};
+  return {
+    admission_date:     r.admission_date ? String(r.admission_date).slice(0, 10) : '',
+    admission_time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
+    admission_time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
+    remarks:            r.admission_remarks || '',
+    days_count:         d.days_count || '',
+    causes:             Array.isArray(d.causes) ? [...d.causes] : [],
+    cause_activity:     d.cause_activity || '',
+    cause_others:       d.cause_others || '',
+    actions:            Array.isArray(d.actions) ? [...d.actions] : [],
+    action_others:      d.action_others || '',
+  };
+}
+const issuedAdmissionSlip = computed(() => slipFromReferral(referral.value));
+const admissionForm      = ref(slipFromReferral({}));
+const showAdmissionModal = ref(false);
+const savingAdmission    = ref(false);
+const admissionError     = ref('');
+
+function openAdmissionSlip() {
+  admissionForm.value = slipFromReferral(referral.value);
+  admissionError.value = '';
+  showAdmissionModal.value = true;
+}
+const closeAdmissionSlip = useDiscardGuard(showAdmissionModal, admissionForm, () => { showAdmissionModal.value = false; });
 
 async function saveAdmissionSlip() {
+  const f = admissionForm.value;
+  const problem =
+    !f.admission_date ? 'Enter the date absent or tardy.'
+    : (f.admission_time_in && f.admission_time_out && f.admission_time_out <= f.admission_time_in) ? 'The end time must be after the start time.'
+    : !f.causes.length ? 'Tick at least one cause of absence.'
+    : (f.causes.includes('official_activity') && !f.cause_activity.trim()) ? 'Name the official co/extra-curricular activity.'
+    : (f.causes.includes('others') && !f.cause_others.trim()) ? 'Write the other cause of absence.'
+    : !f.actions.length ? 'Tick at least one action taken.'
+    : (f.actions.includes('others') && !f.action_others.trim()) ? 'Write the other action taken.'
+    : f.excused === '' ? 'Mark the slip as Excused or Unexcused.'
+    : '';
+  if (problem) { admissionError.value = problem; return; }
+  admissionError.value = '';
+
+  const unexcused = f.excused === '0';
+  const sure = await confirmAction?.({
+    title: unexcused ? 'Save as Unexcused?' : 'Save Admission Slip?',
+    message: unexcused
+      ? 'The slip will be saved as Unexcused. After this it can no longer be changed.'
+      : 'The admission slip will be saved as Excused for this referral.',
+    confirmText: 'Yes, Save',
+    danger: unexcused,
+  });
+  if (confirmAction && !sure) return;
+
+  savingAdmission.value = true;
   try {
     const res = await referralAPI.saveAdmissionSlip(referral.value.id, {
-      admission_date: admissionForm.value.admission_date || null,
-      admission_time_in: admissionForm.value.admission_time_in || null,
-      admission_time_out: admissionForm.value.admission_time_out || null,
-      admission_excused: admissionForm.value.admission_excused === ''
-        ? null
-        : admissionForm.value.admission_excused === '1',
-      admission_remarks: admissionForm.value.admission_remarks,
+      admission_date:     f.admission_date,
+      admission_time_in:  f.admission_time_in || null,
+      admission_time_out: f.admission_time_out || null,
+      admission_excused:  f.excused === '1',
+      admission_remarks:  f.remarks.trim() || null,
+      admission_details: {
+        days_count:     f.days_count.trim() || null,
+        causes:         f.causes,
+        cause_activity: f.causes.includes('official_activity') ? f.cause_activity.trim() : null,
+        cause_others:   f.causes.includes('others') ? f.cause_others.trim() : null,
+        actions:        f.actions,
+        action_others:  f.actions.includes('others') ? f.action_others.trim() : null,
+      },
     });
-    referral.value = res.data;
+    referral.value = { ...referral.value, ...res.data };
+    showAdmissionModal.value = false;
     toast?.success('Admission slip saved.');
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to save admission slip.');
+    const errs = e.response?.data?.errors;
+    admissionError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to save admission slip.';
+  } finally {
+    savingAdmission.value = false;
   }
 }
 

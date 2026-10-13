@@ -49,6 +49,7 @@ class Referral extends Model
         'admission_time_out',
         'admission_excused',
         'admission_remarks',
+        'admission_details',
         'admission_issued_at',
         'admission_issued_by_user_id',
     ];
@@ -64,6 +65,7 @@ class Referral extends Model
         'feedback_checklist' => 'array',
         'admission_date'    => 'date',
         'admission_excused' => 'boolean',
+        'admission_details' => 'array',
         'admission_issued_at' => 'datetime',
     ];
 

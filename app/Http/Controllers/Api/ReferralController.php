@@ -705,13 +705,40 @@ class ReferralController extends Controller
             abort(422, 'This referral has been marked Unexcused. No further changes can be made to the admission slip.');
         }
 
+        // Same items as the paper slip (QF-OSS-GCU-09).
+        $causes  = ['health', 'personal', 'filial', 'socio_cultural', 'environmental', 'behavioral', 'official_activity', 'others'];
+        $actions = ['verified_documents', 'interviewed', 'life_coaching', 'parent_conference', 'counseling', 'others'];
         $validated = $request->validate([
             'admission_date'     => 'required|date',
             'admission_time_in'  => 'nullable|date_format:H:i',
-            'admission_time_out' => 'nullable|date_format:H:i',
-            'admission_excused'  => 'nullable|boolean',
+            'admission_time_out' => 'nullable|date_format:H:i|after:admission_time_in',
+            'admission_excused'  => 'required|boolean',
             'admission_remarks'  => 'nullable|string|max:1000',
+            'admission_details'                => 'required|array',
+            'admission_details.days_count'     => 'nullable|string|max:50',
+            'admission_details.causes'         => 'required|array|min:1',
+            'admission_details.causes.*'       => 'in:' . implode(',', $causes),
+            'admission_details.cause_activity' => 'nullable|string|max:255',
+            'admission_details.cause_others'   => 'nullable|string|max:255',
+            'admission_details.actions'        => 'required|array|min:1',
+            'admission_details.actions.*'      => 'in:' . implode(',', $actions),
+            'admission_details.action_others'  => 'nullable|string|max:255',
+        ], [
+            'admission_excused.required'         => 'Mark the slip as Excused or Unexcused.',
+            'admission_details.causes.required'  => 'Tick at least one cause of absence.',
+            'admission_details.actions.required' => 'Tick at least one action taken.',
+            'admission_time_out.after'           => 'The end time must be after the start time.',
         ]);
+        $d = $validated['admission_details'];
+        if (in_array('official_activity', $d['causes'], true) && !trim((string) ($d['cause_activity'] ?? ''))) {
+            abort(422, 'Name the official co/extra-curricular activity.');
+        }
+        if (in_array('others', $d['causes'], true) && !trim((string) ($d['cause_others'] ?? ''))) {
+            abort(422, 'Write the other cause of absence.');
+        }
+        if (in_array('others', $d['actions'], true) && !trim((string) ($d['action_others'] ?? ''))) {
+            abort(422, 'Write the other action taken.');
+        }
 
         $referral->update([
             ...$validated,
