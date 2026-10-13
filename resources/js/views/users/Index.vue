@@ -1131,18 +1131,10 @@ function resetFilters() {
   fetchUsers();
 }
 
+// Same names everywhere (utils/roles.js): TMDU Head included, and the older
+// Dean's Secretary accounts shown as Dean.
 function roleLabel(role) {
-  const labels = {
-    admin:          'Admin / GCU Head',
-    gcu_staff:      'GCU Staff',
-    sdu_head:       'SDU Head',
-    tmdu_staff:     'TMDU Staff',
-    faculty:        'Faculty',
-    dean:           'Dean',
-    dept_chair:     'Department Chair',
-    dean_secretary: "Dean's Secretary",
-  };
-  return labels[role] || role;
+  return ROLE_LABELS[role] || role;
 }
 
 function roleStyle(role) {
@@ -1150,11 +1142,12 @@ function roleStyle(role) {
     admin:          'background:#1a1a2e;color:#fff',
     gcu_staff:      'background:var(--mist);color:var(--moss)',
     sdu_head:       'background:var(--amber-lt);color:var(--amber)',
+    tmdu_head:      'background:var(--purple);color:#fff',
     tmdu_staff:     'background:var(--purple-lt);color:var(--purple)',
     faculty:        'background:var(--blue-lt);color:var(--blue)',
     dean:           'background:var(--forest);color:#fff',
     dept_chair:     'background:var(--amber-lt);color:var(--amber)',
-    dean_secretary: 'background:var(--cloud);color:var(--stone)',
+    dean_secretary: 'background:var(--forest);color:#fff',
   };
   return styles[role] || '';
 }
