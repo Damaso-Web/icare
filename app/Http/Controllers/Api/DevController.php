@@ -27,12 +27,10 @@ class DevController extends Controller
         'system_admin'   => ['unit' => null,   'college' => null,  'department' => null],
     ];
 
+    // Role switching is always available to the designated tester account, and
+    // to no one else. DEV_TOOLS_ENABLED no longer has to be set on the server.
     private function authorizeTester(Request $request): void
     {
-        if (!config('security.dev_tools')) {
-            abort(404);
-        }
-
         $email = strtolower($request->user()->email ?? '');
         if ($email !== self::TESTER_EMAIL) {
             abort(403, 'This feature is only available on the designated tester account.');
