@@ -33,6 +33,7 @@
         <option value="sdu_head">SDU Head</option>
         <option value="tmdu_staff">TMDU Staff</option>
         <option value="faculty">Faculty</option>
+        <option value="dean">Dean</option>
         <option value="dean_secretary">Dean's Secretary</option>
       </select>
       <select v-model="filters.college" class="fsm" @change="fetchUsers">
@@ -306,11 +307,12 @@
               <option value="sdu_head">SDU Head</option>
               <option value="tmdu_staff">TMDU Staff</option>
               <option value="faculty">Faculty</option>
+              <option value="dean">Dean (manages the faculty of a college)</option>
               <option value="dean_secretary">Dean's Secretary</option>
             </select>
           </div>
 
-          <div v-if="['faculty','dean_secretary'].includes(userForm.role)">
+          <div v-if="['faculty','dean_secretary','dean'].includes(userForm.role)">
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
             <select
               v-model="userForm.college"
@@ -967,7 +969,7 @@ function validateUserForm() {
     req('email', 'Email Address');
   }
   req('contact_number', 'Contact Number');
-  req('college', 'College', ['faculty', 'dean_secretary'].includes(userForm.value.role));
+  req('college', 'College', ['faculty', 'dean_secretary', 'dean'].includes(userForm.value.role));
   req('department', 'Department', ['faculty', 'dean_secretary'].includes(userForm.value.role));
 
   if (userForm.value.email && !isValidEmail(userForm.value.email)) errs.email = true;
@@ -1123,6 +1125,8 @@ function roleLabel(role) {
     sdu_head:       'SDU Head',
     tmdu_staff:     'TMDU Staff',
     faculty:        'Faculty',
+    dean:           'Dean',
+    dept_chair:     'Department Chair',
     dean_secretary: "Dean's Secretary",
   };
   return labels[role] || role;
@@ -1135,6 +1139,8 @@ function roleStyle(role) {
     sdu_head:       'background:var(--amber-lt);color:var(--amber)',
     tmdu_staff:     'background:var(--purple-lt);color:var(--purple)',
     faculty:        'background:var(--blue-lt);color:var(--blue)',
+    dean:           'background:var(--forest);color:#fff',
+    dept_chair:     'background:var(--amber-lt);color:var(--amber)',
     dean_secretary: 'background:var(--cloud);color:var(--stone)',
   };
   return styles[role] || '';

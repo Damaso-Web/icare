@@ -85,6 +85,12 @@ class UserController extends Controller
             'password'              => ['required', 'confirmed', 'min:8', 'max:64', 'regex:/[A-Z]/', 'regex:/[0-9]/', 'regex:/[!@#$%^&*(),.?":{}|<>]/'],
         ]);
 
+        // A Dean manages the faculty of one college, so the college is required.
+        if ($validated['role'] === 'dean') {
+            abort_if(empty($validated['college']), 422, 'Choose the college this Dean manages.');
+            $validated['department'] = null;
+        }
+
         $user = User::create([
             ...$validated,
             'name'                  => trim($validated['first_name'] . ' ' . $validated['last_name']),
@@ -122,6 +128,10 @@ class UserController extends Controller
     // Prevent a user from changing their own role (self-escalation guard).
     if (isset($validated['role']) && $request->user()->id === $user->id) {
         unset($validated['role']);
+    }
+
+    if (($validated['role'] ?? $user->role) === 'dean' && array_key_exists('college', $validated) && empty($validated['college'])) {
+        abort(422, 'Choose the college this Dean manages.');
     }
 
     $old = $user->toArray();
