@@ -326,6 +326,49 @@
           </div>
 
 
+          <!-- For the person who referred the student (faculty, chair, dean...):
+               this referral's Feedback Slip and Admission Slip, and a way to
+               ask GCU for the Feedback Slip once the referral is completed. -->
+          <div class="icard" v-if="isReferrer && !fromCases && !isIncidentReport">
+            <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+              <template v-if="!referral.feedback_slips?.length">
+                <div style="font-size:13px;color:var(--stone)">
+                  {{ ['completed', 'closed'].includes(referral.status)
+                    ? 'This referral is completed. You can ask GCU for its feedback slip.'
+                    : 'GCU sends the feedback slip after working with the student. You can ask for it once this referral is completed.' }}
+                </div>
+                <button
+                  v-if="['completed', 'closed'].includes(referral.status)"
+                  class="ibtn ibtn-p ibtn-sm"
+                  style="align-self:flex-start"
+                  :disabled="feedbackRequested || requestingFeedback"
+                  @click="requestFeedbackSlip"
+                >{{ feedbackRequested ? 'Requested' : (requestingFeedback ? 'Sending...' : 'Request Feedback Slip') }}</button>
+              </template>
+              <div v-for="slip in referral.feedback_slips || []" :key="slip.id" style="padding-top:6px">
+                <div v-if="slip.feedback_checklist?.length" style="margin-bottom:6px">
+                  <span v-for="key in slip.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin:0 4px 4px 0">{{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}</span>
+                </div>
+                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);white-space:pre-line">{{ slip.feedback_notes }}</div>
+                <div style="font-size:11px;color:var(--fog);margin-top:6px">Sent {{ formatDate(slip.sent_at) }} by {{ slip.sent_by?.name || 'GCU' }}</div>
+              </div>
+            </div>
+          </div>
+          <div class="icard" v-if="isReferrer && !fromCases && isClassAttendance && referral.admission_issued_at">
+            <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
+            <div class="icard-body">
+              <AdmissionSlipPaper
+                readonly
+                :model-value="issuedAdmissionSlip"
+                :student="referral.student"
+                :personnel="referral.admission_issued_by?.name || ''"
+                :issued-at="referral.admission_issued_at"
+                :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
+              />
+            </div>
+          </div>
+
           <!-- Previous Interventions - plain narrative log, scoped to THIS
                referral only (previousInterventionsForReferral - the history
                list used to read every intervention on the whole case,
@@ -2080,6 +2123,24 @@ const parDocument = computed(() =>
 // showExcusedRemarks computeds below), conflating a narrative log with an
 // official slip that has its own document code.
 const isClassAttendance = computed(() => referral.value.referral_type === 'class_attendance');
+
+// The signed-in user referred this student (faculty, chair, dean...).
+const isReferrer = computed(() => !!auth.user?.id && referral.value.referred_by_user_id === auth.user.id);
+const feedbackRequested  = ref(false);
+const requestingFeedback = ref(false);
+async function requestFeedbackSlip() {
+  requestingFeedback.value = true;
+  try {
+    const res = await referralAPI.requestFeedback(referral.value.id);
+    feedbackRequested.value = true;
+    toast?.success(res.data?.message || 'Request sent to GCU.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Could not send the request.');
+    if (e.response?.status === 422) feedbackRequested.value = true;
+  } finally {
+    requestingFeedback.value = false;
+  }
+}
 
 // Once Admission Slip has been saved as Unexcused, lock further edits to it -
 // same "once set, no take-backs" behavior the old interventionLocked

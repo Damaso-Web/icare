@@ -1078,4 +1078,58 @@ class ReportController extends Controller
         $book->sheet('Complaint List', 'Detailed List of Complaints', [6, 18, 14, 14, 38, 28, 40, 16])
             ->table(['No.', 'Complaint No.', 'Date Filed', 'Date of Incident', 'College', 'Department', 'Misconduct', 'Status'], $rows, ['center' => [0, 2, 3], 'repeat' => true]);
     }
+
+    // Dean: how their college compares with the others, and a breakdown of
+    // their own college's referrals. Calendar year (?year=, default this year).
+    public function collegeSummary(Request $request)
+    {
+        $user = $request->user();
+        abort_unless($user->isDean(), 403, 'Only the Dean can open the College Report.');
+        $year = (int) ($request->year ?: now()->year);
+        $mine = (string) $user->college;
+        $mineNames = \App\Support\CollegeName::equivalents($mine);
+
+        $base = fn() => \App\Models\Referral::query()
+            ->whereYear('referrals.created_at', $year)
+            ->join('students', 'students.id', '=', 'referrals.student_id');
+
+        $ranking = $base()
+            ->selectRaw('students.college as college, count(*) as total')
+            ->groupBy('students.college')
+            ->orderByDesc('total')
+            ->get()
+            ->values()
+            ->map(fn($r, $i) => ['rank' => $i + 1, 'college' => $r->college ?: 'Not set', 'total' => (int) $r->total, 'mine' => in_array($r->college, $mineNames, true)]);
+
+        $own = $base()->whereIn('students.college', $mineNames);
+        $count = fn($col) => (clone $own)->selectRaw("$col as label, count(*) as total")->groupBy($col)->orderByDesc('total')->get()
+            ->map(fn($r) => ['label' => $r->label ?: 'Not set', 'total' => (int) $r->total]);
+
+        $byDepartment = (clone $own)
+            ->leftJoin('users as referrer', 'referrer.id', '=', 'referrals.referred_by_user_id')
+            ->selectRaw("coalesce(referrer.department, case when referrals.is_self_referred = 1 then 'Self-referral (student)' else 'Office / staff' end) as label, count(*) as total")
+            ->groupBy('label')->orderByDesc('total')->get()
+            ->map(fn($r) => ['label' => $r->label, 'total' => (int) $r->total]);
+
+        $months = array_fill(1, 12, 0);
+        foreach ((clone $own)->selectRaw('month(referrals.created_at) as m, count(*) as total')->groupBy('m')->get() as $r) {
+            $months[(int) $r->m] = (int) $r->total;
+        }
+
+        $myRank = $ranking->firstWhere('mine', true);
+
+        return response()->json([
+            'year'          => $year,
+            'college'       => \App\Support\CollegeName::official($mine) ?? $mine,
+            'total'         => (clone $own)->count(),
+            'rank'          => $myRank['rank'] ?? null,
+            'colleges'      => $ranking->count(),
+            'ranking'       => $ranking,
+            'by_status'     => $count('referrals.status'),
+            'by_type'       => $count('referrals.referral_type'),
+            'by_program'    => $count('students.program'),
+            'by_department' => $byDepartment,
+            'by_month'      => array_values($months),
+        ]);
+    }
 }

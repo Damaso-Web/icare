@@ -2,8 +2,9 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>My Referrals</h1>
-      <p>View the status of referrals submitted on your behalf.</p>
+      <p>View the status of referrals submitted on your behalf, or ask GCU for help yourself.</p>
     </div>
+    <button v-if="SELF_REFERRAL_ENABLED" class="ibtn ibtn-p" style="margin-bottom:14px" @click="$router.push({ name: 'student-refer' })">+ Refer Myself</button>
 
     <div class="icard">
       <div v-if="loading" style="padding:30px;text-align:center">
@@ -22,6 +23,7 @@
           <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}</div>
           <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(r.status) }}</span>
+          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
         </div>
       </div>
     </div>
@@ -29,6 +31,7 @@
 </template>
 
 <script setup>
+import { SELF_REFERRAL_ENABLED } from '../../utils/features';
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 

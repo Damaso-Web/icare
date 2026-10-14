@@ -19,7 +19,7 @@ class CallSlipController extends Controller
                   ->orWhere('reschedule_count', '>=', 3);
             })
             ->whereHas('student', function ($q) use ($user) {
-                $q->where('college', $user->college);
+                $q->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
             })
             ->with(['student', 'case'])
             ->orderByDesc('no_show_escalated_at')

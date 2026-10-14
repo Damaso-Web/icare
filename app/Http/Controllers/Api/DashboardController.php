@@ -169,7 +169,7 @@ class DashboardController extends Controller
 
     private function deanSecretaryDashboard($user): array
     {
-        $collegeReferrals = Referral::whereHas('student', fn($s) => $s->where('college', $user->college));
+        $collegeReferrals = Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
 
         return [
             'stats' => [

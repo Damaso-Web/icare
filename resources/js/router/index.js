@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { roleIn } from '../utils/roles';
+import { SELF_REFERRAL_ENABLED } from '../utils/features';
 
 // Layouts
 import MainLayout from '../layouts/MainLayout.vue';
@@ -125,6 +126,13 @@ const routes = [
                 path: 'referrals',
                 name: 'student-referrals',
                 component: () => import('../views/student/Referrals.vue'),
+            },
+            {
+                path: 'refer',
+                name: 'student-refer',
+                component: () => import('../views/student/ReferSelf.vue'),
+                // Off until the live database allows self-referrals (utils/features.js).
+                beforeEnter: () => (SELF_REFERRAL_ENABLED ? true : { name: 'student-referrals' }),
             },
             {
                 path: 'referrals/:id',
@@ -260,6 +268,12 @@ const routes = [
                 name: 'testing-show',
                 component: TestingRecordShow,
                 meta: { roles: TESTING_ROLES },
+            },
+            {
+                path: 'college-report',
+                name: 'college-report',
+                component: () => import('../views/dean/CollegeReport.vue'),
+                meta: { roles: ['dean'] },
             },
             {
                 path: 'reports',

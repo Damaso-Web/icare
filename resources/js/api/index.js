@@ -229,6 +229,7 @@ export const referralAPI = {
     overrideStatus: (id, data) => api.post(`/referrals/${id}/override-status`, data),
     tracking:     (id)       => api.get(`/referrals/${id}/tracking`),
     sendFeedback:     (id, data) => api.post(`/referrals/${id}/feedback`, data),
+    requestFeedback:  (id)       => api.post(`/referrals/${id}/request-feedback`),
     saveAdmissionSlip:(id, data) => api.post(`/referrals/${id}/admission-slip`, data),
     archive:      (id)       => api.post(`/referrals/${id}/archive`),
     unarchive:    (id)       => api.post(`/referrals/${id}/unarchive`),

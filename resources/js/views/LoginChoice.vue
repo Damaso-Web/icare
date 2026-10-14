@@ -1,7 +1,7 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div class="auth-card auth-panel" style="width:100%;max-width:480px">
-      <AuthBrand subtitle="An Integrated Case Management System for Benguet State University-Office of Student Services" />
+      <AuthBrand />
 
       <div style="font-size:14px;color:var(--stone);text-align:center;margin-bottom:20px">
         Please select how you'd like to sign in
@@ -20,7 +20,7 @@
           </div>
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--ink)">BSU Personnel</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">Admin, GCU, SDU, TMDU, Faculty, Dean's Secretary</div>
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">Admin, GCU, SDU, TMDU, Dean, Faculty</div>
           </div>
         </button>
 
@@ -39,6 +39,11 @@
             <div style="font-size:12px;color:var(--stone);margin-top:2px">View your referrals and appointments</div>
           </div>
         </button>
+      </div>
+
+      <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
+      <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
+        iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>
   </div>

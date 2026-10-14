@@ -248,6 +248,61 @@ public function updateProfile(Request $request)
     ]));
 }
 
+// A student refers themselves to GCU from the student portal. It becomes an
+// ordinary referral (same case file rules as ReferralController::store()),
+// marked as a self-referral with no staff referrer.
+public function referSelf(Request $request)
+{
+    $student = $request->user('student');
+    $validated = $request->validate([
+        'referral_type'     => 'required|in:counseling,class_attendance,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting',
+        'nature_of_concern' => 'required|string|min:10|max:1000',
+    ], [
+        'nature_of_concern.min' => 'Please describe your concern in at least 10 characters.',
+    ]);
+
+    $waiting = $student->referrals()->where('is_self_referred', true)->where('status', 'submitted')->exists();
+    abort_if($waiting, 422, 'You already have a request waiting for GCU. Please wait until it is acknowledged.');
+
+    $case = \App\Models\CaseFile::where('student_id', $student->id)->first();
+    $isExisting = (bool) $case;
+    if (!$case) {
+        $case = \App\Models\CaseFile::create([
+            'student_id'   => $student->id,
+            'case_type'    => $validated['referral_type'],
+            'current_unit' => 'GCU',
+            'status'       => 'open',
+            'opened_date'  => today(),
+        ]);
+    } elseif (!$case->isOpen()) {
+        $case->update(['status' => 'open', 'closed_date' => null]);
+    }
+
+    $name = trim($student->first_name . ' ' . $student->last_name);
+    $referral = \App\Models\Referral::create([
+        ...$validated,
+        'student_id'          => $student->id,
+        'case_id'             => $case->id,
+        'referred_by_user_id' => null,
+        'referrer_name'       => $name,
+        'referrer_role'       => 'student',
+        'referrer_source'     => 'self',
+        'referrer_college'    => $student->college,
+        'is_self_referred'    => true,
+        'status'              => 'submitted',
+    ]);
+
+    AuditLog::record('created', "Student {$student->student_id} referred themselves ({$referral->referral_code}).", $referral);
+
+    $recipients = \App\Models\User::whereIn('role', ['admin', 'gcu_staff'])->where('is_active', true)->get();
+    \Illuminate\Support\Facades\Notification::send($recipients, new \App\Notifications\NewReferralNotification($referral));
+    if (!$isExisting) {
+        $student->notify(new \App\Notifications\FillOutFormsNotification());
+    }
+
+    return response()->json($referral, 201);
+}
+
 public function showReferral(Request $request, $id)
 {
     $student = $request->user('student');

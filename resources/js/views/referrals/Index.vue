@@ -19,6 +19,17 @@
       >
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
+      <!-- Dean: the college's referrals by referring department, then by program. -->
+      <template v-if="isDean">
+        <select v-model="filters.department" class="fsm" @change="fetchReferrals">
+          <option value="">All Departments</option>
+          <option v-for="d in deanDepartments" :key="d" :value="d">{{ d }}</option>
+        </select>
+        <select v-model="filters.program" class="fsm" @change="fetchReferrals">
+          <option value="">All Programs</option>
+          <option v-for="pr in deanPrograms" :key="pr" :value="pr">{{ pr }}</option>
+        </select>
+      </template>
       <select v-model="filters.status" class="fsm" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
@@ -112,11 +123,30 @@ import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { referralAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
+import { matchCollege } from '../../utils/colleges';
 
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false });
+const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
+
+// Dean: departments and programs of their own college (Management lists).
+const auth = useAuthStore();
+const isDean = computed(() => ['dean', 'dean_secretary'].includes(auth.user?.role));
+const deanDepartments = ref([]);
+const deanPrograms = ref([]);
+async function fetchDeanOptions() {
+  if (!isDean.value) return;
+  try {
+    const [c, d, pr] = await Promise.all(['colleges', 'departments', 'programs'].map(x => axios.get(`${API_BASE}/management/${x}`, authHeaders())));
+    const official = matchCollege(auth.user?.college, c.data.map(x => x.name));
+    const college = c.data.find(x => x.name === official);
+    if (!college) return;
+    deanDepartments.value = d.data.filter(x => x.college_id === college.id).map(x => x.name).sort();
+    deanPrograms.value = pr.data.filter(x => x.college_id === college.id).map(x => x.name).sort();
+  } catch (e) { /* the filters just stay empty */ }
+}
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
@@ -175,7 +205,7 @@ async function fetchReferrals(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false };
+  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
   fetchReferrals();
 }
 
@@ -188,5 +218,6 @@ function formatDate(date) {
 onMounted(() => {
   fetchReferrals();
   fetchFilterOptions();
+  fetchDeanOptions();
 });
 </script>

@@ -102,6 +102,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('referrals/{referral}/override-status', [ReferralController::class, 'overrideStatus'])->middleware('role:admin');
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);
     Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
+    Route::post('referrals/{referral}/request-feedback', [ReferralController::class, 'requestFeedback']);
+    Route::get('college-report', [ReportController::class, 'collegeSummary'])->middleware('role:dean,dean_secretary');
     Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
     Route::get('referrals/{referral}/session-notes',    [SessionNoteController::class, 'indexByReferral']);
     Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral'])
@@ -329,6 +331,7 @@ Route::post('student/login', [StudentAuthController::class, 'login'])->middlewar
 
 Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
+    Route::post('student/referrals',     [StudentAuthController::class, 'referSelf']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
     Route::get('student/appointments',                 [AppointmentController::class, 'indexByStudent']);
     Route::post('student/appointments',                [AppointmentController::class, 'storeByStudent']);

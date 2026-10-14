@@ -102,6 +102,10 @@
       <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
         Having trouble logging in? Contact the Office of Student Services.
       </div>
+      <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">
+        iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
+      </div>
     </div>
   </div>
 </template>

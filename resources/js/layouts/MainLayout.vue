@@ -298,6 +298,7 @@ const pageTitle = computed(() => {
     'student-show':      'Case Details',
     referrals:           'Referral Queue',
     'referral-create':      'Refer Student',
+    'college-report':       'College Report',
     'referral-create-form': 'Refer a Student',
     'complaint-create':     'File a Complaint',
     complaints:             'Complaints',
@@ -429,6 +430,13 @@ const menuItems = computed(() => {
       label:   'Audit Logs',
       icon:    '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
       roles:   ['admin'],
+      section: null,
+    },
+    {
+      name:    'college-report',
+      label:   'College Report',
+      icon:    '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+      roles:   ['dean'],
       section: null,
     },
     {

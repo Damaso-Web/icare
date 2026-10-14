@@ -57,6 +57,10 @@ class ReferralController extends Controller
         // complaint_id set (see ComplaintController::store()), so excluding
         // those here keeps the Queue to ordinary GCU/TMDU/SDU referrals only.
         ->whereNull('complaint_id')
+        // Dean: narrow the college's referrals by the referring faculty's
+        // department, then by the student's program.
+        ->when($request->department, fn($q) => $q->whereHas('referredBy', fn($u) => $u->where('department', $request->department)))
+        ->when($request->program,    fn($q) => $q->whereHas('student', fn($st) => $st->where('program', $request->program)))
         ->when($request->status,          fn($q) => $q->where('status', $request->status))
         ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
         ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
@@ -82,7 +86,7 @@ class ReferralController extends Controller
     } elseif ($user->isDeanSecretary()) {
         // A college representative coordinates on behalf of their whole
         // college, not just referrals they personally submitted.
-        $query->whereHas('student', fn($s) => $s->where('college', $user->college));
+        $query->whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
     } elseif ($user->isTMDUStaff()) {
         // TMDU only ever sees the Case Referral Slips GCU sent to it.
         $query->tmduOwned();
@@ -113,7 +117,7 @@ class ReferralController extends Controller
         if ($user->isFaculty()) {
             $query->where('referred_by_user_id', $user->id);
         } elseif ($user->isDeanSecretary()) {
-            $query->whereHas('student', fn($s) => $s->where('college', $user->college));
+            $query->whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
         } elseif ($user->isTMDUStaff()) {
             $query->tmduOwned();
         }
@@ -629,6 +633,29 @@ class ReferralController extends Controller
         return response()->json(['message' => 'Referral status updated.', 'referral' => $referral->fresh()]);
     }
 
+    // The person who referred the student asks GCU for the Feedback Slip once
+    // the referral is completed. Once a day at most, and not after it was sent.
+    public function requestFeedback(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+        abort_unless($referral->referred_by_user_id === $user->id, 403, 'Only the person who submitted this referral can ask for its feedback slip.');
+        abort_unless(in_array($referral->status, ['completed', 'closed'], true), 422, 'The feedback slip can be requested once the referral is completed.');
+        abort_if($referral->feedbackSlips()->exists(), 422, 'The feedback slip for this referral was already sent to you.');
+
+        $asked = AuditLog::where('action', 'feedback_requested')
+            ->where('model_type', Referral::class)->where('model_id', $referral->id)
+            ->where('created_at', '>=', now()->subDay())->exists();
+        abort_if($asked, 422, 'You already asked for this feedback slip today. GCU has been notified.');
+
+        $recipients = $referral->case?->counselor ? collect([$referral->case->counselor]) : collect();
+        $recipients = $recipients->merge(User::whereIn('role', ['admin', 'gcu_staff'])->where('is_active', true)->get())->unique('id');
+        Notification::send($recipients, new \App\Notifications\FeedbackRequestedNotification($referral, $user->name));
+
+        AuditLog::record('feedback_requested', "{$user->name} asked for the Feedback Slip of referral {$referral->referral_code}.", $referral);
+
+        return response()->json(['message' => 'Request sent. GCU will send you the feedback slip.']);
+    }
+
     public function sendFeedback(Request $request, Referral $referral)
     {
         $this->authorizeReferralWriter($request, $referral);
@@ -770,7 +797,7 @@ class ReferralController extends Controller
         if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
             abort(403, 'Unauthorized.');
         }
-        if ($user->isDeanSecretary() && $referral->student->college !== $user->college) {
+        if ($user->isDeanSecretary() && !in_array($referral->student->college, \App\Support\CollegeName::equivalents($user->college), true)) {
             abort(403, 'Unauthorized.');
         }
 

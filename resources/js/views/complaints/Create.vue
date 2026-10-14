@@ -247,6 +247,28 @@
         </div>
       </div>
     </div>
+
+    <!-- Filed: offer to print the complaint before leaving the page. -->
+    <div v-if="filedComplaint" class="cp-overlay">
+      <div class="cp-box">
+        <div class="cp-head">
+          <div>
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Complaint Filed</div>
+            <div style="font-size:12px;color:var(--stone)">{{ filedComplaint.complaint_code }} was sent to the Student Discipline Unit.</div>
+          </div>
+        </div>
+        <div class="cp-body">
+          <div class="complaint-print">
+            <div class="cp-print-title">Complaint {{ filedComplaint.complaint_code }}</div>
+            <ComplaintDetail :complaint="filedComplaint" />
+          </div>
+        </div>
+        <div class="cp-foot">
+          <button class="ibtn ibtn-p" @click="printComplaint">Print Complaint</button>
+          <button class="ibtn ibtn-o" @click="finishFiling">Done</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -257,6 +279,7 @@ import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import { onlyLetters } from '../../utils/validators';
+import ComplaintDetail from '../../components/ComplaintDetail.vue';
 
 // Student search here is by name only (the API call below passes
 // name_only: 1), so unlike the Refer Student form's ID-or-name search,
@@ -269,6 +292,18 @@ function blockLetterKeypress(e) {
 
 const router = useRouter();
 const toast  = inject('toast');
+
+// After filing, the complaint is shown with a Print option.
+const filedComplaint = ref(null);
+function printComplaint() {
+  document.body.classList.add('printing-complaint');
+  window.print();
+  setTimeout(() => document.body.classList.remove('printing-complaint'), 500);
+}
+function finishFiling() {
+  filedComplaint.value = null;
+  router.push({ name: auth.user?.role === 'sdu_head' ? 'complaints' : 'dashboard' });
+}
 const auth   = useAuthStore();
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -527,12 +562,13 @@ async function handleSubmit() {
     evidenceFiles.value.forEach(f => payload.append('evidence[]', f));
     affidavitFiles.value.forEach(f => payload.append('affidavit[]', f));
 
-    await axios.post(`${API_BASE}/complaints`, payload, {
+    const res = await axios.post(`${API_BASE}/complaints`, payload, {
       ...authHeaders(),
       headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' },
     });
     toast?.success('Complaint filed.');
-    router.push({ name: auth.user?.role === 'sdu_head' ? 'complaints' : 'dashboard' });
+    showCertModal.value = false;
+    filedComplaint.value = res.data;
   } catch (e) {
     modalError.value = e.response?.data?.message || 'Failed to submit complaint.';
   } finally {
@@ -541,7 +577,23 @@ async function handleSubmit() {
 }
 </script>
 
+<style>
+/* Printing a filed complaint: only the complaint is printed. */
+@media print {
+  body.printing-complaint * { visibility: hidden !important; }
+  body.printing-complaint .complaint-print, body.printing-complaint .complaint-print * { visibility: visible !important; }
+  body.printing-complaint .complaint-print { position: absolute; left: 0; top: 0; width: 100%; }
+}
+</style>
+
 <style scoped>
+.cp-overlay{position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px}
+.cp-box{background:#fff;border-radius:var(--r-lg);width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-lg)}
+.cp-head{padding:18px 22px;border-bottom:1px solid var(--cloud)}
+.cp-body{padding:18px 22px;overflow-y:auto}
+.cp-foot{padding:14px 22px;border-top:1px solid var(--cloud);display:flex;gap:8px}
+.cp-print-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:12px}
+
 .student-dropdown {
   position: absolute;
   top: 100%;
