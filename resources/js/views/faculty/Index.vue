@@ -197,6 +197,15 @@
                 <option v-for="d in formDepartments" :key="d" :value="d">{{ d }}</option>
               </select>
             </div>
+            <!-- The Dean adds someone as Faculty or straight away as the Department Chair. -->
+            <div v-if="!editing && !isChair">
+              <label class="ifl">Role <span style="color:var(--red)">*</span></label>
+              <select v-model="form.role" class="ifse">
+                <option value="faculty">Faculty</option>
+                <option value="dept_chair">Department Chair</option>
+              </select>
+              <div v-if="form.role === 'dept_chair'" style="font-size:11px;color:var(--stone);margin-top:4px">The department's current chair, if any, goes back to Faculty.</div>
+            </div>
             <div>
               <label class="ifl">Contact Number</label>
               <input v-model="form.contact_number" class="ifi" maxlength="11" inputmode="numeric" placeholder="09171234567"
@@ -431,7 +440,7 @@ const formOpen = ref(false);
 const editing = ref(null);
 const saving = ref(false);
 const formError = ref('');
-const blank = () => ({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', employee_id: '', contact_number: '', department: '', college: '' });
+const blank = () => ({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', employee_id: '', contact_number: '', department: '', college: '', role: 'faculty' });
 const form = ref(blank());
 const tempInfo = ref(null);
 

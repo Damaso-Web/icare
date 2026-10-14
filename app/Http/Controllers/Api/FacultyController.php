@@ -99,17 +99,27 @@ class FacultyController extends UserController
             'department'     => 'nullable|string|max:255',
             'college'        => 'nullable|string|max:255',
             'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
+            // Added as Faculty (default) or straight away as the Department Chair.
+            'role'           => 'nullable|in:faculty,dept_chair',
         ]);
+        $role = $validated['role'] ?? 'faculty';
+        unset($validated['role']);
+        abort_if($role === 'dept_chair' && !($request->user()->isDean() || $request->user()->isAdmin()), 403, 'Only the Dean can add a Department Chair.');
 
         [$college, $department] = $this->forcedPlacement($request, $validated['department'] ?? null);
         abort_if(empty($college) || empty($department), 422, 'College and department are required.');
+
+        // One chair per department: the previous chair goes back to faculty.
+        if ($role === 'dept_chair') {
+            User::where('role', 'dept_chair')->where('college', $college)->where('department', $department)->update(['role' => 'faculty']);
+        }
 
         $temp = Str::random(10);
         $user = User::create([
             ...$validated,
             'college'              => $college,
             'department'           => $department,
-            'role'                 => 'faculty',
+            'role'                 => $role,
             'name'                 => trim($validated['first_name'] . ' ' . $validated['last_name']),
             'password'             => Hash::make($temp),
             'temp_password'        => $temp,
@@ -117,7 +127,7 @@ class FacultyController extends UserController
             'is_active'            => true,
         ]);
 
-        AuditLog::record('created', "Added faculty {$user->name} ({$college} / {$department}).", $user);
+        AuditLog::record('created', 'Added ' . ($role === 'dept_chair' ? 'Department Chair' : 'faculty') . " {$user->name} ({$college} / {$department}).", $user);
 
         return response()->json(['user' => $user, 'temp_password' => $temp], 201);
     }
