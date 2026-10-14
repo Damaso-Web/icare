@@ -320,7 +320,7 @@
           </div>
 
           <div v-if="['faculty','dean_secretary','dept_chair'].includes(userForm.role)">
-            <label class="ifl">Department <span style="color:var(--red)">*</span></label>
+            <label class="ifl">Program <span style="color:var(--red)">*</span></label>
             <select
               v-model="userForm.department"
               class="ifse"
@@ -328,7 +328,7 @@
               :style="errorStyle('department')"
               @change="clearFieldError('department')"
             >
-              <option value="" disabled hidden>Select department...</option>
+              <option value="" disabled hidden>Select program...</option>
               <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
             </select>
           </div>
@@ -745,7 +745,7 @@ async function fetchManagementData() {
   try {
     const [collegeRes, departmentRes] = await Promise.all([
       axios.get(`${API_BASE}/management/colleges`, authHeaders()),
-      axios.get(`${API_BASE}/management/departments`, authHeaders()),
+      axios.get(`${API_BASE}/management/programs`, authHeaders()),   // the leader: choose by program, not department
     ]);
     colleges.value = collegeRes.data.map(c => c.name);
 
@@ -990,7 +990,7 @@ function validateUserForm() {
   }
   req('contact_number', 'Contact Number');
   req('college', 'College', ['faculty', 'dean_secretary', 'dean', 'dept_chair'].includes(userForm.value.role));
-  req('department', 'Department', ['faculty', 'dean_secretary', 'dept_chair'].includes(userForm.value.role));
+  req('department', 'Program', ['faculty', 'dean_secretary', 'dept_chair'].includes(userForm.value.role));
 
   if (userForm.value.email && !isValidEmail(userForm.value.email)) errs.email = true;
   if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) errs.contact_number = true;

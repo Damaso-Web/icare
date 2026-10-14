@@ -19,12 +19,8 @@
       >
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
-      <!-- Dean: the college's referrals by referring department, then by program. -->
+      <!-- Dean: the college's referrals by program (the leader asked for programs only). -->
       <template v-if="isDean">
-        <select v-model="filters.department" class="fsm" @change="fetchReferrals">
-          <option value="">All Departments</option>
-          <option v-for="d in deanDepartments" :key="d" :value="d">{{ d }}</option>
-        </select>
         <select v-model="filters.program" class="fsm" @change="fetchReferrals">
           <option value="">All Programs</option>
           <option v-for="pr in deanPrograms" :key="pr" :value="pr">{{ pr }}</option>
@@ -131,19 +127,17 @@ const loading    = ref(true);
 const pagination = ref({});
 const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
 
-// Dean: departments and programs of their own college (Management lists).
+// Dean: the programs of their own college (Management > Programs).
 const auth = useAuthStore();
 const isDean = computed(() => ['dean', 'dean_secretary'].includes(auth.user?.role));
-const deanDepartments = ref([]);
 const deanPrograms = ref([]);
 async function fetchDeanOptions() {
   if (!isDean.value) return;
   try {
-    const [c, d, pr] = await Promise.all(['colleges', 'departments', 'programs'].map(x => axios.get(`${API_BASE}/management/${x}`, authHeaders())));
+    const [c, pr] = await Promise.all(['colleges', 'programs'].map(x => axios.get(`${API_BASE}/management/${x}`, authHeaders())));
     const official = matchCollege(auth.user?.college, c.data.map(x => x.name));
     const college = c.data.find(x => x.name === official);
     if (!college) return;
-    deanDepartments.value = d.data.filter(x => x.college_id === college.id).map(x => x.name).sort();
     deanPrograms.value = pr.data.filter(x => x.college_id === college.id).map(x => x.name).sort();
   } catch (e) { /* the filters just stay empty */ }
 }

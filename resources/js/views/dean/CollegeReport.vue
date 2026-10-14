@@ -1,7 +1,7 @@
 <!--
   College Report (Dean): how the Dean's college compares with the other
   colleges by number of referrals, and a breakdown of their own college's
-  referrals by status, service, referring department, program and month.
+  referrals by status, service, program and month.
 -->
 <template>
   <div class="fade-up">
@@ -114,7 +114,6 @@ const plain = s => s;
 const breakdowns = computed(() => [
   { title: 'By Status',               rows: data.value.by_status || [],     nice },
   { title: 'By Service',              rows: data.value.by_type || [],       nice },
-  { title: 'By Referring Department', rows: data.value.by_department || [], nice: plain },
   { title: 'By Program',              rows: data.value.by_program || [],    nice: plain },
 ].map(b => ({ ...b, max: Math.max(0, ...b.rows.map(r => r.total)) })));
 
