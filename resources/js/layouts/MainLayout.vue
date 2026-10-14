@@ -73,7 +73,7 @@
       <!-- Topbar -->
       <div class="topbar" style="position:relative">
         <button class="collapse-btn" :aria-label="collapsed ? 'Expand menu' : 'Collapse menu'" :title="collapsed ? 'Expand menu' : 'Collapse menu'" @click="toggleCollapsed"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/><polyline v-if="collapsed" points="13 9 16 12 13 15"/><polyline v-else points="16 9 13 12 16 15"/></svg></button>
-        <button class="menu-btn" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <button class="menu-btn has-more-tab" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
           <span class="tb-date">{{ todayLabel }}</span>
