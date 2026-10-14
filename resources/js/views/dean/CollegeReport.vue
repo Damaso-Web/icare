@@ -45,12 +45,13 @@
         <div class="icard-header"><span class="icard-title">Ranking of Colleges by Referrals</span></div>
         <div class="icard-body">
           <div v-if="!data.ranking?.length" class="cr-empty">No referrals in {{ data.year }} yet.</div>
-          <div v-for="r in data.ranking" :key="r.college" class="cr-row" :class="{ mine: r.mine }" :title="`${r.college}: ${r.total} referral${r.total === 1 ? '' : 's'} (rank ${r.rank})`">
+          <!-- Other colleges show their placement only; only your own college's count is shown. -->
+          <div v-for="r in data.ranking" :key="r.college" class="cr-row rank-only" :class="{ mine: r.mine }" :title="r.mine ? `${r.college}: ${r.total} referral${r.total === 1 ? '' : 's'} (rank ${r.rank})` : `${r.college}: rank ${r.rank}`">
             <div class="cr-rank">#{{ r.rank }}</div>
             <div class="cr-name">{{ r.college }} <span v-if="r.mine" class="cr-you">Your college</span></div>
-            <div class="cr-bar"><span :style="{ width: pct(r.total, maxRank) }"></span></div>
-            <div class="cr-num">{{ r.total }}</div>
+            <div class="cr-num">{{ r.mine ? r.total + ' referral' + (r.total === 1 ? '' : 's') : '' }}</div>
           </div>
+          <div style="font-size:11px;color:var(--fog);margin-top:8px">#1 has the most referrals. Other colleges' counts are not shown.</div>
         </div>
       </div>
 
@@ -102,7 +103,7 @@ const loading = ref(true);
 const error = ref('');
 
 const pct = (n, max) => (max ? Math.max(2, Math.round((n / max) * 100)) : 0) + '%';
-const maxRank  = computed(() => Math.max(0, ...(data.value.ranking || []).map(r => r.total)));
+
 const maxMonth = computed(() => Math.max(0, ...(data.value.by_month || [])));
 const busiestMonth = computed(() => {
   const m = data.value.by_month || [];
@@ -140,6 +141,7 @@ onMounted(load);
 .cr-s{font-size:11.5px;color:var(--stone);margin-top:2px}
 .cr-row{display:grid;grid-template-columns:44px minmax(0,1.6fr) minmax(0,2fr) 40px;align-items:center;gap:10px;padding:7px 8px;border-radius:var(--r-sm)}
 .cr-row.small{grid-template-columns:minmax(0,1.4fr) minmax(0,1.6fr) 36px}
+.cr-row.rank-only{grid-template-columns:44px minmax(0,1fr) auto}
 .cr-row:hover{background:var(--snow)}
 .cr-row.mine{background:var(--mist)}
 .cr-rank{font-size:12px;font-weight:700;color:var(--stone)}

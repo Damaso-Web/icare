@@ -1099,7 +1099,9 @@ class ReportController extends Controller
             ->orderByDesc('total')
             ->get()
             ->values()
-            ->map(fn($r, $i) => ['rank' => $i + 1, 'college' => $r->college ?: 'Not set', 'total' => (int) $r->total, 'mine' => in_array($r->college, $mineNames, true)]);
+            ->map(fn($r, $i) => ['rank' => $i + 1, 'college' => $r->college ?: 'Not set', 'total' => (int) $r->total, 'mine' => in_array($r->college, $mineNames, true)])
+            // Other colleges show their placement only, never their counts (the leader).
+            ->map(fn($r) => $r['mine'] ? $r : array_merge($r, ['total' => null]));
 
         $own = $base()->whereIn('students.college', $mineNames);
         $count = fn($col) => (clone $own)->selectRaw("$col as label, count(*) as total")->groupBy($col)->orderByDesc('total')->get()
