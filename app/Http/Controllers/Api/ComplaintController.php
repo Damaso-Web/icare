@@ -58,7 +58,7 @@ class ComplaintController extends Controller
             'complainee_office'      => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainee_address'     => 'nullable|string|max:255',
             'violation_type'         => 'required|string|max:255',
-            'incident_date'          => 'required|date',
+            'incident_date'          => 'required|date|before_or_equal:today',
             'description'            => 'required|string|max:2000',
             'certification_agreed'   => 'required|accepted',
             'evidence.*'             => 'nullable|file|max:10240',

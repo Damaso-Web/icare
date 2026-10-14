@@ -10,12 +10,12 @@ class NotificationController extends Controller
 {
     public function index(Request $request)
     {
-        return response()->json(
-            $request->user()
-                ->notifications()
-                ->latest()
-                ->paginate(20)
-        );
+        $page = $request->user()->notifications()->latest()->paginate(20);
+
+        // unread_count is the real total (not just the 20 on this page) so the bell badge is right.
+        return response()->json(array_merge($page->toArray(), [
+            'unread_count' => $request->user()->unreadNotifications()->count(),
+        ]));
     }
 
     public function markRead(Request $request, string $id)

@@ -29,6 +29,9 @@ class User extends Authenticatable
         'temp_password',
         'must_change_password',
         'last_login_at',
+        'deactivation_reason',
+        'deactivation_note',
+        'deactivated_at',
     ];
 
     protected $hidden = [
@@ -40,6 +43,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at'    => 'datetime',
         'last_login_at'        => 'datetime',
+        'deactivated_at'       => 'datetime',
         'is_active'            => 'boolean',
         'must_change_password' => 'boolean',
     ];

@@ -36,6 +36,16 @@ class UserController extends Controller
             : array_values(array_diff($all, ['system_admin']));
     }
 
+    /** Employee ID must be unique; the message names the actual problem instead of a generic one. */
+    protected static function employeeIdUnique(?int $ignoreId = null): \Closure
+    {
+        return function ($attribute, $value, $fail) use ($ignoreId) {
+            if ($value !== null && $value !== '' && User::where('employee_id', $value)->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))->exists()) {
+                $fail('Employee ID already exists. Please enter a unique Employee ID.');
+            }
+        };
+    }
+
     // The accounts the signed-in user may see and manage in User Management.
     private function scopeManaged($query, User $actor)
     {
@@ -108,7 +118,7 @@ class UserController extends Controller
             'last_name'             => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'                => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'                 => 'required|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email',
-            'employee_id'           => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
+            'employee_id'           => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique()],
             'role'                  => ['required', \Illuminate\Validation\Rule::in($this->assignableRoles())],
             'college'               => 'nullable|string|max:255',
             'department'            => 'nullable|string|max:255',
@@ -159,7 +169,7 @@ class UserController extends Controller
         'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'email'          => 'sometimes|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email,' . $user->id,
-        'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
+        'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique($user->id)],
         'role'           => ['sometimes', \Illuminate\Validation\Rule::in($this->assignableRoles())],
         'college'        => 'nullable|string|max:255',
         'department'     => 'nullable|string|max:255',
@@ -199,12 +209,129 @@ class UserController extends Controller
         return response()->json(['message' => 'User deleted.']);
     }
 
-    public function toggleActive(User $user)
+    private function openWorkQuery(User $user): array
+    {
+        $referrals = \App\Models\Referral::where('assigned_to_user_id', $user->id)
+            ->where('is_archived', false)
+            ->whereNotIn('status', ['completed', 'closed']);
+        $cases = \App\Models\CaseFile::where('primary_counselor_id', $user->id)
+            ->whereNotIn('status', ['closed', 'resolved']);
+        $appointments = \App\Models\Appointment::where('staff_user_id', $user->id)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->whereDate('appointment_date', '>=', today());
+
+        return [$referrals, $cases, $appointments];
+    }
+
+    /** Open cases / upcoming appointments that would be left on a deactivated account, and who can take them over. */
+    public function openWork(User $user)
     {
         $this->authorizeManaged($user);
-        $user->update(['is_active' => !$user->is_active]);
-        AuditLog::record('toggled', "User {$user->name} " . ($user->is_active ? 'activated' : 'deactivated') . ".", $user);
-        return response()->json($user);
+        [$referrals, $cases, $appointments] = $this->openWorkQuery($user);
+
+        return response()->json([
+            'open_referrals'        => $referrals->count(),
+            'open_cases'            => $cases->count(),
+            'upcoming_appointments' => $appointments->count(),
+            'staff'                 => User::where('is_active', true)
+                ->where('id', '!=', $user->id)
+                ->whereIn('role', ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head'])
+                ->when($user->unit, fn($q) => $q->where('unit', $user->unit))
+                ->orderBy('name')->get(['id', 'name', 'role', 'unit']),
+        ]);
+    }
+
+    public function statusHistory(User $user)
+    {
+        $this->authorizeManaged($user);
+        return response()->json(
+            \App\Models\UserStatusEvent::where('user_id', $user->id)->orderByDesc('id')->get()
+        );
+    }
+
+    public function toggleActive(Request $request, User $user)
+    {
+        $this->authorizeManaged($user);
+        $deactivating = (bool) $user->is_active;
+        $kind = $deactivating ? 'deactivate' : 'reactivate';
+        $list = $deactivating ? \App\Support\EmployeeAccountReasons::DEACTIVATE : \App\Support\EmployeeAccountReasons::REACTIVATE;
+
+        abort_if($user->id === $request->user()->id && $deactivating, 422, 'You cannot deactivate your own account.');
+
+        $validated = $request->validate([
+            'reason'      => ['required', \Illuminate\Validation\Rule::in(array_keys($list))],
+            'note'        => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+            'reassign_to' => ['nullable', 'integer', 'exists:users,id'],
+        ], [
+            'reason.required' => 'Please select a reason.',
+            'note.required_if' => 'Please describe the reason when "Other" is selected.',
+            'note.regex'      => 'Please explain in words, not numbers only.',
+        ]);
+
+        $label = \App\Support\EmployeeAccountReasons::label($kind, $validated['reason']);
+        $note  = isset($validated['note']) ? trim($validated['note']) : null;
+        $note  = $note === '' ? null : $note;
+        $actor = $request->user();
+
+        if ($deactivating) {
+            $reassigned = ['referrals' => 0, 'cases' => 0, 'appointments' => 0];
+            if (!empty($validated['reassign_to'])) {
+                $target = User::where('id', $validated['reassign_to'])->where('is_active', true)->first();
+                abort_if(!$target || $target->id === $user->id, 422, 'Choose an active staff member to take over.');
+                [$referrals, $cases, $appointments] = $this->openWorkQuery($user);
+                $reassigned['referrals']    = $referrals->update(['assigned_to_user_id' => $target->id]);
+                $reassigned['cases']        = $cases->update(['primary_counselor_id' => $target->id]);
+                $reassigned['appointments'] = $appointments->update(['staff_user_id' => $target->id]);
+            }
+
+            $user->update([
+                'is_active'           => false,
+                'deactivation_reason' => $label,
+                'deactivation_note'   => $note,
+                'deactivated_at'      => now(),
+            ]);
+
+            \App\Models\UserStatusEvent::create([
+                'user_id' => $user->id, 'action' => 'deactivated', 'reason_key' => $validated['reason'],
+                'reason_label' => $label, 'note' => $note, 'actor_id' => $actor->id, 'actor_name' => $actor->name,
+                'created_at' => now(),
+            ]);
+
+            $msg = "Deactivated {$user->name} (account {$user->email}). Reason: {$label}." . ($note ? " Note: {$note}." : '');
+            if (!empty($validated['reassign_to'])) {
+                $msg .= " Reassigned {$reassigned['referrals']} referral(s), {$reassigned['cases']} case(s) and {$reassigned['appointments']} appointment(s) to {$target->name}.";
+            }
+            AuditLog::record('deactivated', $msg, $user, ['is_active' => true], ['is_active' => false, 'reason' => $label, 'note' => $note]);
+        } else {
+            $prevLabel = $user->deactivation_reason;
+            $prevAt    = $user->deactivated_at;
+
+            $update = [
+                'is_active'           => true,
+                'deactivation_reason' => null,
+                'deactivation_note'   => null,
+                'deactivated_at'      => null,
+            ];
+            if ($validated['reason'] === 'security_verified') {
+                // The password itself is never logged - only that a reset is required.
+                $update['must_change_password'] = true;
+            }
+            $user->update($update);
+
+            \App\Models\UserStatusEvent::create([
+                'user_id' => $user->id, 'action' => 'reactivated', 'reason_key' => $validated['reason'],
+                'reason_label' => $label, 'note' => $note, 'previous_reason_label' => $prevLabel, 'previous_at' => $prevAt,
+                'actor_id' => $actor->id, 'actor_name' => $actor->name, 'created_at' => now(),
+            ]);
+
+            $msg = "Reactivated {$user->name} (account {$user->email}). Reason: {$label}."
+                . ($note ? " Note: {$note}." : '')
+                . ($prevLabel ? " Originally deactivated for: {$prevLabel}." : '')
+                . ($validated['reason'] === 'security_verified' ? ' A password reset is required at the next login.' : '');
+            AuditLog::record('reactivated', $msg, $user, ['is_active' => false], ['is_active' => true, 'reason' => $label, 'note' => $note]);
+        }
+
+        return response()->json($user->fresh());
     }
 
     public function resetPassword(Request $request, User $user)
@@ -261,9 +388,21 @@ class UserController extends Controller
         $rows = [];
 
         if (in_array($ext, ['xlsx', 'xls'])) {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            // Read values only (no styles) - the template is formatted down to
+            // row 10000, and loading all of that formatting is what made valid
+            // .xlsx files fail with "Failed to read file".
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getRealPath());
+            if (method_exists($reader, 'setReadDataOnly')) {
+                $reader->setReadDataOnly(true);
+            }
+            $spreadsheet = $reader->load($file->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
             $data  = $sheet->toArray(null, true, true, false);
+
+            // Drop the unused rows at the bottom of the sheet.
+            while (!empty($data) && count(array_filter(end($data), fn($v) => $v !== null && trim((string) $v) !== '')) === 0) {
+                array_pop($data);
+            }
 
             $rawHeader = array_map(fn($h) => strtolower(trim($h ?? '')), $data[0]);
             for ($i = 1; $i < count($data); $i++) {
@@ -385,9 +524,21 @@ class UserController extends Controller
         $rows = [];
 
         if (in_array($ext, ['xlsx', 'xls'])) {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            // Read values only (no styles) - the template is formatted down to
+            // row 10000, and loading all of that formatting is what made valid
+            // .xlsx files fail with "Failed to read file".
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReaderForFile($file->getRealPath());
+            if (method_exists($reader, 'setReadDataOnly')) {
+                $reader->setReadDataOnly(true);
+            }
+            $spreadsheet = $reader->load($file->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
             $data  = $sheet->toArray(null, true, true, false);
+
+            // Drop the unused rows at the bottom of the sheet.
+            while (!empty($data) && count(array_filter(end($data), fn($v) => $v !== null && trim((string) $v) !== '')) === 0) {
+                array_pop($data);
+            }
 
             if (empty($data)) {
                 return [];
@@ -414,6 +565,11 @@ class UserController extends Controller
                 $rows[] = $rowAssoc;
             }
             fclose($handle);
+        }
+
+        // Unused rows at the bottom (blank cells) are not records.
+        while (!empty($rows) && count(array_filter(end($rows), fn($v) => $v !== null && trim((string) $v) !== '')) === 0) {
+            array_pop($rows);
         }
 
         return $rows;
@@ -495,11 +651,45 @@ class UserController extends Controller
 
         $existingUsers = User::whereIn('email', $emails)->get()->keyBy('email');
 
+        // Duplicate checks against existing accounts (Employee ID and full name)
+        // and within the uploaded file itself.
+        $fileIds = collect($rows)->pluck('employee_id')->filter(fn($v) => trim((string) $v) !== '')->map(fn($v) => trim((string) $v))->unique()->values()->all();
+        $byEmployeeId = User::whereIn('employee_id', $fileIds)->get()->keyBy('employee_id');
+        $firstNames = collect($rows)->map(fn($r) => mb_strtolower(trim((string) ($r['first_name'] ?? ''))))->filter()->unique()->values()->all();
+        $nameKey = fn($f, $l) => mb_strtolower(trim((string) $f)) . '|' . mb_strtolower(trim((string) $l));
+        $byFullName = User::whereIn(\DB::raw('lower(first_name)'), $firstNames)->get()
+            ->groupBy(fn($u) => $nameKey($u->first_name, $u->last_name));
+        $seenEmail = []; $seenId = []; $seenName = [];
+
         foreach ($rows as $i => $row) {
             $row['role']  = strtolower(trim($row['role'] ?? ''));
             [$row, $scopeReasons] = $this->scopeImportRow($row, $existingUsers->get($row['email'] ?? ''));
             $reasons      = array_merge($this->validateImportRow($row, $validRoles), $scopeReasons);
             $isDuplicate  = !empty($row['email']) && isset($existingEmails[$row['email']]);
+
+            $rowEmail = mb_strtolower(trim((string) ($row['email'] ?? '')));
+            $rowId    = trim((string) ($row['employee_id'] ?? ''));
+            $rowName  = $nameKey($row['first_name'] ?? '', $row['last_name'] ?? '');
+            $sameEmailUser = $existingUsers->get($row['email'] ?? '');
+
+            if ($rowId !== '' && ($idUser = $byEmployeeId->get($rowId)) && (!$sameEmailUser || $sameEmailUser->id !== $idUser->id)) {
+                $reasons[] = "Duplicate Employee ID: {$rowId} already belongs to {$idUser->name}.";
+            }
+            if ($rowName !== '|' && ($nameUsers = $byFullName->get($rowName)) && !$nameUsers->contains(fn($u) => $sameEmailUser && $u->id === $sameEmailUser->id)) {
+                $reasons[] = 'Possible duplicate: full name matches existing employee ' . $nameUsers->first()->name . ' (' . $nameUsers->first()->email . ').';
+            }
+            if ($rowEmail !== '' && isset($seenEmail[$rowEmail])) {
+                $reasons[] = "Duplicate Email Address within the file (same as row {$seenEmail[$rowEmail]}).";
+            }
+            if ($rowId !== '' && isset($seenId[$rowId])) {
+                $reasons[] = "Duplicate Employee ID within the file (same as row {$seenId[$rowId]}).";
+            }
+            if ($rowName !== '|' && isset($seenName[$rowName])) {
+                $reasons[] = "Duplicate Full Name within the file (same as row {$seenName[$rowName]}).";
+            }
+            if ($rowEmail !== '')    { $seenEmail[$rowEmail] ??= $i + 2; }
+            if ($rowId !== '')       { $seenId[$rowId] ??= $i + 2; }
+            if ($rowName !== '|')    { $seenName[$rowName] ??= $i + 2; }
 
             if ($isDuplicate) {
                 $duplicateCount++;

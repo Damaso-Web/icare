@@ -31,6 +31,7 @@ import Reports from '../views/reports/Index.vue';
 import Users from '../views/users/Index.vue';
 import AuditLogs from '../views/audit/Index.vue';
 import MyAccount from '../views/MyAccount.vue';
+import Notifications from '../views/Notifications.vue';
 import CallSlips from '../views/callslips/Index.vue';
 import Management from '../views/management/Index.vue';
 import Faculty from '../views/faculty/Index.vue';
@@ -148,6 +149,12 @@ const routes = [
                 path: 'account',
                 name: 'student-account',
                 component: () => import('../views/student/Account.vue'),
+            },
+            {
+                path: 'notifications',
+                name: 'student-notifications',
+                component: Notifications,
+                meta: { student: true },
             },
         ],
     },
@@ -293,6 +300,12 @@ const routes = [
                 name: 'faculty-directory',
                 component: Faculty,
                 meta: { roles: FACULTY_ROLES },
+            },
+            {
+                path: 'notifications',
+                name: 'notifications',
+                component: Notifications,
+                meta: { roles: ALL_ROLES },
             },
             {
                 path: 'my-account',

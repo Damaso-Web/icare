@@ -154,6 +154,7 @@ class CaseController extends Controller
         }
 
         $old = $case->toArray();
+        $previousCounselor = $case->primary_counselor_id;
         $case->update($request->only([
             'primary_counselor_id',
             'target_resolution_date',
@@ -164,6 +165,19 @@ class CaseController extends Controller
             'intake_notes',
         ]));
         AuditLog::record('updated', "Updated case {$case->case_number}.", $case, $old, $case->toArray());
+
+        // Reassigned to another staff member: tell the new counselor and the student in the app.
+        if ($case->primary_counselor_id && (int) $case->primary_counselor_id !== (int) $previousCounselor) {
+            $new = \App\Models\User::find($case->primary_counselor_id);
+            if ($new && $new->id !== $request->user()->id) {
+                $new->notify(new \App\Notifications\CaseUpdateNotification("Case {$case->case_number} for {$case->student->first_name} {$case->student->last_name} has been assigned to you.", null, $case->id));
+            }
+            $case->student?->notify(new \App\Notifications\CaseUpdateNotification(
+                "Your case {$case->case_number} has been assigned to " . ($new?->name ?? 'another staff member') . '.',
+                null, $case->id
+            ));
+        }
+
         return response()->json($case->load('counselor'));
     }
 

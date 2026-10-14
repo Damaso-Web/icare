@@ -95,7 +95,7 @@ class FacultyController extends UserController
             'last_name'      => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => 'required|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email',
-            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
+            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique()],
             'department'     => 'nullable|string|max:255',
             'college'        => 'nullable|string|max:255',
             'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
@@ -142,7 +142,7 @@ class FacultyController extends UserController
             'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => 'sometimes|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email,' . $user->id,
-            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX],
+            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique($user->id)],
             'department'     => 'nullable|string|max:255',
             'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
         ]);
@@ -166,7 +166,9 @@ class FacultyController extends UserController
     public function toggle(Request $request, User $user)
     {
         $this->authorizeTarget($request, $user);
-        return parent::toggleActive($user);
+        $user->update(['is_active' => !$user->is_active]);
+        AuditLog::record('toggled', "User {$user->name} " . ($user->is_active ? 'activated' : 'deactivated') . ".", $user);
+        return response()->json($user);
     }
 
     public function resetPassword(Request $request, User $user)

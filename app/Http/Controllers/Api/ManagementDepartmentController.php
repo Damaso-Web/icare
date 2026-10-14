@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Department;
+use App\Support\ManagementGuard;
 use Illuminate\Http\Request;
 
 class ManagementDepartmentController extends Controller
@@ -33,7 +34,10 @@ class ManagementDepartmentController extends Controller
         if ($exists) {
             return response()->json(['message' => 'This department already exists for that college.'], 422);
         }
-        return response()->json(Department::create($validated)->load('college'), 201);
+        $validated['name'] = ManagementGuard::capFirst($validated['name']);
+        $department = Department::create($validated)->load('college');
+        ManagementGuard::audit('department', 'created', $department->name, $department, [], ['name' => $department->name, 'college' => $department->college?->name]);
+        return response()->json($department, 201);
     }
 
     public function update(Request $request, Department $department)
@@ -45,13 +49,33 @@ class ManagementDepartmentController extends Controller
             'college_id' => 'required|exists:colleges,id',
             'name'       => $nameRules,
         ]);
+        $validated['name'] = ManagementGuard::capFirst($validated['name']);
+        $old = ['name' => $department->name, 'college' => $department->college?->name];
         $department->update($validated);
-        return response()->json($department->load('college'));
+        $department->load('college');
+        ManagementGuard::audit('department', 'updated', $department->name, $department, $old, ['name' => $department->name, 'college' => $department->college?->name]);
+        return response()->json($department);
     }
 
-    public function destroy(Department $department)
+    public static function links(Department $department): array
     {
+        return ['employees' => \App\Models\User::where('department', $department->name)->count()];
+    }
+
+    public function usage(Department $department)
+    {
+        return response()->json(self::links($department));
+    }
+
+    public function destroy(Request $request, Department $department)
+    {
+        [$reason, $note] = ManagementGuard::requireDeleteReason($request, 'department');
+        ManagementGuard::assertUnchanged($request, $department);
+        ManagementGuard::blockIfLinked('department', self::links($department));
+
+        $old = ['name' => $department->name];
         $department->delete();
+        ManagementGuard::audit('department', 'deleted', $old['name'], $department, $old, [], $reason, $note);
         return response()->json(['message' => 'Department deleted.']);
     }
 }

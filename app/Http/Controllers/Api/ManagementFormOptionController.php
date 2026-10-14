@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\ReferralFormOption;
+use App\Support\ManagementGuard;
 use Illuminate\Http\Request;
 
 class ManagementFormOptionController extends Controller
@@ -42,7 +43,10 @@ class ManagementFormOptionController extends Controller
         if (!isset($validated['sort_order'])) {
             $validated['sort_order'] = (int) ReferralFormOption::where('category', $validated['category'])->max('sort_order') + 1;
         }
-        return response()->json(ReferralFormOption::create($validated), 201);
+        $validated['label'] = ManagementGuard::capFirst($validated['label']);
+        $option = ReferralFormOption::create($validated);
+        ManagementGuard::audit(self::tabFor($option), 'created', $option->label, $option, [], ['label' => $option->label, 'value' => $option->value]);
+        return response()->json($option, 201);
     }
 
     // value is intentionally not editable - it's the stored value on existing
@@ -57,13 +61,50 @@ class ManagementFormOptionController extends Controller
             'label'      => $labelRules,
             'sort_order' => 'nullable|integer',
         ]);
+        $validated['label'] = ManagementGuard::capFirst($validated['label']);
+        $old = $formOption->only(['label']);
         $formOption->update($validated);
+        ManagementGuard::audit(self::tabFor($formOption), 'updated', $formOption->label, $formOption, $old, $formOption->only(['label']));
         return response()->json($formOption);
     }
 
-    public function destroy(ReferralFormOption $formOption)
+    /** Which Management tab an option belongs to (decides the deletion reasons). */
+    public static function tabFor(ReferralFormOption $o): string
     {
+        return match ($o->category) {
+            'referral_type'     => 'wellness',
+            'act_of_misconduct' => 'disciplinary',
+            default             => 'referral sources',
+        };
+    }
+
+    public static function links(ReferralFormOption $o): array
+    {
+        return match ($o->category) {
+            'referral_type'     => ['referrals' => \App\Models\Referral::where('referral_type', $o->value)->count()],
+            'act_of_misconduct' => [
+                'referrals'  => \App\Models\Referral::whereIn('violation_type', [$o->value, $o->label])->count(),
+                'complaints' => \App\Models\Complaint::whereIn('violation_type', [$o->value, $o->label])->count(),
+            ],
+            default => [],
+        };
+    }
+
+    public function usage(ReferralFormOption $formOption)
+    {
+        return response()->json(self::links($formOption));
+    }
+
+    public function destroy(Request $request, ReferralFormOption $formOption)
+    {
+        $tab = self::tabFor($formOption);
+        [$reason, $note] = ManagementGuard::requireDeleteReason($request, $tab);
+        ManagementGuard::assertUnchanged($request, $formOption);
+        ManagementGuard::blockIfLinked($tab === 'wellness' ? 'service' : 'option', self::links($formOption));
+
+        $old = $formOption->only(['label', 'value']);
         $formOption->delete();
+        ManagementGuard::audit($tab, 'deleted', $old['label'], $formOption, $old, [], $reason, $note);
         return response()->json(['message' => 'Option deleted.']);
     }
 }

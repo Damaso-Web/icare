@@ -353,9 +353,13 @@ export const userAPI = {
     show:          (id)       => api.get(`/users/${id}`),
     update:        (id, data) => api.put(`/users/${id}`, data),
     destroy:       (id)       => api.delete(`/users/${id}`),
-    toggleActive:  (id)       => api.post(`/users/${id}/toggle-active`),
+    toggleActive:  (id, data) => api.post(`/users/${id}/toggle-active`, data || {}),
+    openWork:      (id)       => api.get(`/users/${id}/open-work`),
+    statusHistory: (id)       => api.get(`/users/${id}/status-history`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    importConfirm: (data)     => api.post('/users/import-confirm', data),
     viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
     // Non-admin staff roster for the Reassign / Transfer dropdowns.
     roster:        (params)   => api.get('/staff-roster', { params }),
@@ -397,6 +401,8 @@ export const devAPI = {
 export const auditAPI = {
     index: (params) => api.get('/audit-logs', { params }),
     show:  (id)     => api.get(`/audit-logs/${id}`),
+    filterOptions: ()       => api.get('/audit-logs/filter-options'),
+    summary:       (params) => api.get('/audit-logs/summary', { params }),
 };
 
 export const studentAppointmentAPI = {

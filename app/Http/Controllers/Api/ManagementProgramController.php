@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Program;
+use App\Support\ManagementGuard;
 use Illuminate\Http\Request;
 
 class ManagementProgramController extends Controller
@@ -33,7 +34,10 @@ class ManagementProgramController extends Controller
         if ($exists) {
             return response()->json(['message' => 'This program already exists for that college.'], 422);
         }
-        return response()->json(Program::create($validated)->load('college'), 201);
+        $validated['name'] = ManagementGuard::capFirst($validated['name']);
+        $program = Program::create($validated)->load('college');
+        ManagementGuard::audit('program', 'created', $program->name, $program, [], ['name' => $program->name, 'college' => $program->college?->name]);
+        return response()->json($program, 201);
     }
 
     public function update(Request $request, Program $program)
@@ -45,13 +49,33 @@ class ManagementProgramController extends Controller
             'college_id' => 'required|exists:colleges,id',
             'name'       => $nameRules,
         ]);
+        $validated['name'] = ManagementGuard::capFirst($validated['name']);
+        $old = ['name' => $program->name, 'college' => $program->college?->name];
         $program->update($validated);
-        return response()->json($program->load('college'));
+        $program->load('college');
+        ManagementGuard::audit('program', 'updated', $program->name, $program, $old, ['name' => $program->name, 'college' => $program->college?->name]);
+        return response()->json($program);
     }
 
-    public function destroy(Program $program)
+    public static function links(Program $program): array
     {
+        return ['students' => \App\Models\Student::where('program', $program->name)->count()];
+    }
+
+    public function usage(Program $program)
+    {
+        return response()->json(self::links($program));
+    }
+
+    public function destroy(Request $request, Program $program)
+    {
+        [$reason, $note] = ManagementGuard::requireDeleteReason($request, 'program');
+        ManagementGuard::assertUnchanged($request, $program);
+        ManagementGuard::blockIfLinked('program', self::links($program));
+
+        $old = ['name' => $program->name];
         $program->delete();
+        ManagementGuard::audit('program', 'deleted', $old['name'], $program, $old, [], $reason, $note);
         return response()->json(['message' => 'Program deleted.']);
     }
 }

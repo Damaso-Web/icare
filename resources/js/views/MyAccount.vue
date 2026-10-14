@@ -241,6 +241,10 @@ const contactProblem = computed(() => {
 
 // Leaving the Password tab clears whatever was typed there (B381).
 watch(tab, (now, before) => {
+  // Unsaved profile edits are discarded when the user switches to the Password tab.
+  if (now === 'password' && before !== 'password' && snapshot.value) {
+    try { profileForm.value = JSON.parse(snapshot.value); } catch (e) { /* keep the current values */ }
+  }
   if (before === 'password' && now !== 'password') {
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
     pwError.value = '';

@@ -72,7 +72,6 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Override Referral Status</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="refOverride.open = false">✕</button>
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:12px">
             <div style="font-size:12.5px;color:var(--stone)">Current status: <strong style="color:var(--ink)">{{ toTitleCase(String(referral.status || '').replace(/_/g, ' ')) }}</strong></div>
@@ -86,10 +85,11 @@
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
               <input v-model="refOverride.reason" class="ifi" maxlength="255" placeholder="Why is the status being changed?" />
+              <div v-if="refOverride.reason.trim() && !/\p{L}/u.test(refOverride.reason)" style="font-size:11px;color:var(--red);margin-top:4px">Please explain the reason in words, not numbers only.</div>
             </div>
             <div v-if="refOverride.error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ refOverride.error }}</div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="refOverride.saving || !refOverride.status || refOverride.reason.trim().length < 5" @click="applyRefOverride">{{ refOverride.saving ? 'Saving...' : 'Save Status' }}</button>
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="refOverride.saving || !refOverride.status || refOverride.reason.trim().length < 5 || !/\p{L}/u.test(refOverride.reason)" @click="applyRefOverride">{{ refOverride.saving ? 'Saving...' : 'Save Status' }}</button>
               <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="refOverride.open = false">Cancel</button>
             </div>
             <div style="font-size:11px;color:var(--fog)">The change and its reason are recorded in the Audit Logs.</div>

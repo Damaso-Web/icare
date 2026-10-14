@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AcademicYear;
+use App\Support\ManagementGuard;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -17,18 +18,26 @@ class ManagementAcademicYearController extends Controller
     public function store(Request $request)
     {
         $data = $this->validated($request, null);
-        return response()->json(AcademicYear::create($data), 201);
+        $ay = AcademicYear::create($data);
+        ManagementGuard::audit('school calendar', 'created', $ay->start_year . '-' . ($ay->start_year + 1), $ay, [], $data);
+        return response()->json($ay, 201);
     }
 
     public function update(Request $request, AcademicYear $academicYear)
     {
         $data = $this->validated($request, $academicYear->id);
+        $old = $academicYear->only(array_keys($data));
         $academicYear->update($data);
+        ManagementGuard::audit('school calendar', 'updated', $academicYear->start_year . '-' . ($academicYear->start_year + 1), $academicYear, array_map(fn($v) => $v instanceof \DateTimeInterface ? $v->format('Y-m-d') : $v, $old), $data);
         return response()->json($academicYear);
     }
 
-    public function destroy(AcademicYear $academicYear)
+    public function destroy(Request $request, AcademicYear $academicYear)
     {
+        // Calendar entries are dates, not reference data, so they may be deleted outright.
+        [$reason, $note] = ManagementGuard::requireDeleteReason($request, 'calendar');
+        ManagementGuard::assertUnchanged($request, $academicYear);
+        ManagementGuard::audit('school calendar', 'deleted', $academicYear->start_year . '-' . ($academicYear->start_year + 1), $academicYear, [], [], $reason, $note);
         $academicYear->delete();
         return response()->json(['message' => 'Academic year deleted.']);
     }

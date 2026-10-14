@@ -89,7 +89,7 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span v-if="unreadCount > 0" style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff"></span>
+            <span v-if="unreadCount > 0" style="position:absolute;top:-3px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;border:2px solid #fff;box-sizing:content-box">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
           </button>
 
           <!-- Notification Dropdown -->
@@ -117,6 +117,9 @@
                   </div>
                 </div>
               </div>
+            </div>
+            <div style="border-top:1px solid var(--cloud);padding:8px;text-align:center">
+              <button class="ibtn ibtn-g ibtn-sm" style="font-size:12px;width:100%;justify-content:center" @click.stop="viewAllNotifs">View all</button>
             </div>
           </div>
 
@@ -153,6 +156,7 @@ import { ref, computed, onMounted, onBeforeUnmount, watch, inject, provide } fro
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
+import { staffNotificationTarget } from '../utils/notificationTarget';
 import SessionGuard from '../components/SessionGuard.vue';
 import { roleIn, roleLabelOf } from '../utils/roles';
 
@@ -231,12 +235,14 @@ const sealBsu = ref(true);
 const sealOss = ref(true);
 const notifications = ref([]);
 
-const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
+const unreadTotal = ref(0);
+const unreadCount = computed(() => Math.max(unreadTotal.value, notifications.value.filter(n => !n.read_at).length));
 
 async function fetchNotifications() {
   try {
     const res = await notificationAPI.index();
     notifications.value = res.data.data || res.data;
+    unreadTotal.value = res.data.unread_count ?? notifications.value.filter(n => !n.read_at).length;
   } catch (e) {
     console.error(e);
   }
@@ -247,6 +253,7 @@ async function markRead(n) {
   try {
     await notificationAPI.markRead(n.id);
     n.read_at = new Date().toISOString();
+    unreadTotal.value = Math.max(0, unreadTotal.value - 1);
   } catch (e) {
     // Non-fatal - badge just stays until next fetch.
   }
@@ -256,6 +263,7 @@ async function markAllRead() {
   try {
     await notificationAPI.markAllRead();
     notifications.value.forEach(n => n.read_at = n.read_at || new Date().toISOString());
+    unreadTotal.value = 0;
   } catch (e) {
     // Non-fatal.
   }
@@ -263,13 +271,16 @@ async function markAllRead() {
 
 function openNotification(n) {
   markRead(n);
-  if (n.data?.referral_id) {
-    router.push({ name: 'referral-show', params: { id: n.data.referral_id } });
-    showNotifs.value = false;
-  } else if (['appointment_confirmed', 'appointment_requested'].includes(n.data?.type)) {
-    router.push({ name: 'appointments' });
+  const target = staffNotificationTarget(n.data || {});
+  if (target) {
+    router.push(target);
     showNotifs.value = false;
   }
+}
+
+function viewAllNotifs() {
+  showNotifs.value = false;
+  router.push({ name: 'notifications' });
 }
 
 function formatNotifTime(date) {
@@ -525,8 +536,12 @@ async function handleLogout() {
   router.push({ name: 'login-choice' });
 }
 
+let notifTimer = null;
 onMounted(() => {
   fetchNotifications();
   syncUser();
+  // The badge follows new notifications without a page refresh.
+  notifTimer = setInterval(fetchNotifications, 30000);
 });
+onBeforeUnmount(() => { if (notifTimer) clearInterval(notifTimer); });
 </script>

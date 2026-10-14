@@ -94,7 +94,7 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
           <div>
             <label class="ifl">College</label>
-            <select v-model="selectedCollegeId" class="ifse" :disabled="studentFound && !!selectedCollegeId" @change="onCollegeChange">
+            <select v-model="selectedCollegeId" class="ifse" :disabled="true" @change="onCollegeChange">
               <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
@@ -102,7 +102,7 @@
           </div>
           <div>
             <label class="ifl">Department</label>
-            <select v-model="form.complainee_department" class="ifse" :disabled="!selectedCollegeId || (studentFound && !!selectedCollegeId)">
+            <select v-model="form.complainee_department" class="ifse" :disabled="true">
               <option value="" disabled hidden>Select department...</option>
               <option v-for="d in departments" :key="d.id" :value="d.name">{{ d.name }}</option>
             </select>
@@ -119,9 +119,10 @@
             class="ifi"
             placeholder="Complainee's address..."
             maxlength="255"
-            :readonly="studentFound"
-            :style="studentFound ? 'background:var(--snow);color:var(--slate);cursor:default' : ''"
-            :title="studentFound ? 'Taken from the student\'s record. Search a different student to change it.' : ''"
+            :readonly="true"
+            :disabled="!studentFound"
+            style="background:var(--snow);color:var(--slate);cursor:default"
+            :title="studentFound ? 'Taken from the student\'s record. Search a different student to change it.' : 'Search and select a student to fill this in.'"
           />
         </div>
 
@@ -151,6 +152,7 @@
             v-model="form.incident_date"
             type="date"
             class="ifi"
+            :max="todayStr"
             :style="errorStyle('incident_date')"
             @input="clearFieldError('incident_date')"
             @blur="validateField('incident_date')"
@@ -437,6 +439,10 @@ const form = ref({
   description: '',
 });
 
+// Date of Incident cannot be in the future (local date, not UTC).
+const _now = new Date();
+const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+
 const evidenceFiles  = ref([]);
 const affidavitFiles = ref([]);
 function onFilesSelected(event, category) {
@@ -458,6 +464,12 @@ function onStudentSearch() {
   studentFound.value = false;
   form.value.complainee_student_id = null;
   selectedStudent.value = null;
+  // Any change to the search box drops the previously filled student details.
+  form.value.complainee_address = '';
+  form.value.complainee_college = '';
+  form.value.complainee_department = '';
+  selectedCollegeId.value = '';
+  departments.value = [];
 
   if (!studentSearchQuery.value || studentSearchQuery.value.length < 2) {
     studentSuggestions.value = [];
@@ -528,6 +540,7 @@ function openCertificationModal() {
   if (!form.value.violation_type)        { errs.violation_type = true;        missing.push('Specific Act of Misconduct'); }
   if (!form.value.incident_date)         { errs.incident_date = true;         missing.push('Date of Incident'); }
   if (!form.value.description)           { errs.description = true;          missing.push('Narration of Facts'); }
+  if (form.value.incident_date && form.value.incident_date > todayStr) { errs.incident_date = true; missing.push('a Date of Incident that is not in the future'); }
 
   fieldErrors.value = errs;
   if (missing.length) {

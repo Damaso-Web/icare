@@ -181,6 +181,15 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">User hasn't changed their password yet.</div>
           </div>
 
+          <div v-if="statusHistory.length">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Account History</div>
+            <div v-for="ev in statusHistory" :key="ev.id" style="border-left:3px solid var(--cloud);padding:2px 0 2px 10px;margin-bottom:8px;font-size:12px;color:var(--slate);line-height:1.5">
+              <strong>{{ ev.action === 'deactivated' ? 'Deactivated' : 'Reactivated' }}</strong>: {{ ev.reason_label }}<span v-if="ev.note"> - {{ ev.note }}</span>
+              <div v-if="ev.previous_reason_label" style="color:var(--stone)">Originally deactivated: {{ ev.previous_reason_label }}<span v-if="ev.previous_at"> on {{ formatDate(ev.previous_at) }}</span></div>
+              <div style="color:var(--fog)">{{ ev.actor_name || 'Admin' }} &middot; {{ new Date(ev.created_at).toLocaleString() }}</div>
+            </div>
+          </div>
+
           <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
             ✓ New password: <strong style="font-family:var(--mono)">{{ resetPasswordResult }}</strong>
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the employee.</div>
@@ -434,8 +443,8 @@
               Download Template
             </a>
             <div>
-              <label class="ifl">File</label>
-              <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
+              <label class="ifl">File <span style="font-weight:400;color:var(--stone)">(Accepted file format: .xlsx)</span></label>
+              <input type="file" accept=".xlsx" class="ifi" @change="handleFileSelect" />
             </div>
             <div v-if="loadingPreview" style="text-align:center;padding:20px">
               <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -590,23 +599,33 @@
       </div>
     </div>
 
-    <!-- Toggle Active Confirmation -->
-    <div v-if="showToggleConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showToggleConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink);text-transform:capitalize">{{ toggleAction }} Account?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            Are you sure you want to {{ toggleAction }} <strong>{{ userToToggle?.first_name }} {{ userToToggle?.last_name }}</strong>'s account?
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="doConfirmedToggle" style="text-transform:capitalize">Yes, {{ toggleAction }}</button>
-            <button class="ibtn ibtn-o" @click="showToggleConfirm = false">Cancel</button>
-          </div>
+    <!-- Deactivate / Reactivate (reason required) -->
+    <ReasonDialog
+      :open="showToggleConfirm"
+      :title="toggleAction === 'deactivate' ? 'Deactivate Account?' : 'Activate Account?'"
+      :message="toggleMessage"
+      :reasons="toggleReasons"
+      :reason-label="toggleAction === 'deactivate' ? 'Reason for Deactivation' : 'Reason for Reactivation'"
+      :confirm-text="toggleAction === 'deactivate' ? 'Deactivate Account' : 'Activate Account'"
+      :other-placeholder="toggleAction === 'deactivate' ? 'Please describe the reason for deactivation briefly. Do not include sensitive personal details.' : 'Please describe the reason for reactivation briefly. Do not include sensitive personal details.'"
+      :optional-note="toggleAction === 'activate'"
+      :danger="toggleAction === 'deactivate'"
+      :busy="toggleBusy"
+      :error="toggleError"
+      @confirm="doConfirmedToggle"
+      @cancel="showToggleConfirm = false"
+    >
+      <div v-if="toggleAction === 'deactivate' && openWork && (openWork.open_referrals || openWork.open_cases || openWork.upcoming_appointments)" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber);line-height:1.6">
+        ⚠ This employee still has {{ openWork.open_referrals }} open referral(s), {{ openWork.open_cases }} open case(s) and {{ openWork.upcoming_appointments }} upcoming appointment(s).
+        <div style="margin-top:6px;color:var(--ink)">
+          <label class="ifl">Reassign them to</label>
+          <select v-model="reassignTo" class="ifse">
+            <option value="">Do not reassign</option>
+            <option v-for="st in openWork.staff" :key="st.id" :value="st.id">{{ st.name }} ({{ st.unit || st.role }})</option>
+          </select>
         </div>
       </div>
-    </div>
+    </ReasonDialog>
 
   </div>
 </template>
@@ -617,6 +636,8 @@ import { ref, onMounted, watch, inject, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
+import ReasonDialog from '../../components/ReasonDialog.vue';
+import { EMPLOYEE_DEACTIVATE_REASONS, reactivationReasonsFor } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
 import { ROLE_ORDER, ROLE_LABELS, addableRoles } from '../../utils/roles';
 import { matchCollege } from '../../utils/colleges';
@@ -662,6 +683,7 @@ const pageIntro = computed(() => auth.isAdmin ? 'Manage system accounts and role
 const loading    = ref(true);
 const showModal  = ref(false);
 const showViewModal = ref(false);
+const statusHistory = ref([]);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
@@ -700,22 +722,60 @@ const showToggleConfirm = ref(false);
 const userToToggle = ref(null);
 const toggleAction = ref('');
 
-function openToggleConfirm(u, action) {
+const toggleBusy = ref(false);
+const toggleError = ref('');
+const openWork = ref(null);
+const reassignTo = ref('');
+const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const toggleReasons = computed(() =>
+  toggleAction.value === 'deactivate'
+    ? EMPLOYEE_DEACTIVATE_REASONS
+    : reactivationReasonsFor(userToToggle.value?.deactivation_reason)
+);
+const toggleMessage = computed(() => {
+  const u = userToToggle.value;
+  if (!u) return '';
+  const name = `<strong>${escHtml(u.first_name)} ${escHtml(u.last_name)}</strong>`;
+  if (toggleAction.value === 'deactivate') {
+    return `Deactivate ${name}'s account? Their case histories, appointments and activity records are kept and stay attributed to them.`;
+  }
+  const was = u.deactivation_reason
+    ? `<br><span style="color:var(--stone)">Deactivated: ${escHtml(u.deactivation_reason)}${u.deactivated_at ? ' on ' + escHtml(new Date(u.deactivated_at).toLocaleDateString()) : ''}.</span>`
+    : '';
+  return `Reactivate ${name}'s account? They will be able to log in again.${was}`;
+});
+
+async function openToggleConfirm(u, action) {
   userToToggle.value = u;
   toggleAction.value = action;
+  toggleError.value = '';
+  openWork.value = null;
+  reassignTo.value = '';
+  if (action === 'deactivate') {
+    try { openWork.value = (await userAPI.openWork(u.id)).data; } catch (e) { /* the warning is optional */ }
+  }
   showToggleConfirm.value = true;
 }
 
-async function doConfirmedToggle() {
+async function doConfirmedToggle({ reason, note }) {
   const u = userToToggle.value;
-  showToggleConfirm.value = false;
-  if (!u) return;
+  if (!u || toggleBusy.value) return;
+  toggleBusy.value = true;
+  toggleError.value = '';
   try {
-    await userAPI.toggleActive(u.id);
+    await userAPI.toggleActive(u.id, {
+      reason,
+      note: note || null,
+      reassign_to: toggleAction.value === 'deactivate' && reassignTo.value ? reassignTo.value : null,
+    });
+    showToggleConfirm.value = false;
     toast?.success(`Account ${toggleAction.value}d successfully.`);
     fetchUsers();
   } catch (e) {
-    toast?.error('Please try again.');
+    toggleError.value = e.response?.data?.message || 'Please try again.';
+  } finally {
+    toggleBusy.value = false;
   }
 }
 
@@ -882,12 +942,18 @@ async function openView(u) {
   showTempPassword.value = false;
   tempPasswordValue.value = '';
   viewedUser.value = u;
+  statusHistory.value = [];
   showViewModal.value = true;
   try {
     const res = await userAPI.show(u.id);
     viewedUser.value = res.data;
   } catch (e) {
     // Non-fatal - falls back to the row data already shown.
+  }
+  try {
+    statusHistory.value = (await userAPI.statusHistory(u.id)).data;
+  } catch (e) {
+    statusHistory.value = [];
   }
 }
 

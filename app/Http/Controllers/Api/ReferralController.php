@@ -552,11 +552,26 @@ class ReferralController extends Controller
         $this->authorizeView($referral, $request->user());
         $request->validate(['user_id' => 'required|exists:users,id']);
         $old = $referral->only(['assigned_to_user_id']);
+        $previousId = $referral->assigned_to_user_id;
 
         $referral->update([
             'assigned_to_user_id' => $request->user_id,
             'assigned_at'         => now(),
         ]);
+
+        // The receiving staff member and the student are told in the app.
+        if ((int) $previousId !== (int) $request->user_id) {
+            $receiver = User::find($request->user_id);
+            if ($receiver && $receiver->id !== $request->user()->id) {
+                $receiver->notify(new \App\Notifications\ReferralAssignedNotification($referral, $request->user()->name));
+            }
+            if ($referral->student) {
+                $referral->student->notify(new \App\Notifications\CaseUpdateNotification(
+                    "Your referral {$referral->referral_code} has been assigned to " . ($receiver?->name ?? 'another staff member') . '.',
+                    $referral->id, $referral->case_id, $referral->referral_code
+                ));
+            }
+        }
 
         AuditLog::record('assigned', "Assigned referral {$referral->referral_code} to user #{$request->user_id}.", $referral, $old);
         return response()->json($referral->load('assignedTo'));
@@ -602,6 +617,72 @@ class ReferralController extends Controller
         return response()->json($referral);
     }
 
+    /**
+     * Makes sure an acknowledged GCU/SDU referral has its "waiting for the student to pick a
+     * schedule" appointment (shown in Appointments, with the scheduling link on the student's
+     * side). Does nothing for TMDU testing cycles, which TMDU schedules on the Testing Record.
+     */
+    private function ensureSchedulingAppointment(Referral $referral, User $actor): void
+    {
+        if ($referral->testingRecord()->exists()) {
+            return;
+        }
+
+        $unit = $referral->referral_type === 'disciplinary' ? 'SDU' : 'GCU';
+        $case = $referral->case
+            ?? CaseFile::where('student_id', $referral->student_id)->first()
+            ?? CaseFile::create([
+                'student_id'   => $referral->student_id,
+                'case_type'    => $referral->referral_type,
+                'current_unit' => $unit,
+                'status'       => 'open',
+                'opened_date'  => today(),
+            ]);
+        if (!$referral->case_id) {
+            $referral->update(['case_id' => $case->id]);
+        }
+        if (!$case->isOpen()) {
+            $case->update(['status' => 'open', 'closed_date' => null]);
+        }
+        $case->update([
+            'current_unit'         => $unit,
+            'primary_counselor_id' => $case->primary_counselor_id ?? $actor->id,
+        ]);
+
+        $type = \App\Models\Referral::appointmentTypeFor($referral->referral_type);
+        $existing = $case->appointments()
+            ->where('referral_id', $referral->id)
+            ->where('appointment_type', $type)
+            ->where('unit', $unit)
+            ->whereNotIn('status', ['cancelled', 'completed', 'no_show', 'rescheduled'])
+            ->exists();
+        if ($existing) {
+            return;
+        }
+
+        $placeholder = now()->addDay();
+        while ($placeholder->isWeekend()) {
+            $placeholder->addDay();
+        }
+        \App\Models\Appointment::create([
+            'case_id'            => $case->id,
+            'referral_id'        => $referral->id,
+            'student_id'         => $case->student_id,
+            'staff_user_id'      => $referral->assigned_to_user_id ?? $case->primary_counselor_id ?? $actor->id,
+            'created_by_user_id' => $actor->id,
+            'appointment_type'   => $type,
+            'unit'               => $unit,
+            'scheduling_token'   => \Illuminate\Support\Str::random(48),
+            'token_expires_at'   => now()->addDays(7),
+            'request_status'     => 'awaiting_student',
+            'status'             => 'pending',
+            'appointment_date'   => $placeholder->format('Y-m-d'),
+            'start_time'         => '08:00',
+            'end_time'           => '09:00',
+            'required_documents' => \App\Models\Referral::requiredDocumentsFor($referral->referral_type),
+        ]);
+    }
+
     // The GCU Head can set any referral's status by hand, backward too, with a
     // reason. Meant for correcting mistakes; every change is in the audit log.
     public function overrideStatus(Request $request, Referral $referral)
@@ -609,8 +690,8 @@ class ReferralController extends Controller
         $this->authorizeView($referral, $request->user());
         $data = $request->validate([
             'status' => 'required|in:submitted,acknowledged,scheduled,in_progress,completed,closed',
-            'reason' => 'required|string|min:5|max:255',
-        ]);
+            'reason' => ['required', 'string', 'min:5', 'max:255', 'regex:/\p{L}/u'],
+        ], ['reason.regex' => 'Please explain the reason in words, not numbers only.']);
         if ($referral->is_archived) {
             abort(422, 'This referral is archived. Restore it before changing its status.');
         }
@@ -627,6 +708,19 @@ class ReferralController extends Controller
             $changes['acknowledged_at'] = now();
         }
         $referral->update($changes);
+
+        // Setting a referral to "Acknowledged" by hand must also hand it to the
+        // Appointments queue and the student, exactly like the normal Acknowledge button.
+        if ($data['status'] === 'acknowledged') {
+            $this->ensureSchedulingAppointment($referral->fresh(), $request->user());
+        }
+
+        if ($referral->student) {
+            $referral->student->notify(new \App\Notifications\CaseUpdateNotification(
+                "The status of your referral {$referral->referral_code} was updated to " . ucwords(str_replace('_', ' ', $data['status'])) . '.',
+                $referral->id, $referral->case_id, $referral->referral_code
+            ));
+        }
 
         AuditLog::record('status_overridden', "GCU Head changed referral {$referral->referral_code} from {$old['status']} to {$data['status']}. Reason: {$data['reason']}", $referral, $old, ['status' => $data['status']]);
 

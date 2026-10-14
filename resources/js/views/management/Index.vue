@@ -447,12 +447,12 @@
           <div v-if="collegeError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ collegeError }}</div>
           <div>
             <label class="ifl">Name <span style="color:var(--red)">*</span></label>
-            <input v-model="collegeForm.name" class="ifi" maxlength="150" placeholder="e.g. College of Engineering (CE)" @input="collegeForm.name = String(collegeForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="collegeForm.name" class="ifi" maxlength="150" placeholder="e.g. College of Engineering (CE)" @input="collegeForm.name = capFirst(String(collegeForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             <div v-if="!collegeForm.name.trim() && collegeTouched" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div>
             <label class="ifl">Abbreviation</label>
-            <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" @input="collegeForm.abbrev = String(collegeForm.abbrev ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" @input="collegeForm.abbrev = String(collegeForm.abbrev ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '').toUpperCase()" />
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; askSave(collegeForm.id, saveCollege)">
@@ -481,7 +481,7 @@
           </div>
           <div>
             <label class="ifl">Program Name <span style="color:var(--red)">*</span></label>
-            <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" @input="programForm.name = String(programForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" @input="programForm.name = capFirst(String(programForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             <div v-if="programTouched && !programForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="programTouched && !programForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
@@ -512,7 +512,7 @@
           </div>
           <div>
             <label class="ifl">Department Name <span style="color:var(--red)">*</span></label>
-            <input v-model="departmentForm.name" class="ifi" maxlength="150" placeholder="e.g. Information Technology" @input="departmentForm.name = String(departmentForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="departmentForm.name" class="ifi" maxlength="150" placeholder="e.g. Information Technology" @input="departmentForm.name = capFirst(String(departmentForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             <div v-if="departmentTouched && !departmentForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="departmentTouched && !departmentForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
@@ -536,7 +536,7 @@
           <div v-if="formOptionError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ formOptionError }}</div>
           <div>
             <label class="ifl">Label <span style="color:var(--red)">*</span></label>
-            <input v-model="formOptionForm.label" class="ifi" maxlength="150" placeholder="What staff will see in the dropdown" @input="formOptionForm.label = String(formOptionForm.label ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '')" />
+            <input v-model="formOptionForm.label" class="ifi" maxlength="150" placeholder="What staff will see in the dropdown" @input="formOptionForm.label = capFirst(String(formOptionForm.label ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             <div v-if="formOptionTouched && !formOptionForm.label.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
           </div>
           <div v-if="activeTab === 'wellness'">
@@ -592,25 +592,21 @@
       </div>
     </div>
 
-    <!-- ============ Delete Confirmation Modal ============ -->
-    <div v-if="showDeleteConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDeleteConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Delete?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            Delete <strong>"{{ deleteName }}"</strong>? This cannot be undone.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" :disabled="deleting" @click="doConfirmedDelete">
-              {{ deleting ? 'Deleting...' : 'Yes, Delete' }}
-            </button>
-            <button class="ibtn ibtn-o" :disabled="deleting" @click="showDeleteConfirm = false">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- ============ Delete Confirmation (reason required) ============ -->
+    <ReasonDialog
+      :open="showDeleteConfirm"
+      title="Delete?"
+      :message="deleteMessage"
+      :reasons="deleteReasons"
+      reason-label="Reason for Deletion"
+      confirm-text="Yes, Delete"
+      other-placeholder="Please describe the reason for deletion briefly."
+      :blocked-message="deleteBlocked"
+      :busy="deleting"
+      :error="deleteError"
+      @confirm="doConfirmedDelete"
+      @cancel="showDeleteConfirm = false"
+    />
 
   </div>
 </template>
@@ -619,6 +615,8 @@
 import { ref, inject, computed, onMounted, h } from 'vue';
 import axios from 'axios';
 import { useAuthStore } from '../../stores/auth';
+import ReasonDialog from '../../components/ReasonDialog.vue';
+import { MANAGEMENT_DELETE_REASONS } from '../../constants/accountReasons';
 
 const toast = inject('toast');
 const auth  = useAuthStore();
@@ -983,43 +981,64 @@ const deleteKind    = ref('');
 const deleteName    = ref('');
 const deleting      = ref(false);
 
-function openDeleteConfirm(kind, target, name) {
+const capFirst = (v) => String(v ?? '').replace(/^(\s*)(\p{L})/u, (m, sp, ch) => sp + ch.toUpperCase());
+const deleteBlocked = ref('');
+const deleteError   = ref('');
+const escHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const deleteMessage = computed(() => `Delete <strong>"${escHtml(deleteName.value)}"</strong>? This cannot be undone.`);
+
+// Which reason list applies: the Management tab the record lives on.
+const deleteTab = computed(() => {
+  if (deleteKind.value === 'formOption') {
+    const cat = deleteTarget.value?.category;
+    return cat === 'referral_type' ? 'wellness' : cat === 'act_of_misconduct' ? 'disciplinary' : 'sources';
+  }
+  if (deleteKind.value === 'academicYear') return 'calendar';
+  return deleteKind.value;
+});
+const deleteReasons = computed(() => MANAGEMENT_DELETE_REASONS[deleteTab.value] || MANAGEMENT_DELETE_REASONS.sources);
+
+const DELETE_PATHS = { college: 'colleges', program: 'programs', department: 'departments', academicYear: 'academic-years', formOption: 'form-options' };
+const DELETE_NOUN  = { college: 'college', program: 'program', department: 'department', academicYear: 'entry', formOption: 'option' };
+
+async function openDeleteConfirm(kind, target, name) {
   deleteKind.value   = kind;
   deleteTarget.value = target;
   deleteName.value   = name;
+  deleteBlocked.value = '';
+  deleteError.value   = '';
+
+  // Look up what still uses the record so the admin sees it before choosing a reason.
+  if (kind !== 'academicYear') {
+    try {
+      const res = await axios.get(`${API_BASE}/management/${DELETE_PATHS[kind]}/${target.id}/usage`, authHeaders());
+      const parts = Object.entries(res.data || {}).filter(([, n]) => n > 0).map(([what, n]) => `${n} ${n === 1 ? what.replace(/s$/, '') : what}`);
+      if (parts.length) {
+        const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
+        deleteBlocked.value = `This ${DELETE_NOUN[kind]} is used by ${list}. Reassign or deactivate them first.`;
+      }
+    } catch (e) { /* the server checks again on delete */ }
+  }
   showDeleteConfirm.value = true;
 }
 
-async function doConfirmedDelete() {
+async function doConfirmedDelete({ reason, note }) {
   const kind = deleteKind.value;
   const target = deleteTarget.value;
-  if (!target) return;
+  if (!target || deleting.value) return;
   deleting.value = true;
+  deleteError.value = '';
   try {
-    if (kind === 'college') {
-      await axios.delete(`${API_BASE}/management/colleges/${target.id}`, authHeaders());
-      toast?.success('College deleted.');
-      fetchColleges();
-    } else if (kind === 'program') {
-      await axios.delete(`${API_BASE}/management/programs/${target.id}`, authHeaders());
-      toast?.success('Program deleted.');
-      fetchPrograms();
-    } else if (kind === 'department') {
-      await axios.delete(`${API_BASE}/management/departments/${target.id}`, authHeaders());
-      toast?.success('Department deleted.');
-      fetchDepartments();
-    } else if (kind === 'academicYear') {
-      await axios.delete(`${API_BASE}/management/academic-years/${target.id}`, authHeaders());
-      toast?.success('Academic year deleted.');
-      fetchAcademicYears();
-    } else if (kind === 'formOption') {
-      await axios.delete(`${API_BASE}/management/form-options/${target.id}`, authHeaders());
-      toast?.success('Deleted.');
-      fetchFormOptions();
-    }
+    await axios.delete(`${API_BASE}/management/${DELETE_PATHS[kind]}/${target.id}`, {
+      ...authHeaders(),
+      data: { reason, note: note || null, version: target.updated_at || null },
+    });
+    toast?.success('Deleted.');
+    ({ college: fetchColleges, program: fetchPrograms, department: fetchDepartments, academicYear: fetchAcademicYears, formOption: fetchFormOptions })[kind]();
     showDeleteConfirm.value = false;
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to delete.');
+    const d = e.response?.data;
+    deleteError.value = d?.errors?.linked?.[0] || d?.errors?.reason?.[0] || d?.errors?.note?.[0] || d?.message || 'Failed to delete.';
   } finally {
     deleting.value = false;
   }

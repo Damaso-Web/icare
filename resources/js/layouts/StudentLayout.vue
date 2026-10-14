@@ -72,7 +72,7 @@
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
               <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
-            <span v-if="unreadCount > 0" style="position:absolute;top:5px;right:5px;width:8px;height:8px;border-radius:50%;background:var(--red);border:2px solid #fff"></span>
+            <span v-if="unreadCount > 0" style="position:absolute;top:-3px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;border:2px solid #fff;box-sizing:content-box">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
           </button>
           <span style="font-size:13px;color:var(--stone)">{{ student.student_id }}</span>
         </div>
@@ -102,6 +102,9 @@
               </div>
             </div>
           </div>
+          <div style="border-top:1px solid var(--cloud);padding:8px;text-align:center">
+            <button class="ibtn ibtn-g ibtn-sm" style="font-size:12px;width:100%;justify-content:center" @click="viewAllNotifs">View all</button>
+          </div>
         </div>
       </div>
       <div class="stu-content" style="padding:24px">
@@ -124,7 +127,8 @@
 
 <script setup>
 import { SELF_REFERRAL_ENABLED } from '../utils/features';
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { studentNotificationTarget } from '../utils/notificationTarget';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import SessionGuard from '../components/SessionGuard.vue';
@@ -156,12 +160,14 @@ function authHeaders() {
 const showNotifs = ref(false);
 const session = ref(null);
 const notifications = ref([]);
-const unreadCount = computed(() => notifications.value.filter(n => !n.read_at).length);
+const unreadTotal = ref(0);
+const unreadCount = computed(() => Math.max(unreadTotal.value, notifications.value.filter(n => !n.read_at).length));
 
 async function fetchNotifications() {
   try {
     const res = await axios.get(`${API_BASE}/student/notifications`, authHeaders());
     notifications.value = res.data.data || res.data;
+    unreadTotal.value = res.data.unread_count ?? notifications.value.filter(n => !n.read_at).length;
   } catch (e) {
     console.error(e);
   }
@@ -172,6 +178,7 @@ async function markRead(n) {
   try {
     await axios.post(`${API_BASE}/student/notifications/${n.id}/read`, {}, authHeaders());
     n.read_at = new Date().toISOString();
+    unreadTotal.value = Math.max(0, unreadTotal.value - 1);
   } catch (e) {
     // Non-fatal.
   }
@@ -181,6 +188,7 @@ async function markAllRead() {
   try {
     await axios.post(`${API_BASE}/student/notifications/read-all`, {}, authHeaders());
     notifications.value.forEach(n => n.read_at = n.read_at || new Date().toISOString());
+    unreadTotal.value = 0;
   } catch (e) {
     // Non-fatal.
   }
@@ -227,10 +235,16 @@ const initials = computed(() => {
 // A "fill out your forms" notification takes the student to My Account.
 function openNotification(n) {
   markRead(n);
-  if (n.data?.type === 'fill_out_forms') {
+  const target = studentNotificationTarget(n.data || {});
+  if (target) {
     showNotifs.value = false;
-    router.push({ name: 'student-account' });
+    router.push(target);
   }
+}
+
+function viewAllNotifs() {
+  showNotifs.value = false;
+  router.push({ name: 'student-notifications' });
 }
 
 function isActive(name) {
@@ -258,5 +272,11 @@ function backToStaff() {
   window.location.href = '/';
 }
 
-onMounted(() => fetchNotifications());
+let notifTimer = null;
+onMounted(() => {
+  fetchNotifications();
+  // The badge follows new notifications without a page refresh.
+  notifTimer = setInterval(fetchNotifications, 30000);
+});
+onBeforeUnmount(() => { if (notifTimer) clearInterval(notifTimer); });
 </script>

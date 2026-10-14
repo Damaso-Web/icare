@@ -15,7 +15,7 @@
       <button
         class="ibtn ibtn-sm"
         :class="filters.archived ? 'ibtn-p' : 'ibtn-o'"
-        @click="filters.archived = !filters.archived; fetchReferrals()"
+        @click="filters.archived = !filters.archived; filters.status = ''; fetchReferrals()"
       >
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
@@ -26,7 +26,7 @@
           <option v-for="pr in deanPrograms" :key="pr" :value="pr">{{ pr }}</option>
         </select>
       </template>
-      <select v-model="filters.status" class="fsm" @change="fetchReferrals">
+      <select v-model="filters.status" class="fsm" :disabled="filters.archived" :title="filters.archived ? 'Status does not apply to archived records.' : ''" @change="fetchReferrals">
         <option value="">All Status</option>
         <option value="submitted">Submitted</option>
         <option value="acknowledged">Acknowledged</option>

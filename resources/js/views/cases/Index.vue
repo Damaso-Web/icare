@@ -21,7 +21,7 @@
           @input="onSearchInput"
         />
       </div>
-      <select v-model="filters.status" class="fsm" @change="fetchCases">
+      <select v-model="filters.status" class="fsm" :disabled="filters.archived" :title="filters.archived ? 'Status does not apply to archived records.' : ''" @change="fetchCases">
         <option value="">All Status</option>
         <option value="open">Open</option>
         <option value="on_observation">On Observation</option>
@@ -34,7 +34,7 @@
         <option value="TMDU">TMDU</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; fetchCases()">
+      <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; filters.status = ''; fetchCases()">
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
     </div>

@@ -262,6 +262,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::middleware('role:admin,tmdu_head,dean,dean_secretary')->group(function () {
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
+        Route::get('users/{user}/open-work',       [UserController::class, 'openWork']);
+        Route::get('users/{user}/status-history',  [UserController::class, 'statusHistory']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
     });
@@ -269,6 +271,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // Admin only
     Route::middleware('role:admin')->group(function () {
         Route::post('users/import', [UserController::class, 'import']);
+        Route::post('users/import-preview', [UserController::class, 'importPreview']);
+        Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/filter-options', [AuditLogController::class, 'filterOptions']);
         Route::get('audit-logs/summary', [AuditLogController::class, 'summary']);
@@ -294,14 +298,17 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
         Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);
+        Route::get('management/colleges/{college}/usage', [ManagementCollegeController::class, 'usage']);
 
         Route::post('management/programs',              [ManagementProgramController::class, 'store']);
         Route::put('management/programs/{program}',      [ManagementProgramController::class, 'update']);
         Route::delete('management/programs/{program}',   [ManagementProgramController::class, 'destroy']);
+        Route::get('management/programs/{program}/usage', [ManagementProgramController::class, 'usage']);
 
         Route::post('management/departments',               [ManagementDepartmentController::class, 'store']);
         Route::put('management/departments/{department}',    [ManagementDepartmentController::class, 'update']);
         Route::delete('management/departments/{department}', [ManagementDepartmentController::class, 'destroy']);
+        Route::get('management/departments/{department}/usage', [ManagementDepartmentController::class, 'usage']);
 
         Route::post('management/academic-years',                 [ManagementAcademicYearController::class, 'store']);
         Route::put('management/academic-years/{academicYear}',    [ManagementAcademicYearController::class, 'update']);
@@ -310,6 +317,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('management/form-options',                  [ManagementFormOptionController::class, 'store']);
         Route::put('management/form-options/{formOption}',       [ManagementFormOptionController::class, 'update']);
         Route::delete('management/form-options/{formOption}',    [ManagementFormOptionController::class, 'destroy']);
+        Route::get('management/form-options/{formOption}/usage', [ManagementFormOptionController::class, 'usage']);
     });
 
     // SDU Head only - reviewing/actioning filed complaints
