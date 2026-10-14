@@ -27,6 +27,14 @@
             If an account with <strong>{{ email }}</strong> exists, a password reset link has been sent to it. The link expires in 5 minutes.
             Also check your spam folder.
           </p>
+          <div v-if="resentNote" style="background:var(--mist);color:var(--moss);border-radius:var(--r-sm);padding:8px 12px;font-size:12.5px;margin-top:12px">{{ resentNote }}</div>
+          <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12.5px;margin-top:12px">{{ error }}</div>
+          <!-- Didn't get it? Send it again, once a minute at most (the server allows one per minute). -->
+          <div style="font-size:12.5px;color:var(--stone);margin-top:14px;text-align:center">
+            Didn't receive the email?
+            <button v-if="cooldown === 0" type="button" class="link-btn" :disabled="loading" @click="resend">{{ loading ? 'Sending...' : 'Resend email' }}</button>
+            <span v-else style="color:var(--fog)">You can resend in {{ cooldown }}s</span>
+          </div>
           <button type="button" class="ibtn ibtn-o" style="width:100%;justify-content:center;margin-top:16px" @click="goBack">Back to Sign In</button>
         </template>
       </div>
@@ -36,7 +44,7 @@
 
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
-import { ref, computed } from 'vue';
+import { ref, computed, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 
@@ -49,6 +57,29 @@ const email = ref('');
 const loading = ref(false);
 const sent = ref(false);
 const error = ref('');
+const resentNote = ref('');
+
+// One reset email per minute (config/auth.php passwords.*.throttle = 60).
+const COOLDOWN_SECONDS = 60;
+const cooldown = ref(0);
+let cooldownTimer = null;
+function startCooldown() {
+  cooldown.value = COOLDOWN_SECONDS;
+  clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(() => {
+    cooldown.value = Math.max(0, cooldown.value - 1);
+    if (cooldown.value === 0) clearInterval(cooldownTimer);
+  }, 1000);
+}
+onBeforeUnmount(() => clearInterval(cooldownTimer));
+
+async function resend() {
+  resentNote.value = '';
+  await submit();
+  if (!error.value) {
+    resentNote.value = 'A new reset link was sent. Please check your inbox (and spam folder). Only the newest link works.';
+  }
+}
 
 function goBack() {
   router.push({ name: isStudent.value ? 'student-login' : 'login' });
@@ -64,6 +95,7 @@ async function submit() {
       type: isStudent.value ? 'student' : 'staff',
     });
     sent.value = true;
+    startCooldown();
   } catch (e) {
     const errs = e.response?.data?.errors;
     error.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Could not send the reset link. Please try again.';
@@ -72,3 +104,8 @@ async function submit() {
   }
 }
 </script>
+
+<style scoped>
+.link-btn{background:none;border:none;padding:0;color:var(--moss);font-weight:600;text-decoration:underline;cursor:pointer;font-size:inherit}
+.link-btn:disabled{opacity:.6;cursor:default}
+</style>

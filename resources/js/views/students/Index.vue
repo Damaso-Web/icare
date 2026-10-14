@@ -352,7 +352,7 @@
                 v-model="editForm.email"
                 :disabled="!auth.isAdmin" :title="!auth.isAdmin ? 'Only the Admin can change this after the account is created.' : ''"
                 class="ifi"
-                placeholder="student@bsu.edu.ph"
+                placeholder="e.g. student@gmail.com (any email)"
                 :style="editErrorStyle('email')"
                 @input="clearEditFieldError('email')"
               />
@@ -620,7 +620,7 @@
               <input
                 v-model="addForm.email"
                 class="ifi"
-                placeholder="student@bsu.edu.ph"
+                placeholder="e.g. student@gmail.com (any email)"
                 :style="errorStyle('email')"
                 @input="clearFieldError('email')"
               />
@@ -891,6 +891,7 @@
                   <td>
                     <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
                     <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                    <span v-else-if="item.name_matches?.length" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Same name</span>
                     <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
                   </td>
                   <td style="font-size:11px;line-height:1.5;vertical-align:top">
@@ -898,6 +899,12 @@
                       <div v-for="(r, i) in item.reasons" :key="i" style="color:var(--red)">• {{ r }}</div>
                     </template>
                     <span v-else-if="item.is_duplicate" style="color:var(--amber)">Student ID already exists</span>
+                    <template v-else-if="item.name_matches?.length">
+                      <div style="color:var(--amber)">Same name as {{ item.name_matches.map(m => m.name + ' (' + m.student_id + ')').join(', ') }}. Skipped unless you tick:</div>
+                      <label style="display:inline-flex;align-items:center;gap:6px;margin-top:4px;cursor:pointer;color:var(--ink)">
+                        <input v-model="item.add_anyway" type="checkbox" /> Add anyway (a different student)
+                      </label>
+                    </template>
                     <span v-else style="color:var(--fog)">-</span>
                   </td>
                 </tr>
@@ -1019,7 +1026,7 @@
           <div>
             <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>
             <select v-model="graduateReason" class="ifse">
-              <option value="" disabled>Select a reason...</option>
+              <option value="" disabled hidden>Select a reason...</option>
               <option v-for="r in REASON_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
@@ -1151,11 +1158,17 @@ const canDeactivate = computed(() =>
   (graduateReason.value !== 'other' || graduateNotes.value.trim())
 );
 
+// The order requested on the bug sheet (B412). "Select a reason..." is only a placeholder.
 const REASON_OPTIONS = [
-  { value: 'no_longer_enrolled', label: 'No longer enrolled' },
-  { value: 'leave_of_absence', label: 'Leave of Absence (LOA)' },
+  { value: 'withdrawn_dropped',       label: 'Withdrawn/Dropped' },
+  { value: 'leave_of_absence',        label: 'Leave of Absence (LOA)' },
   { value: 'disciplinary_suspension', label: 'Disciplinary Suspension' },
-  { value: 'other', label: 'Other' },
+  { value: 'graduated',               label: 'Graduated' },
+  { value: 'transferred',             label: 'Transferred to Another School' },
+  { value: 'security_concern',        label: 'Security Concern' },
+  { value: 'inactive_account',        label: 'Inactive Account' },
+  { value: 'requested_by_student',    label: 'Requested by Student' },
+  { value: 'other',                   label: 'Other' },
 ];
 const graduateReasonLabel = computed(() =>
   REASON_OPTIONS.find(r => r.value === graduateReason.value)?.label || ''
@@ -1885,6 +1898,8 @@ async function confirmImport(globalChoice) {
     previewData.value.preview.forEach((item, idx) => {
       if (item.is_duplicate && item.valid) {
         finalDecisions[idx] = globalChoice === 'update' ? 'update' : 'skip';
+      } else if (item.valid && item.name_matches?.length && !item.add_anyway) {
+        finalDecisions[idx] = 'skip';   // same name as an existing student, not confirmed (B410)
       } else if (item.valid) {
         finalDecisions[idx] = 'create';
       } else {

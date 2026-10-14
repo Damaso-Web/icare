@@ -233,7 +233,7 @@ class StudentController extends Controller
     public function graduate(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'deactivation_reason' => 'required|in:no_longer_enrolled,leave_of_absence,disciplinary_suspension,other',
+            'deactivation_reason' => 'required|in:withdrawn_dropped,leave_of_absence,disciplinary_suspension,graduated,transferred,security_concern,inactive_account,requested_by_student,other,no_longer_enrolled',
             'deactivation_notes'  => ['nullable', 'string', 'max:255', 'required_if:deactivation_reason,other', 'regex:' . self::TEXT_REGEX],
         ]);
 
@@ -333,7 +333,7 @@ class StudentController extends Controller
         $rowNum  = 1;
 
         foreach ($rows as $rowData) {
-            $rowNum++;
+            $rowNum = $rowData['__row'] ?? $rowNum + 1;
 
             if (empty($rowData['student_id']) || empty($rowData['first_name']) || empty($rowData['last_name'])) {
                 $errors[] = "Row {$rowNum}: missing required fields (Student ID, First Name, Last Name).";
@@ -422,13 +422,26 @@ class StudentController extends Controller
             ? collect()
             : Student::whereIn('student_id', $existingIds)->pluck('student_id')->flip();
 
+        // Students already in the system with the same first and last name as a
+        // row (ignoring case), so a re-typed ID can't quietly create a twin (B410).
+        $nameKey = fn($first, $last) => strtolower(trim((string) $first)) . '|' . strtolower(trim((string) $last));
+        $fileNames = collect($rows)->map(fn($r) => $nameKey($r['first_name'] ?? '', $r['last_name'] ?? ''))->filter(fn($k) => $k !== '|')->unique()->values();
+        $byName = $fileNames->isEmpty() ? collect() : Student::whereIn(DB::raw("LOWER(CONCAT(TRIM(first_name), '|', TRIM(last_name)))"), $fileNames->all())
+            ->get(['student_id', 'first_name', 'last_name'])
+            ->groupBy(fn($st) => $nameKey($st->first_name, $st->last_name));
+
         $preview = [];
         foreach ($rows as $i => $rowData) {
             $isDuplicate = !empty($rowData['student_id']) && $existingSet->has($rowData['student_id']);
             $reasons = $this->validateImportRow($rowData, $colleges);
+            $nameMatches = $isDuplicate ? [] : ($byName[$nameKey($rowData['first_name'] ?? '', $rowData['last_name'] ?? '')] ?? collect())
+                ->filter(fn($st) => $st->student_id !== ($rowData['student_id'] ?? null))
+                ->map(fn($st) => ['student_id' => $st->student_id, 'name' => trim($st->first_name . ' ' . $st->last_name)])
+                ->values()->all();
 
             $preview[] = [
-                'row'          => $i + 2,
+                'name_matches' => $nameMatches,
+                'row'          => $rowData['__row'] ?? ($i + 2),
                 'student_id'   => $rowData['student_id'] ?? null,
                 'is_duplicate' => $isDuplicate,
                 'valid'        => empty($reasons),
@@ -559,7 +572,7 @@ class StudentController extends Controller
             }
 
             if (empty($rowData['student_id']) || empty($rowData['first_name']) || empty($rowData['last_name'])) {
-                $errors[] = "Row " . ($i + 2) . ": missing required fields.";
+                $errors[] = "Row " . ($rowData['__row'] ?? $i + 2) . ": missing required fields.";
                 $skipped++;
                 continue;
             }
@@ -659,6 +672,15 @@ class StudentController extends Controller
         ];
     }
 
+    // A row with nothing typed in any column.
+    private function isBlankRow(array $row): bool
+    {
+        foreach ($row as $value) {
+            if (trim((string) ($value ?? '')) !== '') return false;
+        }
+        return true;
+    }
+
     private function parseFile($file, $ext, $headerMap)
     {
         $rows = [];
@@ -666,7 +688,10 @@ class StudentController extends Controller
         if (in_array($ext, ['xlsx', 'xls'])) {
             $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
-            $data  = $sheet->toArray(null, true, true, false);
+            // Read only the part of the sheet that actually holds values.
+            $lastCol = $sheet->getHighestDataColumn();
+            $lastRow = $sheet->getHighestDataRow();
+            $data  = $sheet->rangeToArray("A1:{$lastCol}{$lastRow}", null, true, true, false);
 
             $rawHeader = array_map(fn($h) => strtolower(trim($h ?? '')), $data[0]);
             for ($i = 1; $i < count($data); $i++) {
@@ -675,17 +700,23 @@ class StudentController extends Controller
                     $mappedKey = $headerMap[$key] ?? $key;
                     $rowAssoc[$mappedKey] = $data[$i][$idx] ?? null;
                 }
+                if ($this->isBlankRow($rowAssoc)) continue;   // B409: empty rows don't count
+                $rowAssoc['__row'] = $i + 1;
                 $rows[] = $rowAssoc;
             }
         } else {
             $handle = fopen($file->getRealPath(), 'r');
             $rawHeader = array_map(fn($h) => strtolower(trim($h)), fgetcsv($handle));
+            $line = 1;
             while (($data = fgetcsv($handle)) !== false) {
+                $line++;
                 $rowAssoc = [];
                 foreach ($rawHeader as $idx => $key) {
                     $mappedKey = $headerMap[$key] ?? $key;
                     $rowAssoc[$mappedKey] = $data[$idx] ?? null;
                 }
+                if ($this->isBlankRow($rowAssoc)) continue;   // B409: empty rows don't count
+                $rowAssoc['__row'] = $line;
                 $rows[] = $rowAssoc;
             }
             fclose($handle);
