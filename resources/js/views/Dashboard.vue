@@ -4,7 +4,11 @@
     <div class="hero">
       <div class="hero-row">
         <div>
-          <div class="hero-kicker">{{ roleTitle }}</div>
+          <!-- The unit, with the office it belongs to right beside it -->
+          <div class="hero-kicker-row">
+            <div class="hero-kicker">{{ roleTitle }}</div>
+            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
+          </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>
           <!-- The figures that sentence is about; each one opens its page -->
@@ -21,7 +25,6 @@
           <div class="hero-chips">
             <!-- The date: in the top bar on a computer, here on a phone (the top bar hides it there). -->
             <span class="hero-chip hero-date"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>{{ todayLabel }}</span>
-            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
           </div>
         </div>
         <div class="hero-actions" :class="{ 'phone-none': !phoneActions.length, 'phone-one': phoneActions.length === 1 }">
