@@ -76,7 +76,7 @@
         <button class="menu-btn has-more-tab" aria-label="Open menu" @click="menuOpen = true"><svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
         <div class="breadcrumb-nav">iCARE / <strong>{{ pageTitle }}</strong></div>
         <div class="tb-right">
-          <span class="tb-date">{{ todayLabel }}</span>
+          <span class="tb-date">{{ todayLabel }} · {{ timeLabel }}</span>
           <!-- Phones only (the sidebar that carries the logos is tucked away there) -->
           <div v-if="sealBsu || sealOss" class="tb-seals">
             <img v-show="sealBsu" class="logo-bsu" :src="'/bsu-logo.jpg'" alt="Benguet State University" @error="sealBsu = false" />
@@ -120,14 +120,7 @@
             </div>
           </div>
 
-          <!-- Who is signed in -->
-          <div class="tb-user" :title="auth.user?.email">
-            <div class="tb-user-av">{{ initials }}</div>
-            <div class="tb-user-txt">
-              <div class="tb-user-nm">{{ auth.user?.name }}</div>
-              <div class="tb-user-rl">{{ roleLabel }}</div>
-            </div>
-          </div>
+          <!-- (The signed-in name is at the bottom of the sidebar, so it is not repeated here.) -->
         </div>
       </div>
 
@@ -156,7 +149,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch, inject, provide } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch, inject, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import api, { notificationAPI, devAPI } from '../api/index';
@@ -226,7 +219,14 @@ function toggleCollapsed() {
 }
 
 // Today's date for the top bar; the BSU and OSS logos are hidden if a file is missing.
-const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+// Date and time in the top bar: Philippine time, hours and minutes with AM/PM,
+// kept current every few seconds.
+const PH = 'Asia/Manila';
+const now = ref(new Date());
+const todayLabel = computed(() => now.value.toLocaleDateString('en-US', { timeZone: PH, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+const timeLabel  = computed(() => now.value.toLocaleTimeString('en-US', { timeZone: PH, hour: 'numeric', minute: '2-digit', hour12: true }));
+const clockTimer = setInterval(() => { now.value = new Date(); }, 5000);
+onBeforeUnmount(() => clearInterval(clockTimer));
 const sealBsu = ref(true);
 const sealOss = ref(true);
 const notifications = ref([]);
