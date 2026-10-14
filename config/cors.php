@@ -24,6 +24,7 @@ return [
     'https://curious-malabi-34cbb3.netlify.app',
     'https://clinquant-alfajores-987799.netlify.app',
     'https://halloicare.netlify.app',
+    'https://caringforyou.netlify.app',
     'https://oss-icare.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
