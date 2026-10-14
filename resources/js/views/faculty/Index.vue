@@ -3,7 +3,7 @@
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
       <h1>Faculty Profile</h1>
-      <p v-if="isDean">View and manage faculty of {{ auth.user?.college }}. Assign the chair of each program.</p>
+      <p v-if="isDean">View and manage faculty of {{ auth.user?.college }}. Assign the Department Chair of each department.</p>
       <p v-else-if="isChair">View and manage faculty of {{ auth.user?.department }}.</p>
       <p v-else>View and manage faculty member accounts.</p>
     </div>
@@ -29,7 +29,7 @@
         <option value="0">Inactive</option>
       </select>
       <select v-if="!isChair" v-model="deptFilter" class="fsm" @change="page = 1; fetchItems()">
-        <option value="">All Programs</option>
+        <option value="">All Departments</option>
         <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
       </select>
       <select v-model="sortOption" class="fsm" @change="page = 1; fetchItems()">
@@ -130,7 +130,7 @@
             <div style="font-size:13px;color:var(--ink)">{{ viewTarget.college }}</div>
           </div>
           <div v-if="viewTarget.department">
-            <div class="vlabel">Program</div>
+            <div class="vlabel">Department</div>
             <div style="font-size:13px;color:var(--ink)">{{ viewTarget.department }}</div>
           </div>
           <div v-if="viewTarget.contact_number">
@@ -190,10 +190,10 @@
               </select>
             </div>
             <div>
-              <label class="ifl">Program <span style="color:var(--red)">*</span></label>
+              <label class="ifl">Department <span style="color:var(--red)">*</span></label>
               <input v-if="isChair" :value="auth.user?.department" class="ifi" disabled />
               <select v-else v-model="form.department" class="ifse" :disabled="needsCollegePick && !editing && !form.college">
-                <option value="">{{ needsCollegePick && !editing && !form.college ? 'Select a college first' : 'Select program' }}</option>
+                <option value="">{{ needsCollegePick && !editing && !form.college ? 'Select a college first' : 'Select department' }}</option>
                 <option v-for="d in formDepartments" :key="d" :value="d">{{ d }}</option>
               </select>
             </div>
@@ -221,12 +221,12 @@
       <div class="fbox" style="max-width:420px">
         <div class="fhead"><span>Assign Department Chair</span><button class="ibtn ibtn-g ibtn-sm" @click="chairTarget = null">✕</button></div>
         <div class="fbody">
-          <p style="font-size:13px;margin-bottom:12px">Make <strong>{{ chairTarget.name }}</strong> the chair of this program:</p>
+          <p style="font-size:13px;margin-bottom:12px">Make <strong>{{ chairTarget.name }}</strong> the Department Chair of:</p>
           <select v-model="chairDept" class="ifse">
-            <option value="">Select program</option>
+            <option value="">Select department</option>
             <option v-for="d in departments" :key="d" :value="d">{{ d }}</option>
           </select>
-          <p style="font-size:11px;color:var(--stone);margin-top:8px">The current chair of that program (if any) goes back to regular faculty.</p>
+          <p style="font-size:11px;color:var(--stone);margin-top:8px">The current chair of that department (if any) goes back to regular faculty.</p>
         </div>
         <div class="ffoot">
           <button class="ibtn ibtn-o" @click="chairTarget = null">Cancel</button>
@@ -266,7 +266,7 @@
         <div class="fbody">
           <template v-if="!result">
             <p style="font-size:12px;color:var(--stone);margin-bottom:10px">
-              CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Program</span>.
+              CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Department</span>.
               Everyone is added as <strong>Faculty</strong> of {{ isChair ? auth.user?.department : auth.user?.college }}.
             </p>
             <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o ibtn-sm" style="margin-bottom:10px">
@@ -399,7 +399,7 @@ async function fetchDepartments() {
     const headers = { headers: { Authorization: `Bearer ${localStorage.getItem('token')}`, Accept: 'application/json' } };
     const [cRes, dRes] = await Promise.all([
       axios.get(`${API_ROOT}/api/management/colleges`, headers),
-      axios.get(`${API_ROOT}/api/management/programs`, headers),   // the leader: choose by program, not department
+      axios.get(`${API_ROOT}/api/management/programs`, headers),   // the choices are the college's programs (the leader's list), named Department
     ]);
     colleges.value = cRes.data;
     allDepartments.value = dRes.data;
@@ -452,7 +452,7 @@ async function saveForm() {
   if (contactProblem.value) { formError.value = 'Contact number must start with 09 and be 11 digits long.'; return; }
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
-  if (!isChair.value && !f.department) { formError.value = 'Please select a program.'; return; }
+  if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }
   saving.value = true;
   try {
     const payload = { ...f };
