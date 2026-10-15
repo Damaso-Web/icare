@@ -393,11 +393,6 @@ export const backupAPI = {
     restoreConfig: (confirm)=> api.post('/backups/restore-config', { confirm }),
 };
 
-export const devAPI = {
-    switchRole:      (role) => api.post('/dev/switch-role', { role }),
-    switchToStudent: ()     => api.post('/dev/switch-to-student'),
-};
-
 export const auditAPI = {
     index: (params) => api.get('/audit-logs', { params }),
     show:  (id)     => api.get(`/audit-logs/${id}`),

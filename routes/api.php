@@ -21,7 +21,6 @@ use App\Http\Controllers\Api\PublicSchedulingController;
 use App\Http\Controllers\Api\StudentAuthController;
 use App\Http\Controllers\Api\CallSlipController;
 use App\Http\Controllers\Api\BackupController;
-use App\Http\Controllers\Api\DevController;
 use App\Http\Controllers\Api\CronController;
 use App\Http\Controllers\Api\ManagementCollegeController;
 use App\Http\Controllers\Api\ManagementProgramController;
@@ -57,10 +56,6 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
     Route::put('/me/profile',  [AuthController::class, 'updateProfile']);
-
-    // Dev/QA role switcher - locked to one designated tester account inside the controller
-    Route::post('dev/switch-role',       [DevController::class, 'switchRole']);
-    Route::post('dev/switch-to-student', [DevController::class, 'switchToStudent']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);

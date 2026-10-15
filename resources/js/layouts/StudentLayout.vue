@@ -16,13 +16,6 @@
         </div>
       </div>
 
-      <div v-if="showBackToStaff" class="sb-hide" style="padding:0 12px;margin-top:6px">
-        <button @click="backToStaff" style="width:100%;display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;border-radius:8px;padding:8px 10px;font-size:12px;cursor:pointer">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-          Back to Staff View
-        </button>
-      </div>
-
       <div class="sb-hide" style="padding:0 12px;font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.4);margin:12px 0 6px 8px">Main</div>
 
       <nav style="flex:1;display:flex;flex-direction:column;gap:2px;padding:0 12px">
@@ -255,21 +248,6 @@ function logout() {
   localStorage.removeItem('student_token');
   localStorage.removeItem('student');
   router.push({ name: 'login-choice' });
-}
-
-const showBackToStaff = computed(() => {
-  try {
-    const staffUser = JSON.parse(localStorage.getItem('user') || 'null');
-    return !!localStorage.getItem('token') && staffUser?.email?.toLowerCase() === 'genrytester@bsu.edu.ph';
-  } catch (e) {
-    return false;
-  }
-});
-
-function backToStaff() {
-  localStorage.removeItem('student_token');
-  localStorage.removeItem('student');
-  window.location.href = '/';
 }
 
 let notifTimer = null;

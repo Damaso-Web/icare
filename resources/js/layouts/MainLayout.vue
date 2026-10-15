@@ -30,26 +30,6 @@
       </div>
 
       <div class="sb-foot">
-        <div v-if="isTester" class="sb-hide" style="padding:0 2px 10px">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:5px">Switch Test Role</div>
-          <select
-            v-model="devRole"
-            @change="handleDevSwitch"
-            :disabled="switching"
-            style="width:100%;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:var(--r-sm);padding:7px 9px;font-size:12px;font-family:var(--font);cursor:pointer"
-          >
-            <option value="admin" style="color:#000">Admin / GCU Head</option>
-            <option value="gcu_staff" style="color:#000">GCU Staff</option>
-            <option value="sdu_head" style="color:#000">SDU Head</option>
-            <option value="tmdu_head" style="color:#000">TMDU Head</option>
-            <option value="tmdu_staff" style="color:#000">TMDU Staff</option>
-            <option value="dean" style="color:#000">Dean</option>
-            <option value="dept_chair" style="color:#000">Department Chair</option>
-            <option value="faculty" style="color:#000">Faculty Member</option>
-            <option value="system_admin" style="color:#000">System Admin (Management)</option>
-            <option value="student" style="color:#000">Student (Portal)</option>
-          </select>
-        </div>
         <div class="u-row">
           <div class="u-av" :title="auth.user?.name">{{ initials }}</div>
           <div class="sb-hide">
@@ -155,7 +135,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, watch, inject, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
-import api, { notificationAPI, devAPI } from '../api/index';
+import api, { notificationAPI } from '../api/index';
 import { staffNotificationTarget } from '../utils/notificationTarget';
 import SessionGuard from '../components/SessionGuard.vue';
 import { roleIn, roleLabelOf } from '../utils/roles';
@@ -165,44 +145,13 @@ const route  = useRoute();
 const auth   = useAuthStore();
 const toast  = inject('toast');
 
-const isTester = computed(() => auth.user?.email?.toLowerCase() === 'genrytester@bsu.edu.ph');
-const devRole  = ref(auth.user?.role || 'admin');
-const switching = ref(false);
-
-async function handleDevSwitch() {
-  switching.value = true;
-  try {
-    if (devRole.value === 'student') {
-      const res = await devAPI.switchToStudent();
-      localStorage.setItem('student_token', res.data.token);
-      localStorage.setItem('student', JSON.stringify(res.data.student));
-      window.location.href = '/student/dashboard';
-      return;
-    }
-    const res = await devAPI.switchRole(devRole.value);
-    auth.setUser(res.data);
-    router.push({ name: 'dashboard' });
-  } catch (e) {
-    console.error(e);
-    // Put the dropdown back on the real role and say why nothing happened.
-    devRole.value = auth.user?.role || 'admin';
-    toast?.error(e.response?.status === 404
-      ? 'Role switching is turned off on this site.'
-      : (e.response?.data?.message || 'Could not switch role. Please try again.'));
-  } finally {
-    switching.value = false;
-  }
-}
-
-// The role cached at login can go stale - an Admin may change it, and the
-// tester account's role switch applies to every browser it is signed in on.
-// The server enforces the real role, so make the menu and pages match it.
+// The role cached at login can go stale - an Admin may change it. The server
+// enforces the real role, so make the menu and pages match it.
 async function syncUser() {
   try {
     const res = await api.get('/me');
     const roleChanged = res.data.role !== auth.user?.role;
     auth.setUser({ ...auth.user, ...res.data });
-    devRole.value = res.data.role;
     if (roleChanged && route.name !== 'dashboard') router.replace({ name: 'dashboard' });
   } catch (e) { /* keep the cached user */ }
 }

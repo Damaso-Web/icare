@@ -210,9 +210,6 @@ class AuthController extends Controller
         // The email is the login username, so changing it needs the current password.
         $emailChanged = strcasecmp($validated['email'], $user->email) !== 0;
         if ($emailChanged) {
-            if (strtolower($user->email) === DevController::TESTER_EMAIL) {
-                return response()->json(['message' => "The tester account's email can't be changed - the role switcher is tied to it."], 422);
-            }
             if (empty($validated['current_password']) || !Hash::check($validated['current_password'], $user->password)) {
                 return response()->json(['message' => 'Current password is incorrect. Your email was not changed.'], 422);
             }
