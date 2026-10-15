@@ -87,7 +87,7 @@ class ManagementGuard
         if ($model && $model->getKey()) $text .= " (ID {$model->getKey()})";
         $text .= '.';
 
-        if ($action === 'updated') {
+        if (in_array($action, ['updated', 'deactivated', 'archived', 'reactivated'], true)) {
             $changes = [];
             foreach ($new as $field => $value) {
                 if (array_key_exists($field, $old) && (string) $old[$field] !== (string) $value) {

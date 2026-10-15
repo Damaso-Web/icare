@@ -318,7 +318,7 @@ async function fetchFormOptions() {
   try {
     const res = await axios.get(`${API_BASE}/management/form-options`, {
       ...authHeaders(),
-      params: { category: 'act_of_misconduct' },
+      params: { category: 'act_of_misconduct', active: 1 },
     });
     violationTypeOptions.value = res.data;
   } catch (e) {

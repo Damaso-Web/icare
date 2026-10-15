@@ -15,9 +15,9 @@ class ManagementCollegeController extends Controller
     // that contain a slash) can still have their other fields updated.
     private const LABEL_REGEX = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\,\&\(\)\s]+$/u';
 
-    public function index()
+    public function index(Request $request)
     {
-        return College::orderBy('id')->get();
+        return College::when($request->boolean('active'), fn($q) => $q->where('status', 'active'))->orderBy('id')->get();
     }
 
     public function store(Request $request)

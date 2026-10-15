@@ -291,6 +291,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // cannot touch students, referrals, cases, or User Management - only
     // Admin has both this and those.
     Route::middleware('role:admin,system_admin')->group(function () {
+        Route::post('management/{kind}/{id}/status', [\App\Http\Controllers\Api\ManagementStatusController::class, 'update'])
+            ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options'])->whereNumber('id');
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
         Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);

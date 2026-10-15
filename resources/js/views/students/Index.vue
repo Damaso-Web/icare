@@ -585,7 +585,7 @@
                 @change="addForm.program = ''; addForm.year_level = ''; clearFieldError('college')"
               >
                 <option value="" disabled hidden>Select college...</option>
-                <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
+                <option v-for="c in activeColleges" :key="c" :value="c">{{ c }}</option>
               </select>
             </div>
             <div>
@@ -1116,6 +1116,9 @@ function authHeaders() {
 // college/program NAME string, exactly like before.
 const colleges = ref([]);
 const programsByCollege = ref({});
+// Inactive/archived colleges and programs stay in the filter and on old records, but are not offered for a new student.
+const activeColleges = ref([]);
+const activeProgramsByCollege = ref({});
 
 async function fetchManagementData() {
   try {
@@ -1124,6 +1127,7 @@ async function fetchManagementData() {
       axios.get(`${API_BASE}/management/programs`, authHeaders()),
     ]);
     colleges.value = collegeRes.data.map(c => c.name);
+    activeColleges.value = collegeRes.data.filter(c => (c.status || 'active') === 'active').map(c => c.name);
 
     const collegeNameById = {};
     collegeRes.data.forEach(c => { collegeNameById[c.id] = c.name; });
@@ -1136,6 +1140,14 @@ async function fetchManagementData() {
       grouped[collegeName].push(p.name);
     });
     programsByCollege.value = grouped;
+    const activeCollegeIds = new Set(collegeRes.data.filter(c => (c.status || 'active') === 'active').map(c => c.id));
+    const activeGrouped = {};
+    programRes.data.forEach(p => {
+      if ((p.status || 'active') !== 'active' || !activeCollegeIds.has(p.college_id)) return;
+      const n = collegeNameById[p.college_id];
+      (activeGrouped[n] = activeGrouped[n] || []).push(p.name);
+    });
+    activeProgramsByCollege.value = activeGrouped;
   } catch (e) {
     console.error(e);
   }
@@ -1339,7 +1351,7 @@ const addForm = ref({
   guardian_contact: '', guardian_relationship: '',
 });
 
-const availablePrograms = computed(() => programsByCollege.value[addForm.value.college] || []);
+const availablePrograms = computed(() => activeProgramsByCollege.value[addForm.value.college] || []);
 const addYearLevelOptions = computed(() => YEAR_LEVEL_LABELS);
 
 function titleCase(str) {

@@ -37,16 +37,20 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Abbrev.</th><th></th></tr>
+            <tr><th>ID</th><th>Name</th><th>Abbrev.</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="c in colleges" :key="c.id">
               <td style="font-family:var(--mono);font-size:12px">{{ c.id }}</td>
               <td>{{ c.name }}</td>
               <td>{{ c.abbrev || '-' }}</td>
+              <td><span class="ibadge" :style="statusStyle(c.status)">{{ statusLabel(c.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click="openCollegeModal(c)">Edit</button>
+                  <button v-if="c.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('colleges', c, c.name, 'inactive')">Deactivate</button>
+                  <button v-if="c.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('colleges', c, c.name, 'archived')">Archive</button>
+                  <button v-if="c.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('colleges', c, c.name, 'active')">Reactivate</button>
                   <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="deleteCollege(c)">Delete</button>
                 </div>
               </td>
@@ -81,16 +85,20 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>College</th><th></th></tr>
+            <tr><th>ID</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="p in programs" :key="p.id">
               <td style="font-family:var(--mono);font-size:12px">{{ p.id }}</td>
               <td>{{ p.name }}</td>
               <td>{{ p.college?.name || '-' }}</td>
+              <td><span class="ibadge" :style="statusStyle(p.status)">{{ statusLabel(p.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click="openProgramModal(p)">Edit</button>
+                  <button v-if="p.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('programs', p, p.name, 'inactive')">Deactivate</button>
+                  <button v-if="p.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('programs', p, p.name, 'archived')">Archive</button>
+                  <button v-if="p.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('programs', p, p.name, 'active')">Reactivate</button>
                   <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="deleteProgram(p)">Delete</button>
                 </div>
               </td>
@@ -125,16 +133,20 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>College</th><th></th></tr>
+            <tr><th>ID</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="d in departments" :key="d.id">
               <td style="font-family:var(--mono);font-size:12px">{{ d.id }}</td>
               <td>{{ d.name }}</td>
               <td>{{ d.college?.name || '-' }}</td>
+              <td><span class="ibadge" :style="statusStyle(d.status)">{{ statusLabel(d.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
                   <button class="ibtn ibtn-o ibtn-sm" @click="openDepartmentModal(d)">Edit</button>
+                  <button v-if="d.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('departments', d, d.name, 'inactive')">Deactivate</button>
+                  <button v-if="d.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('departments', d, d.name, 'archived')">Archive</button>
+                  <button v-if="d.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('departments', d, d.name, 'active')">Reactivate</button>
                   <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="deleteDepartment(d)">Delete</button>
                 </div>
               </td>
@@ -162,6 +174,7 @@
         :show-unit="true"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
+        @status="(o, st) => askStatus('form-options', o, o.label, st)"
       />
     </div>
 
@@ -182,6 +195,7 @@
         :options="formOptions"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
+        @status="(o, st) => askStatus('form-options', o, o.label, st)"
       />
     </div>
 
@@ -202,6 +216,7 @@
         :options="formOptions"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
+        @status="(o, st) => askStatus('form-options', o, o.label, st)"
       />
     </div>
 
@@ -592,6 +607,21 @@
       </div>
     </div>
 
+    <!-- ============ Deactivate / Archive / Reactivate ============ -->
+    <div v-if="statusAsk" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!statusBusy && (statusAsk = null)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">{{ statusAsk.title }}</div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6" v-html="statusAsk.message"></div>
+          <div v-if="statusError" style="font-size:12.5px;color:var(--red)">{{ statusError }}</div>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-p" :disabled="statusBusy" @click="doStatus">{{ statusBusy ? 'Please wait...' : statusAsk.confirm }}</button>
+            <button class="ibtn ibtn-o" :disabled="statusBusy" @click="statusAsk = null">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ Delete Confirmation (reason required) ============ -->
     <ReasonDialog
       :open="showDeleteConfirm"
@@ -975,6 +1005,40 @@ function confirmSave() {
   if (fn) fn();
 }
 
+// ---------- Deactivate / Archive / Reactivate (B431, B432) ----------
+const statusAsk = ref(null);
+const statusBusy = ref(false);
+const statusError = ref('');
+const STATUS_TEXT = {
+  inactive: (n) => ({ title: 'Deactivate?', confirm: 'Yes, Deactivate', message: `Deactivate <strong>"${escHtml(n)}"</strong>? It will no longer be offered when adding new records. Existing records keep it, and you can reactivate it anytime.` }),
+  archived: (n) => ({ title: 'Archive?', confirm: 'Yes, Archive', message: `Archive <strong>"${escHtml(n)}"</strong>? It will no longer be offered when adding new records and is kept only for historical records. You can reactivate it later.` }),
+  active:   (n) => ({ title: 'Reactivate?', confirm: 'Yes, Reactivate', message: `Reactivate <strong>"${escHtml(n)}"</strong>? It will be offered again when adding new records.` }),
+};
+const STATUS_REFRESH = () => ({ colleges: fetchColleges, programs: fetchPrograms, departments: fetchDepartments, 'form-options': fetchFormOptions });
+
+function askStatus(kind, item, name, status) {
+  statusError.value = '';
+  statusAsk.value = { kind, item, status, ...STATUS_TEXT[status](name) };
+}
+
+async function doStatus() {
+  const a = statusAsk.value;
+  if (!a || statusBusy.value) return;
+  statusBusy.value = true;
+  statusError.value = '';
+  try {
+    await axios.post(`${API_BASE}/management/${a.kind}/${a.item.id}/status`, { status: a.status, version: a.item.updated_at || null }, authHeaders());
+    toast?.success(a.status === 'active' ? 'Reactivated.' : a.status === 'archived' ? 'Archived.' : 'Deactivated.');
+    statusAsk.value = null;
+    STATUS_REFRESH()[a.kind]();
+  } catch (e) {
+    const d = e.response?.data;
+    statusError.value = d?.errors?.status?.[0] || d?.message || 'Please try again.';
+  } finally {
+    statusBusy.value = false;
+  }
+}
+
 const showDeleteConfirm = ref(false);
 const deleteTarget = ref(null);
 const deleteKind    = ref('');
@@ -1106,9 +1170,15 @@ async function fetchTmduSlipDoc() {
 
 // FormOptionTable - small local render-function component to avoid repeating
 // the same table markup three times (Wellness / Disciplinary / Sources).
+const STATUS_LABELS = { active: 'Active', inactive: 'Inactive', archived: 'Archived' };
+const statusLabel = (st) => STATUS_LABELS[st || 'active'] || 'Active';
+const statusStyle = (st) => (st || 'active') === 'active'
+  ? 'background:var(--mist);color:var(--moss)'
+  : st === 'archived' ? 'background:var(--cloud);color:var(--stone)' : 'background:var(--amber-lt);color:var(--amber)';
+
 const FormOptionTable = {
   props: ['loading', 'options', 'showUnit'],
-  emits: ['edit', 'delete'],
+  emits: ['edit', 'delete', 'status'],
   setup(props, { emit }) {
     return () => {
       if (props.loading) {
@@ -1124,7 +1194,7 @@ const FormOptionTable = {
       }
       const headerCells = [h('th', 'ID'), h('th', 'Label')];
       if (props.showUnit) headerCells.push(h('th', 'Unit'));
-      headerCells.push(h('th', 'Stored Value'), h('th'));
+      headerCells.push(h('th', 'Stored Value'), h('th', 'Status'), h('th'));
 
       return h('div', { class: 'ts' }, [
         h('table', { class: 'itable' }, [
@@ -1141,8 +1211,12 @@ const FormOptionTable = {
             }
             cells.push(
               h('td', { style: 'font-family:var(--mono);font-size:12px;color:var(--fog)' }, o.value),
+              h('td', h('span', { class: 'ibadge', style: statusStyle(o.status) }, statusLabel(o.status))),
               h('td', h('div', { style: 'display:flex;gap:6px;justify-content:flex-end' }, [
                 h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('edit', o) }, 'Edit'),
+                o.status === 'active' ? h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('status', o, 'inactive') }, 'Deactivate') : null,
+                o.status !== 'archived' ? h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('status', o, 'archived') }, 'Archive') : null,
+                o.status !== 'active' ? h('button', { class: 'ibtn ibtn-p ibtn-sm', onClick: () => emit('status', o, 'active') }, 'Reactivate') : null,
                 h('button', { class: 'ibtn ibtn-sm', style: 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0', onClick: () => emit('delete', o) }, 'Delete'),
               ])),
             );

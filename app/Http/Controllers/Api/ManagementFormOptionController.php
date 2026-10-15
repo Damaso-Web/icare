@@ -23,6 +23,9 @@ class ManagementFormOptionController extends Controller
         if ($request->category) {
             $query->where('category', $request->category);
         }
+        if ($request->boolean('active')) {
+            $query->where('status', 'active');
+        }
         return $query->get();
     }
 

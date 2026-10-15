@@ -405,8 +405,8 @@ async function fetchManagementData() {
 async function fetchFormOptions() {
   try {
     const [typeRes, sourceRes] = await Promise.all([
-      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_type' } }),
-      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_source' } }),
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_type', active: 1 } }),
+      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_source', active: 1 } }),
     ]);
     referralTypeOptionsRaw.value = typeRes.data;
     referralSourceOptions.value  = sourceRes.data;

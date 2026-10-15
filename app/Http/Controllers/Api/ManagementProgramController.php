@@ -18,6 +18,10 @@ class ManagementProgramController extends Controller
     public function index(Request $request)
     {
         $query = Program::with('college')->orderBy('id');
+        // ?active=1: only what can be picked for a new record (the item and its college are both active).
+        if ($request->boolean('active')) {
+            $query->where('status', 'active')->whereHas('college', fn($c) => $c->where('status', 'active'));
+        }
         if ($request->college_id) {
             $query->where('college_id', $request->college_id);
         }
@@ -27,7 +31,7 @@ class ManagementProgramController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'college_id' => 'required|exists:colleges,id',
+            'college_id' => ['required', \Illuminate\Validation\Rule::exists('colleges', 'id')->where('status', 'active')],
             'name'       => ['required', 'string', 'max:255', 'regex:' . self::LABEL_REGEX],
         ]);
         $exists = Program::where('college_id', $validated['college_id'])->where('name', $validated['name'])->exists();
