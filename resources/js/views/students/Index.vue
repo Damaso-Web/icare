@@ -207,7 +207,16 @@
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student.</div>
           </div>
 
-          <!-- Records stay viewable for a deactivated account; only editing is switched off -->
+          <div v-if="statusHistory.length">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Account History</div>
+            <div v-for="ev in statusHistory" :key="ev.id" style="border-left:3px solid var(--cloud);padding:2px 0 2px 10px;margin-bottom:8px;font-size:12px;color:var(--slate);line-height:1.5">
+              <strong>{{ ev.action === 'deactivated' ? 'Deactivated' : 'Reactivated' }}</strong>: {{ ev.reason_label }}<span v-if="ev.note"> - {{ ev.note }}</span>
+              <div v-if="ev.previous_reason_label" style="color:var(--stone)">Originally deactivated: {{ ev.previous_reason_label }}<span v-if="ev.previous_at"> on {{ new Date(ev.previous_at).toLocaleDateString() }}</span></div>
+              <div style="color:var(--fog)">{{ ev.actor_name || 'Admin' }} &middot; {{ new Date(ev.created_at).toLocaleString() }}</div>
+            </div>
+          </div>
+
+                    <!-- Records stay viewable for a deactivated account; only editing is switched off -->
           <router-link :to="{ name: 'student-show', params: { id: viewedStudent.id } }" style="font-size:12px;color:var(--moss);text-align:center;text-decoration:underline">
             View Full Profile &amp; Referral History
           </router-link>
@@ -798,23 +807,22 @@
       </div>
     </div>
 
-    <!-- Activate Confirmation -->
-    <div v-if="showActivateConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showActivateConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Activate Student Account?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            Reactivate <strong>{{ studentToActivate?.first_name }} {{ studentToActivate?.last_name }}</strong>'s account? They will be able to log in again.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="doConfirmedActivate">Yes, Activate</button>
-            <button class="ibtn ibtn-o" @click="showActivateConfirm = false">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Activate Confirmation (B414/B415): asks for the reason for reactivation -->
+    <ReasonDialog
+      :open="showActivateConfirm"
+      title="Activate Student Account?"
+      :message="activateMessage"
+      :reasons="activateReasons"
+      reason-label="Reason for Reactivation"
+      confirm-text="Yes, Activate"
+      other-placeholder="Please describe the reason for reactivation briefly. Do not include sensitive personal details."
+      optional-note
+      :danger="false"
+      :busy="activating"
+      :error="activateError"
+      @confirm="doConfirmedActivate"
+      @cancel="showActivateConfirm = false"
+    />
 
     <!-- Reset Password Confirmation -->
     <div v-if="showResetPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showResetPwConfirm = false">
@@ -1030,9 +1038,10 @@
               <option v-for="r in REASON_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
             </select>
           </div>
+          <div v-if="graduateReasonDescription" style="background:var(--snow);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--slate);line-height:1.5">{{ graduateReasonDescription }}</div>
           <div v-if="graduateReason === 'other'">
-            <label class="ifl">Please specify</label>
-            <input v-model="graduateNotes" class="ifi" placeholder="Reason details" maxlength="255" @input="graduateNotes = String(graduateNotes ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F'.,\x26()\- ]/g, '')" />
+            <label class="ifl">Explanation <span style="color:var(--red)">*</span></label>
+            <input v-model="graduateNotes" class="ifi" placeholder="Please describe the reason for deactivation briefly. Do not include sensitive personal details." maxlength="255" @input="graduateNotes = String(graduateNotes ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F'.,\x26()\- ]/g, '')" />
           </div>
           <div style="display:flex;gap:8px">
             <button
@@ -1090,6 +1099,8 @@ import { ref, computed, inject, onMounted } from 'vue';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
+import ReasonDialog from '../../components/ReasonDialog.vue';
+import { STUDENT_DEACTIVATE_REASONS, studentReactivationReasonsFor, studentDeactivateLabel } from '../../constants/accountReasons';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
 
 const toast   = inject('toast');
@@ -1158,18 +1169,11 @@ const canDeactivate = computed(() =>
   (graduateReason.value !== 'other' || graduateNotes.value.trim())
 );
 
-// The order requested on the bug sheet (B412). "Select a reason..." is only a placeholder.
-const REASON_OPTIONS = [
-  { value: 'withdrawn_dropped',       label: 'Withdrawn/Dropped' },
-  { value: 'leave_of_absence',        label: 'Leave of Absence (LOA)' },
-  { value: 'disciplinary_suspension', label: 'Disciplinary Suspension' },
-  { value: 'graduated',               label: 'Graduated' },
-  { value: 'transferred',             label: 'Transferred to Another School' },
-  { value: 'security_concern',        label: 'Security Concern' },
-  { value: 'inactive_account',        label: 'Inactive Account' },
-  { value: 'requested_by_student',    label: 'Requested by Student' },
-  { value: 'other',                   label: 'Other' },
-];
+// The order and wording come from the bug sheet (B412, B413).
+const REASON_OPTIONS = STUDENT_DEACTIVATE_REASONS.map(r => ({ value: r.key, label: r.label, description: r.description }));
+const graduateReasonDescription = computed(() =>
+  REASON_OPTIONS.find(r => r.value === graduateReason.value)?.description || ''
+);
 const graduateReasonLabel = computed(() =>
   REASON_OPTIONS.find(r => r.value === graduateReason.value)?.label || ''
 );
@@ -1458,22 +1462,56 @@ async function confirmDeactivate() {
 // Activate flow
 const showActivateConfirm = ref(false);
 const studentToActivate = ref(null);
+const activating = ref(false);
+const activateError = ref('');
+
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// "September 3" - the year is added only when it is not the current year.
+function longDate(d) {
+  if (!d) return '';
+  const dt = new Date(d);
+  if (isNaN(dt)) return '';
+  const opts = dt.getFullYear() === new Date().getFullYear()
+    ? { month: 'long', day: 'numeric' }
+    : { month: 'long', day: 'numeric', year: 'numeric' };
+  return dt.toLocaleDateString('en-US', opts);
+}
+
+const activateReasons = computed(() => studentReactivationReasonsFor(studentToActivate.value?.deactivation_reason));
+const activateMessage = computed(() => {
+  const s = studentToActivate.value;
+  if (!s) return '';
+  let html = `Reactivate <strong>${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}</strong>'s account? They will be able to log in again.`;
+  if (s.deactivation_reason) {
+    const when = longDate(s.deactivated_at);
+    html += `<div style="margin-top:8px;padding:8px 10px;background:var(--snow);border-radius:6px;font-size:12.5px"><strong>Deactivated:</strong> ${escapeHtml(studentDeactivateLabel(s.deactivation_reason))}${when ? ' on ' + escapeHtml(when) : ''}.`
+      + (s.deactivation_notes ? `<div style="color:var(--stone);margin-top:2px">${escapeHtml(s.deactivation_notes)}</div>` : '') + '</div>';
+  }
+  return html;
+});
 
 function openActivateConfirm(s) {
   studentToActivate.value = s;
+  activateError.value = '';
   showActivateConfirm.value = true;
 }
 
-async function doConfirmedActivate() {
+async function doConfirmedActivate({ reason, note }) {
   const s = studentToActivate.value;
-  showActivateConfirm.value = false;
-  if (!s) return;
+  if (!s || activating.value) return;
+  activating.value = true;
+  activateError.value = '';
   try {
-    await studentAPI.toggleActive(s.id);
+    await studentAPI.toggleActive(s.id, { reason, note: note || null });
+    showActivateConfirm.value = false;
     toast?.success('Student account activated.');
     fetchStudents();
   } catch (e) {
-    toast?.error('Please try again.');
+    const errs = e.response?.data?.errors;
+    activateError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Please try again.';
+  } finally {
+    activating.value = false;
   }
 }
 
@@ -1751,11 +1789,17 @@ function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
 
+const statusHistory = ref([]);
+
 function openView(s) {
   viewedStudent.value = s;
   resetPasswordResult.value = '';
   showTempPassword.value = false;
   tempPasswordValue.value = '';
+  statusHistory.value = [];
+  if (auth.isAdmin || auth.user?.role === 'gcu_staff') {
+    studentAPI.statusHistory(s.id).then(r => { statusHistory.value = r.data; }).catch(() => { statusHistory.value = []; });
+  }
   showViewModal.value = true;
 }
 

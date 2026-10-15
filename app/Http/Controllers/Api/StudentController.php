@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Referral;
 use App\Models\Student;
+use App\Models\StudentStatusEvent;
+use App\Support\StudentAccountReasons;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -218,23 +220,78 @@ class StudentController extends Controller
         return response()->json(['message' => 'The student has been notified to fill out the forms in My Account.']);
     }
 
-    public function toggleActive(Student $student)
+    /**
+     * Reactivates a student account. A reason is required (B414/B415); the
+     * original deactivation reason is kept in the history and the Audit Trail.
+     */
+    public function toggleActive(Request $request, Student $student)
     {
-        $student->update(['is_active' => !$student->is_active]);
-        AuditLog::record('toggled', "Student {$student->first_name} {$student->last_name} " . ($student->is_active ? 'activated' : 'deactivated') . ".", $student);
+        abort_if($student->is_active, 422, 'This account is already active. Use Deactivate to turn it off.');
 
-        // A deactivated student's referrals leave the active queue and go to the archive.
-        if (!$student->is_active) {
-            Referral::archiveActive(['student_id' => $student->id], 'student account deactivated');
+        $validated = $request->validate([
+            'reason' => ['required', \Illuminate\Validation\Rule::in(array_keys(StudentAccountReasons::REACTIVATE))],
+            'note'   => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+        ], [
+            'reason.required'  => 'Please select a reason for reactivation.',
+            'note.required_if' => 'Please describe the reason when "Other" is selected.',
+            'note.regex'       => 'Please explain in words, not numbers only.',
+        ]);
+
+        $label = StudentAccountReasons::reactivateLabel($validated['reason']);
+        $note  = isset($validated['note']) ? trim($validated['note']) : null;
+        $note  = $note === '' ? null : $note;
+        $actor = $request->user();
+
+        $originalLabel = $student->deactivation_reason ? StudentAccountReasons::deactivateLabel($student->deactivation_reason) : null;
+        $originalNote  = $student->deactivation_notes;
+        $originalAt    = $student->deactivated_at;
+
+        $update = ['is_active' => true];
+        // Security Verified: the student sets a new password at the next login.
+        // The password itself is never logged or shown.
+        if ($validated['reason'] === 'security_verified') {
+            $update['must_change_password'] = true;
         }
-        return response()->json($student);
+        $student->update($update);
+
+        StudentStatusEvent::create([
+            'student_id'            => $student->id,
+            'action'                => 'reactivated',
+            'reason_key'            => $validated['reason'],
+            'reason_label'          => $label,
+            'note'                  => $note,
+            'previous_reason_label' => $originalLabel,
+            'previous_at'           => $originalAt,
+            'actor_id'              => $actor->id,
+            'actor_name'            => $actor->name,
+            'created_at'            => now(),
+        ]);
+
+        $text = "Reactivated student {$student->student_id} ({$student->first_name} {$student->last_name}). "
+            . ($originalLabel ? "Originally deactivated: {$originalLabel}" . ($originalAt ? ' on ' . $originalAt->format('M j, Y') : '') . ($originalNote ? " ({$originalNote})" : '') . '. ' : '')
+            . "Reason for reactivation: {$label}" . ($note ? " - {$note}" : '') . '.'
+            . ($validated['reason'] === 'security_verified' ? ' A password reset is required at the next login.' : '');
+        AuditLog::record('reactivated', $text, $student);
+
+        return response()->json($student->fresh());
+    }
+
+    /** Deactivation / reactivation timeline of one student, newest first. */
+    public function statusHistory(Student $student)
+    {
+        return response()->json(
+            StudentStatusEvent::where('student_id', $student->id)->orderByDesc('id')->get()
+        );
     }
 
     public function graduate(Request $request, Student $student)
     {
         $validated = $request->validate([
-            'deactivation_reason' => 'required|in:withdrawn_dropped,leave_of_absence,disciplinary_suspension,graduated,transferred,security_concern,inactive_account,requested_by_student,other,no_longer_enrolled',
+            'deactivation_reason' => ['required', \Illuminate\Validation\Rule::in(array_merge(array_keys(StudentAccountReasons::DEACTIVATE), array_keys(StudentAccountReasons::LEGACY)))],
             'deactivation_notes'  => ['nullable', 'string', 'max:255', 'required_if:deactivation_reason,other', 'regex:' . self::TEXT_REGEX],
+        ], [
+            'deactivation_reason.required' => 'Please select a reason for deactivation.',
+            'deactivation_notes.required_if' => 'Please describe the reason when "Other" is selected.',
         ]);
 
         // B303: deactivating a student also closes their SIF, even when the case
@@ -246,13 +303,30 @@ class StudentController extends Controller
             AuditLog::record('closed', "Closed case {$case->case_number} because the student was deactivated.", $case);
         }
 
+        $label = StudentAccountReasons::deactivateLabel($validated['deactivation_reason']);
+        $note  = isset($validated['deactivation_notes']) ? trim($validated['deactivation_notes']) : null;
+        $note  = $note === '' ? null : $note;
+        $actor = $request->user();
+
         $student->update([
             'is_active'            => false,
             'deactivation_reason'  => $validated['deactivation_reason'],
-            'deactivation_notes'   => $validated['deactivation_notes'] ?? null,
+            'deactivation_notes'   => $note,
+            'deactivated_at'       => now(),
         ]);
 
-        AuditLog::record('graduated', "Deactivated student {$student->student_id}. Reason: {$validated['deactivation_reason']}.", $student);
+        StudentStatusEvent::create([
+            'student_id'   => $student->id,
+            'action'       => 'deactivated',
+            'reason_key'   => $validated['deactivation_reason'],
+            'reason_label' => $label,
+            'note'         => $note,
+            'actor_id'     => $actor->id,
+            'actor_name'   => $actor->name,
+            'created_at'   => now(),
+        ]);
+
+        AuditLog::record('graduated', "Deactivated student {$student->student_id} ({$student->first_name} {$student->last_name}). Reason: {$label}" . ($note ? " - {$note}" : '') . '.', $student);
         Referral::archiveActive(['student_id' => $student->id], 'student account deactivated');
         return response()->json($student);
     }

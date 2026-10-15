@@ -282,6 +282,15 @@
                 </div>
               </div>
 
+              <div v-if="statusHistory.length">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Account History</div>
+            <div v-for="ev in statusHistory" :key="ev.id" style="border-left:3px solid var(--cloud);padding:2px 0 2px 10px;margin-bottom:8px;font-size:12px;color:var(--slate);line-height:1.5">
+              <strong>{{ ev.action === 'deactivated' ? 'Deactivated' : 'Reactivated' }}</strong>: {{ ev.reason_label }}<span v-if="ev.note"> - {{ ev.note }}</span>
+              <div v-if="ev.previous_reason_label" style="color:var(--stone)">Originally deactivated: {{ ev.previous_reason_label }}<span v-if="ev.previous_at"> on {{ new Date(ev.previous_at).toLocaleDateString() }}</span></div>
+              <div style="color:var(--fog)">{{ ev.actor_name || 'Admin' }} &middot; {{ new Date(ev.created_at).toLocaleString() }}</div>
+            </div>
+          </div>
+
               <!-- Family Information / Siblings Information / Educational
                    Attainment - collapsible, shown here inside the Student
                    Information File only (not on Referral Details). -->
@@ -1025,6 +1034,8 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
+const statusHistory = ref([]);
+
 onMounted(async () => {
   // Ctrl No. prefix, loaded alongside the page so the case name is right from the start.
   studentAPI.documentSettings('QF-OSS-GCU-01').then(res => { sifDoc.value = res.data || {}; }).catch(() => { /* header falls back to the defaults */ });
@@ -1035,6 +1046,9 @@ onMounted(async () => {
     ]);
     student.value = studentRes.data;
     history.value = historyRes.data;
+    if (['admin', 'gcu_staff'].includes(auth.user?.role)) {
+      studentAPI.statusHistory(route.params.id).then(r => { statusHistory.value = r.data; }).catch(() => { statusHistory.value = []; });
+    }
     editForm.value = { ...studentRes.data };
     editSnapshot.value = JSON.stringify(editForm.value);
     newCaseStatus.value = history.value.cases?.[0]?.status || '';

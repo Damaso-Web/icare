@@ -42,6 +42,7 @@ class Student extends Authenticatable
         'temp_password',
         'deactivation_reason',
         'deactivation_notes',
+        'deactivated_at',
         'father_first_name',
         'father_middle_name',
         'father_last_name',
@@ -78,6 +79,7 @@ class Student extends Authenticatable
         'is_active'             => 'boolean',
         'must_change_password'  => 'boolean',
         'last_login_at'         => 'datetime',
+        'deactivated_at'        => 'datetime',
         'consent_accepted_at'   => 'datetime',
         'email_verified_at'     => 'datetime',
     ];

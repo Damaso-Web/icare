@@ -270,7 +270,7 @@ class RoleMatrixTest extends TestCase
 
         $this->actingAs($head)->postJson('/api/users', $this->newAccount('tmdu_staff'))->assertStatus(201);
         $this->actingAs($head)->postJson('/api/users', $this->newAccount('gcu_staff'))->assertStatus(422);
-        $this->actingAs($head)->postJson("/api/users/{$staff->id}/toggle-active")->assertStatus(200);
+        $this->actingAs($head)->postJson("/api/users/{$staff->id}/toggle-active", ["reason" => "resigned"])->assertStatus(200);
         $this->actingAs($head)->putJson("/api/users/{$gcu->id}", ['first_name' => 'Changed'])->assertStatus(403);
     }
 
