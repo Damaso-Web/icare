@@ -26,6 +26,17 @@ class ReferredStudentNotification extends Notification
             : 'Guidance and Counseling Unit (GCU)';
     }
 
+    /** Hides all but the last two characters, e.g. 2112345 -> *****45. */
+    public static function maskId(?string $id): string
+    {
+        $id = (string) $id;
+        $len = mb_strlen($id);
+        if ($len <= 2) {
+            return $id;
+        }
+        return str_repeat('*', $len - 2) . mb_substr($id, -2);
+    }
+
     public function emailSubject(object $notifiable): string
     {
         return 'You have been referred to the ' . ($this->referral->referral_type === 'disciplinary' ? 'SDU' : 'GCU');
@@ -48,7 +59,7 @@ class ReferredStudentNotification extends Notification
 
         if ($password) {
             $mail->line('Please log in to iCARE using your Student ID Number and the password given below:')
-                ->line('**Student ID Number:** ' . $notifiable->student_id)
+                ->line('**Student ID Number:** ' . self::maskId($notifiable->student_id))
                 ->line('**Password:** ' . $password)
                 ->line('Make sure to change your password upon logging in, and kindly update the details under your My Account.');
         } else {

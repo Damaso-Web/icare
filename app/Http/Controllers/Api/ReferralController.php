@@ -532,8 +532,13 @@ class ReferralController extends Controller
             Notification::send($referral->referredBy, new ReferralAcknowledgedNotification($referral));
         }
     } else {
-        $notifiables = collect([$referral->student, $referral->referredBy])->filter();
-        Notification::send($notifiables, new ReferralAcknowledgedNotification($referral));
+        // The acknowledgment goes to whoever filed the referral, not to the
+        // student (the student is told about the referral when it is created).
+        // A self-referral has no staff referrer, so the student is the referrer.
+        $referrer = $referral->referredBy ?? $referral->student;
+        if ($referrer) {
+            Notification::send($referrer, new ReferralAcknowledgedNotification($referral));
+        }
     }
 
     return response()->json([

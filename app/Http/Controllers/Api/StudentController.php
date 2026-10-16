@@ -690,11 +690,15 @@ class StudentController extends Controller
             }
 
             // New row - build the insert payload
-            // Password uses student_id as the temp; hash at cost 4 for bulk speed
+            // Each new student gets their own random temporary password (never
+            // the Student ID). Hashed at cost 4 so a big masterlist stays fast;
+            // the password is random, and the student must change it at first
+            // login (which is then hashed at the full cost).
+            $tempPassword = Str::random(10);
             $inserts[] = array_merge($payload, [
                 'student_id'            => $rowData['student_id'],
-                'password'              => Hash::make((string) $rowData['student_id'], ['rounds' => 4]),
-                'temp_password'         => (string) $rowData['student_id'],
+                'password'              => Hash::make($tempPassword, ['rounds' => 4]),
+                'temp_password'         => $tempPassword,
                 'must_change_password'  => true,
                 'is_active'             => true,
                 'created_at'            => $now,
