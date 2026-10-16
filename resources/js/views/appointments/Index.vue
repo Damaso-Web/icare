@@ -233,7 +233,7 @@
           <div v-if="detailTarget.required_documents || detailTarget.notes" class="ad-notes">
             <div v-if="detailTarget.required_documents">
               <div class="ad-label">Required Documents</div>
-              <div class="ad-value" style="white-space:pre-line">{{ detailTarget.required_documents }}</div>
+              <div class="ad-value"><RequiredDocumentsDownload /></div>
             </div>
             <div v-if="detailTarget.notes">
               <div class="ad-label">Notes</div>
@@ -439,6 +439,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
+import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 
 const toast  = inject('toast');
 const auth   = useAuthStore();

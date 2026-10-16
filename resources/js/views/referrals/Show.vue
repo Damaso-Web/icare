@@ -1667,7 +1667,7 @@
             </div>
             <div v-if="apptDetailTarget.required_documents">
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
-              <div style="font-size:13px;color:var(--ink);background:var(--snow);padding:8px 10px;border-radius:var(--r-sm)">{{ apptDetailTarget.required_documents }}</div>
+              <RequiredDocumentsDownload />
             </div>
             <div v-if="apptDetailTarget.notes">
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Notes</div>
@@ -1900,6 +1900,7 @@ import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
+import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 import { useDiscardGuard } from '../../utils/discardGuard';
 import { useAuthStore } from '../../stores/auth';
 import { toTitleCase, plainText, referralSourceFor, formatTime12 } from '../../utils/validators';

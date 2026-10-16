@@ -8,7 +8,7 @@ use App\Models\CaseFile;
 use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
-use App\Notifications\FillOutFormsNotification;
+use App\Notifications\ReferredStudentNotification;
 use App\Notifications\NewReferralNotification;
 use App\Notifications\ReferralAcknowledgedNotification;
 use App\Notifications\ReferralStatusUpdatedNotification;
@@ -223,11 +223,9 @@ class ReferralController extends Controller
         $recipients = $recipients->merge($collegeRep)->unique('id');
         Notification::send($recipients, new NewReferralNotification($referral));
 
-        // A Student Information File was just opened for this student: ask
-        // them to fill out their forms in My Account.
-        if (!$isExisting) {
-            $student->notify(new FillOutFormsNotification());
-        }
+        // Tell the student they were referred (who, which unit, their login)
+        // and ask them to update My Account. Sent on every referral.
+        $student->notify(new ReferredStudentNotification($referral));
 
         return response()->json([
             ...$referral->load(['student', 'referredBy'])->toArray(),

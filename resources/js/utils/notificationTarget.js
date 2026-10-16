@@ -10,7 +10,7 @@ export function staffNotificationTarget(data = {}) {
 }
 
 export function studentNotificationTarget(data = {}) {
-  if (data.type === 'fill_out_forms') return { name: 'student-account' };
+  if (data.type === 'fill_out_forms' || data.type === 'referred_student') return { name: 'student-account' };
   if (data.referral_id)       return { name: 'student-referral-show', params: { id: data.referral_id } };
   if (data.appointment_id)    return { name: 'student-appointment-show', params: { id: data.appointment_id } };
   if (data.testing_record_id) return { name: 'student-testing' };

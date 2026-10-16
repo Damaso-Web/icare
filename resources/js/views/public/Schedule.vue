@@ -125,7 +125,7 @@
           <!-- Required Documents (shown before the student confirms their appointment) -->
           <div v-if="appointment.required_documents" style="background:var(--snow);border-radius:var(--r-sm);padding:14px">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Required Documents - Please Prepare Before Your Appointment</div>
-            <div style="font-size:12.5px;color:var(--ink);line-height:1.6;white-space:pre-line">{{ appointment.required_documents }}</div>
+            <RequiredDocumentsDownload />
           </div>
 
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="submitSchedule" :disabled="!canSubmit || submitting">
@@ -144,6 +144,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
+import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 import { formatTime12 } from '../../utils/validators';
 
 const route = useRoute();

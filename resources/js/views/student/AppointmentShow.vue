@@ -76,7 +76,7 @@
           </div>
           <div v-if="appointment.required_documents">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
-            <div style="font-size:13px;color:var(--ink);background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);white-space:pre-line">{{ appointment.required_documents }}</div>
+            <RequiredDocumentsDownload />
           </div>
         </div>
       </div>
@@ -248,6 +248,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 
 const route = useRoute();
 const router = useRouter();
