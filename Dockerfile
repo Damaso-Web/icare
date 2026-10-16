@@ -45,4 +45,6 @@ RUN echo '<VirtualHost *:80>\n\
 
 EXPOSE 80
 
-CMD ["apache2-foreground"]
+# Run any pending migrations on every start (the Render Shell is paid-only),
+# then start Apache. ";" so a migration problem never keeps the site down.
+CMD ["sh", "-c", "php artisan migrate --force; apache2-foreground"]
