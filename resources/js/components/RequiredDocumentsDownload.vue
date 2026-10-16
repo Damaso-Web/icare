@@ -5,6 +5,6 @@ import { REQUIRED_DOCUMENTS_FILE, REQUIRED_DOCUMENTS_FILENAME } from '../constan
 
 <template>
   <a :href="REQUIRED_DOCUMENTS_FILE" :download="REQUIRED_DOCUMENTS_FILENAME" class="ibtn ibtn-o ibtn-sm" style="text-decoration:none;display:inline-flex">
-    Download Required Documents
+    Download Letter of Explanation Template
   </a>
 </template>
