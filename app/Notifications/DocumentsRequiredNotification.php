@@ -8,14 +8,10 @@ use Illuminate\Notifications\Notification;
 
 class DocumentsRequiredNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public Appointment $appointment) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

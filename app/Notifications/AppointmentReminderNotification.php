@@ -12,15 +12,11 @@ use Illuminate\Notifications\Notification;
 // appointment was cancelled or moved.
 class AppointmentReminderNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     /** @param string $kind 'tomorrow' or 'today' */
     public function __construct(public Appointment $appointment, public string $kind) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     /** The exact date and time this reminder is for - a moved appointment gets a new one. */
     public static function slot(Appointment $a): string

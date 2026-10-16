@@ -9,14 +9,10 @@ use Illuminate\Notifications\Notification;
 /** In-app notice for the staff member a referral/case has just been assigned or reassigned to. */
 class ReferralAssignedNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public Referral $referral, public ?string $assignedBy = null) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

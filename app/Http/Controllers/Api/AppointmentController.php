@@ -160,6 +160,7 @@ class AppointmentController extends Controller
         AuditLog::record('created', "Scheduled appointment {$appt->appointment_code}.", $appt);
 
         Notification::send($appt->student, new AppointmentConfirmedNotification($appt));
+        $this->notifyReferrer($appt);
 
         return response()->json($appt->load(['student', 'staff', 'createdBy']), 201);
     }
@@ -284,6 +285,7 @@ class AppointmentController extends Controller
 
         if ($appointment->student) {
             Notification::send($appointment->student, new AppointmentConfirmedNotification($appointment));
+            $this->notifyReferrer($appointment);
 
             if (!empty($requiredDocuments)) {
                 Notification::send($appointment->student, new DocumentsRequiredNotification($appointment));
@@ -811,5 +813,18 @@ public function checkConflictByStudent(Request $request)
     {
         return (int) Carbon::createFromFormat('H:i', $start)
             ->diffInMinutes(Carbon::createFromFormat('H:i', $end));
+    }
+
+    /** The instructor / dean who referred the student also hears that an appointment was set (FR-10). Never throws. */
+    private function notifyReferrer(Appointment $appointment): void
+    {
+        try {
+            $referrer = $appointment->case?->latestReferral?->referredBy;
+            if ($referrer && $referrer->is_active) {
+                Notification::send($referrer, new AppointmentConfirmedNotification($appointment, true));
+            }
+        } catch (\Throwable $e) {
+            report($e);
+        }
     }
 }

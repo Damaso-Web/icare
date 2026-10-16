@@ -10,15 +10,11 @@ use Illuminate\Notifications\Notification;
 // again whenever GCU sends a reminder from the SIF.
 class FillOutFormsNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     /** @param bool $reminder true when GCU staff sent it by hand */
     public function __construct(public bool $reminder = false) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

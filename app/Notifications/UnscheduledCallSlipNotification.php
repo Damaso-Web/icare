@@ -17,7 +17,7 @@ class UnscheduledCallSlipNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ['database', \App\Channels\LoggedMailChannel::class];
     }
 
     private function studentName(): string

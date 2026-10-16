@@ -11,14 +11,10 @@ use Illuminate\Notifications\Notification;
 // reschedule), so staff know there is a request waiting for confirmation.
 class AppointmentRequestedNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public Appointment $appointment, public string $kind = 'scheduled') {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

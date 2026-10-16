@@ -11,14 +11,10 @@ use Illuminate\Notifications\Notification;
 // the equivalent one sent to TMDU staff).
 class ReferredToTmduNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public CaseFile $case) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

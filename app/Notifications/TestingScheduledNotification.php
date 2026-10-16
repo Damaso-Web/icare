@@ -13,14 +13,10 @@ use Illuminate\Notifications\Notification;
 // required_documents field, so it shows on their Appointment Details page too.
 class TestingScheduledNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public TestingRecord $testingRecord, public Appointment $appointment) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

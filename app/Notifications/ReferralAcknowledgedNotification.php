@@ -8,14 +8,10 @@ use Illuminate\Notifications\Notification;
 
 class ReferralAcknowledgedNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public Referral $referral) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

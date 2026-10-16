@@ -16,6 +16,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('backup:run --type=all --trigger=scheduled')->daily();
         $schedule->command('app:detect-missed-appointments')->hourly();
         $schedule->command('reminders:appointments')->hourly();
+        $schedule->command('emails:retry-failed')->everyFiveMinutes();
     }
 
     /**
