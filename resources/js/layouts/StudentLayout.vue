@@ -41,7 +41,7 @@
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ student.first_name }} {{ student.last_name }}</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">{{ student.student_id }}</div>
         </div>
-        <button @click="session.askLogout()" title="Logout" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px">
+        <button @click="session.askLogout()" title="Log out" aria-label="Log out" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px">
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
@@ -67,7 +67,7 @@
             </svg>
             <span v-if="unreadCount > 0" style="position:absolute;top:-3px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;border:2px solid #fff;box-sizing:content-box">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
           </button>
-          <span style="font-size:13px;color:var(--stone)">{{ student.student_id }}</span>
+          <span class="tb-date">{{ todayLabel }} · {{ timeLabel }}</span>
         </div>
 
         <div v-if="showNotifs" style="position:absolute;top:52px;right:24px;width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);border:1px solid var(--cloud);z-index:100;overflow:hidden">
@@ -140,6 +140,13 @@ function toggleCollapsed() {
   try { localStorage.setItem('sidebar_collapsed', collapsed.value ? '1' : '0'); } catch (e) { /* not remembered */ }
 }
 // The two seals in the top bar are hidden if a file is missing.
+// Date and time in the top bar: Philippine time, same as the staff pages.
+const PH = 'Asia/Manila';
+const now = ref(new Date());
+const todayLabel = computed(() => now.value.toLocaleDateString('en-US', { timeZone: PH, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }));
+const timeLabel  = computed(() => now.value.toLocaleTimeString('en-US', { timeZone: PH, hour: 'numeric', minute: '2-digit', hour12: true }));
+const clockTimer = setInterval(() => { now.value = new Date(); }, 5000);
+onBeforeUnmount(() => clearInterval(clockTimer));
 const sealBsu = ref(true);
 const sealOss = ref(true);
 watch(() => route.fullPath, () => { menuOpen.value = false; });

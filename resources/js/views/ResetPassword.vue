@@ -47,6 +47,7 @@ import AuthBrand from '../components/AuthBrand.vue';
 import { ref, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { skipConsentNextTime } from '../utils/consentSkip';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 const route = useRoute();
@@ -63,7 +64,7 @@ const loading = ref(false);
 const error = ref('');
 const done = ref(false);
 
-function toLogin() { router.push({ name: type.value === 'student' ? 'student-login' : 'login' }); }
+function toLogin() { skipConsentNextTime(type.value); router.push({ name: type.value === 'student' ? 'student-login' : 'login' }); }
 function toForgot() { router.push({ name: 'forgot-password', query: { type: type.value } }); }
 
 function problem(pw) {

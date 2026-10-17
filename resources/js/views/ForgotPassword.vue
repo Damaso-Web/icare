@@ -10,12 +10,14 @@
       <div class="icard" style="padding:22px">
         <template v-if="!sent">
           <p style="font-size:13px;color:var(--stone);margin-bottom:14px">
-            Enter the email address of your account and we will send you a link to reset your password.
+            {{ isStudent
+              ? 'Enter the email address registered to your student account and we will send you a link to reset your password.'
+              : 'Enter your BSU email address (ending in @bsu.edu.ph) and we will send you a link to reset your password.' }}
           </p>
           <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px;margin-bottom:14px">{{ error }}</div>
           <form @submit.prevent="submit">
             <label class="ifl">Email Address</label>
-            <input v-model="email" type="email" class="ifi" maxlength="100" placeholder="name@bsu.edu.ph" required autocomplete="email" />
+            <input v-model="email" type="email" class="ifi" maxlength="100" :placeholder="isStudent ? 'Email registered to your student account' : 'name@bsu.edu.ph'" required autocomplete="email" />
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || !email.trim()">
               {{ loading ? 'Sending...' : 'Send Reset Link' }}
             </button>
@@ -24,7 +26,7 @@
         <template v-else>
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Check your email</div>
           <p style="font-size:13px;color:var(--stone);line-height:1.6">
-            If an account with <strong>{{ email }}</strong> exists, a password reset link has been sent to it. The link expires in 5 minutes.
+            A password reset link has been sent to <strong>{{ email }}</strong>. The link expires in 5 minutes.
             Also check your spam folder.
           </p>
           <div v-if="resentNote" style="background:var(--mist);color:var(--moss);border-radius:var(--r-sm);padding:8px 12px;font-size:12.5px;margin-top:12px">{{ resentNote }}</div>
@@ -47,6 +49,7 @@ import AuthBrand from '../components/AuthBrand.vue';
 import { ref, computed, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
+import { skipConsentNextTime } from '../utils/consentSkip';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 const route = useRoute();
@@ -82,6 +85,7 @@ async function resend() {
 }
 
 function goBack() {
+  skipConsentNextTime(isStudent.value ? 'student' : 'staff');
   router.push({ name: isStudent.value ? 'student-login' : 'login' });
 }
 

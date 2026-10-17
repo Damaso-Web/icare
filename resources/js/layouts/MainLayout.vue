@@ -36,7 +36,7 @@
             <div class="u-nm">{{ auth.user?.name }}</div>
             <div class="u-rl">{{ roleLabel }}</div>
           </div>
-          <button class="logbtn" @click="session.askLogout()" title="Sign out">
+          <button class="logbtn" @click="session.askLogout()" title="Log out" aria-label="Log out">
             <svg viewBox="0 0 24 24">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>

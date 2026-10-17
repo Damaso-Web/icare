@@ -6,12 +6,12 @@
 -->
 <template>
   <div>
-    <div ref="textEl" class="cg-text" tabindex="0">
+    <div ref="textEl" class="cg-text" tabindex="0" @scroll="checkEnd">
       <slot />
     </div>
 
-    <label class="cg-check" :class="{ on: agreed }">
-      <input v-model="agreed" type="checkbox" />
+    <label class="cg-check" :class="{ on: agreed, off: !atEnd }">
+      <input v-model="agreed" type="checkbox" :disabled="!atEnd" />
       <span>{{ checkboxLabel }}</span>
     </label>
 
@@ -19,17 +19,32 @@
       <button type="button" class="ibtn ibtn-p" :disabled="!agreed" @click="$emit('accept')">Continue</button>
       <button type="button" class="ibtn ibtn-g" @click="$emit('decline')">Decline</button>
     </div>
-    <div v-if="!agreed" class="cg-hint">Tick the box above to continue.</div>
+    <div v-if="!atEnd" class="cg-hint">Scroll to the end of the notice to enable the checkbox.</div>
+    <div v-else-if="!agreed" class="cg-hint">Tick the box above to continue.</div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onBeforeUnmount } from 'vue';
 
 defineProps({ checkboxLabel: { type: String, required: true } });
 defineEmits(['accept', 'decline']);
 
 const agreed = ref(false);
+
+// The checkbox stays disabled until the notice has been scrolled to the bottom.
+const textEl = ref(null);
+const atEnd = ref(false);
+function checkEnd() {
+  const el = textEl.value;
+  if (!el) return;
+  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) atEnd.value = true;
+}
+onMounted(() => {
+  checkEnd(); // a short notice that needs no scrolling is already "read"
+  window.addEventListener('resize', checkEnd);
+});
+onBeforeUnmount(() => window.removeEventListener('resize', checkEnd));
 </script>
 
 <style scoped>
@@ -52,6 +67,8 @@ const agreed = ref(false);
   border: 1.5px solid var(--silver); border-radius: 12px; background: #fff; cursor: pointer;
   font-size: 12.5px; line-height: 1.5; color: var(--ink); transition: border-color .13s, background .13s;
 }
+.cg-check.off { opacity: .55; cursor: not-allowed; }
+.cg-check.off input { cursor: not-allowed; }
 .cg-check.on { border-color: var(--moss); background: var(--foam); }
 .cg-check input { width: 17px; height: 17px; margin-top: 1px; flex: none; accent-color: var(--moss); cursor: pointer; }
 

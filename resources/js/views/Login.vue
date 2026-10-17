@@ -113,7 +113,10 @@
       </form>
       </template>
 
-      <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
+      <div v-if="agreed" class="change-type"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
+      <LoginHelp />
+
+      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
 
@@ -124,6 +127,8 @@
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
 import ConsentGate from '../components/ConsentGate.vue';
+import LoginHelp from '../components/LoginHelp.vue';
+import { consumeConsentSkip } from '../utils/consentSkip';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
@@ -133,7 +138,7 @@ const router = useRouter();
 const auth   = useAuthStore();
 
 // The Confidentiality Agreement is agreed to afresh on every visit to this page.
-const agreed = ref(false);
+const agreed = ref(consumeConsentSkip('staff'));
 function goBack() {
   if (agreed.value && !otpToken.value) {
     agreed.value = false;
@@ -200,6 +205,8 @@ async function handleVerify() {
 </script>
 
 <style scoped>
+.change-type { text-align: center; margin-top: 16px; font-size: 12.5px; }
+.change-type a { color: var(--moss); font-weight: 600; }
 .login-wrap {
   min-height: 100vh;
   display: flex;

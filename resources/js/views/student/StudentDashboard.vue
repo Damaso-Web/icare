@@ -4,7 +4,7 @@
       <div class="hero-row">
         <div>
           <div class="hero-kicker">Student Portal</div>
-          <h1>Welcome, {{ student.first_name }}</h1>
+          <h1>{{ greeting }}, {{ student.first_name }}!</h1>
           <p>Your appointments, referrals and testing with the Office of Student Services, in one place.</p>
           <div class="hero-chips">
             <span class="hero-chip">{{ student.student_id }}</span>
@@ -88,13 +88,19 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import axios from 'axios';
 import { formatTime12, formatDateShort } from '../../utils/validators';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const student = ref(JSON.parse(localStorage.getItem('student') || '{}'));
+// Greeting by Philippine time, same wording as the staff dashboard.
+const phHour = () => Number(new Date().toLocaleString('en-US', { timeZone: 'Asia/Manila', hour: 'numeric', hour12: false })) % 24;
+const hour = ref(phHour());
+const hourTimer = setInterval(() => { hour.value = phHour(); }, 60000);
+onBeforeUnmount(() => clearInterval(hourTimer));
+const greeting = computed(() => hour.value < 12 ? 'Good morning' : hour.value < 18 ? 'Good afternoon' : 'Good evening');
 const loading = ref(true);
 const appointments = ref([]);
 const referrals = ref([]);

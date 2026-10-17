@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 // "Forgot password" by email link, for both staff accounts (users table) and
@@ -28,27 +29,42 @@ class PasswordResetController extends Controller
             'type'  => 'required|in:staff,student',
         ]);
 
-        // Same answer whether or not the email exists, so this can't be used
-        // to find out which emails have accounts.
-        $generic = ['message' => 'If an account with that email exists, a password reset link has been sent to it.'];
+        $email = strtolower(trim($data['email']));
+        $isStudent = $data['type'] === 'student';
+
+        // Check the address against the registered accounts first, and say
+        // clearly why a reset can't go ahead (nothing is sent in these cases).
+        if (!$isStudent && !str_ends_with($email, '@bsu.edu.ph')) {
+            throw ValidationException::withMessages(['email' => 'Please enter your BSU email address (it must end in @bsu.edu.ph).']);
+        }
+
+        $broker = $this->broker($data['type']);
+        $user = $broker->getUser(['email' => $email]);
+        if (!$user) {
+            throw ValidationException::withMessages(['email' => $isStudent
+                ? 'This email does not match the email registered to any student account. Please use the email you gave the Office of Student Services.'
+                : 'No personnel account is registered with this email address.']);
+        }
+        if (($user->is_active ?? true) === false) {
+            throw ValidationException::withMessages(['email' => 'This account is not active. Please contact the Office of Student Services.']);
+        }
 
         try {
-            $broker = $this->broker($data['type']);
-            $user = $broker->getUser(['email' => $data['email']]);
-            if (!$user || ($user->is_active ?? true) === false) {
-                return response()->json($generic);
+            // The link goes only to the address on the verified account.
+            $status = $broker->sendResetLink(['email' => $user->email]);
+            if ($status === Password::RESET_THROTTLED) {
+                throw ValidationException::withMessages(['email' => 'A reset link was just sent. Please wait a minute before requesting another.']);
             }
-            $status = $broker->sendResetLink(['email' => $data['email']]);
             if ($status !== Password::RESET_LINK_SENT) {
-                Log::warning("Forgot-password: no link sent for {$data['email']} ({$status}).");
+                Log::warning("Forgot-password: no link sent for {$email} ({$status}).");
             }
+        } catch (ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
-            // Still answer with the generic message (so emails can't be probed),
-            // but leave the real reason in the Render logs.
             Log::error('Forgot-password email failed: ' . $e->getMessage());
         }
 
-        return response()->json($generic);
+        return response()->json(['message' => 'A password reset link has been sent to your email.']);
     }
 
     public function reset(Request $request)

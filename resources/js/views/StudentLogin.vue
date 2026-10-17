@@ -33,8 +33,6 @@
 
       <div v-else>
         <div>
-          <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:16px">Student Login</div>
-
           <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
             {{ error }}
           </div>
@@ -99,9 +97,8 @@
         </div>
       </div>
 
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
-        Having trouble logging in? Contact the Office of Student Services.
-      </div>
+      <div v-if="consentGiven" class="change-type"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
+      <LoginHelp />
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
@@ -113,6 +110,8 @@
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
 import ConsentGate from '../components/ConsentGate.vue';
+import LoginHelp from '../components/LoginHelp.vue';
+import { consumeConsentSkip } from '../utils/consentSkip';
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
@@ -125,7 +124,7 @@ const showPassword = ref(false);
 const capsLockOn = ref(false);
 
 // Shown fresh every time this page is visited - not remembered across visits.
-const consentGiven = ref(false);
+const consentGiven = ref(consumeConsentSkip('student'));
 
 function acceptConsent() {
   consentGiven.value = true;
@@ -193,3 +192,8 @@ function checkCapsLock(e) {
   capsLockOn.value = e.getModifierState && e.getModifierState('CapsLock');
 }
 </script>
+
+<style scoped>
+.change-type { text-align: center; margin-top: 16px; font-size: 12.5px; }
+.change-type a { color: var(--moss); font-weight: 600; }
+</style>
