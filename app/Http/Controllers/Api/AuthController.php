@@ -4,7 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Notifications\ChangePasswordReminderNotification;
 use App\Notifications\PasswordChangedNotification;
+use App\Notifications\RegistrationOtpNotification;
+use Illuminate\Validation\ValidationException;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -49,6 +52,11 @@ class AuthController extends Controller
             $left = $guard->fail();
             AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password" . ($left === 0 ? ' - sign-in locked for ' . \App\Support\LoginGuard::LOCK_MINUTES . ' minutes.' : " ({$left} attempt(s) left)."), $user, [], [], $user);
             return response()->json(['message' => self::BAD_LOGIN . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
+        }
+
+        // A one-time password (from registering) works only for a short time.
+        if ($user->temp_password_expires_at && $user->temp_password_expires_at->isPast()) {
+            return response()->json(['message' => 'Your one-time password has expired. Please register again to get a new one.'], 401);
         }
 
         // Only reveal the deactivated state AFTER a correct password.
@@ -137,6 +145,11 @@ class AuthController extends Controller
         $user->update(['last_login_at' => now()]);
         $token = $user->createToken('icare-token')->plainTextToken;
 
+        // Still on a temporary / one-time password: remind them in the bell (once, until read).
+        if ($user->must_change_password && !$user->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->exists()) {
+            $user->notify(new ChangePasswordReminderNotification());
+        }
+
         // Nobody is authenticated yet during login, so name the user explicitly.
         AuditLog::record('login', "User {$user->name} logged in.", $user, [], [], $user);
 
@@ -147,6 +160,66 @@ class AuthController extends Controller
                 'email', 'role', 'unit', 'college', 'department',
                 'contact_number', 'employee_id'
             ]),
+        ]);
+    }
+
+    // First-time sign-up for faculty and deans: the Employee ID must be in the
+    // list the GCU uploaded, and the email must be the BSU email on file for it.
+    // A one-time password is sent to that email and works as the password until
+    // it is changed.
+    public const OTP_MINUTES = 30;
+    private const SELF_REGISTER_ROLES = ['faculty', 'dept_chair', 'dean', 'dean_secretary'];
+
+    public function register(Request $request)
+    {
+        $data = $request->validate([
+            'employee_id'      => 'required|string|max:50',
+            'email'            => 'required|email|max:255',
+            'consent_accepted' => 'required|accepted',
+        ]);
+        $email = strtolower(trim($data['email']));
+
+        if (!str_ends_with($email, '@bsu.edu.ph')) {
+            throw ValidationException::withMessages(['email' => 'Please enter your BSU email address (it must end in @bsu.edu.ph).']);
+        }
+
+        $user = User::where('employee_id', trim($data['employee_id']))->first();
+        if (!$user) {
+            throw ValidationException::withMessages(['employee_id' => 'This Employee ID is not in the employee list uploaded by the Guidance and Counseling Unit. Please contact the OSS administrator.']);
+        }
+        if (!in_array($user->role, self::SELF_REGISTER_ROLES, true)) {
+            throw ValidationException::withMessages(['employee_id' => 'Registration here is for faculty and deans only. Please contact the OSS administrator.']);
+        }
+        if (!$user->is_active) {
+            throw ValidationException::withMessages(['employee_id' => 'This account is not active. Please contact the OSS administrator.']);
+        }
+        if (!$user->must_change_password) {
+            throw ValidationException::withMessages(['employee_id' => 'This Employee ID already has an account. Please sign in, or use "Forgot password?" if you cannot remember your password.']);
+        }
+        // The code goes only to the email on file for this employee.
+        if (strtolower((string) $user->email) !== $email) {
+            throw ValidationException::withMessages(['email' => 'This email does not match the email on file for this Employee ID. Please use that email or contact the OSS administrator.']);
+        }
+        if (!Cache::add('staff-register:' . $user->id, 1, 60)) {
+            throw ValidationException::withMessages(['email' => 'A one-time password was just sent. Please wait a minute before requesting another.']);
+        }
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $user->forceFill([
+            'password'                 => Hash::make($otp),
+            'temp_password'            => null, // never kept in plain text
+            'must_change_password'     => true,
+            'temp_password_expires_at' => now()->addMinutes(self::OTP_MINUTES),
+        ])->save();
+
+        $user->notify(new RegistrationOtpNotification($otp, self::OTP_MINUTES, 'email address'));
+        AuditLog::record('staff_register', "{$user->name} registered and was sent a one-time password.", $user, [], [], $user);
+
+        [$local, $domain] = explode('@', $email, 2) + [1 => ''];
+        return response()->json([
+            'message'      => 'A one-time password has been sent to your email.',
+            'masked_email' => mb_substr($local, 0, 2) . str_repeat('*', max(1, mb_strlen($local) - 2)) . '@' . $domain,
+            'expires_in'   => self::OTP_MINUTES,
         ]);
     }
 
@@ -178,6 +251,7 @@ class AuthController extends Controller
         $user->update([
             'password'            => Hash::make($request->password),
             'temp_password'       => null,
+            'temp_password_expires_at' => null,
             'must_change_password'=> false,
         ]);
         AuditLog::record('password_change', "User {$user->name} changed their password.");
@@ -197,7 +271,7 @@ class AuthController extends Controller
             'last_name'        => ['required', ...$name],
             'middle_name'      => ['nullable', ...$name],
             'suffix'           => 'nullable|string|max:20',
-            'email'            => 'required|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|max:255|unique:users,email,' . $user->id,
+            'email'            => ['required', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', 'max:255', new \App\Rules\UniqueAccountEmail('staff', $user->id)],
             'contact_number'   => ['nullable', 'regex:/^09\d{9}$/'],
             'current_password' => 'nullable|string',
         ], [

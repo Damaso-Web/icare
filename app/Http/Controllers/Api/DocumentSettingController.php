@@ -8,10 +8,23 @@ use Illuminate\Http\Request;
 
 class DocumentSettingController extends Controller
 {
-    // Any authenticated staff can read - these values are displayed on the
-    // referral form header wherever it appears (Create + Show).
-    public function show(string $code)
+    /** TMDU's own forms (QF-TMDU-...). Every other code is a GCU / shared OSS form. */
+    private function isTmduCode(string $code): bool
     {
+        return str_starts_with($code, 'QF-TMDU');
+    }
+
+    // Document headers are shown on the forms wherever they appear (Refer
+    // Student, Referral Details...), so staff can read the shared OSS ones.
+    // TMDU's own header is not for the GCU Head: only TMDU and the System
+    // Admin may read it.
+    public function show(Request $request, string $code)
+    {
+        $role = $request->user()?->role;
+        if ($this->isTmduCode($code) && !in_array($role, ['tmdu_staff', 'tmdu_head', 'system_admin'], true)) {
+            abort(403, "This document header belongs to TMDU.");
+        }
+
         $setting = DocumentSetting::firstOrCreate(
             ['document_code' => $code],
             ['revision_no' => '01']
@@ -20,9 +33,15 @@ class DocumentSettingController extends Controller
         return response()->json($setting);
     }
 
-    // Admin only (enforced via role:admin middleware on the route).
+    // The GCU Head (admin) edits GCU's headers; the System Admin edits TMDU's.
     public function update(Request $request, string $code)
     {
+        $role = $request->user()?->role;
+        $allowed = $this->isTmduCode($code) ? $role === 'system_admin' : $role === 'admin';
+        abort_unless($allowed, 403, $this->isTmduCode($code)
+            ? 'Only the System Admin can edit the TMDU document header.'
+            : 'Only the GCU Head can edit this document header.');
+
         // The TMDU Appointment Slip (QF-TMDU-02) has a blank Ctrl No. on the
         // printed form, so its Ctrl No. fields are optional.
         $ctrlOptional = $code === 'QF-TMDU-02';

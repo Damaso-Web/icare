@@ -83,6 +83,7 @@ class PasswordResetController extends Controller
                     'password'             => Hash::make($password),
                     'must_change_password' => false,
                     'temp_password'        => null,
+                    'temp_password_expires_at' => null,
                 ])->save();
                 $user->tokens()->delete(); // sign out every device
                 event(new PasswordReset($user));

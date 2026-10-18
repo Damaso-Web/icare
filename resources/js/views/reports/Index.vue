@@ -6,7 +6,7 @@
       <p>{{ UNIT_NAMES[unit] }}: {{ currentReport.blurb }}</p>
     </div>
 
-    <!-- Each unit has its own report. Admin can open any of them; unit staff only see their own. -->
+    <!-- Each unit has its own report; everyone (GCU Head included) sees only their own unit's. -->
     <div v-if="canPickUnit" style="display:flex;gap:8px;margin-bottom:16px">
       <button
         v-for="u in UNITS"
@@ -795,7 +795,7 @@ function shows(section) {
 }
 
 const auth = useAuthStore();
-const ownUnit = { gcu_staff: 'GCU', tmdu_staff: 'TMDU', tmdu_head: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
+const ownUnit = { admin: 'GCU', gcu_staff: 'GCU', tmdu_staff: 'TMDU', tmdu_head: 'TMDU', sdu_head: 'SDU' }[auth.user?.role];
 const canPickUnit = !ownUnit;
 const unit = ref(ownUnit || 'GCU');
 

@@ -16,6 +16,7 @@ class Referral extends Model
         'case_id',
         'complaint_id',
         'referred_by_user_id',
+        'referred_by_student_id',
         'referrer_name',
         'referrer_role',
         'referrer_source',

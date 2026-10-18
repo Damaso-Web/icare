@@ -99,6 +99,18 @@ const routes = [
         meta: { public: true },
     },
     {
+        path: '/register',
+        name: 'staff-register',
+        component: () => import('../views/PersonnelRegister.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student/register',
+        name: 'student-register',
+        component: () => import('../views/StudentRegister.vue'),
+        meta: { public: true },
+    },
+    {
         path: '/student',
         component: () => import('../layouts/StudentLayout.vue'),
         meta: { public: true },
@@ -134,6 +146,33 @@ const routes = [
                 component: () => import('../views/student/ReferSelf.vue'),
                 // Off until the live database allows self-referrals (utils/features.js).
                 beforeEnter: () => (SELF_REFERRAL_ENABLED ? true : { name: 'student-referrals' }),
+            },
+            {
+                path: 'refer-student',
+                name: 'student-refer-choice',
+                component: () => import('../views/student/ReferChoice.vue'),
+            },
+            {
+                path: 'refer-student/referral',
+                name: 'student-refer-other',
+                component: () => import('../views/student/ReferOther.vue'),
+            },
+            {
+                path: 'refer-student/complaint',
+                name: 'student-file-complaint',
+                component: () => import('../views/student/FileComplaint.vue'),
+            },
+            {
+                path: 'sent-referrals',
+                name: 'student-sent-referrals',
+                component: () => import('../views/sent/SentReferrals.vue'),
+                meta: { student: true },
+            },
+            {
+                path: 'sent-complaints',
+                name: 'student-sent-complaints',
+                component: () => import('../views/sent/SentComplaints.vue'),
+                meta: { student: true },
             },
             {
                 path: 'referrals/:id',
@@ -205,6 +244,18 @@ const routes = [
                 path: 'referrals/create/complaint',
                 name: 'complaint-create',
                 component: ComplaintCreate,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'sent-referrals',
+                name: 'sent-referrals',
+                component: () => import('../views/sent/SentReferrals.vue'),
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'sent-complaints',
+                name: 'sent-complaints',
+                component: () => import('../views/sent/SentComplaints.vue'),
                 meta: { roles: REFERRAL_SUBMITTERS },
             },
             {

@@ -147,12 +147,21 @@ class ReferralController extends Controller
         ][$role] ?? ($role ?: 'faculty');
     }
 
+    // Referrals the signed-in account has sent (Sent Referrals page).
+    public function mine(Request $request)
+    {
+        $q = Referral::with('student:id,student_id,first_name,last_name,college')
+            ->where('referred_by_user_id', $request->user()->id)
+            ->whereNull('complaint_id')
+            ->latest();
+        if ($request->filled('status')) {
+            $q->where('status', $request->status);
+        }
+        return $q->paginate(20);
+    }
+
     public function store(Request $request)
     {
-        if ($request->user()->isTMDUStaff()) {
-            abort(403, 'TMDU cannot create referrals.');
-        }
-
         $validated = $request->validate([
             'student_id'          => 'required|exists:students,id',
             'referral_type'       => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
@@ -571,6 +580,19 @@ class ReferralController extends Controller
             if ($referral->student) {
                 $referral->student->notify(new \App\Notifications\CaseUpdateNotification(
                     "Your referral {$referral->referral_code} has been assigned to " . ($receiver?->name ?? 'another staff member') . '.',
+                    $referral->id, $referral->case_id, $referral->referral_code
+                ));
+            }
+
+            // The one who sent the referral (staff or student) is told too.
+            $referrer = $referral->referred_by_user_id
+                ? User::find($referral->referred_by_user_id)
+                : ($referral->referred_by_student_id ? \App\Models\Student::find($referral->referred_by_student_id) : null);
+            $isStudentTarget = $referrer instanceof \App\Models\Student && $referrer->id === $referral->student_id;
+            $isStaffSkip = $referrer instanceof User && in_array($referrer->id, [$request->user()->id, (int) $request->user_id], true);
+            if ($referrer && ! $isStudentTarget && ! $isStaffSkip) {
+                $referrer->notify(new \App\Notifications\CaseUpdateNotification(
+                    "The referral {$referral->referral_code} you sent has been reassigned to " . ($receiver?->name ?? 'another staff member') . '.',
                     $referral->id, $referral->case_id, $referral->referral_code
                 ));
             }

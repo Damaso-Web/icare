@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Notifications\ChangePasswordReminderNotification;
 use App\Notifications\PasswordChangedNotification;
+use App\Notifications\RegistrationOtpNotification;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 use App\Models\Student;
 use App\Models\TestingRecord;
 use Illuminate\Http\Request;
@@ -54,6 +58,14 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Invalid Student ID or password.' . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
 
+        // A one-time password (from registering) works only for a short time.
+        if ($student->temp_password_expires_at && $student->temp_password_expires_at->isPast()) {
+            return response()->json([
+                'error'   => 'otp_expired',
+                'message' => 'Your one-time password has expired. Please register again to get a new one.',
+            ], 401);
+        }
+
         $guard->clear();
 
         // The consent notice is shown every time on the login page (not just
@@ -65,6 +77,12 @@ class StudentAuthController extends Controller
         ]);
         $token = $student->createToken('student-token', ['student'])->plainTextToken;
 
+        // Still on a temporary / one-time password: remind them in the bell
+        // (once, until they have read it).
+        if ($student->must_change_password && !$student->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->exists()) {
+            $student->notify(new ChangePasswordReminderNotification());
+        }
+
         AuditLog::record('login', "Student {$student->student_id} logged in.", $student, [], [], $student);
 
         return response()->json([
@@ -73,6 +91,63 @@ class StudentAuthController extends Controller
                 'id', 'student_id', 'first_name', 'middle_name', 'last_name', 'suffix',
                 'email', 'contact_number', 'college', 'program', 'year_level', 'must_change_password'
             ]),
+        ]);
+    }
+
+    // First-time sign-up: the Student ID must be in the list the GCU uploaded.
+    // The student gives their email, we send a one-time password to it, and that
+    // password works as their password until they change it.
+    public const OTP_MINUTES = 30;
+
+    public function register(Request $request)
+    {
+        $data = $request->validate([
+            'student_id'       => 'required|string|max:20',
+            'email'            => 'required|email|max:100',
+            'consent_accepted' => 'required|accepted',
+        ]);
+        $email = strtolower(trim($data['email']));
+
+        $student = Student::where('student_id', trim($data['student_id']))->first();
+        if (!$student) {
+            throw ValidationException::withMessages(['student_id' => 'This Student ID is not in the student list uploaded by the Guidance and Counseling Unit. Please contact the Office of Student Services.']);
+        }
+        if (!$student->is_active) {
+            throw ValidationException::withMessages(['student_id' => 'This account is not active. Please contact the Office of Student Services.']);
+        }
+        // Already set their own password: nothing to register.
+        if (!$student->must_change_password) {
+            throw ValidationException::withMessages(['student_id' => 'This Student ID already has an account. Please sign in, or use "Forgot password?" if you cannot remember your password.']);
+        }
+        // An email already on file (from the GCU list) must be the one entered.
+        if ($student->email && strtolower($student->email) !== $email) {
+            throw ValidationException::withMessages(['email' => 'This email does not match the email on file for this Student ID. Please use that email or contact the Office of Student Services.']);
+        }
+        if (\App\Support\AccountEmail::takenByOther($email, 'student', $student->id)) {
+            throw ValidationException::withMessages(['email' => \App\Support\AccountEmail::MESSAGE]);
+        }
+        // One code per minute per Student ID.
+        if (!Cache::add('student-register:' . $student->student_id, 1, 60)) {
+            throw ValidationException::withMessages(['email' => 'A one-time password was just sent. Please wait a minute before requesting another.']);
+        }
+
+        $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $student->forceFill([
+            'email'                    => $student->email ?: $email,
+            'password'                 => Hash::make($otp),
+            'temp_password'            => null, // never kept in plain text
+            'must_change_password'     => true,
+            'temp_password_expires_at' => now()->addMinutes(self::OTP_MINUTES),
+        ])->save();
+
+        $student->notify(new RegistrationOtpNotification($otp, self::OTP_MINUTES));
+        AuditLog::record('student_register', "Student {$student->student_id} registered and was sent a one-time password.", $student, [], [], $student);
+
+        [$local, $domain] = explode('@', $email, 2) + [1 => ''];
+        return response()->json([
+            'message'      => 'A one-time password has been sent to your email.',
+            'masked_email' => mb_substr($local, 0, 2) . str_repeat('*', max(1, mb_strlen($local) - 2)) . '@' . $domain,
+            'expires_in'   => self::OTP_MINUTES,
         ]);
     }
 
@@ -105,6 +180,7 @@ class StudentAuthController extends Controller
         $student->update([
             'password'              => Hash::make($request->password),
             'temp_password'         => null,
+            'temp_password_expires_at' => null,
             'must_change_password'  => false,
         ]);
         AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
@@ -154,7 +230,7 @@ public function updateProfile(Request $request)
         'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
-        'email'          => 'nullable|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/',
+        'email'          => ['nullable', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail('student', $student->id)],
         'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Personal Information (Student Information Sheet)

@@ -261,6 +261,8 @@ const pageTitle = computed(() => {
     'college-report':       'College Report',
     'referral-create-form': 'Refer a Student',
     'complaint-create':     'File a Complaint',
+    'sent-referrals':       'Sent Referrals',
+    'sent-complaints':      'Sent Complaints',
     complaints:             'Complaints',
     'incident-reports':     'Student Incident Reports',
     'incident-report-show': 'Student Incident Report',
@@ -314,7 +316,21 @@ const menuItems = computed(() => {
       roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
       section: null,
     },
-        {
+    {
+      name:    'sent-referrals',
+      label:   'Sent Referrals',
+      icon:    '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>',
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
+      section: null,
+    },
+    {
+      name:    'sent-complaints',
+      label:   'Sent Complaints',
+      icon:    '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>',
+      roles:   ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'],
+      section: null,
+    },
+    {
       name:    'referrals',
       label:   roleIn(role, ['tmdu_staff']) ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
@@ -449,7 +465,7 @@ const menuItems = computed(() => {
 const TAB_ORDER = [
   ['dashboard', 'Home'], ['referrals', 'Referrals'], ['complaints', 'Complaints'], ['incident-reports', 'Incidents'], ['appointments', 'Appointments'],
   ['testing', 'Testing'], ['testing-appointments', 'Appointments'], ['call-slips', 'Call Slips'], ['cases', 'Files'],
-  ['referral-create', 'Refer'], ['management', 'Manage'], ['students', 'Students'], ['reports', 'Reports'], ['my-account', 'Account'],
+  ['referral-create', 'Refer'], ['sent-referrals', 'Sent Referrals'], ['sent-complaints', 'Sent Complaints'], ['management', 'Manage'], ['students', 'Students'], ['reports', 'Reports'], ['my-account', 'Account'],
 ];
 const tabItems = computed(() => {
   const mine = menuItems.value.filter(i => i.name);

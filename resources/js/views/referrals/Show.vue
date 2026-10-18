@@ -1047,7 +1047,7 @@
                 </div>
                 <!-- Class Admission Slip referrals: issue the slip right from here. -->
                 <button
-                  v-if="isClassAttendance && canEditSif && !admission_excused_locked"
+                  v-if="isClassAttendance && canEditSif && !admission_excused_locked && !isResolved"
                   class="ibtn ibtn-o"
                   style="width:100%;justify-content:center"
                   @click="openAdmissionSlip"
@@ -2480,6 +2480,8 @@ const savingAdmission    = ref(false);
 const admissionError     = ref('');
 
 function openAdmissionSlip() {
+  // A resolved / archived referral is view-only (the server refuses too).
+  if (isResolved.value || admission_excused_locked.value) return;
   admissionForm.value = slipFromReferral(referral.value);
   admissionError.value = '';
   showAdmissionModal.value = true;

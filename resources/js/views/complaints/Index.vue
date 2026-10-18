@@ -55,7 +55,7 @@
                 </div>
               </td>
               <td>{{ c.violation_type }}</td>
-              <td>{{ c.filed_by?.name || '-' }}</td>
+              <td>{{ c.filer_name || '-' }}</td>
               <td style="font-size:12px;white-space:nowrap">{{ formatDate(c.created_at) }}</td>
               <td style="text-align:right">
                 <button class="ibtn ibtn-o ibtn-sm" @click.stop="openDetail(c)">View</button>

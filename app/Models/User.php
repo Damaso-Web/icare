@@ -28,6 +28,7 @@ class User extends Authenticatable
         'suffix',
         'temp_password',
         'must_change_password',
+        'temp_password_expires_at',
         'last_login_at',
         'deactivation_reason',
         'deactivation_note',
@@ -43,6 +44,7 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at'    => 'datetime',
         'last_login_at'        => 'datetime',
+        'temp_password_expires_at' => 'datetime',
         'deactivated_at'       => 'datetime',
         'is_active'            => 'boolean',
         'must_change_password' => 'boolean',

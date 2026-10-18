@@ -117,7 +117,7 @@ class UserController extends Controller
             'middle_name'           => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'last_name'             => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'                => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
-            'email'                 => 'required|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email',
+            'email'                 => ['required', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail()],
             'employee_id'           => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique()],
             'role'                  => ['required', \Illuminate\Validation\Rule::in($this->assignableRoles())],
             'college'               => 'nullable|string|max:255',
@@ -168,7 +168,7 @@ class UserController extends Controller
         'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
-        'email'          => 'sometimes|email|regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/|unique:users,email,' . $user->id,
+        'email'          => ['sometimes', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail('staff', $user->id)],
         'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique($user->id)],
         'role'           => ['sometimes', \Illuminate\Validation\Rule::in($this->assignableRoles())],
         'college'        => 'nullable|string|max:255',
@@ -342,6 +342,7 @@ class UserController extends Controller
         'password'              => Hash::make($newPassword),
         'temp_password'         => $newPassword,
         'must_change_password'  => true,
+        'temp_password_expires_at' => null,
     ]);
     AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
 
@@ -450,9 +451,9 @@ class UserController extends Controller
                 continue;
             }
 
-            $exists = User::where('email', $rowData['email'])->exists();
+            $exists = \App\Support\AccountEmail::takenByOther($rowData['email']);
             if ($exists) {
-                $errors[] = "Row {$rowNum}: email {$rowData['email']} already exists - skipped.";
+                $errors[] = "Row {$rowNum}: email {$rowData['email']} is already used by another account - skipped.";
                 $skipped++;
                 continue;
             }
@@ -595,6 +596,9 @@ class UserController extends Controller
             $reasons[] = 'Email is required.';
         } elseif (!filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
             $reasons[] = 'Email address is invalid.';
+        } elseif (($o = \App\Support\AccountEmail::mappedOwner($row['email'])) && $o['type'] === 'student') {
+            // Staff-vs-staff matches are the normal "update this employee" case; a STUDENT's email can never be reused.
+            $reasons[] = 'Email address is already used by a student account.';
         }
 
         if (empty($row['role'])) {

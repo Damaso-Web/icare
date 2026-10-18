@@ -43,7 +43,7 @@
     <div class="asp-sub">Cause/s of Absences:</div>
     <div class="asp-checks">
       <label v-for="c in CAUSES" :key="c.key" class="asp-check" :class="{ wide: c.key === 'official_activity' || c.key === 'others' }">
-        <input type="checkbox" :value="c.key" v-model="form.causes" :tabindex="readonly ? -1 : 0" />
+        <input type="checkbox" :value="c.key" v-model="form.causes" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
         <span>{{ c.label }}</span>
         <template v-if="c.key === 'official_activity' && (form.causes.includes('official_activity') || !readonly)">
           <span v-if="readonly" class="asp-v">{{ form.cause_activity }}</span>
@@ -59,7 +59,7 @@
     <div class="asp-sub">Action/s taken:</div>
     <div class="asp-checks one">
       <label v-for="a in ACTIONS" :key="a.key" class="asp-check" :class="{ wide: a.key === 'others' }">
-        <input type="checkbox" :value="a.key" v-model="form.actions" :tabindex="readonly ? -1 : 0" />
+        <input type="checkbox" :value="a.key" v-model="form.actions" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
         <span>{{ a.label }}</span>
         <template v-if="a.key === 'others' && (form.actions.includes('others') || !readonly)">
           <span v-if="readonly" class="asp-v">{{ form.action_others }}</span>
@@ -70,13 +70,13 @@
 
     <div class="asp-verdict">
       <label class="asp-check wide">
-        <input type="radio" value="1" v-model="form.excused" :tabindex="readonly ? -1 : 0" />
+        <input type="radio" value="1" v-model="form.excused" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
         <span class="asp-k">Excused:</span>
         <span v-if="readonly" class="asp-v">{{ form.excused === '1' ? form.remarks : '' }}</span>
         <input v-else-if="form.excused === '1'" v-model="form.remarks" class="ifi asp-fill" maxlength="1000" placeholder="e.g. October 13, 2026, 8-9 AM only" />
       </label>
       <label class="asp-check wide">
-        <input type="radio" value="0" v-model="form.excused" :tabindex="readonly ? -1 : 0" />
+        <input type="radio" value="0" v-model="form.excused" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
         <span class="asp-k">Unexcused:</span>
         <span v-if="readonly" class="asp-v">{{ form.excused === '0' ? form.remarks : '' }}</span>
         <input v-else-if="form.excused === '0'" v-model="form.remarks" class="ifi asp-fill" maxlength="1000" placeholder="details" />
@@ -153,8 +153,11 @@ const issuedOn = computed(() => longDate(props.issuedAt || today));
 .asp-check{display:flex;align-items:center;gap:8px;min-width:0}
 .asp-check.wide{grid-column:1/-1}
 .asp-check input[type=checkbox],.asp-check input[type=radio]{width:15px;height:15px;accent-color:var(--moss);flex-shrink:0}
-/* A saved slip: ticks stay crisp, but nothing can be changed. */
-.asp.ro input{pointer-events:none}
+/* A saved slip: ticks stay visible, but nothing can be changed - not even by
+   clicking the label text (that used to toggle the box). Editing happens only
+   in the "Update Admission Slip" window. */
+.asp.ro input,.asp.ro label{pointer-events:none;cursor:default}
+.asp.ro input:disabled{opacity:1}
 .asp-verdict{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--cloud);padding-top:10px}
 .asp-sign{align-self:center;text-align:center;margin-top:10px;min-width:220px}
 .asp-signname{font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--ink);padding:0 10px 2px}

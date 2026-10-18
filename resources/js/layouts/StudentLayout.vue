@@ -107,7 +107,7 @@
 
     <!-- Phones: every student page one tap away at the bottom -->
     <nav class="tabbar tabbar-fixed" aria-label="Main pages">
-      <router-link v-for="item in menuItems" :key="item.name" :to="{ name: item.name }" class="tab" :class="{ active: isActive(item.name) }">
+      <router-link v-for="item in tabItems" :key="item.name" :to="{ name: item.name }" class="tab" :class="{ active: isActive(item.name) }">
         <svg viewBox="0 0 24 24" v-html="item.icon"></svg>
         <span>{{ item.label.replace(/^My /, '') }}</span>
       </router-link>
@@ -212,9 +212,15 @@ const menuItems = [
   { name: 'student-appointments', label: 'My Appointments', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
   ...(SELF_REFERRAL_ENABLED ? [{ name: 'student-refer', label: 'Refer Myself', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' }] : []),
   { name: 'student-referrals', label: 'My Referrals', icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+  { name: 'student-refer-choice', label: 'Refer Student', icon: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>' },
+  { name: 'student-sent-referrals', label: 'Sent Referrals', icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>' },
+  { name: 'student-sent-complaints', label: 'Sent Complaints', icon: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>' },
   { name: 'student-testing', label: 'My Testing', icon: '<path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/>' },
   { name: 'student-account', label: 'My Account', icon: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>' },
 ];
+
+// The phone bar stays short; the Sent lists are linked from Refer Student.
+const tabItems = menuItems.filter(i => !['student-sent-referrals', 'student-sent-complaints'].includes(i.name));
 
 const pageTitle = computed(() => {
   const titles = {
@@ -222,6 +228,11 @@ const pageTitle = computed(() => {
     'student-appointments': 'My Appointments',
     'student-refer':        'Refer Myself',
     'student-referrals':    'My Referrals',
+    'student-refer-choice': 'Refer Student',
+    'student-refer-other':  'Refer a Student',
+    'student-file-complaint': 'File a Complaint',
+    'student-sent-referrals': 'Sent Referrals',
+    'student-sent-complaints': 'Sent Complaints',
     'student-testing':      'My Testing',
     'student-account':      'My Account',
   };
@@ -248,6 +259,7 @@ function viewAllNotifs() {
 }
 
 function isActive(name) {
+  if (name === 'student-refer-choice') return ['student-refer-choice', 'student-refer-other', 'student-file-complaint'].includes(route.name);
   return route.name === name;
 }
 

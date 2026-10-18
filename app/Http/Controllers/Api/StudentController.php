@@ -69,9 +69,9 @@ class StudentController extends Controller
 
     public function store(Request $request)
     {
-        // No two student accounts may share an email address.
-        if ($request->filled('email') && Student::where('email', $request->email)->exists()) {
-            return response()->json(['message' => 'This email address is already used by another student.', 'errors' => ['email' => ['This email address is already used by another student.']]], 422);
+        // No two accounts (student or staff) may share an email address.
+        if ($request->filled('email') && \App\Support\AccountEmail::takenByOther($request->email)) {
+            return response()->json(['message' => \App\Support\AccountEmail::MESSAGE, 'errors' => ['email' => [\App\Support\AccountEmail::MESSAGE]]], 422);
         }
 
         $validated = $request->validate([
@@ -186,10 +186,10 @@ class StudentController extends Controller
             }
         }
 
-        // A changed email must not belong to another student.
+        // A changed email must not belong to another account (student or staff).
         if (isset($validated['email']) && $validated['email'] !== $student->email
-            && Student::where('email', $validated['email'])->where('id', '!=', $student->id)->exists()) {
-            return response()->json(['message' => 'This email address is already used by another student.', 'errors' => ['email' => ['This email address is already used by another student.']]], 422);
+            && \App\Support\AccountEmail::takenByOther($validated['email'], 'student', $student->id)) {
+            return response()->json(['message' => \App\Support\AccountEmail::MESSAGE, 'errors' => ['email' => [\App\Support\AccountEmail::MESSAGE]]], 422);
         }
 
         $old = $student->toArray();
@@ -378,6 +378,7 @@ class StudentController extends Controller
             'password'              => Hash::make($newPassword),
             'temp_password'         => $newPassword,
             'must_change_password'  => true,
+            'temp_password_expires_at' => null,
         ]);
         AuditLog::record('password_reset', "Password reset for student {$student->student_id}.", $student);
 
@@ -418,6 +419,12 @@ class StudentController extends Controller
             $exists = Student::where('student_id', $rowData['student_id'])->exists();
             if ($exists) {
                 $errors[] = "Row {$rowNum}: Student ID {$rowData['student_id']} already exists - skipped.";
+                $skipped++;
+                continue;
+            }
+
+            if (!empty($rowData['email']) && \App\Support\AccountEmail::takenByOther($rowData['email'])) {
+                $errors[] = "Row {$rowNum}: email {$rowData['email']} is already used by another account - skipped.";
                 $skipped++;
                 continue;
             }
@@ -505,9 +512,16 @@ class StudentController extends Controller
             ->groupBy(fn($st) => $nameKey($st->first_name, $st->last_name));
 
         $preview = [];
+        $seenEmails = [];
         foreach ($rows as $i => $rowData) {
             $isDuplicate = !empty($rowData['student_id']) && $existingSet->has($rowData['student_id']);
             $reasons = $this->validateImportRow($rowData, $colleges);
+            // The same email twice in one file.
+            $em = strtolower(trim((string) ($rowData['email'] ?? '')));
+            if ($em !== '' && isset($seenEmails[$em])) {
+                $reasons[] = "Email Address is repeated in the file (same as row {$seenEmails[$em]})";
+            }
+            if ($em !== '') { $seenEmails[$em] ??= $rowData['__row'] ?? ($i + 2); }
             $nameMatches = $isDuplicate ? [] : ($byName[$nameKey($rowData['first_name'] ?? '', $rowData['last_name'] ?? '')] ?? collect())
                 ->filter(fn($st) => $st->student_id !== ($rowData['student_id'] ?? null))
                 ->map(fn($st) => ['student_id' => $st->student_id, 'name' => trim($st->first_name . ' ' . $st->last_name)])
@@ -567,6 +581,10 @@ class StudentController extends Controller
             $reasons[] = 'Email Address is required';
         } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $reasons[] = 'Email Address is not valid';
+        } elseif (($o = \App\Support\AccountEmail::mappedOwner($email)) && !($o['type'] === 'student' && $o['student_id'] === $sid)) {
+            $reasons[] = $o['type'] === 'staff'
+                ? 'Email Address is already used by a staff account'
+                : 'Email Address is already used by another student';
         }
 
         // Contact Number
@@ -637,6 +655,7 @@ class StudentController extends Controller
         $inserts = [];
         $now     = now();
 
+        $confirmSeen = [];
         foreach ($rows as $i => $rowData) {
             $decision = $request->decisions[$i] ?? 'create';
 
@@ -649,6 +668,18 @@ class StudentController extends Controller
                 $errors[] = "Row " . ($rowData['__row'] ?? $i + 2) . ": missing required fields.";
                 $skipped++;
                 continue;
+            }
+
+            // Never save an email that another account already uses (or that repeats in this file).
+            $em = strtolower(trim((string) ($rowData['email'] ?? '')));
+            if ($em !== '') {
+                $o = \App\Support\AccountEmail::mappedOwner($em);
+                if (($o && !($o['type'] === 'student' && $o['student_id'] === (string) $rowData['student_id'])) || isset($confirmSeen[$em])) {
+                    $errors[] = "Row " . ($rowData['__row'] ?? $i + 2) . ": email {$rowData['email']} is already used by another account - skipped.";
+                    $skipped++;
+                    continue;
+                }
+                $confirmSeen[$em] = true;
             }
 
             $payload = [

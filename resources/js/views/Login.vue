@@ -113,7 +113,8 @@
       </form>
       </template>
 
-      <div v-if="agreed" class="change-type"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
+      <div v-if="agreed && !otpToken" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty or dean</router-link></div>
+      <div v-if="agreed" class="change-type" style="margin-top:8px"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
       <LoginHelp />
 
       <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">

@@ -110,8 +110,8 @@ class ReportController extends Controller
     // ---------- Shared report builders (used by both the JSON endpoints above and the exports below) ----------
 
     // ---------- Unit scoping ----------
-    // Each unit has its own report. Admin (GCU Head) may open any of them;
-    // unit staff always get their own unit, whatever the request asks for.
+    // Each unit has its own report. Everyone, the GCU Head (admin) included,
+    // gets only their own unit's report, whatever the request asks for.
 
     /** SDU only: the students SDU itself referred. */
     public function sduReferrals(Request $request)
@@ -121,7 +121,7 @@ class ReportController extends Controller
         return response()->json($this->buildSduReferrals($request));
     }
 
-    private const UNIT_BY_ROLE =['gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'tmdu_head' => 'TMDU', 'sdu_head' => 'SDU'];
+    private const UNIT_BY_ROLE =['admin' => 'GCU', 'gcu_staff' => 'GCU', 'tmdu_staff' => 'TMDU', 'tmdu_head' => 'TMDU', 'sdu_head' => 'SDU'];
 
     private function unit(Request $request): string
     {

@@ -41,7 +41,7 @@
       </div>
       <div>
         <div class="cd-label">Filed By</div>
-        <div class="cd-value">{{ complaint.filed_by?.name || '-' }}</div>
+        <div class="cd-value">{{ complaint.filer_name || '-' }}</div>
       </div>
     </div>
 

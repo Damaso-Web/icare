@@ -266,7 +266,7 @@
     <!-- ============ DOCUMENT HEADERS ============ -->
     <div v-if="activeTab === 'documents'" style="display:flex;flex-direction:column;gap:16px">
       <div v-if="!isAdmin" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--amber)">
-        Only Admin can edit document headers. You can view the current values below.
+        GCU's document headers are edited by the GCU Head (Admin). TMDU's header is edited by the System Admin. You can view the current values below.
       </div>
 
       <!-- Each unit manages its own document headers -->
@@ -286,19 +286,19 @@
             </div>
             <div>
               <label class="ifl">Revision No.</label>
-              <input v-model="tmduSlipDoc.revision_no" class="ifi" placeholder="e.g. 00" maxlength="4" @input="tmduSlipDoc.revision_no = String(tmduSlipDoc.revision_no ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
+              <input v-model="tmduSlipDoc.revision_no" class="ifi" placeholder="e.g. 00" maxlength="4" @input="tmduSlipDoc.revision_no = String(tmduSlipDoc.revision_no ?? '').replace(/\D/g, '')" :disabled="!isSystemAdmin" />
             </div>
             <div>
               <label class="ifl">Effectivity Date</label>
-              <input v-model="tmduSlipDoc.effectivity_date" type="date" class="ifi" :disabled="!isAdmin" />
+              <input v-model="tmduSlipDoc.effectivity_date" type="date" class="ifi" :disabled="!isSystemAdmin" />
             </div>
             <div>
               <label class="ifl">Ctrl No. - Year <span style="color:var(--fog)">(optional)</span></label>
-              <input v-model="tmduSlipDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="tmduSlipDoc.ctrl_no_year = String(tmduSlipDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
+              <input v-model="tmduSlipDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="tmduSlipDoc.ctrl_no_year = String(tmduSlipDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isSystemAdmin" />
             </div>
             <div>
               <label class="ifl">Ctrl No. - Term <span style="color:var(--fog)">(optional)</span></label>
-              <select v-model="tmduSlipDoc.ctrl_no_term" class="ifse" :disabled="!isAdmin">
+              <select v-model="tmduSlipDoc.ctrl_no_term" class="ifse" :disabled="!isSystemAdmin">
                 <option value="">None</option>
                 <option value="1">1 (First Sem)</option>
                 <option value="2">2 (Second Sem)</option>
@@ -307,7 +307,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown on the Schedule Test Taking and Schedule PAR Release cards in a testing record. The Ctrl No. is blank on the printed slip, so it can stay empty.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmduSlip" @click="askSave(true, saveTmduSlipDoc)">
+          <button v-if="isSystemAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmduSlip" @click="askSave(true, saveTmduSlipDoc)">
             {{ savingDoc.tmduSlip ? 'Saving...' : 'Save' }}
           </button>
         </div>
@@ -412,6 +412,44 @@
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Student Information card in Case Files. The full Ctrl No. is Year-Term-Client No. (e.g. 26-1-0012); the client no. at the end is set per student on their record.</div>
           <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.sif" @click="askSave(true, saveSifDoc)">
             {{ savingDoc.sif ? 'Saving...' : 'Save' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Class Admission Slip (QF-OSS-GCU-09) -->
+      <div class="icard">
+        <div class="icard-header"><span class="icard-title">Class Admission Slip (QF-OSS-GCU-09)</span></div>
+        <div class="icard-body">
+          <div v-if="docError.admission" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:12px">{{ docError.admission }}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <div>
+              <label class="ifl">Document Code</label>
+              <input class="ifi" value="QF-OSS-GCU-09" disabled />
+            </div>
+            <div>
+              <label class="ifl">Revision No.</label>
+              <input v-model="admissionDoc.revision_no" class="ifi" placeholder="e.g. 01" maxlength="4" @input="admissionDoc.revision_no = String(admissionDoc.revision_no ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Effectivity Date</label>
+              <input v-model="admissionDoc.effectivity_date" type="date" class="ifi" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Year</label>
+              <input v-model="admissionDoc.ctrl_no_year" class="ifi" placeholder="e.g. 26" maxlength="4" @input="admissionDoc.ctrl_no_year = String(admissionDoc.ctrl_no_year ?? '').replace(/\D/g, '')" :disabled="!isAdmin" />
+            </div>
+            <div>
+              <label class="ifl">Ctrl No. - Term</label>
+              <select v-model="admissionDoc.ctrl_no_term" class="ifse" :disabled="!isAdmin">
+                <option value="1">1 (First Sem)</option>
+                <option value="2">2 (Second Sem)</option>
+                <option value="S">S (Summer / Mid-Year)</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Admission Slip on Class Attendance referrals.</div>
+          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.admission" @click="askSave(true, saveAdmissionDoc)">
+            {{ savingDoc.admission ? 'Saving...' : 'Save' }}
           </button>
         </div>
       </div>
@@ -659,12 +697,14 @@ function authHeaders() {
 // Document Headers are admin-only to edit (route:role:admin on the backend);
 // system_admin can view Management but not save these.
 const isAdmin = computed(() => auth.user?.role === 'admin');
+const isSystemAdmin = computed(() => auth.user?.role === 'system_admin');
 
 // Document Headers are grouped per unit. SDU uses a single document, so it has no tab here.
-const docUnits = [
-  { key: 'GCU',  label: 'GCU' },
-  { key: 'TMDU', label: 'TMDU' },
-];
+// The GCU Head (Admin) sees and edits only GCU's document headers; TMDU's
+// header belongs to TMDU and is kept by the System Admin.
+const docUnits = computed(() => isAdmin.value
+  ? [{ key: 'GCU', label: 'GCU' }]
+  : [{ key: 'GCU', label: 'GCU' }, { key: 'TMDU', label: 'TMDU' }]);
 const docUnit = ref('GCU');
 
 const tabs = [
@@ -1113,8 +1153,9 @@ const referralDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '
 const feedbackDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
 const sifDoc      = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
 const tmduSlipDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '' });
-const savingDoc = ref({ referral: false, feedback: false, sif: false, tmduSlip: false });
-const docError  = ref({ referral: '', feedback: '', sif: '', tmduSlip: '' });
+const admissionDoc = ref({ revision_no: '', effectivity_date: '', ctrl_no_year: '', ctrl_no_term: '1' });
+const savingDoc = ref({ referral: false, feedback: false, sif: false, tmduSlip: false, admission: false });
+const docError  = ref({ referral: '', feedback: '', sif: '', tmduSlip: '', admission: '' });
 
 function toDateInput(date) {
   return date ? new Date(date).toISOString().slice(0, 10) : '';
@@ -1152,6 +1193,7 @@ async function saveDocSettings(code, form, key) {
 function saveReferralDoc() { return saveDocSettings('QF-OSS-01', referralDoc, 'referral'); }
 function saveFeedbackDoc() { return saveDocSettings('QF-OSS-03', feedbackDoc, 'feedback'); }
 function saveSifDoc()      { return saveDocSettings('QF-OSS-GCU-01', sifDoc, 'sif'); }
+function saveAdmissionDoc() { return saveDocSettings('QF-OSS-GCU-09', admissionDoc, 'admission'); }
 function saveTmduSlipDoc() { return saveDocSettings('QF-TMDU-02', tmduSlipDoc, 'tmduSlip'); }
 
 async function fetchTmduSlipDoc() {
@@ -1242,6 +1284,7 @@ onMounted(async () => {
   fetchDocSettings('QF-OSS-01', referralDoc);
   fetchDocSettings('QF-OSS-03', feedbackDoc);
   fetchDocSettings('QF-OSS-GCU-01', sifDoc);
-  fetchTmduSlipDoc();
+  fetchDocSettings('QF-OSS-GCU-09', admissionDoc);
+  if (!isAdmin.value) fetchTmduSlipDoc();
 });
 </script>

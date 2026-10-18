@@ -23,9 +23,12 @@ class Complaint extends Model
         'description', // used as "Narration of Facts" (what/when/where/how)
         'incident_date',
         'filed_by_user_id',
+        'filed_by_student_id',
         'status',
         'certification_agreed',
     ];
+
+    protected $appends = ['filer_name'];
 
     protected $casts = [
         'incident_date'         => 'date',
@@ -51,6 +54,21 @@ class Complaint extends Model
     public function filedBy()
     {
         return $this->belongsTo(User::class, 'filed_by_user_id');
+    }
+
+    public function filedByStudent()
+    {
+        return $this->belongsTo(Student::class, 'filed_by_student_id');
+    }
+
+    // Who filed it: a staff account or, from the student portal, a student.
+    public function getFilerNameAttribute(): ?string
+    {
+        if ($this->filed_by_user_id) {
+            return $this->filedBy?->name;
+        }
+        $s = $this->filedByStudent;
+        return $s ? trim($s->first_name . ' ' . $s->last_name) : null;
     }
 
     public function attachments()

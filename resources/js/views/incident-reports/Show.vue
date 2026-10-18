@@ -75,7 +75,7 @@
                     <td style="font-family:var(--mono);font-size:12px">{{ c.complaint_code }}</td>
                     <td>{{ c.violation_type }}</td>
                     <td style="font-size:12px;white-space:nowrap">{{ formatDate(c.incident_date) }}</td>
-                    <td>{{ c.filed_by?.name || '-' }}</td>
+                    <td>{{ c.filer_name || '-' }}</td>
                     <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click.stop="activeComplaint = c">View</button></td>
                   </tr>
                 </tbody>

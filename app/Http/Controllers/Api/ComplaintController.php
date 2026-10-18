@@ -25,7 +25,7 @@ class ComplaintController extends Controller
 
     public function index(Request $request)
     {
-        $query = Complaint::with(['complainee', 'filedBy'])->latest();
+        $query = Complaint::with(['complainee', 'filedBy', 'filedByStudent'])->latest();
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -47,6 +47,61 @@ class ComplaintController extends Controller
     }
 
     public function store(Request $request)
+    {
+        $u = $request->user();
+        return $this->file($request, [
+            'user_id' => $u->id, 'student_id' => null, 'name' => $u->name,
+            'role' => $u->role, 'college' => $u->college,
+        ]);
+    }
+
+    // A student files a complaint against another student from the portal.
+    public function storeByStudent(Request $request)
+    {
+        $me = $request->user('student');
+        abort_if((int) $request->complainee_student_id === (int) $me->id, 422, 'You cannot file a complaint against yourself.');
+        $request->merge(['complainant_name' => trim($me->first_name . ' ' . $me->last_name)]);
+        return $this->file($request, [
+            'user_id' => null, 'student_id' => $me->id, 'name' => trim($me->first_name . ' ' . $me->last_name),
+            'role' => 'student', 'college' => $me->college,
+        ]);
+    }
+
+    // Complaints the signed-in staff account has filed.
+    public function mine(Request $request)
+    {
+        return Complaint::with(['complainee', 'filedBy', 'filedByStudent'])
+            ->where('filed_by_user_id', $request->user()->id)
+            ->latest()->paginate(20);
+    }
+
+    public function showMine(Request $request, Complaint $complaint)
+    {
+        abort_unless((int) $complaint->filed_by_user_id === (int) $request->user()->id, 403);
+        return $this->presentMine($complaint);
+    }
+
+    public function mineByStudent(Request $request)
+    {
+        return Complaint::with(['complainee', 'filedByStudent'])
+            ->where('filed_by_student_id', $request->user('student')->id)
+            ->latest()->paginate(20);
+    }
+
+    public function showMineByStudent(Request $request, Complaint $complaint)
+    {
+        abort_unless((int) $complaint->filed_by_student_id === (int) $request->user('student')->id, 403);
+        return $this->presentMine($complaint);
+    }
+
+    private function presentMine(Complaint $complaint)
+    {
+        $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
+        $complaint->attachments->each->append('url');
+        return $complaint;
+    }
+
+    private function file(Request $request, array $filer)
     {
         $validated = $request->validate([
             'complainant_name'       => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
@@ -73,7 +128,8 @@ class ComplaintController extends Controller
         $complaint = Complaint::create([
             ...$validated,
             'certification_agreed' => true,
-            'filed_by_user_id'     => $request->user()->id,
+            'filed_by_user_id'     => $filer['user_id'],
+            'filed_by_student_id'  => $filer['student_id'],
             'status'                => 'pending',
         ]);
 
@@ -116,14 +172,15 @@ class ComplaintController extends Controller
             'nature_of_concern'    => $validated['description'],
             'urgency_level'        => 'medium',
             'is_self_referred'     => false,
-            'referrer_source'      => $request->user()->role,
+            'referrer_source'      => $filer['role'],
             'violation_type'       => $validated['violation_type'],
             'incident_description' => $validated['description'],
             'incident_date'        => $validated['incident_date'],
-            'referred_by_user_id'  => $request->user()->id,
-            'referrer_name'        => $request->user()->name,
-            'referrer_role'        => $request->user()->role,
-            'referrer_college'     => $request->user()->college,
+            'referred_by_user_id'  => $filer['user_id'],
+            'referred_by_student_id' => $filer['student_id'],
+            'referrer_name'        => $filer['name'],
+            'referrer_role'        => $filer['role'],
+            'referrer_college'     => $filer['college'],
             'status'               => 'submitted',
         ]);
 
@@ -139,12 +196,12 @@ class ComplaintController extends Controller
             $student->notify(new FillOutFormsNotification());
         }
 
-        return $complaint->load(['complainee', 'filedBy', 'attachments']);
+        return $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
     }
 
     public function show(Complaint $complaint)
     {
-        $complaint->load(['complainee', 'filedBy', 'attachments']);
+        $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
         // The download link is an accessor, so it has to be asked for.
         $complaint->attachments->each->append('url');
 

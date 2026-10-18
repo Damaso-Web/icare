@@ -34,6 +34,7 @@ use App\Http\Controllers\Api\ManagementAcademicYearController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
+Route::post('/register',        [AuthController::class, 'register'])->middleware('throttle:login');
 Route::post('/login/verify-otp', [AuthController::class, 'verifyOtp'])->middleware('throttle:login');
 Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'forgot'])->middleware('throttle:login');
 Route::post('/reset-password',  [\App\Http\Controllers\Api\PasswordResetController::class, 'reset'])->middleware('throttle:login');
@@ -88,6 +89,10 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
     // Referrals
     // Referrals are archived, never deleted.
+    // Sent Referrals / Sent Complaints: what this account itself has sent.
+    Route::get('my/referrals',            [ReferralController::class, 'mine']);
+    Route::get('my/complaints',           [ComplaintController::class, 'mine']);
+    Route::get('my/complaints/{complaint}', [ComplaintController::class, 'showMine']);
     Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);
@@ -207,7 +212,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::post('notifications/read-all',    [NotificationController::class, 'markAllRead']);
     Route::get('notification-logs',          [NotificationController::class, 'logs']);
 
-    // Reports - one per unit. Admin may open any; unit staff are held to
+    // Reports - one per unit. Everyone, the GCU Head included, is held to
     // their own unit inside ReportController.
     Route::prefix('reports')->middleware('role:admin,gcu_staff,tmdu_staff,tmdu_head,sdu_head')->group(function () {
         Route::get('referrals',    [ReportController::class, 'referrals']);
@@ -282,8 +287,6 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('backups/restore-data',  [BackupController::class, 'restoreData']);
         Route::post('backups/restore-config',[BackupController::class, 'restoreConfig']);
 
-        // Referral form header - Revision No. / Effectivity / Ctrl No.
-        Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
     });
 
     // Admin and System Admin - Management page write access (Colleges,
@@ -291,6 +294,10 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // cannot touch students, referrals, cases, or User Management - only
     // Admin has both this and those.
     Route::middleware('role:admin,system_admin')->group(function () {
+        // Document headers - Revision No. / Effectivity / Ctrl No. The GCU Head edits GCU's,
+        // the System Admin edits TMDU's (checked inside DocumentSettingController).
+        Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
+
         Route::post('management/{kind}/{id}/status', [\App\Http\Controllers\Api\ManagementStatusController::class, 'update'])
             ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options'])->whereNumber('id');
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
@@ -334,10 +341,19 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 
 // Student authentication routes (completely separate from staff auth:sanctum group)
 Route::post('student/login', [StudentAuthController::class, 'login'])->middleware('throttle:login');
+Route::post('student/register', [StudentAuthController::class, 'register'])->middleware('throttle:login');
 
 Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
     Route::post('student/referrals',     [StudentAuthController::class, 'referSelf']);
+    // Referring / filing against another student, and what this student has sent.
+    Route::middleware('throttle:30,1')->post('student/outreach/lookup', [\App\Http\Controllers\Api\StudentOutreachController::class, 'lookup']);
+    Route::get('student/outreach/options',      [\App\Http\Controllers\Api\StudentOutreachController::class, 'formOptions']);
+    Route::post('student/outreach/referrals',   [\App\Http\Controllers\Api\StudentOutreachController::class, 'refer']);
+    Route::get('student/outreach/referrals',    [\App\Http\Controllers\Api\StudentOutreachController::class, 'sentReferrals']);
+    Route::post('student/outreach/complaints',  [ComplaintController::class, 'storeByStudent']);
+    Route::get('student/outreach/complaints',   [ComplaintController::class, 'mineByStudent']);
+    Route::get('student/outreach/complaints/{complaint}', [ComplaintController::class, 'showMineByStudent']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
     Route::get('student/appointments',                 [AppointmentController::class, 'indexByStudent']);
     Route::post('student/appointments',                [AppointmentController::class, 'storeByStudent']);
