@@ -637,7 +637,7 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Student</span>
-              <router-link :to="{ name: 'student-show', params: { id: caseFile.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
+              <router-link v-if="isGCU" :to="{ name: 'student-show', params: { id: caseFile.student?.id } }" class="ibtn ibtn-g ibtn-sm">Profile</router-link>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">

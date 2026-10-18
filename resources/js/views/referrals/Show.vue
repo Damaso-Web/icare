@@ -272,7 +272,7 @@
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Acknowledged</div>
                   <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.acknowledged_at) }}</div>
                   <button
-                    v-if="!fromCases"
+                    v-if="!fromCases && (isGCU || isTMDUStaff)"
                     class="ibtn ibtn-o ibtn-sm"
                     style="margin-top:6px"
                     @click="goToStudentInformationFile"
@@ -811,7 +811,7 @@
           <div class="icard">
             <div class="icard-header">
               <span class="icard-title">Student</span>
-              <button class="ibtn ibtn-g ibtn-sm" @click="showProfileModal = true">Profile</button>
+              <button v-if="isGCU" class="ibtn ibtn-g ibtn-sm" @click="showProfileModal = true">Profile</button>
             </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
@@ -845,7 +845,7 @@
                pattern on the Student Profile page, since there can be a
                variable (and sometimes empty) amount of each. Read-only here -
                staff edit the base profile via the Student/Client module. -->
-          <div v-if="showProfileModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showProfileModal = false">
+          <div v-if="showProfileModal && isGCU" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showProfileModal = false">
             <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;display:flex;flex-direction:column">
               <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
                 <div style="font-size:15px;font-weight:600;color:var(--ink)">Student Profile</div>
