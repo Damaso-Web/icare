@@ -1,417 +1,459 @@
-import axios from 'axios';
+import { createRouter, createWebHistory } from 'vue-router';
+import { roleIn } from '../utils/roles';
+import { SELF_REFERRAL_ENABLED } from '../utils/features';
 
-const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
+// Layouts
+import MainLayout from '../layouts/MainLayout.vue';
 
-// ---- Failed requests the pages can't explain on their own ----
-// Most pages only log a failed load to the console, which leaves an empty
-// screen that reads as "no records". This puts a message on screen for the
-// cases no page can do anything about: the server unreachable, the server
-// failing while loading data, or the request limit being hit.
-let lastNoticeAt = 0;
-function notifyFailure(error) {
-    if (axios.isCancel(error)) return;
+// Views
+import Login from '../views/Login.vue';
+// Imported up front (not lazy) so their styles ship with the main bundle and a
+// stale/failed chunk can never leave these pages blank or unstyled.
+import StudentLogin from '../views/StudentLogin.vue';
+import CaseStudyReport from '../views/cases/StudyReport.vue';
+import Dashboard from '../views/Dashboard.vue';
+import Students from '../views/students/Index.vue';
+import StudentShow from '../views/students/Show.vue';
+import Referrals from '../views/referrals/Index.vue';
+import ReferChoice from '../views/referrals/ReferChoice.vue';
+import ReferralCreate from '../views/referrals/Create.vue';
+import ReferralShow from '../views/referrals/Show.vue';
+import ComplaintCreate from '../views/complaints/Create.vue';
+import Complaints from '../views/complaints/Index.vue';
+import IncidentReports from '../views/incident-reports/Index.vue';
+import IncidentReportShow from '../views/incident-reports/Show.vue';
+import Cases from '../views/cases/Index.vue';
+import Appointments from '../views/appointments/Index.vue';
+import TestingRecords from '../views/testing/Index.vue';
+import TestingRecordShow from '../views/testing/Show.vue';
+import TmduAppointments from '../views/testing/Appointments.vue';
+import Reports from '../views/reports/Index.vue';
+import Users from '../views/users/Index.vue';
+import AuditLogs from '../views/audit/Index.vue';
+import MyAccount from '../views/MyAccount.vue';
+import Notifications from '../views/Notifications.vue';
+import CallSlips from '../views/callslips/Index.vue';
+import Management from '../views/management/Index.vue';
+import Faculty from '../views/faculty/Index.vue';
+import CaseReferrals from '../views/caseReferrals/Index.vue';
+import CaseReferralShow from '../views/caseReferrals/Show.vue';
 
-    const status = error.response?.status;
-    const method = (error.config?.method || 'get').toLowerCase();
-    const url    = error.config?.url || '';
-    if (/\/(login|otp)/.test(url)) return;            // the login pages show their own message
+// Role definitions
+const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'];
+const STAFF_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff'];
+const GCU_ROLES = ['admin', 'gcu_staff'];
+const ADMIN_ONLY = ['admin'];
+const SYSTEM_ADMIN_ONLY = ['system_admin'];
+// Management page: Admin and System Admin both get write access (Colleges,
+// Programs, Departments, Referral Form Options). System Admin still has no
+// access to students/referrals/cases/Users - only Admin has both.
+const MANAGEMENT_ROLES = ['admin', 'system_admin'];
+// Refer Student, File a Complaint and the Sent lists are open to every staff account.
+const REFERRAL_SUBMITTERS = [...ALL_ROLES, 'system_admin'];
+// Faculty page: Dean (whole college) and Dept Chair (own department).
+const FACULTY_ROLES = ['dean', 'dept_chair'];   // the Admin manages accounts in User Management instead
+// Testing Records (TMDU): shared with the GCU staff who referred the
+// student, since the Testing Record Details page displays their original
+// referral information too (a "shared case" the referring GCU staff can
+// also view, per the Testing module requirements).
+const TESTING_ROLES = ['tmdu_staff'];
+// TMDU Appointments (calendar/queue) - unlike Testing Record Details, this
+// isn't a shared-case view, so GCU staff don't need access here.
+const TMDU_ROLES = ['tmdu_staff'];
 
-    let message = null;
-    if (status === 429) {
-        message = 'Too many requests at once. Please wait a moment, then try again.';
-    } else if (!error.response) {
-        message = "Couldn't reach the server. Check your internet connection and try again.";
-    } else if (status >= 500 && method === 'get') {
-        message = 'The server had a problem loading this page. Please try again.';
-    }
-    if (!message) return;
-
-    // A page fires several requests together - one message is enough.
-    const now = Date.now();
-    if (now - lastNoticeAt < 4000) return;
-    lastNoticeAt = now;
-
-    window.dispatchEvent(new CustomEvent('icare:notice', {
-        detail: { message, type: status === 429 ? 'warning' : 'error' },
-    }));
-}
-
-// Pages that call axios directly (not through `api`) get the same message.
-axios.interceptors.response.use((response) => response, (error) => {
-    notifyFailure(error);
-    return Promise.reject(error);
-});
-
-const api = axios.create({
-    baseURL: `${API_ROOT}/api`,
-    headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
+const routes = [
+    {
+        path: '/welcome',
+        name: 'login-choice',
+        component: () => import('../views/LoginChoice.vue'),
+        meta: { public: true },
     },
+    {
+        path: '/login',
+        name: 'login',
+        component: Login,
+        meta: { guest: true },
+    },
+    {
+        path: '/schedule/:token',
+        name: 'public-schedule',
+        component: () => import('../views/public/Schedule.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/forgot-password',
+        name: 'forgot-password',
+        component: () => import('../views/ForgotPassword.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/reset-password',
+        name: 'reset-password',
+        component: () => import('../views/ResetPassword.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student/login',
+        name: 'student-login',
+        component: StudentLogin,
+        meta: { public: true },
+    },
+    {
+        path: '/register',
+        name: 'staff-register',
+        component: () => import('../views/PersonnelRegister.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student/register',
+        name: 'student-register',
+        component: () => import('../views/StudentRegister.vue'),
+        meta: { public: true },
+    },
+    {
+        path: '/student',
+        component: () => import('../layouts/StudentLayout.vue'),
+        meta: { public: true },
+        children: [
+            {
+                path: 'dashboard',
+                name: 'student-dashboard',
+                component: () => import('../views/student/StudentDashboard.vue'),
+            },
+            {
+                path: 'appointments',
+                name: 'student-appointments',
+                component: () => import('../views/student/Appointments.vue'),
+            },
+            {
+            path: 'schedule/new',
+            name: 'student-schedule-new',
+            component: () => import('../views/student/ScheduleNew.vue'),
+            },
+            {
+                path: 'appointments/:id',
+                name: 'student-appointment-show',
+                component: () => import('../views/student/AppointmentShow.vue'),
+            },
+            {
+                path: 'referrals',
+                name: 'student-referrals',
+                component: () => import('../views/student/Referrals.vue'),
+            },
+            {
+                path: 'refer',
+                name: 'student-refer',
+                component: () => import('../views/student/ReferSelf.vue'),
+                // Off until the live database allows self-referrals (utils/features.js).
+                beforeEnter: () => (SELF_REFERRAL_ENABLED ? true : { name: 'student-referrals' }),
+            },
+            {
+                path: 'refer-student',
+                name: 'student-refer-choice',
+                component: () => import('../views/student/ReferChoice.vue'),
+            },
+            {
+                path: 'refer-student/referral',
+                name: 'student-refer-other',
+                component: () => import('../views/student/ReferOther.vue'),
+            },
+            {
+                path: 'refer-student/complaint',
+                name: 'student-file-complaint',
+                component: () => import('../views/student/FileComplaint.vue'),
+            },
+            {
+                path: 'sent-referrals',
+                name: 'student-sent-referrals',
+                component: () => import('../views/sent/SentReferrals.vue'),
+                meta: { student: true },
+            },
+            {
+                path: 'sent-complaints',
+                name: 'student-sent-complaints',
+                component: () => import('../views/sent/SentComplaints.vue'),
+                meta: { student: true },
+            },
+            {
+                path: 'referrals/:id',
+                name: 'student-referral-show',
+                component: () => import('../views/student/ReferralShow.vue'),
+            },
+            {
+                path: 'testing',
+                name: 'student-testing',
+                component: () => import('../views/student/Testing.vue'),
+            },
+            {
+                path: 'account',
+                name: 'student-account',
+                component: () => import('../views/student/Account.vue'),
+            },
+            {
+                path: 'notifications',
+                name: 'student-notifications',
+                component: Notifications,
+                meta: { student: true },
+            },
+        ],
+    },
+    {
+        path: '/',
+        component: MainLayout,
+        meta: { requiresAuth: true },
+        children: [
+            {
+                path: '',
+                name: 'dashboard',
+                component: Dashboard,
+                meta: { roles: ALL_ROLES },
+            },
+            {
+                path: 'students',
+                name: 'students',
+                component: Students,
+                meta: { roles: GCU_ROLES },
+            },
+            {
+                path: 'students/:id',
+                name: 'student-show',
+                component: StudentShow,
+                // TMDU opens this from a psychological-testing referral; the API
+                // scopes what it can see to that student's TMDU records only.
+                meta: { roles: [...GCU_ROLES, 'tmdu_staff'] },
+            },
+            {
+                path: 'referrals',
+                name: 'referrals',
+                component: Referrals,
+                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'] },
+            },
+            {
+                path: 'referrals/create',
+                name: 'referral-create',
+                component: ReferChoice,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'referrals/create/student',
+                name: 'referral-create-form',
+                component: ReferralCreate,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'referrals/create/complaint',
+                name: 'complaint-create',
+                component: ComplaintCreate,
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'sent-referrals',
+                name: 'sent-referrals',
+                component: () => import('../views/sent/SentReferrals.vue'),
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'sent-complaints',
+                name: 'sent-complaints',
+                component: () => import('../views/sent/SentComplaints.vue'),
+                meta: { roles: REFERRAL_SUBMITTERS },
+            },
+            {
+                path: 'complaints',
+                name: 'complaints',
+                component: Complaints,
+                meta: { roles: ['sdu_head'] },
+            },
+            {
+                path: 'incident-reports',
+                name: 'incident-reports',
+                component: IncidentReports,
+                meta: { roles: ['sdu_head'] },
+            },
+            {
+                path: 'incident-reports/:id',
+                name: 'incident-report-show',
+                component: IncidentReportShow,
+                meta: { roles: ['sdu_head'] },
+            },
+            {
+                path: 'referrals/:id',
+                name: 'referral-show',
+                component: ReferralShow,
+                meta: { roles: [...REFERRAL_SUBMITTERS, 'tmdu_staff'] },
+            },
+            {
+                path: 'case-referrals',
+                name: 'case-referrals',
+                component: CaseReferrals,
+                meta: { roles: GCU_ROLES },
+            },
+            {
+                path: 'case-referrals/:id',
+                name: 'case-referral-show',
+                component: CaseReferralShow,
+                meta: { roles: GCU_ROLES },
+            },
+            {
+                path: 'cases',
+                name: 'cases',
+                component: Cases,
+                meta: { roles: GCU_ROLES },
+            },
+            {
+                path: 'appointments',
+                name: 'appointments',
+                component: Appointments,
+                meta: { roles: ['admin', 'gcu_staff'] },
+            },
+            {
+                path: 'testing',
+                name: 'testing',
+                component: TestingRecords,
+                meta: { roles: TESTING_ROLES },
+            },
+            {
+                // Must come before 'testing/:id' - otherwise the dynamic
+                // route below would swallow this path, treating
+                // "appointments" as a testing record id.
+                path: 'testing/appointments',
+                name: 'testing-appointments',
+                component: TmduAppointments,
+                meta: { roles: TMDU_ROLES },
+            },
+            {
+                path: 'testing/:id',
+                name: 'testing-show',
+                component: TestingRecordShow,
+                meta: { roles: TESTING_ROLES },
+            },
+            {
+                path: 'college-report',
+                name: 'college-report',
+                component: () => import('../views/dean/CollegeReport.vue'),
+                meta: { roles: ['dean'] },
+            },
+            {
+                path: 'reports',
+                name: 'reports',
+                component: Reports,
+                meta: { roles: STAFF_ROLES },
+            },
+            {
+                path: 'users',
+                name: 'users',
+                component: Users,
+                // GCU Head: every account. TMDU Head: TMDU Staff. Dean: their college's faculty and chairs.
+                meta: { roles: ['admin', 'tmdu_head', 'dean'] },
+            },
+            {
+                path: 'faculty',
+                name: 'faculty-directory',
+                component: Faculty,
+                meta: { roles: FACULTY_ROLES },
+            },
+            {
+                path: 'notifications',
+                name: 'notifications',
+                component: Notifications,
+                meta: { roles: ALL_ROLES },
+            },
+            {
+                path: 'my-account',
+                name: 'my-account',
+                component: MyAccount,
+                meta: { roles: ALL_ROLES },
+            },
+            {
+                path: 'audit',
+                name: 'audit',
+                component: AuditLogs,
+                meta: { roles: ADMIN_ONLY },
+            },
+            {
+                path: 'call-slips',
+                name: 'call-slips',
+                component: CallSlips,
+                meta: { roles: ['dean_secretary'] },
+            },
+            {
+                path: 'backup',
+                name: 'backup',
+                component: () => import('../views/backup/Index.vue'),
+                meta: { roles: ADMIN_ONLY },
+            },
+            {
+                path: 'management',
+                name: 'management',
+                component: Management,
+                meta: { roles: MANAGEMENT_ROLES },
+            },
+        ],
+    },
+    {
+        path: '/cases/:id/study-report',
+        name: 'case-study-report',
+        component: CaseStudyReport,
+        meta: { requiresAuth: true, roles: GCU_ROLES },
+    },
+    {
+        path: '/call-slips/:id/print',
+        name: 'call-slip-print',
+        component: () => import('../views/callslips/CallSlipForm.vue'),
+        meta: { requiresAuth: true, roles: ['dean_secretary', 'admin'] },
+    },
+    {
+        path: '/unauthorized',
+        name: 'unauthorized',
+        // A real component: the built app has no runtime template compiler, so
+        // an inline `template` string rendered as a blank page.
+        component: () => import('../views/Unauthorized.vue'),
+    },
+    {
+        path: '/:pathMatch(.*)*',
+        redirect: '/welcome',
+    },
+];
+
+const router = createRouter({
+    history: createWebHistory(),
+    routes,
 });
 
-// Attach token to every request
-api.interceptors.request.use((config) => {
+router.beforeEach((to, from, next) => {
     const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+    const user  = JSON.parse(localStorage.getItem('user') || '{}');
+    const role  = user?.role;
+
+    // Public routes (no auth needed, e.g. student scheduling link, login choice)
+    if (to.meta.public) {
+        return next();
     }
-    return config;
+
+    // Guest routes (login)
+    if (to.meta.guest) {
+        if (token) return next({ name: 'dashboard' });
+        return next();
+    }
+
+    // Auth required
+    if (to.meta.requiresAuth || to.meta.roles) {
+        if (!token) return next({ name: 'login-choice' });
+
+        // System Admin has no Dashboard (it's student/referral/case data, which
+        // System Admin is not permitted to view) - land them on Management instead
+        // of falling through to the default 'dashboard' redirect.
+        if (role === 'system_admin' && to.name === 'dashboard') {
+            return next({ name: 'management' });
+        }
+
+        // Check role access
+        if (to.meta.roles && !roleIn(role, to.meta.roles)) {
+            return next({ name: 'unauthorized' });
+        }
+    }
+
+    next();
 });
 
-// Handle 401 - redirect to login
-api.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        notifyFailure(error);
-        if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            window.location.href = '/login';
-        }
-        return Promise.reject(error);
-    }
-);
-
-
-// ---------------------------------------------------------------------------
-// Request guard (applies to every save/confirm/upload/submit/delete action)
-//
-// 1. While any write request (POST/PUT/PATCH/DELETE) is in flight, <body>
-//    gets the "is-busy" class. app.css greys out and disables every button
-//    while it is set, so a second click (or a click on a different button
-//    in the same modal) can't fire while the first request is processing.
-// 2. As a backstop for things the CSS can't stop (pressing Enter twice, a
-//    double-fired handler), an identical write request that is already in
-//    flight is not sent again - the second caller just receives the same
-//    response as the first.
-// ---------------------------------------------------------------------------
-const WRITE_METHODS = ['post', 'put', 'patch', 'delete'];
-// Background housekeeping calls that shouldn't lock the screen.
-const GUARD_IGNORE = [/notifications/i];
-const BUSY_FAILSAFE_MS = 60000;
-
-const inflightWrites = new Map();
-const busyIds = new Set();
-let busySeq = 0;
-
-function setBusyClass() {
-    if (typeof document === 'undefined') return;
-    document.body.classList.toggle('is-busy', busyIds.size > 0);
-}
-
-function writeKey(config) {
-    let body = '';
-    try {
-        if (typeof config.data === 'string') {
-            body = config.data;
-        } else if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
-            body = [...config.data.entries()]
-                .map(([k, v]) => `${k}=${typeof v === 'string' ? v : `${v.name}:${v.size}`}`)
-                .join('&');
-        } else if (config.data) {
-            body = JSON.stringify(config.data);
-        }
-    } catch (e) {
-        body = '';
-    }
-    return `${(config.method || 'get').toLowerCase()} ${config.baseURL || ''}${config.url || ''} ${body}`;
-}
-
-function installRequestGuard(instance) {
-    instance.interceptors.request.use((config) => {
-        const method = (config.method || 'get').toLowerCase();
-        if (!WRITE_METHODS.includes(method)) return config;
-        if (GUARD_IGNORE.some((re) => re.test(config.url || ''))) return config;
-
-        const key = writeKey(config);
-        const baseAdapter = axios.getAdapter(config.adapter || instance.defaults.adapter);
-
-        config.adapter = (cfg) => {
-            if (inflightWrites.has(key)) return inflightWrites.get(key);
-
-            const id = ++busySeq;
-            busyIds.add(id);
-            setBusyClass();
-            const release = () => {
-                inflightWrites.delete(key);
-                busyIds.delete(id);
-                setBusyClass();
-            };
-            // Never leave the screen locked if a request hangs forever.
-            const watchdog = setTimeout(release, BUSY_FAILSAFE_MS);
-
-            const promise = baseAdapter(cfg).finally(() => {
-                clearTimeout(watchdog);
-                release();
-            });
-            inflightWrites.set(key, promise);
-            return promise;
-        };
-
-        return config;
-    });
-}
-
-installRequestGuard(api);
-
-export default api;
-
-// Separate axios instance for student-authenticated requests, so a failed
-// student request never wipes the STAFF token/session or vice versa.
-export const studentApi = axios.create({
-    baseURL: `${API_ROOT}/api`,
-    headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-    },
-});
-
-installRequestGuard(studentApi);
-
-studentApi.interceptors.request.use((config) => {
-    const token = localStorage.getItem('student_token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-});
-
-studentApi.interceptors.response.use(
-    (response) => response,
-    (error) => {
-        notifyFailure(error);
-        if (error.response?.status === 401) {
-            localStorage.removeItem('student_token');
-            localStorage.removeItem('student');
-            window.location.href = '/student/login';
-        }
-        return Promise.reject(error);
-    }
-);
-
-export const authAPI = {
-    login:          (data) => api.post('/login', data),
-    logout:         ()     => api.post('/logout'),
-    me:             ()     => api.get('/me'),
-    changePassword: (data) => api.put('/me/password', data),
-};
-
-export const studentAPI = {
-    index:   (params)   => api.get('/students', { params }),
-    store:   (data)     => api.post('/students', data),
-    show:    (id)       => api.get(`/students/${id}`),
-    update:  (id, data) => api.put(`/students/${id}`, data),
-    destroy: (id)       => api.delete(`/students/${id}`),
-    history: (id)       => api.get(`/students/${id}/history`),
-    cases:   (id)       => api.get(`/students/${id}/cases`),
-    toggleActive:  (id, data) => api.post(`/students/${id}/toggle-active`, data || {}),
-    statusHistory: (id) => api.get(`/students/${id}/status-history`),
-    graduate: (id, payload) => api.post(`/students/${id}/graduate`, payload),
-    import:        (formData) => api.post('/students/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importPreview: (formData) => api.post('/students/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importConfirm: (data)     => api.post('/students/import-confirm', data),
-    checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
-    viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
-    resetPassword:    (id)    => api.post(`/students/${id}/reset-password`),
-    updateClientNo:   (id, data) => api.patch(`/students/${id}/client-no`, data),
-    remindForms:      (id)       => api.post(`/students/${id}/remind-forms`),
-    documentSettings: (code)  => api.get(`/document-settings/${code}`),
-};
-
-export const referralAPI = {
-    index:        (params)   => api.get('/referrals', { params }),
-    store:        (data)     => api.post('/referrals', data),
-    show:         (id)       => api.get(`/referrals/${id}`),
-    update:       (id, data) => api.put(`/referrals/${id}`, data),
-    acknowledge:  (id)       => api.post(`/referrals/${id}/acknowledge`),
-    assign:       (id, data) => api.post(`/referrals/${id}/assign`, data),
-    updateStatus: (id, data) => api.patch(`/referrals/${id}/status`, data),
-    overrideStatus: (id, data) => api.post(`/referrals/${id}/override-status`, data),
-    tracking:     (id)       => api.get(`/referrals/${id}/tracking`),
-    sendFeedback:     (id, data) => api.post(`/referrals/${id}/feedback`, data),
-    requestFeedback:  (id)       => api.post(`/referrals/${id}/request-feedback`),
-    saveAdmissionSlip:(id, data) => api.post(`/referrals/${id}/admission-slip`, data),
-    archive:      (id)       => api.post(`/referrals/${id}/archive`),
-    unarchive:    (id)       => api.post(`/referrals/${id}/unarchive`),
-    archived:     (params)   => api.get('/referrals-archived', { params }),
-};
-
-export const caseAPI = {
-    index:           (params)   => api.get('/cases', { params }),
-    show:            (id)       => api.get(`/cases/${id}`),
-    update:          (id, data) => api.put(`/cases/${id}`, data),
-    updateStatus:    (id, data) => api.patch(`/cases/${id}/status`, data),
-    close:           (id, data) => api.post(`/cases/${id}/close`, data),
-    summary:         (id)       => api.get(`/cases/${id}/summary`),
-    referToTmdu:     (id, data) => api.post(`/cases/${id}/refer-tmdu`, data),
-    referExternal:   (id, data) => api.post(`/cases/${id}/refer-external`, data),
-    handoff:         (id, data) => api.post(`/cases/${id}/handoff`, data),
-    acknowledgeHandoff: (id, handoffId) => api.post(`/cases/${id}/handoffs/${handoffId}/acknowledge`),
-    flagUnreachable: (id, data) => api.post(`/cases/${id}/flag-unreachable`, data),
-    flagFollowUp:    (id, data) => api.post(`/cases/${id}/flag-follow-up`, data),
-    resolveFollowUp: (id)       => api.post(`/cases/${id}/resolve-follow-up`),
-    addIntervention: (id, data) => api.post(`/cases/${id}/interventions`, data),
-    issueParentConferenceSlip: (id, data) => api.post(`/cases/${id}/parent-conference-slip`, data),
-    saveParentConferenceNotes: (slipId, data) => api.post(`/parent-conference-slips/${slipId}/notes`, data),
-    completeIntervention: (interventionId) => api.post(`/interventions/${interventionId}/complete`),
-    deleteIntervention:   (interventionId) => api.delete(`/interventions/${interventionId}`),
-};
-
-export const caseHandoffAPI = {
-    confirm: (id) => api.post(`/case-handoffs/${id}/confirm`),
-};
-
-export const caseInterventionAPI = {
-    store: (caseId, data) => api.post(`/cases/${caseId}/interventions`, data),
-    markCompleted: (id) => api.post(`/case-interventions/${id}/complete`),
-};
-
-export const sessionNoteAPI = {
-    index:   (caseId)        => api.get(`/cases/${caseId}/session-notes`),
-    store:   (caseId, data)  => api.post(`/cases/${caseId}/session-notes`, data),
-    show:    (id)            => api.get(`/session-notes/${id}`),
-    update:  (id, data)      => api.put(`/session-notes/${id}`, data),
-    destroy: (id)            => api.delete(`/session-notes/${id}`),
-    indexByReferral: (referralId)       => api.get(`/referrals/${referralId}/session-notes`),
-    storeByReferral: (referralId, data) => api.post(`/referrals/${referralId}/session-notes`, data),
-};
-
-export const appointmentAPI = {
-    index:          (params)   => api.get('/appointments', { params }),
-    store:          (data)     => api.post('/appointments', data),
-    show:           (id)       => api.get(`/appointments/${id}`),
-    update:         (id, data) => api.put(`/appointments/${id}`, data),
-    confirm:        (id, data) => api.post(`/appointments/${id}/confirm`, data),
-    reschedule:     (id, data) => api.post(`/appointments/${id}/reschedule`, data),
-    cancel:         (id, data) => api.post(`/appointments/${id}/cancel`, data),
-    checkIn:        (id)       => api.post(`/appointments/${id}/check-in`),
-    escalateNoShow: (id, action) => api.post(`/appointments/${id}/escalate-no-show`, { action }),
-    sendCallSlipUnscheduled: (id) => api.post(`/appointments/${id}/send-call-slip`),
-    overrideStatus: (id, data) => api.post(`/appointments/${id}/override-status`, data),
-    availability:   (params)   => api.get('/appointments/availability', { params }),
-    checkConflict:  (data)     => api.post('/appointments/check-conflict', data),
-};
-
-export const testingAPI = {
-    index:           (params)   => api.get('/testing-records', { params }),
-    show:            (id)       => api.get(`/testing-records/${id}`),
-    update:          (id, data) => api.put(`/testing-records/${id}`, data),
-    updateStatus:    (id, data) => api.patch(`/testing-records/${id}/status`, data),
-    sendToGcu:       (id, data) => api.post(`/testing-records/${id}/send-to-gcu`, data, data instanceof FormData ? { headers: { 'Content-Type': 'multipart/form-data' } } : undefined),
-    acknowledge:     (id)       => api.post(`/testing-records/${id}/acknowledge`),
-    scheduleTesting: (id, data) => api.post(`/testing-records/${id}/schedule-testing`, data),
-    // "Psychological Tests Administered" action on the Testing Record Details
-    // page - saves the tests + date and moves status straight to Awaiting Results.
-    administerTests: (id, data) => api.post(`/testing-records/${id}/administer-tests`, data),
-    schedulePar:     (id, data) => api.post(`/testing-records/${id}/schedule-par`, data),
-    orPhoto:         (id)       => api.get(`/testing-records/${id}/or-photo`, { responseType: 'blob' }),
-    // Assigning the psychometrician (TMDU staff/head) who will handle a
-    // record - required before any other action on it can proceed.
-    assign:           (id, data) => api.post(`/testing-records/${id}/assign`, data),
-    availableTesters: ()         => api.get('/testing-records/available-testers'),
-    // PAR release appointment actions: released | on_hold | cancel
-    // extra: for cancel, an optional { appointment_date, start_time, end_time, reason } re-release
-    parAction:        (appointmentId, action, extra = {}) => api.post(`/appointments/${appointmentId}/par-action`, { action, ...extra }),
-};
-
-export const reportAPI = {
-    referrals:    (params) => api.get('/reports/referrals', { params }),
-    appointments: (params) => api.get('/reports/appointments', { params }),
-    cases:        (params) => api.get('/reports/cases', { params }),
-    recurringConcerns: (params) => api.get('/reports/recurring-concerns', { params }),
-    services:     (params) => api.get('/reports/services', { params }),
-    complaints:   (params) => api.get('/reports/complaints', { params }),
-    gcuAccomplishment: (params) => api.get('/reports/gcu-accomplishment', { params }),
-    dashboard:    ()       => api.get('/reports/dashboard'),
-};
-
-// Case Referral (TMDU) - GCU's read-only view of the Refer to TMDU forms.
-export const caseReferralAPI = {
-    index:     (params) => api.get('/case-referrals', { params }),
-    show:      (id)     => api.get(`/case-referrals/${id}`),
-    forSource: (id)     => api.get(`/case-referrals/by-source/${id}`),
-    // PAR file download (blob), opened by the caller.
-    downloadDocument: (id) => api.get(`/documents/${id}/download`, { responseType: 'blob' }),
-};
-
-// Faculty module (Dean = whole college, Dept Chair = own department; scoped on the server).
-export const facultyAPI = {
-    index:          (params)   => api.get('/faculty', { params }),
-    store:          (data)     => api.post('/faculty', data),
-    update:         (id, data) => api.put(`/faculty/${id}`, data),
-    toggleActive:   (id)       => api.post(`/faculty/${id}/toggle-active`),
-    resetPassword:  (id)       => api.post(`/faculty/${id}/reset-password`),
-    assignChair:    (id, data) => api.post(`/faculty/${id}/assign-chair`, data),
-    removeChair:    (id)       => api.post(`/faculty/${id}/remove-chair`),
-    importPreview:  (formData) => api.post('/faculty/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importConfirm:  (data)     => api.post('/faculty/import-confirm', data),
-};
-
-export const userAPI = {
-    index:         (params)   => api.get('/users', { params }),
-    store:         (data)     => api.post('/users', data),
-    show:          (id)       => api.get(`/users/${id}`),
-    update:        (id, data) => api.put(`/users/${id}`, data),
-    destroy:       (id)       => api.delete(`/users/${id}`),
-    toggleActive:  (id, data) => api.post(`/users/${id}/toggle-active`, data || {}),
-    openWork:      (id)       => api.get(`/users/${id}/open-work`),
-    statusHistory: (id)       => api.get(`/users/${id}/status-history`),
-    resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
-    import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-    importConfirm: (data)     => api.post('/users/import-confirm', data),
-    viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
-    // Non-admin staff roster for the Reassign / Transfer dropdowns.
-    roster:        (params)   => api.get('/staff-roster', { params }),
-};
-
-export const callSlipAPI = {
-    index:         (params)     => api.get('/call-slips', { params }),
-    markContacted: (id, data)   => api.post(`/call-slips/${id}/contacted`, data),
-    reschedule:    (id)         => api.post(`/call-slips/${id}/reschedule`),
-    escalate:      (id, data)   => api.post(`/call-slips/${id}/escalate`, data),
-};
-
-export const notificationAPI = {
-    index:       ()   => api.get('/notifications'),
-    markRead:    (id) => api.post(`/notifications/${id}/read`),
-    markAllRead: ()   => api.post('/notifications/read-all'),
-    logs:        ()   => api.get('/notification-logs'),
-};
-
-export const studentNotificationAPI = {
-    index:       ()   => studentApi.get('/student/notifications'),
-    markRead:    (id) => studentApi.post(`/student/notifications/${id}/read`),
-    markAllRead: ()   => studentApi.post('/student/notifications/read-all'),
-};
-
-
-export const backupAPI = {
-    index:         (params) => api.get('/backups', { params }),
-    run:           (type)   => api.post('/backups/run', { type }),
-    restoreData:   (confirm)=> api.post('/backups/restore-data', { confirm }),
-    restoreConfig: (confirm)=> api.post('/backups/restore-config', { confirm }),
-};
-
-export const auditAPI = {
-    index: (params) => api.get('/audit-logs', { params }),
-    show:  (id)     => api.get(`/audit-logs/${id}`),
-    filterOptions: ()       => api.get('/audit-logs/filter-options'),
-    summary:       (params) => api.get('/audit-logs/summary', { params }),
-};
-
-export const studentAppointmentAPI = {
-    index:         ()       => studentApi.get('/student/appointments'),
-    store:         (data)   => studentApi.post('/student/appointments', data),
-    show:          (id)     => studentApi.get(`/student/appointments/${id}`),
-    checkConflict: (data)   => studentApi.post('/student/appointments/check-conflict', data),
-};
-
-// Testing (TMDU) - student side: view own testing record(s) and submit the
-// OR photo to request a testing schedule.
-export const studentTestingAPI = {
-    index:          ()       => studentApi.get('/student/testing-records'),
-    show:           (id)     => studentApi.get(`/student/testing-records/${id}`),
-    requestTesting: (id, formData) => studentApi.post(`/student/testing-records/${id}/request-testing`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
-};
+export default router;

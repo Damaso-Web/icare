@@ -5,7 +5,10 @@
         <h1>Notifications</h1>
         <p>{{ unreadTotal }} unread</p>
       </div>
-      <button class="ibtn ibtn-o ibtn-sm" :disabled="!unreadTotal" @click="markAll">Mark all read</button>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-o ibtn-sm" @click="goBack">&larr; Back</button>
+        <button class="ibtn ibtn-o ibtn-sm" :disabled="!unreadTotal" @click="markAll">Mark all read</button>
+      </div>
     </div>
 
     <div class="icard">
@@ -47,6 +50,17 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 const base = isStudent ? '/student/notifications' : '/notifications';
 const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem(isStudent ? 'student_token' : 'token')}` } });
 const target = (n) => (isStudent ? studentNotificationTarget : staffNotificationTarget)(n.data || {});
+
+// Back to the page the user came from; straight to home when this was opened directly.
+function goBack() {
+  if (window.history.state?.back) {
+    router.back();
+    return;
+  }
+  let role = null;
+  try { role = JSON.parse(localStorage.getItem('user') || '{}').role; } catch (e) { /* ignore */ }
+  router.push({ name: isStudent ? 'student-dashboard' : (role === 'system_admin' ? 'management' : 'dashboard') });
+}
 
 const items = ref([]);
 const loading = ref(true);

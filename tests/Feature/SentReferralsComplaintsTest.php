@@ -28,7 +28,7 @@ class SentReferralsComplaintsTest extends TestCase
     {
         Notification::fake();
         $target = $this->student('2300001', 'Target');
-        foreach (['faculty', 'dean', 'dept_chair', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head', 'admin'] as $role) {
+        foreach (['faculty', 'dean', 'dept_chair', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head', 'admin', 'system_admin'] as $role) {
             $u = User::factory()->create(['role' => $role, 'college' => 'CIT', 'is_active' => true]);
             Sanctum::actingAs($u);
             $this->postJson('/api/referrals', [
