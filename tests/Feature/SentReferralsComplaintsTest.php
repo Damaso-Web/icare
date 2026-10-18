@@ -161,4 +161,24 @@ class SentReferralsComplaintsTest extends TestCase
         Referral::whereKey($id)->update(['acknowledged_at' => now()]);
         $this->putJson("/api/student/outreach/referrals/{$id}", ['nature_of_concern' => 'Too late to change.'])->assertStatus(422);
     }
+
+    public function test_oss_heads_and_staff_can_edit_their_own_unacknowledged_referral_via_update(): void
+    {
+        Notification::fake();
+        $s = $this->student('2300011', 'Oss');
+        foreach (['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff'] as $role) {
+            $u = User::factory()->create(['role' => $role, 'is_active' => true]);
+            Sanctum::actingAs($u);
+            $id = $this->postJson('/api/referrals', [
+                'student_id' => $s->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Original concern text.',
+            ])->assertCreated()->json('id');
+            $this->getJson("/api/referrals/{$id}")->assertOk();
+            $this->putJson("/api/referrals/{$id}", ['nature_of_concern' => "Corrected by {$role}."])->assertOk();
+            $this->assertSame("Corrected by {$role}.", Referral::find($id)->nature_of_concern);
+            Referral::whereKey($id)->update(['acknowledged_at' => now()]);
+            if ($role !== 'admin' && $role !== 'gcu_staff') {
+                $this->putJson("/api/referrals/{$id}", ['nature_of_concern' => 'Too late now.'])->assertStatus(422);
+            }
+        }
+    }
 }

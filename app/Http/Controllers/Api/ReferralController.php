@@ -302,6 +302,15 @@ class ReferralController extends Controller
 
     public function update(Request $request, Referral $referral)
     {
+        // The sender (any role: GCU, SDU, TMDU, faculty...) may correct their own
+        // referral until it is acknowledged - even a TMDU slip GCU sent.
+        if ($referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $request->user()->id
+            && ! $request->hasAny(['intake_notes', 'sanction', 'sanction_notes'])) {
+            $referral->abortIfLocked();
+            $referral->applyReferrerEdit($request);
+            return response()->json($referral->fresh());
+        }
+
         $this->authorizeReferralWriter($request, $referral);
         $this->authorizeView($referral, $request->user());
         $referral->abortIfLocked();
@@ -921,6 +930,10 @@ class ReferralController extends Controller
 
     private function authorizeView(Referral $referral, $user): void
     {
+        // Whoever sent a referral can always open it.
+        if ($referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id) {
+            return;
+        }
         if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
             abort(403, 'Unauthorized.');
         }

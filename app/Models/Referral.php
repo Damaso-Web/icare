@@ -181,7 +181,12 @@ class Referral extends Model
             ];
         }
         $old = $this->toArray();
-        $this->update($request->validate($rules));
+        $data = $request->validate($rules);
+        $this->update($data);
+        // A Case Referral Slip (to TMDU) keeps the same reason on its Testing Record.
+        if (isset($data['nature_of_concern']) && $this->testingRecord) {
+            $this->testingRecord->update(['reason' => $data['nature_of_concern']]);
+        }
         \App\Models\AuditLog::record('updated', "Referrer edited referral {$this->referral_code} before acknowledgement.", $this, $old, $this->toArray());
     }
 

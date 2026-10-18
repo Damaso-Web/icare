@@ -1455,7 +1455,7 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
-              You can change this referral until GCU acknowledges it.
+              You can change this referral until it is acknowledged.
             </div>
             <div>
               <label class="ifl">Concern / Reason for Referral</label>
@@ -2643,8 +2643,8 @@ const canEditSubmittedReferral = computed(() => {
   const u = auth.user;
   const r = referral.value;
   return !!u && !!r?.id
-    && ['faculty', 'dean', 'dept_chair', 'dean_secretary'].includes(u.role)
     && r.referred_by_user_id === u.id
+    && r.status === 'submitted'
     && !r.acknowledged_at
     && !isResolved.value;
 });
