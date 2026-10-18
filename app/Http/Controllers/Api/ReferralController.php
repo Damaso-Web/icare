@@ -160,6 +160,14 @@ class ReferralController extends Controller
         return $q->paginate(20);
     }
 
+    // The sender corrects a referral that GCU has not acknowledged yet.
+    public function updateMine(Request $request, $id)
+    {
+        $referral = Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id')->findOrFail($id);
+        $referral->applyReferrerEdit($request);
+        return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([

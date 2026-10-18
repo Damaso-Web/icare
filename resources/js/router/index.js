@@ -48,8 +48,8 @@ const SYSTEM_ADMIN_ONLY = ['system_admin'];
 // Programs, Departments, Referral Form Options). System Admin still has no
 // access to students/referrals/cases/Users - only Admin has both.
 const MANAGEMENT_ROLES = ['admin', 'system_admin'];
-// Refer Student is open to every role that has a Dashboard.
-const REFERRAL_SUBMITTERS = ALL_ROLES;
+// Refer Student, File a Complaint and the Sent lists are open to every staff account.
+const REFERRAL_SUBMITTERS = [...ALL_ROLES, 'system_admin'];
 // Faculty page: Dean (whole college) and Dept Chair (own department).
 const FACULTY_ROLES = ['dean', 'dept_chair'];   // the Admin manages accounts in User Management instead
 // Testing Records (TMDU): shared with the GCU staff who referred the

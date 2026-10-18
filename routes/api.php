@@ -91,6 +91,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     // Referrals are archived, never deleted.
     // Sent Referrals / Sent Complaints: what this account itself has sent.
     Route::get('my/referrals',            [ReferralController::class, 'mine']);
+    Route::put('my/referrals/{id}',       [ReferralController::class, 'updateMine']);
     Route::get('my/complaints',           [ComplaintController::class, 'mine']);
     Route::get('my/complaints/{complaint}', [ComplaintController::class, 'showMine']);
     Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
@@ -351,6 +352,7 @@ Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::get('student/outreach/options',      [\App\Http\Controllers\Api\StudentOutreachController::class, 'formOptions']);
     Route::post('student/outreach/referrals',   [\App\Http\Controllers\Api\StudentOutreachController::class, 'refer']);
     Route::get('student/outreach/referrals',    [\App\Http\Controllers\Api\StudentOutreachController::class, 'sentReferrals']);
+    Route::put('student/outreach/referrals/{id}', [\App\Http\Controllers\Api\StudentOutreachController::class, 'updateSent']);
     Route::post('student/outreach/complaints',  [ComplaintController::class, 'storeByStudent']);
     Route::get('student/outreach/complaints',   [ComplaintController::class, 'mineByStudent']);
     Route::get('student/outreach/complaints/{complaint}', [ComplaintController::class, 'showMineByStudent']);

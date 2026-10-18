@@ -148,6 +148,43 @@ class Referral extends Model
     // acknowledged (status moved past 'submitted') AND an appointment for
     // the case has been attended. Mirrors referrals/Show.vue's canEditSif
     // computed so the frontend gate and this backend gate can't drift.
+    // The person who sent a referral may correct it until GCU acknowledges it.
+    public function referrerCanEdit(): bool
+    {
+        return $this->status === 'submitted' && ! $this->acknowledged_at && ! $this->is_archived;
+    }
+
+    /** Referral types that stay with the same unit (GCU / SDU / TMDU) as this one. */
+    public function sameUnitTypes(): array
+    {
+        return match ($this->referral_type) {
+            'disciplinary'          => ['disciplinary'],
+            'psychological_testing' => ['psychological_testing'],
+            default                 => ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'],
+        };
+    }
+
+    /** Validate and apply a referrer's correction (only while it is still unacknowledged). */
+    public function applyReferrerEdit(\Illuminate\Http\Request $request): void
+    {
+        abort_unless($this->referrerCanEdit(), 422, 'This referral was already acknowledged, so it can no longer be edited.');
+
+        $rules = [
+            'referral_type'     => 'sometimes|required|in:' . implode(',', $this->sameUnitTypes()),
+            'nature_of_concern' => 'sometimes|required|string|min:10|max:1000',
+        ];
+        if ($this->referral_type === 'disciplinary') {
+            $rules += [
+                'violation_type'       => 'sometimes|nullable|string|max:255',
+                'incident_description' => 'sometimes|nullable|string|max:2000',
+                'incident_date'        => 'sometimes|nullable|date',
+            ];
+        }
+        $old = $this->toArray();
+        $this->update($request->validate($rules));
+        \App\Models\AuditLog::record('updated', "Referrer edited referral {$this->referral_code} before acknowledgement.", $this, $old, $this->toArray());
+    }
+
     public function canEditSif(): bool
     {
         return $this->status !== 'submitted' && $this->hasAttendedAppointment();

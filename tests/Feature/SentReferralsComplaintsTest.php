@@ -124,4 +124,41 @@ class SentReferralsComplaintsTest extends TestCase
         $this->postJson("/api/referrals/{$id}/assign", ['user_id' => $staff->id])->assertOk();
         Notification::assertSentTo($faculty, \App\Notifications\CaseUpdateNotification::class);
     }
+
+    public function test_sender_can_edit_until_acknowledged(): void
+    {
+        Notification::fake();
+        $staff = User::factory()->create(['role' => 'sdu_head', 'is_active' => true]);
+        $other = User::factory()->create(['role' => 'faculty', 'college' => 'CIT', 'is_active' => true]);
+        $s = $this->student('2300008', 'Edit');
+        Sanctum::actingAs($staff);
+        $id = $this->postJson('/api/referrals', [
+            'student_id' => $s->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Original concern text.',
+        ])->assertCreated()->json('id');
+
+        $this->putJson("/api/my/referrals/{$id}", ['nature_of_concern' => 'Corrected concern text.', 'referral_type' => 'shifting'])->assertOk();
+        $this->assertSame('Corrected concern text.', Referral::find($id)->nature_of_concern);
+        $this->putJson("/api/my/referrals/{$id}", ['referral_type' => 'disciplinary'])->assertStatus(422);
+
+        Sanctum::actingAs($other);
+        $this->putJson("/api/my/referrals/{$id}", ['nature_of_concern' => 'Not my referral.'])->assertStatus(404);
+
+        Referral::whereKey($id)->update(['status' => 'acknowledged', 'acknowledged_at' => now()]);
+        Sanctum::actingAs($staff);
+        $this->putJson("/api/my/referrals/{$id}", ['nature_of_concern' => 'Too late to change.'])->assertStatus(422);
+    }
+
+    public function test_student_sender_can_edit_until_acknowledged(): void
+    {
+        Notification::fake();
+        $me = $this->student('2300009', 'Me');
+        $friend = $this->student('2300010', 'Friend');
+        Sanctum::actingAs($me, [], 'student');
+        $id = $this->postJson('/api/student/outreach/referrals', [
+            'student_id' => $friend->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Original concern text.',
+        ])->assertCreated()->json('id');
+        $this->putJson("/api/student/outreach/referrals/{$id}", ['nature_of_concern' => 'Corrected concern text.'])->assertOk();
+        Referral::whereKey($id)->update(['acknowledged_at' => now()]);
+        $this->putJson("/api/student/outreach/referrals/{$id}", ['nature_of_concern' => 'Too late to change.'])->assertStatus(422);
+    }
 }

@@ -109,6 +109,13 @@ class StudentOutreachController extends Controller
         return response()->json($referral->load('student:id,student_id,first_name,last_name,college'), 201);
     }
 
+    public function updateSent(Request $request, $id)
+    {
+        $referral = Referral::where('referred_by_student_id', $request->user('student')->id)->findOrFail($id);
+        $referral->applyReferrerEdit($request);
+        return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
+    }
+
     public function sentReferrals(Request $request)
     {
         return Referral::with('student:id,student_id,first_name,last_name,college')

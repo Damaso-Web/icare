@@ -23,13 +23,13 @@
             <tr><th>Referral No.</th><th>Student</th><th>Type</th><th>Status</th><th>Date Sent</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in rows" :key="r.id" style="cursor:pointer" @click="selected = r">
+            <tr v-for="r in rows" :key="r.id" style="cursor:pointer" @click="selected = r; editing = false">
               <td style="font-family:var(--mono);font-size:12px">{{ r.referral_code }}</td>
               <td>{{ r.student ? `${r.student.last_name}, ${r.student.first_name}` : '-' }}</td>
               <td>{{ title(r.referral_type) }}</td>
               <td><span class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span></td>
               <td style="font-size:12px;white-space:nowrap">{{ fmt(r.created_at) }}</td>
-              <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r">View</button></td>
+              <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r; editing = false">View</button></td>
             </tr>
           </tbody>
         </table>
@@ -40,7 +40,7 @@
       </div>
     </div>
 
-    <div v-if="selected" class="sr-overlay" @click.self="selected = null">
+    <div v-if="selected" class="sr-overlay" @click.self="close">
       <div class="sr-box">
         <div style="padding:18px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Referral {{ selected.referral_code }}</div>
@@ -55,13 +55,54 @@
             <div class="sr-k">Status</div>
             <span class="ibadge" :class="'ibadge-' + selected.status">{{ title(selected.status) }}</span>
           </div>
-          <div>
-            <div class="sr-k">Reason for Referral</div>
-            <div class="sr-v" style="white-space:pre-line;line-height:1.6">{{ selected.nature_of_concern }}</div>
-          </div>
+
+          <template v-if="!editing">
+            <div>
+              <div class="sr-k">Reason for Referral</div>
+              <div class="sr-v" style="white-space:pre-line;line-height:1.6">{{ selected.nature_of_concern }}</div>
+            </div>
+            <div v-if="canEdit(selected)" style="font-size:12px;color:var(--stone);background:var(--snow);border-radius:var(--r-sm);padding:8px 12px">
+              GCU has not acknowledged this referral yet, so you can still edit it.
+            </div>
+          </template>
+
+          <template v-else>
+            <div>
+              <label class="ifl">Service Requested</label>
+              <select v-model="form.referral_type" class="ifse">
+                <option v-for="t in typeChoices" :key="t" :value="t">{{ title(t) }}</option>
+              </select>
+            </div>
+            <div>
+              <label class="ifl">Reason for Referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(at least 10 characters)</span></label>
+              <textarea v-model="form.nature_of_concern" class="ifta" style="min-height:110px" maxlength="1000"></textarea>
+            </div>
+            <template v-if="selected.referral_type === 'disciplinary'">
+              <div>
+                <label class="ifl">Violation</label>
+                <input v-model="form.violation_type" class="ifi" maxlength="255" />
+              </div>
+              <div>
+                <label class="ifl">Incident Date</label>
+                <input v-model="form.incident_date" type="date" class="ifi" />
+              </div>
+              <div>
+                <label class="ifl">Incident Description</label>
+                <textarea v-model="form.incident_description" class="ifta" style="min-height:80px" maxlength="2000"></textarea>
+              </div>
+            </template>
+            <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
+          </template>
         </div>
-        <div style="padding:14px 22px;border-top:1px solid var(--cloud)">
-          <button class="ibtn ibtn-o" @click="selected = null">Close</button>
+        <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;gap:8px">
+          <template v-if="!editing">
+            <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
+            <button class="ibtn ibtn-o" @click="close">Close</button>
+          </template>
+          <template v-else>
+            <button class="ibtn ibtn-p" :disabled="saving" @click="save">{{ saving ? 'Saving...' : 'Save Changes' }}</button>
+            <button class="ibtn ibtn-o" :disabled="saving" @click="editing = false">Cancel</button>
+          </template>
         </div>
       </div>
     </div>
@@ -69,7 +110,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import api, { studentApi } from '../../api/index';
 
@@ -83,6 +124,56 @@ const loading = ref(true);
 const page = ref(1);
 const last = ref(1);
 const selected = ref(null);
+const editing = ref(false);
+const saving = ref(false);
+const error = ref('');
+const form = ref({});
+
+const ALL_TYPES = ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'];
+// A referral keeps to its own unit, so a GCU referral can only change to another GCU service.
+const typeChoices = computed(() => {
+  const t = selected.value?.referral_type;
+  return t === 'disciplinary' || t === 'psychological_testing' ? [t] : ALL_TYPES;
+});
+// The sender may correct it until GCU acknowledges it.
+const canEdit = r => r && r.status === 'submitted' && !r.acknowledged_at && !r.is_archived;
+
+function close() { selected.value = null; editing.value = false; }
+function startEdit() {
+  const r = selected.value;
+  form.value = {
+    referral_type: r.referral_type,
+    nature_of_concern: r.nature_of_concern || '',
+    violation_type: r.violation_type || '',
+    incident_date: r.incident_date ? String(r.incident_date).slice(0, 10) : '',
+    incident_description: r.incident_description || '',
+  };
+  error.value = '';
+  editing.value = true;
+}
+async function save() {
+  error.value = '';
+  if ((form.value.nature_of_concern || '').trim().length < 10) { error.value = 'Please write the reason in at least 10 characters.'; return; }
+  saving.value = true;
+  try {
+    const payload = { referral_type: form.value.referral_type, nature_of_concern: form.value.nature_of_concern.trim() };
+    if (selected.value.referral_type === 'disciplinary') {
+      payload.violation_type = form.value.violation_type || null;
+      payload.incident_date = form.value.incident_date || null;
+      payload.incident_description = form.value.incident_description || null;
+    }
+    const res = await http.put(`${base}/${selected.value.id}`, payload);
+    const idx = rows.value.findIndex(x => x.id === selected.value.id);
+    if (idx >= 0) rows.value[idx] = { ...rows.value[idx], ...res.data };
+    selected.value = rows.value[idx] || { ...selected.value, ...res.data };
+    editing.value = false;
+  } catch (e) {
+    const errs = e.response?.data?.errors;
+    error.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Could not save the changes.';
+  } finally {
+    saving.value = false;
+  }
+}
 
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
 const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
