@@ -13,7 +13,7 @@
 
     <!-- Opened from somewhere that already knows the student (a Student Incident Report) -->
     <div v-if="prefillSource" style="max-width:820px;margin:0 auto 12px;background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:var(--forest)">
-      Filled in from the <strong>{{ prefillSource.from_label || 'previous page' }}</strong>. Check the details, choose the <strong>Service Requested</strong>, then submit.
+      Student chosen from the <strong>{{ prefillSource.from_label || 'previous page' }}</strong>. Choose the <strong>Service Requested</strong>, write the concern or reason for referral, then submit.
     </div>
 
     <div class="icard" style="max-width:820px;margin:0 auto">

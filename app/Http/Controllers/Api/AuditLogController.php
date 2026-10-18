@@ -21,7 +21,9 @@ class AuditLogController extends Controller
     {
         $query = $this->filteredQuery($request);
 
-        return response()->json($query->latest('created_at')->paginate(50));
+        $perPage = in_array((int) $request->per_page, [10, 25, 50, 100], true) ? (int) $request->per_page : 50;
+
+        return response()->json($query->latest('created_at')->paginate($perPage));
     }
 
     public function show(AuditLog $auditLog)

@@ -90,7 +90,7 @@
               <span v-if="report.handoffs.length" class="ibadge ibadge-callslip">{{ report.handoffs.length }} referral{{ report.handoffs.length === 1 ? '' : 's' }}</span>
             </div>
             <div v-if="!report.handoffs.length" class="icard-body" style="font-size:13px;color:var(--stone)">
-              SDU has not referred this student to GCU yet. Use <strong>Refer to GCU</strong> above when the student needs guidance or counseling - the form opens already filled in from this Incident Report.
+              SDU has not referred this student to GCU yet. Use <strong>Refer to GCU</strong> above when the student needs guidance or counseling - the form opens with this student already chosen, and you write the concern yourself.
             </div>
             <div v-else class="ts">
               <table class="itable">
@@ -236,21 +236,13 @@ function closeStatusMenu(e) {
 }
 
 // ---- Refer to GCU ----
-// Opens the usual Refer a Student form already filled in from this IR: the
-// student, and the complaints as the concern. Sending it creates a normal
+// Opens the usual Refer a Student form with the student already chosen. Sending it creates a normal
 // referral from SDU, which then shows above as a handoff.
 function referToGcu() {
-  const intro = "Referred by the Student Discipline Unit from the student's Incident Report.";
-  const head  = c => `${c.complaint_code} - ${c.violation_type} (incident on ${formatDate(c.incident_date)})`;
-  // The form takes 1,000 characters. With the narrations when they fit;
-  // otherwise just the list of complaints, so nothing is cut mid-sentence.
-  const full  = `${intro}\n\n${report.value.complaints.map(c => `${head(c)}: ${String(c.description || '').trim()}`).join('\n\n')}`;
-  const brief = `${intro}\n\n${report.value.complaints.map(head).join('\n')}\n\nThe full narration of each complaint is in the Incident Report.`;
-  const concern = full.length <= 1000 ? full : brief;
-
+  // The concern is left empty on purpose: the SDU Head writes it.
   sessionStorage.setItem('icare.referPrefill', JSON.stringify({
     student_pk:        student.value.id,
-    nature_of_concern: concern,
+    nature_of_concern: '',
     return_to:         { name: 'incident-report-show', params: { id: student.value.id } },
     from_label:        `Incident Report of ${student.value.last_name}, ${student.value.first_name}`,
   }));

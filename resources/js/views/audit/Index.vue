@@ -119,13 +119,24 @@
       </div>
 
       <!-- Pagination -->
-      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+      <div v-if="pagination.total > 0" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
         <span style="font-size:12px;color:var(--stone)">
           Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
         </span>
-        <div style="display:flex;gap:6px">
-          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
-          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <select v-model.number="perPage" class="fsm" style="width:auto" title="Rows per page" @change="fetchLogs()">
+            <option v-for="n in [10, 25, 50, 100]" :key="n" :value="n">{{ n }} / page</option>
+          </select>
+          <template v-if="pagination.last_page > 1">
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(1)">First</button>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="changePage(pagination.current_page - 1)">Prev</button>
+            <template v-for="(p, i) in pageList" :key="i">
+              <span v-if="p === '...'" style="padding:0 4px;color:var(--fog)">…</span>
+              <button v-else class="ibtn ibtn-sm" :class="p === pagination.current_page ? 'ibtn-p' : 'ibtn-o'" @click="changePage(p)">{{ p }}</button>
+            </template>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.current_page + 1)">Next</button>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="changePage(pagination.last_page)">Last</button>
+          </template>
         </div>
       </div>
     </div>
@@ -241,6 +252,18 @@ async function exportLogs() {
 const loading     = ref(true);
 const logs        = ref([]);
 const pagination  = ref({});
+const perPage     = ref(50);
+// 1 … 4 5 6 … 20: the first, last and nearby pages.
+const pageList = computed(() => {
+  const cur = pagination.value.current_page || 1;
+  const last = pagination.value.last_page || 1;
+  const out = [];
+  for (let i = 1; i <= last; i++) {
+    if (i === 1 || i === last || Math.abs(i - cur) <= 1) out.push(i);
+    else if (out[out.length - 1] !== '...') out.push('...');
+  }
+  return out;
+});
 const selectedLog = ref(null);
 const userList    = ref([]);
 const actionList  = ref([]);
@@ -256,7 +279,7 @@ async function fetchLogs(page = 1) {
   loading.value = true;
   if (page === 1) fetchSummary();
   try {
-    const res = await auditAPI.index({ ...filters.value, page });
+    const res = await auditAPI.index({ ...filters.value, per_page: perPage.value, page });
     if (seq !== requestSeq) return;
     logs.value       = res.data.data;
     pagination.value = res.data;
@@ -335,7 +358,10 @@ function formatTimestamp(value) {
   return `${localDateStr(d)} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
 }
 
-function changePage(page) { fetchLogs(page); }
+function changePage(page) {
+  fetchLogs(page);
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 
 function resetFilters() {
   clearTimeout(searchTimer);
