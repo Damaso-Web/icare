@@ -15,6 +15,7 @@
       <!-- Confidentiality agreement - shown every time, before the sign-in form -->
       <ConsentGate
         v-if="!agreed"
+        type="staff"
         checkbox-label="I acknowledge my data protection responsibilities and agree to the Confidentiality Agreement."
         @accept="agreed = true"
         @decline="router.push({ name: 'login-choice' })"

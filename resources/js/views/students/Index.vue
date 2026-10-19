@@ -854,8 +854,8 @@
               Download Template
             </a>
             <div>
-              <label class="ifl">File</label>
-              <input type="file" accept=".csv,.xlsx,.xls" class="ifi" @change="handleFileSelect" />
+              <label class="ifl">File <span style="font-weight:400;color:var(--stone)">(Accepted file format: .xlsx)</span></label>
+              <input type="file" accept=".xlsx" class="ifi" @change="handleFileSelect" />
             </div>
             <div v-if="loadingPreview" style="text-align:center;padding:20px">
               <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -1928,6 +1928,12 @@ function resetImportFlow() {
 async function handleFileSelect(e) {
   const file = e.target.files[0];
   if (!file) return;
+
+  if (!/\.xlsx$/i.test(file.name)) {
+    previewError.value = 'Only .xlsx files are accepted. Please download the template and use that file.';
+    e.target.value = '';
+    return;
+  }
 
   loadingPreview.value = true;
   previewError.value = '';

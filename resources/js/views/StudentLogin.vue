@@ -13,6 +13,7 @@
       <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
       <ConsentGate
         v-if="!consentGiven"
+        type="student"
         checkbox-label="I agree to the Data Privacy Notice and Consent Authorization."
         @accept="acceptConsent"
         @decline="declineConsent"

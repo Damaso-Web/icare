@@ -1,3 +1,4 @@
+import { clearConsent } from '../utils/consentSkip';
 import axios from 'axios';
 
 const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
@@ -68,6 +69,7 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            clearConsent();
             window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -185,6 +187,7 @@ studentApi.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('student_token');
             localStorage.removeItem('student');
+            clearConsent();
             window.location.href = '/student/login';
         }
         return Promise.reject(error);

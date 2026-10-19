@@ -25,9 +25,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { hashText, rememberConsent, consentStillValid, clearConsent } from '../utils/consentSkip';
 
-defineProps({ checkboxLabel: { type: String, required: true } });
+// `type` ('staff' / 'student') is what the ticked box is remembered under.
+const props = defineProps({
+  checkboxLabel: { type: String, required: true },
+  type: { type: String, default: '' },
+});
 defineEmits(['accept', 'decline']);
 
 const agreed = ref(false);
@@ -40,9 +45,22 @@ function checkEnd() {
   if (!el) return;
   if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) atEnd.value = true;
 }
+let textHash = '';
 onMounted(() => {
   checkEnd(); // a short notice that needs no scrolling is already "read"
   window.addEventListener('resize', checkEnd);
+  // Already agreed to this exact text earlier in this browser tab: come back
+  // ticked, with the checkbox and Continue enabled.
+  textHash = hashText(textEl.value?.textContent);
+  if (props.type && consentStillValid(props.type, textHash)) {
+    atEnd.value = true;
+    agreed.value = true;
+  }
+});
+watch(agreed, (on) => {
+  if (!props.type) return;
+  if (on) rememberConsent(props.type, textHash || hashText(textEl.value?.textContent));
+  else clearConsent(props.type);
 });
 onBeforeUnmount(() => window.removeEventListener('resize', checkEnd));
 </script>

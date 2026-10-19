@@ -52,5 +52,10 @@
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
 import { useRouter } from 'vue-router';
+import { clearConsent } from '../utils/consentSkip';
 const router = useRouter();
+
+// Arriving here means the person is choosing (or switching) the sign-in type,
+// so any earlier agreement is forgotten.
+clearConsent();
 </script>

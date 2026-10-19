@@ -45,6 +45,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { clearConsent } from '../utils/consentSkip';
 
 const emit = defineEmits(['logout']);
 
@@ -86,6 +87,7 @@ function tick() {
   const limit = IDLE_MINUTES * 60;
   if (idleSeconds >= limit) {
     warning.value = false;
+    clearConsent();
     emit('logout', { reason: 'idle' });
     return;
   }
@@ -101,6 +103,7 @@ function stay() {
 function confirmLogout() {
   asking.value = false;
   warning.value = false;
+  clearConsent();
   emit('logout', { reason: 'user' });
 }
 
