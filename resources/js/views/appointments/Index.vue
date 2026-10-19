@@ -711,9 +711,11 @@ async function submitConfirm() {
 
 async function checkIn(a) {
   try {
-    await appointmentAPI.checkIn(a.id);
-    a.status = 'completed';
-    toast?.success('Student checked in.');
+    const res = await appointmentAPI.checkIn(a.id);
+    a.status = res.data?.status || 'completed';
+    a.checked_in = true;
+    toast?.success('Student marked as attended.');
+    fetchAppointments();
     fetchAllAppointments();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to check in.');

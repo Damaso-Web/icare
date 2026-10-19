@@ -832,12 +832,22 @@ class ReferralController extends Controller
 
         $validated = $request->validate([
             'feedback_notes'               => 'required|string|max:3000',
-            'feedback_checklist'           => 'nullable|array',
+            'feedback_checklist'           => 'required|array|min:1',
             'feedback_checklist.*'         => 'string|in:interview,counseling,psychological_testing,referred_scholarship,referred_other,others',
             'feedback_referred_other_text' => 'nullable|string|max:255',
             'feedback_others_text'         => 'nullable|string|max:255',
             'feedback_ctrl_no'             => 'nullable|string|max:50',
+        ], [
+            'feedback_checklist.required' => 'Select at least one Intervention/s or Assistance Provided.',
+            'feedback_checklist.min'      => 'Select at least one Intervention/s or Assistance Provided.',
         ]);
+
+        // "Referred to other" / "Others" need their text once ticked.
+        foreach (['referred_other' => 'feedback_referred_other_text', 'others' => 'feedback_others_text'] as $item => $field) {
+            if (in_array($item, $validated['feedback_checklist'], true) && !trim((string) ($validated[$field] ?? ''))) {
+                abort(422, 'Please specify the ' . ($item === 'others' ? 'other intervention or assistance provided.' : 'referral under Intervention/s or Assistance Provided.'));
+            }
+        }
 
         // Every send is its own immutable history row - like a session note,
         // never overwritten - snapshotting who it was sent to (the referrer

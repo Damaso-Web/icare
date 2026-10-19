@@ -590,7 +590,7 @@
                 </div>
               </template>
               <template v-else-if="isGCU">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided</div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided <span style="color:var(--red)">*</span> <span style="text-transform:none;letter-spacing:0;font-weight:500">(select at least one)</span></div>
                 <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
                   <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
                     <input type="checkbox" :value="item.key" v-model="feedbackForm.feedback_checklist" style="width:15px;height:15px;accent-color:var(--moss)"/>
@@ -690,6 +690,9 @@
               <div v-else-if="!isResolved && !canEditSif" style="font-size:11px;color:var(--stone)">
                 ⚠ Must be acknowledged with an attended appointment first
               </div>
+            </div>
+            <div v-if="!isResolved" style="padding:8px 18px;background:var(--amber-lt);border-bottom:1px solid var(--cloud);font-size:12px;color:var(--amber)">
+              <strong>Required:</strong> Session notes must be filled out before this referral can be resolved.
             </div>
             <div v-if="sessionNotes.length === 0" class="empty-state">
               <h3>No sessions yet</h3>
@@ -1213,7 +1216,7 @@
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Session Notes</div>
-              <div style="font-size:12px;color:var(--stone)">{{ referral.referral_code }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }} · {{ referral.referral_code }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showSessionModal = false">✕</button>
           </div>
@@ -1329,7 +1332,7 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;padding:22px;text-align:center">
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Send Feedback Slip?</div>
           <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
-            This will send the feedback slip to the referrer. Please review what you've written before confirming.
+            This will send the feedback slip for <strong>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }}</strong> ({{ referral.student?.student_id }}) to the referrer. Please review what you've written before confirming.
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="sendingFeedback" @click="sendFeedback">
@@ -1576,7 +1579,7 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div style="font-size:13px;color:var(--slate);line-height:1.6">
-              This marks referral <strong>{{ referral.referral_code }}</strong> as resolved. Once resolved, it becomes view-only - no further changes can be made to it.
+              This marks referral <strong>{{ referral.referral_code }}</strong> for <strong>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }}</strong> as resolved. Once resolved, it becomes view-only - no further changes can be made to it.
             </div>
             <div v-if="resolveWarnings.length" style="display:flex;flex-direction:column;gap:6px">
               <div v-for="(w, i) in resolveWarnings" :key="i" style="padding:8px 12px;background:var(--cloud);border-radius:var(--r-sm);font-size:12px;color:var(--stone)">
@@ -2400,6 +2403,19 @@ const showFeedbackConfirm = ref(false);
 const sendingFeedback     = ref(false);
 
 function openFeedbackConfirm() {
+  const picked = feedbackForm.value.feedback_checklist || [];
+  if (!picked.length) {
+    toast?.error('Select at least one Intervention/s or Assistance Provided before sending.');
+    return;
+  }
+  if (picked.includes('referred_other') && !(feedbackForm.value.feedback_referred_other_text || '').trim()) {
+    toast?.error('Please specify the referral under Intervention/s or Assistance Provided.');
+    return;
+  }
+  if (picked.includes('others') && !(feedbackForm.value.feedback_others_text || '').trim()) {
+    toast?.error('Please specify the other intervention or assistance provided.');
+    return;
+  }
   if (!feedbackForm.value.feedback_notes) {
     toast?.error('Please write a feedback summary before sending.');
     return;

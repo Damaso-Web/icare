@@ -591,6 +591,12 @@ public function checkConflictByStudent(Request $request)
     public function checkIn(Request $request, Appointment $appointment)
     {
         $this->authorizeUnit($appointment);
+
+        // Only a live appointment can be marked attended.
+        if (in_array($appointment->status, ['cancelled', 'no_show', 'rescheduled'], true)) {
+            abort(422, 'This appointment is ' . str_replace('_', ' ', $appointment->status) . ' and cannot be marked as attended.');
+        }
+
         $appointment->update([
             'checked_in'            => true,
             'checked_in_at'         => now(),
@@ -602,12 +608,16 @@ public function checkConflictByStudent(Request $request)
         // 'in_progress' - this is the point the SIF unlocks (see
         // Referral::canEditSif(), which also requires an attended
         // appointment). Forward-only via advanceStatusTo().
-        if ($appointment->case?->latestReferral) {
-            $appointment->case->latestReferral->advanceStatusTo('in_progress');
+        // Move the referral this appointment actually belongs to - not just
+        // the case's latest one, which is a different referral whenever the
+        // student has more than one under the same case.
+        $referral = $appointment->referral ?: $appointment->case?->latestReferral;
+        if ($referral) {
+            $referral->advanceStatusTo('in_progress');
         }
 
         AuditLog::record('checked_in', "Student checked in for appointment {$appointment->appointment_code}.", $appointment);
-        return response()->json($appointment->load('case.latestReferral'));
+        return response()->json($appointment->fresh()->load('student', 'referral', 'case.latestReferral'));
     }
 
     // FR 2.6: Mark a no-show. Whether this escalates to the Dean's

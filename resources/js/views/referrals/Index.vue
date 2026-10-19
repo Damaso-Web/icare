@@ -78,14 +78,18 @@
           class="qr"
           @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
         >
-          <div class="qav">{{ r.referral_code?.split('-').pop() }}</div>
+          <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
           <div class="qi">
+            <div class="qn">
+              {{ r.student?.last_name }}, {{ r.student?.first_name }} {{ r.student?.middle_name }}
+              <span class="qid">{{ r.student?.student_id }}</span>
+            </div>
             <div class="qtags">
               <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
               <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
             </div>
             <div class="qmeta">
-              {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}
+              {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }} · {{ r.referral_code }}
             </div>
           </div>
           <div class="qacts">
@@ -121,6 +125,10 @@ import { referralAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 import { matchCollege } from '../../utils/colleges';
+
+function initials(first, last) {
+  return `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase() || '?';
+}
 
 const referrals  = ref([]);
 const loading    = ref(true);

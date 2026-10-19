@@ -212,6 +212,12 @@ class CaseController extends Controller
             'closure_summary'       => 'required|string|max:3000',
         ]);
 
+        // Session notes are the record of what was actually done with the
+        // student - a case cannot be closed with none.
+        if (!$case->sessionNotes()->exists()) {
+            abort(422, 'Session notes must be filled out before the case can be closed.');
+        }
+
         $case->update([
             ...$request->only(['interventions_applied', 'outcomes', 'recommendations', 'closure_summary']),
             'status'      => 'closed',

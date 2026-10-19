@@ -307,6 +307,9 @@
                 Add Notes
               </button>
             </div>
+            <div v-if="caseFile.status !== 'closed'" style="padding:8px 18px;background:var(--amber-lt);border-bottom:1px solid var(--cloud);font-size:12px;color:var(--amber)">
+              <strong>Required:</strong> Session notes must be filled out before this case can be closed.
+            </div>
             <div v-if="sessionNotes.length === 0" class="empty-state">
               <h3>No sessions yet</h3>
               <p>Log the first session to start tracking progress.</p>
@@ -762,7 +765,7 @@
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
             <div>
               <div style="font-size:15px;font-weight:600;color:var(--ink)">Add Session Notes</div>
-              <div style="font-size:12px;color:var(--stone)">{{ caseFile.case_number }}</div>
+              <div style="font-size:12px;color:var(--stone)">{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }} · {{ caseFile.case_number }}</div>
             </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showSessionModal = false">✕</button>
           </div>
@@ -829,8 +832,14 @@
       <div v-if="showCloseModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCloseModal = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Close Case</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;color:var(--ink)">Close Case</div>
+              <div style="font-size:12px;color:var(--stone)">{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }} · {{ caseFile.case_number }}</div>
+            </div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showCloseModal = false">✕</button>
+          </div>
+          <div v-if="!sessionNotes.length" style="margin:14px 22px 0;padding:8px 12px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);font-size:12px;color:var(--amber)">
+            Session notes must be filled out before this case can be closed. Add at least one session note first.
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div>
@@ -862,7 +871,7 @@
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:380px;padding:22px;text-align:center">
           <div style="font-size:15px;font-weight:600;color:var(--ink);margin-bottom:10px">Are you sure?</div>
           <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
-            This will permanently close the case. This action cannot be undone.
+            This will permanently close the case of <strong>{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }}</strong> ({{ caseFile.case_number }}). This action cannot be undone.
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="closeCase">Yes, Close Case</button>
@@ -1135,6 +1144,10 @@ function formatDocDate(date) {
 }
 
 function confirmCloseCase() {
+  if (!sessionNotes.value.length) {
+    toast?.error('Session notes must be filled out before closing the case.');
+    return;
+  }
   if (!closeForm.value.interventions_applied || !closeForm.value.outcomes || !closeForm.value.closure_summary) {
     toast?.error('Please fill in all required fields.');
     return;
@@ -1150,7 +1163,7 @@ async function closeCase() {
     showCloseConfirm.value = false;
     toast?.success('Case closed successfully.');
   } catch (e) {
-    toast?.error('Failed to close case.');
+    toast?.error(e.response?.data?.message || 'Failed to close case.');
     showCloseConfirm.value = false;
   }
 }
