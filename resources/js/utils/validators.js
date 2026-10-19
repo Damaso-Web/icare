@@ -62,7 +62,7 @@ export function blockSpecialKeypress(e) {
 
 export function toTitleCase(str) {
   if (!str) return '';
-  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu|Oss|Sif|Par)\b/g, m => m.toUpperCase());
 }
 
 // YYYY-MM-DD in the device's own time zone. toISOString() gives the UTC date,

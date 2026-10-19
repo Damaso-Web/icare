@@ -42,7 +42,7 @@
 
     <template v-else>
       <!-- Two column layout -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;margin-bottom:16px">
 
         <!-- Recent Referrals -->
         <div class="icard" v-if="dashboard.recent_referrals?.length">
@@ -132,7 +132,7 @@
       </div>
 
       <!-- My Cases -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px">
 
         <!-- My Active Cases -->
         <div class="icard" v-if="dashboard.my_cases?.length">

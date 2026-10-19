@@ -14,10 +14,6 @@
         <p style="font-size:13px;color:var(--slate);margin:0">Report an act of misconduct against a student. Reviewed by the SDU Head.</p>
       </button>
     </div>
-    <div style="display:flex;gap:10px;margin-top:20px">
-      <button class="ibtn ibtn-o" @click="$router.push({ name: 'student-sent-referrals' })">Sent Referrals</button>
-      <button class="ibtn ibtn-o" @click="$router.push({ name: 'student-sent-complaints' })">Sent Complaints</button>
-    </div>
   </div>
 </template>
 

@@ -860,6 +860,12 @@ class StudentController extends Controller
             'sif_client_no' => ['nullable', 'integer', 'min:1', 'max:9999'],
         ]);
 
+        // An archived file (deactivated student, or a closed case) is view only.
+        $latest = $student->cases()->latest('id')->first();
+        if ($student->is_active === false || ($latest && $latest->status === 'closed')) {
+            return response()->json(['message' => 'This file is archived and view only. The Control Number can no longer be changed.'], 422);
+        }
+
         // One client number per student (B404).
         if (!empty($data['sif_client_no'])) {
             $taken = Student::where('sif_client_no', $data['sif_client_no'])->where('id', '!=', $student->id)->first();

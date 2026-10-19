@@ -1,9 +1,12 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
-    <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:36px 32px;width:100%" :style="{ maxWidth: consentGiven ? '400px' : '520px' }">
-      <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      </button>
+    <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:36px 32px;width:100%" :style="{ maxWidth: '440px' }">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">
+        <button @click="goBack" aria-label="Back" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:0">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <router-link v-if="consentGiven" :to="{ name: 'login-choice' }" style="font-size:12px;color:var(--moss)">Change sign-in type</router-link>
+      </div>
 
       <AuthBrand subtitle="Student Portal" />
 
@@ -59,7 +62,7 @@
                     v-model="form.password"
                     :type="showPassword ? 'text' : 'password'"
                     class="ifi"
-                    placeholder="Enter Password"
+                    placeholder="Enter your password"
                     required
                     :style="`padding-right:40px;${error ? 'border-color:var(--red);border-width:1.5px' : ''}`"
                     @keyup="checkCapsLock"
@@ -98,10 +101,9 @@
       </div>
 
       <div v-if="consentGiven" class="change-type">First time here? <router-link :to="{ name: 'student-register' }">Register with your Student ID</router-link></div>
-      <div v-if="consentGiven" class="change-type" style="margin-top:8px"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
-      <LoginHelp />
+      <LoginHelp v-if="consentGiven" />
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
-      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">
+      <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--fog);opacity:.8">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>

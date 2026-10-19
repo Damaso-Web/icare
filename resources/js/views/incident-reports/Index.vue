@@ -23,7 +23,7 @@
         <option value="">All Status</option>
         <option v-for="s in STATUSES" :key="s.value" :value="s.value">{{ s.label }} ({{ counts[s.value] ?? 0 }})</option>
       </select>
-      <button v-if="filters.search || filters.status" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button v-if="filters.search || filters.status" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
 
     <div class="icard">

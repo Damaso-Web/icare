@@ -1,12 +1,14 @@
 <template>
   <div>
     <div class="ph" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-      <div>
-        <h1>Notifications</h1>
-        <p>{{ unreadTotal }} unread</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button class="ibtn ibtn-o ibtn-sm" title="Back" aria-label="Back" style="font-size:16px;line-height:1;padding:4px 10px" @click="goBack">&larr;</button>
+        <div>
+          <h1>Notifications</h1>
+          <p>{{ unreadTotal }} unread</p>
+        </div>
       </div>
       <div style="display:flex;gap:8px">
-        <button class="ibtn ibtn-o ibtn-sm" @click="goBack">&larr; Back</button>
         <button class="ibtn ibtn-o ibtn-sm" :disabled="!unreadTotal" @click="markAll">Mark all read</button>
       </div>
     </div>

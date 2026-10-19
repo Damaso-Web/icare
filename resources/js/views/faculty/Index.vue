@@ -40,7 +40,7 @@
         <option value="last_name:asc">Name: A-Z</option>
         <option value="last_name:desc">Name: Z-A</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button class="ibtn ibtn-o ibtn-sm" @click="openUpload">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Faculty

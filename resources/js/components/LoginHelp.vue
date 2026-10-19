@@ -1,13 +1,13 @@
 <!-- Same help line on the student and personnel sign-in screens. -->
 <template>
   <div class="lh">
-    Having trouble logging in? Contact the Office of Student Services.
-    <div class="lh-links">
+    <strong class="lh-t">Having trouble logging in? Contact the Office of Student Services.</strong>
+    <span class="lh-links">
       <template v-for="(l, i) in links" :key="l.href">
         <span v-if="i > 0"> · </span>
         <a :href="l.href" :target="l.external ? '_blank' : null" rel="noopener">{{ l.text }}</a>
       </template>
-    </div>
+    </span>
   </div>
 </template>
 
@@ -22,7 +22,8 @@ const links = [
 </script>
 
 <style scoped>
-.lh { text-align: center; margin-top: 16px; font-size: 12px; color: var(--stone); line-height: 1.6; }
-.lh-links { margin-top: 2px; font-weight: 600; }
+.lh { text-align: center; margin-top: 16px; font-size: 12px; color: var(--ink, #222); line-height: 1.6; }
+.lh-t { font-weight: 600; }
+.lh-links { display: inline; margin-left: 4px; font-weight: 600; }
 .lh-links a { color: var(--moss); text-decoration: underline; }
 </style>

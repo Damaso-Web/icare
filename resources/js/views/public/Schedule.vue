@@ -125,7 +125,7 @@
           <!-- Required Documents (shown before the student confirms their appointment) -->
           <div v-if="appointment.required_documents" style="background:var(--snow);border-radius:var(--r-sm);padding:14px">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Required Documents - Please Prepare Before Your Appointment</div>
-            <RequiredDocumentsDownload />
+            <RequiredDocumentsDownload :documents="appointment.required_documents" />
           </div>
 
           <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="submitSchedule" :disabled="!canSubmit || submitting">

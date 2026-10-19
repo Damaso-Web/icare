@@ -76,7 +76,7 @@
           </div>
           <div v-if="appointment.required_documents">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
-            <RequiredDocumentsDownload />
+            <RequiredDocumentsDownload :documents="appointment.required_documents" />
           </div>
         </div>
       </div>
@@ -540,7 +540,7 @@ function authHeaders() {
 
 function toTitleCase(str) {
   if (!str) return '';
-  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu|Oss|Sif|Par)\b/g, m => m.toUpperCase());
 }
 
 function formatDate(date) {

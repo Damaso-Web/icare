@@ -233,7 +233,7 @@
           <div v-if="detailTarget.required_documents || detailTarget.notes" class="ad-notes">
             <div v-if="detailTarget.required_documents">
               <div class="ad-label">Required Documents</div>
-              <div class="ad-value"><RequiredDocumentsDownload /></div>
+              <div class="ad-value"><RequiredDocumentsDownload :documents="detailTarget.required_documents" /></div>
             </div>
             <div v-if="detailTarget.notes">
               <div class="ad-label">Notes</div>

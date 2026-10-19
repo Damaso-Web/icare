@@ -42,6 +42,7 @@
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
+            <span class="sb-hide" style="font-size:10.5px;margin-left:5px;align-self:center;letter-spacing:.2px">Log out</span>
           </button>
         </div>
       </div>

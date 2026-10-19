@@ -1,10 +1,13 @@
 <template>
   <div class="login-wrap auth-page">
-    <div class="login-card auth-panel" :style="{ maxWidth: agreed ? '400px' : '540px' }">
+    <div class="login-card auth-panel" :style="{ maxWidth: '440px' }">
 
-      <button @click="goBack" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:16px;padding:0">
-        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      </button>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">
+        <button @click="goBack" aria-label="Back" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:0">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        </button>
+        <router-link v-if="agreed" :to="{ name: 'login-choice' }" style="font-size:12px;color:var(--moss)">Change sign-in type</router-link>
+      </div>
 
       <!-- Logo -->
       <AuthBrand subtitle="BSU Personnel Sign In" />
@@ -114,10 +117,9 @@
       </template>
 
       <div v-if="agreed && !otpToken" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty or dean</router-link></div>
-      <div v-if="agreed" class="change-type" style="margin-top:8px"><router-link :to="{ name: 'login-choice' }">← Change sign-in type</router-link></div>
-      <LoginHelp />
+      <LoginHelp v-if="agreed" />
 
-      <div style="text-align:center;margin-top:8px;font-size:12px;color:var(--fog)">
+      <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--fog);opacity:.8">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
 

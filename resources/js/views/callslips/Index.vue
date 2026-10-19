@@ -84,7 +84,7 @@ const modalNotes  = ref('');
 
 function toTitleCase(str) {
   if (!str) return '';
-  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu|Oss|Sif|Par)\b/g, m => m.toUpperCase());
 }
 
 function formatDate(date) {

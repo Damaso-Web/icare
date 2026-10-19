@@ -37,11 +37,11 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>Abbrev.</th><th>Status</th><th></th></tr>
+            <tr><th>No.</th><th>Name</th><th>Abbrev.</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="c in colleges" :key="c.id">
-              <td style="font-family:var(--mono);font-size:12px">{{ c.id }}</td>
+            <tr v-for="(c, i) in colleges" :key="c.id">
+              <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ c.name }}</td>
               <td>{{ c.abbrev || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(c.status)">{{ statusLabel(c.status) }}</span></td>
@@ -85,11 +85,11 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
+            <tr><th>No.</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="p in programs" :key="p.id">
-              <td style="font-family:var(--mono);font-size:12px">{{ p.id }}</td>
+            <tr v-for="(p, i) in programs" :key="p.id">
+              <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ p.name }}</td>
               <td>{{ p.college?.name || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(p.status)">{{ statusLabel(p.status) }}</span></td>
@@ -133,11 +133,11 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>ID</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
+            <tr><th>No.</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="d in departments" :key="d.id">
-              <td style="font-family:var(--mono);font-size:12px">{{ d.id }}</td>
+            <tr v-for="(d, i) in departments" :key="d.id">
+              <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ d.name }}</td>
               <td>{{ d.college?.name || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(d.status)">{{ statusLabel(d.status) }}</span></td>

@@ -19,7 +19,7 @@
           @input="onSearchInput"
         />
       </div>
-      <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Clear</button>
+      <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
     </div>
 
     <div class="icard">

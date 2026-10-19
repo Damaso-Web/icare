@@ -206,9 +206,9 @@
                 <span class="ctrl-label">Ctrl No.</span>
                 <template v-if="!editingClientNo">
                   <span class="ctrl-value" :class="{ unset: !hasCtrlNo }">{{ sifCtrlNo }}</span>
-                  <button v-if="isGCU" type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" @click="startClientNoEdit">{{ hasCtrlNo ? 'Edit' : 'Set' }}</button>
+                  <button v-if="isGCU && !sifArchived" type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" @click="startClientNoEdit">{{ hasCtrlNo ? 'Edit' : 'Set' }}</button>
                 </template>
-                <template v-else>
+                <template v-else-if="!sifArchived">
                   <span class="ctrl-value">{{ sifDoc.ctrl_no || '-' }}-</span>
                   <input v-model="clientNoDraft" class="ifi" style="width:70px;padding:3px 8px;font-family:var(--mono)" maxlength="4" inputmode="numeric" placeholder="____" @input="clientNoDraft = String(clientNoDraft ?? '').replace(/\D/g, '')" @keyup.enter="saveClientNo" />
                   <button type="button" class="ibtn ibtn-p ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="saveClientNo">{{ savingClientNo ? '...' : 'Save' }}</button>

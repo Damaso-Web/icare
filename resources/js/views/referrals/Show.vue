@@ -1667,7 +1667,7 @@
             </div>
             <div v-if="apptDetailTarget.required_documents">
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Required Documents</div>
-              <RequiredDocumentsDownload />
+              <RequiredDocumentsDownload :documents="apptDetailTarget.required_documents" />
             </div>
             <div v-if="apptDetailTarget.notes">
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Notes</div>

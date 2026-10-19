@@ -16,6 +16,7 @@
           <option value="awaiting_results">Awaiting Results</option>
           <option value="test_results_issued">Results Released</option>
         </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       </div>
 
       <div v-if="loading" style="text-align:center;padding:44px">
@@ -125,6 +126,12 @@ let timer = null;
 function onSearch() {
   clearTimeout(timer);
   timer = setTimeout(fetchItems, 350);
+}
+
+function resetFilters() {
+  search.value = '';
+  status.value = '';
+  fetchItems();
 }
 
 async function fetchItems() {

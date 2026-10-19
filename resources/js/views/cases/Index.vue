@@ -62,7 +62,7 @@
             <tr
               v-for="c in cases"
               :key="c.id"
-              style="cursor:pointer"
+              :style="'cursor:pointer;' + (filters.archived ? 'background:var(--snow);color:var(--stone)' : '')"
               @click="$router.push({ name: 'student-show', params: { id: c.student?.id }, query: { ctx: 'cases' } })"
             >
               <!-- The Ctrl No. is the case's name; cases whose student has no client no. yet show the old number -->
@@ -73,7 +73,9 @@
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
                   <div class="iav">{{ initials(c.student?.first_name, c.student?.last_name) }}</div>
-                  <div style="font-weight:600;color:var(--ink)">{{ c.student?.last_name }}, {{ c.student?.first_name }} {{ c.student?.middle_name }}</div>
+                  <div :style="'font-weight:600;color:' + (filters.archived ? 'var(--stone)' : 'var(--ink)')">{{ c.student?.last_name }}, {{ c.student?.first_name }} {{ c.student?.middle_name }}</div>
+                  <span v-if="filters.archived && c.student?.is_active === false" class="ibadge" style="background:var(--cloud);color:var(--stone)">Deactivated</span>
+                  <span v-else-if="filters.archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
                 </div>
               </td>
               <!-- opened_date is stamped with today() at the moment the founding

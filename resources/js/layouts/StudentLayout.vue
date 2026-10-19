@@ -41,8 +41,9 @@
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ student.first_name }} {{ student.last_name }}</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">{{ student.student_id }}</div>
         </div>
-        <button @click="session.askLogout()" title="Log out" aria-label="Log out" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px">
+        <button @click="session.askLogout()" title="Log out" aria-label="Log out" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px;display:flex;align-items:center;gap:5px">
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span class="sb-hide" style="font-size:10.5px;letter-spacing:.2px">Log out</span>
         </button>
       </div>
     </div>
@@ -56,6 +57,7 @@
           <div style="font-size:13px;color:var(--fog)">iCARE / <strong style="color:var(--ink)">{{ pageTitle }}</strong></div>
         </div>
         <div style="display:flex;align-items:center;gap:12px">
+          <span class="tb-date">{{ todayLabel }} · {{ timeLabel }}</span>
           <div v-if="sealBsu || sealOss" class="tb-seals">
             <img v-show="sealBsu" class="logo-bsu" :src="'/bsu-logo.jpg'" alt="Benguet State University" @error="sealBsu = false" />
             <img v-show="sealOss" class="logo-oss" :src="'/oss-logo.jpg'" alt="Office of Student Services" @error="sealOss = false" />
@@ -67,7 +69,6 @@
             </svg>
             <span v-if="unreadCount > 0" style="position:absolute;top:-3px;right:-5px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red);color:#fff;font-size:10px;font-weight:700;line-height:17px;text-align:center;border:2px solid #fff;box-sizing:content-box">{{ unreadCount > 9 ? '9+' : unreadCount }}</span>
           </button>
-          <span class="tb-date">{{ todayLabel }} · {{ timeLabel }}</span>
         </div>
 
         <div v-if="showNotifs" style="position:absolute;top:52px;right:24px;width:320px;background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);border:1px solid var(--cloud);z-index:100;overflow:hidden">

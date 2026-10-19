@@ -176,7 +176,7 @@ async function save() {
 }
 
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
-const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '');
+const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu)\b/g, m => m.toUpperCase()) : '');
 
 async function load(p = 1) {
   loading.value = true;
