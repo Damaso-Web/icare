@@ -26,6 +26,7 @@ return [
     'https://halloicare.netlify.app',
     'https://caringforyou.netlify.app',
     'https://oss-icare.netlify.app',
+    'https://bsuossicare.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],
