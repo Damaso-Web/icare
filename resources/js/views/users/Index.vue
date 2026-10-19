@@ -581,23 +581,17 @@
       </div>
     </div>
 
-    <!-- Reset Password Confirmation -->
-    <div v-if="showResetPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showResetPwConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reset Password?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            Reset password for <strong>{{ userToReset?.first_name }} {{ userToReset?.last_name }}</strong>? A new temporary password will be generated.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="doConfirmedResetPw">Yes, Reset Password</button>
-            <button class="ibtn ibtn-o" @click="showResetPwConfirm = false">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Reset Password (reason required) -->
+    <ResetPasswordDialog
+      :open="showResetPwConfirm"
+      kind="employee"
+      :name="`${userToReset?.first_name || ''} ${userToReset?.last_name || ''}`.trim() || userToReset?.name || ''"
+      :fetch-info="() => userAPI.passwordInfo(userToReset.id).then(r => r.data)"
+      :busy="resetBusy"
+      :error="resetError"
+      @confirm="doConfirmedResetPw"
+      @cancel="showResetPwConfirm = false"
+    />
 
     <!-- Deactivate / Reactivate (reason required) -->
     <ReasonDialog
@@ -637,6 +631,7 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
 import ReasonDialog from '../../components/ReasonDialog.vue';
+import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { EMPLOYEE_DEACTIVATE_REASONS, reactivationReasonsFor } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
 import { ROLE_ORDER, ROLE_LABELS, addableRoles } from '../../utils/roles';
@@ -697,24 +692,28 @@ const showResetPwConfirm = ref(false);
 const userToReset = ref(null);
 
 function openResetPwConfirm(u) {
+  resetError.value = '';
   userToReset.value = u;
   showResetPwConfirm.value = true;
 }
 
-async function doConfirmedResetPw() {
+const resetBusy = ref(false);
+const resetError = ref('');
+async function doConfirmedResetPw({ reason, note }) {
   const u = userToReset.value;
-  showResetPwConfirm.value = false;
-  if (!u) return;
+  if (!u || resetBusy.value) return;
+  resetBusy.value = true; resetError.value = '';
   try {
-    const res = await userAPI.resetPassword(u.id);
-    if (res.data?.temp_password) {
-      toast?.success(`Password reset. New temporary password: ${res.data.temp_password}`);
-    } else {
-      toast?.success('Password reset successfully.');
-    }
+    const res = await userAPI.resetPassword(u.id, { reason, note });
+    showResetPwConfirm.value = false;
+    resetPasswordResult.value = res.data?.temp_password || '';
+    toast?.success('Password reset successfully. The employee was signed out and notified by email.');
     fetchUsers?.();
   } catch (e) {
-    toast?.error('Failed to reset password.');
+    const errs = e.response?.data?.errors;
+    resetError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to reset password.';
+  } finally {
+    resetBusy.value = false;
   }
 }
 

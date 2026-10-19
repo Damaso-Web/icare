@@ -10,23 +10,25 @@
     </div>
 
     <div class="icard">
+      <ListFilters :model="filters" :selects="filterSelects" placeholder="Search complaint no. or student..." @change="load(1)" />
       <div v-if="loading" style="padding:30px;text-align:center">
         <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
       <div v-else-if="!rows.length" class="empty-state">
-        <h3>No complaints sent yet</h3>
-        <p>Complaints you file will be kept here.</p>
+        <h3>{{ filtered ? 'No matching complaints' : 'No complaints sent yet' }}</h3>
+        <p>{{ filtered ? 'Try a different search or reset the filters.' : 'Complaints you file will be kept here.' }}</p>
       </div>
       <div v-else class="ts">
         <table class="itable">
           <thead>
-            <tr><th>Complaint No.</th><th>Student</th><th>Act of Misconduct</th><th>Date Filed</th><th></th></tr>
+            <tr><th>Complaint No.</th><th>Student</th><th>Act of Misconduct</th><th>Status</th><th>Date Filed</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="c in rows" :key="c.id" style="cursor:pointer" @click="open(c)">
               <td style="font-family:var(--mono);font-size:12px">{{ c.complaint_code }}</td>
               <td>{{ c.complainee ? `${c.complainee.last_name}, ${c.complainee.first_name}` : '-' }}</td>
               <td>{{ c.violation_type }}</td>
+              <td><span class="ibadge" :class="'ibadge-' + c.status">{{ statusLabel(c.status) }}</span></td>
               <td style="font-size:12px;white-space:nowrap">{{ fmt(c.created_at) }}</td>
               <td style="text-align:right;white-space:nowrap">
                 <button class="ibtn ibtn-o ibtn-sm" @click.stop="open(c)">View</button>
@@ -47,7 +49,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, reactive, computed, onMounted, nextTick } from 'vue';
+import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
 import api, { studentApi } from '../../api/index';
 import ComplaintPrintModal from '../../components/ComplaintPrintModal.vue';
@@ -63,12 +66,26 @@ const page = ref(1);
 const last = ref(1);
 const selected = ref(null);
 
+const filters = reactive({ search: '', sort: 'newest', status: '', violation_type: '' });
+const options = ref({ violation_types: [], statuses: [] });
+const filtered = computed(() => !!(filters.search || filters.status || filters.violation_type || filters.sort !== 'newest'));
+const statusLabel = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '-');
+const filterSelects = computed(() => [
+  { key: 'status', all: 'All Status', options: options.value.statuses.map(v => ({ value: v, label: statusLabel(v) })) },
+  { key: 'violation_type', all: 'All Types', options: options.value.violation_types.map(v => ({ value: v, label: v })) },
+]);
+
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
 
 async function load(p = 1) {
   loading.value = true;
   try {
-    const res = await http.get(base, { params: { page: p } });
+    const params = { page: p, sort: filters.sort };
+    if (filters.search) params.search = filters.search;
+    if (filters.status) params.status = filters.status;
+    if (filters.violation_type) params.violation_type = filters.violation_type;
+    const res = await http.get(base, { params });
+    options.value = { violation_types: res.data.filter_options?.violation_types || [], statuses: res.data.filter_options?.statuses || [] };
     rows.value = res.data.data || [];
     page.value = res.data.current_page || 1;
     last.value = res.data.last_page || 1;

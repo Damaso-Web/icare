@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\IncidentReportController;
 use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\DocumentSettingController;
 use App\Http\Controllers\Api\ManagementAcademicYearController;
+use App\Http\Controllers\Api\ManagementCalendarEntryController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
@@ -39,6 +40,7 @@ Route::post('/login/verify-otp', [AuthController::class, 'verifyOtp'])->middlewa
 Route::post('/forgot-password', [\App\Http\Controllers\Api\PasswordResetController::class, 'forgot'])->middleware('throttle:login');
 Route::post('/reset-password',  [\App\Http\Controllers\Api\PasswordResetController::class, 'reset'])->middleware('throttle:login');
 Route::get('schedule/{token}', [PublicSchedulingController::class, 'show'])->middleware('throttle:public-form');
+Route::get('schedule/{token}/blocked-dates', [\App\Http\Controllers\Api\CalendarBlockedDatesController::class, 'publicIndex'])->middleware('throttle:public-form');
 Route::post('schedule/{token}/check-availability', [PublicSchedulingController::class, 'checkAvailability'])->middleware('throttle:public-form');
 Route::get('schedule/{token}/month-availability', [PublicSchedulingController::class, 'monthAvailability'])->middleware('throttle:public-form');
 Route::post('schedule/{token}/submit', [PublicSchedulingController::class, 'submit'])->middleware('throttle:public-form');
@@ -50,7 +52,7 @@ Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows']
 Route::post('cron/backup',              [CronController::class, 'backup'])->middleware('throttle:public-form');
 
 // Authenticated routes
-Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
+Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(function () {
 
     // Auth
     Route::post('/logout',     [AuthController::class, 'logout']);
@@ -81,6 +83,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('students/import-confirm', [StudentController::class, 'importConfirm']);
         Route::get('students/{student}/temp-password',  [StudentController::class, 'viewTempPassword']);
         Route::post('students/{student}/reset-password', [StudentController::class, 'resetPassword']);
+        Route::get('students/{student}/password-info', [StudentController::class, 'passwordInfo']);
     });
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::get('student/parent-conference-slips', [StudentAuthController::class, 'parentConferenceSlips']);
@@ -237,6 +240,8 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
     Route::get('management/departments',  [ManagementDepartmentController::class, 'index']);
     Route::get('management/form-options', [ManagementFormOptionController::class, 'index']);
     Route::get('management/academic-years', [ManagementAcademicYearController::class, 'index']);
+    Route::get('management/calendar-entries', [ManagementCalendarEntryController::class, 'index']);
+    Route::get('calendar/blocked-dates', [\App\Http\Controllers\Api\CalendarBlockedDatesController::class, 'index']);
 
     // Document Settings (Revision No. / Effectivity / Ctrl No. shown on the
     // referral form header) - read access: any authenticated staff, since
@@ -253,6 +258,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::put('{user}',                        [FacultyController::class, 'update']);
         Route::post('{user}/toggle-active',         [FacultyController::class, 'toggle']);
         Route::post('{user}/reset-password',        [FacultyController::class, 'resetPassword']);
+        Route::get('{user}/password-info',          [FacultyController::class, 'passwordInfo']);
         Route::get('{user}/temp-password',          [FacultyController::class, 'tempPassword']);
         Route::post('{user}/assign-chair',          [FacultyController::class, 'assignChair']);
         Route::post('{user}/remove-chair',          [FacultyController::class, 'removeChair']);
@@ -267,6 +273,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::get('users/{user}/open-work',       [UserController::class, 'openWork']);
         Route::get('users/{user}/status-history',  [UserController::class, 'statusHistory']);
         Route::post('users/{user}/reset-password', [UserController::class, 'resetPassword']);
+        Route::get('users/{user}/password-info', [UserController::class, 'passwordInfo']);
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
     });
 
@@ -298,9 +305,13 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         // Document headers - Revision No. / Effectivity / Ctrl No. The GCU Head edits GCU's,
         // the System Admin edits TMDU's (checked inside DocumentSettingController).
         Route::put('document-settings/{code}', [DocumentSettingController::class, 'update']);
+        Route::get('document-settings/{code}/versions', [DocumentSettingController::class, 'versions']);
+        Route::post('document-settings/{code}/versions/{version}/activate', [DocumentSettingController::class, 'activate']);
+        Route::post('document-settings/{code}/versions/{version}/archive', [DocumentSettingController::class, 'archive']);
+        Route::delete('document-settings/{code}/versions/{version}', [DocumentSettingController::class, 'destroy']);
 
         Route::post('management/{kind}/{id}/status', [\App\Http\Controllers\Api\ManagementStatusController::class, 'update'])
-            ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options'])->whereNumber('id');
+            ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options', 'academic-years'])->whereNumber('id');
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
         Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);
@@ -319,6 +330,14 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
         Route::post('management/academic-years',                 [ManagementAcademicYearController::class, 'store']);
         Route::put('management/academic-years/{academicYear}',    [ManagementAcademicYearController::class, 'update']);
         Route::delete('management/academic-years/{academicYear}', [ManagementAcademicYearController::class, 'destroy']);
+        Route::get('management/academic-years/{academicYear}/usage', [ManagementAcademicYearController::class, 'usage']);
+        Route::post('management/academic-years/{academicYear}/current', [ManagementAcademicYearController::class, 'setCurrent']);
+
+        Route::post('management/calendar-entries',                         [ManagementCalendarEntryController::class, 'store']);
+        Route::put('management/calendar-entries/{entry}',                  [ManagementCalendarEntryController::class, 'update']);
+        Route::post('management/calendar-entries/{entry}/archive',         [ManagementCalendarEntryController::class, 'archive']);
+        Route::post('management/calendar-entries/{entry}/reactivate',      [ManagementCalendarEntryController::class, 'reactivate']);
+        Route::delete('management/calendar-entries/{entry}',               [ManagementCalendarEntryController::class, 'destroy']);
 
         Route::post('management/form-options',                  [ManagementFormOptionController::class, 'store']);
         Route::put('management/form-options/{formOption}',       [ManagementFormOptionController::class, 'update']);
@@ -344,7 +363,7 @@ Route::middleware(['auth:sanctum', 'actor:staff'])->group(function () {
 Route::post('student/login', [StudentAuthController::class, 'login'])->middleware('throttle:login');
 Route::post('student/register', [StudentAuthController::class, 'register'])->middleware('throttle:login');
 
-Route::middleware(['auth:student', 'actor:student'])->group(function () {
+Route::middleware(['auth:student', 'actor:student', 'password.fresh'])->group(function () {
     Route::get('student/referrals/{id}', [StudentAuthController::class, 'showReferral']);
     Route::post('student/referrals',     [StudentAuthController::class, 'referSelf']);
     // Referring / filing against another student, and what this student has sent.
@@ -358,6 +377,7 @@ Route::middleware(['auth:student', 'actor:student'])->group(function () {
     Route::get('student/outreach/complaints/{complaint}', [ComplaintController::class, 'showMineByStudent']);
     Route::get('student/appointments/{id}', [StudentAuthController::class, 'showAppointment']);
     Route::get('student/appointments',                 [AppointmentController::class, 'indexByStudent']);
+    Route::get('student/calendar/blocked-dates',       [\App\Http\Controllers\Api\CalendarBlockedDatesController::class, 'index']);
     Route::post('student/appointments',                [AppointmentController::class, 'storeByStudent']);
     Route::post('student/appointments/check-conflict', [AppointmentController::class, 'checkConflictByStudent']);
     Route::post('student/appointments/{appointment}/request-reschedule', [AppointmentController::class, 'requestRescheduleByStudent']);

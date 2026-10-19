@@ -2,24 +2,11 @@
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
       <h1>Complaints</h1>
-      <p>Every complaint filed against a student, newest first. Each one is kept in that student's Incident Report, where its status is set.</p>
+      <p>Every complaint filed against a student. Each one is kept in that student's Incident Report, where its status is set.</p>
     </div>
 
-    <div class="filter-bar">
-      <div class="sw" style="flex:1;min-width:220px;max-width:400px">
-        <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        <input
-          v-model="filters.search"
-          type="text"
-          class="sin"
-          maxlength="50"
-          placeholder="Search complaint code or student..."
-          style="width:100%"
-          @keypress="blockSpecialKeypress"
-          @input="onSearchInput"
-        />
-      </div>
-      <button v-if="filters.search" class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+    <div class="icard" style="margin-bottom:14px">
+      <ListFilters :model="filters" :selects="filterSelects" placeholder="Search complaint code or student..." @change="fetchComplaints()" />
     </div>
 
     <div class="icard">
@@ -28,7 +15,7 @@
       </div>
       <div v-else-if="complaints.length === 0" class="empty-state">
         <h3>No complaints found</h3>
-        <p>{{ filters.search ? 'Try a different search.' : 'Complaints filed against students will appear here.' }}</p>
+        <p>{{ hasFilters ? 'Try a different search or reset the filters.' : 'Complaints filed against students will appear here.' }}</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
@@ -98,11 +85,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import ListFilters from '../../components/ListFilters.vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import ComplaintDetail from '../../components/ComplaintDetail.vue';
-import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
 
 const router = useRouter();
 
@@ -114,15 +101,24 @@ function authHeaders() {
 const complaints = ref([]);
 const loading    = ref(false);
 const pagination = ref({});
-const filters    = ref({ search: '' });
-let searchTimeout = null;
+const filters    = reactive({ search: '', sort: 'newest', violation_type: '', filed_by: '' });
+const options    = ref({ violation_types: [], filers: [] });
+const hasFilters = computed(() => !!(filters.search || filters.violation_type || filters.filed_by || filters.sort !== 'newest'));
+const filterSelects = computed(() => [
+  { key: 'violation_type', all: 'All Acts of Misconduct', options: options.value.violation_types.map(v => ({ value: v, label: v })) },
+  { key: 'filed_by', all: 'All Filers', options: options.value.filers },
+]);
 
 async function fetchComplaints(page = 1) {
   loading.value = true;
   try {
     const params = { page };
-    if (filters.value.search) params.search = filters.value.search;
+    params.sort = filters.sort;
+    if (filters.search) params.search = filters.search;
+    if (filters.violation_type) params.violation_type = filters.violation_type;
+    if (filters.filed_by) params.filed_by = filters.filed_by;
     const res = await axios.get(`${API_BASE}/complaints`, { ...authHeaders(), params });
+    options.value = { violation_types: res.data.filter_options?.violation_types || [], filers: res.data.filter_options?.filers || [] };
     complaints.value = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -130,17 +126,6 @@ async function fetchComplaints(page = 1) {
   } finally {
     loading.value = false;
   }
-}
-
-function onSearchInput() {
-  filters.value.search = safeSearchInput(filters.value.search);
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => fetchComplaints(), 350);
-}
-
-function resetFilters() {
-  filters.value = { search: '' };
-  fetchComplaints();
 }
 
 function formatDate(d) {

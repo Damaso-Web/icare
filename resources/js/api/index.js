@@ -14,6 +14,7 @@ function notifyFailure(error) {
     const status = error.response?.status;
     const method = (error.config?.method || 'get').toLowerCase();
     const url    = error.config?.url || '';
+    if (error.response?.data?.code === 'password_change_required') return;   // the change-password page takes over
     if (/\/(login|otp)/.test(url)) return;            // the login pages show their own message
 
     let message = null;
@@ -213,7 +214,8 @@ export const studentAPI = {
     importConfirm: (data)     => api.post('/students/import-confirm', data),
     checkDuplicateName: (data) => api.post('/students/check-duplicate-name', data),
     viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
-    resetPassword:    (id)    => api.post(`/students/${id}/reset-password`),
+    resetPassword:    (id, data) => api.post(`/students/${id}/reset-password`, data),
+    passwordInfo:     (id)    => api.get(`/students/${id}/password-info`),
     updateClientNo:   (id, data) => api.patch(`/students/${id}/client-no`, data),
     remindForms:      (id)       => api.post(`/students/${id}/remind-forms`),
     documentSettings: (code)  => api.get(`/document-settings/${code}`),
@@ -340,8 +342,9 @@ export const facultyAPI = {
     index:          (params)   => api.get('/faculty', { params }),
     store:          (data)     => api.post('/faculty', data),
     update:         (id, data) => api.put(`/faculty/${id}`, data),
-    toggleActive:   (id)       => api.post(`/faculty/${id}/toggle-active`),
-    resetPassword:  (id)       => api.post(`/faculty/${id}/reset-password`),
+    toggleActive:   (id, data) => api.post(`/faculty/${id}/toggle-active`, data || {}),
+    resetPassword:  (id, data) => api.post(`/faculty/${id}/reset-password`, data),
+    passwordInfo:   (id)       => api.get(`/faculty/${id}/password-info`),
     assignChair:    (id, data) => api.post(`/faculty/${id}/assign-chair`, data),
     removeChair:    (id)       => api.post(`/faculty/${id}/remove-chair`),
     importPreview:  (formData) => api.post('/faculty/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
@@ -358,6 +361,7 @@ export const userAPI = {
     openWork:      (id)       => api.get(`/users/${id}/open-work`),
     statusHistory: (id)       => api.get(`/users/${id}/status-history`),
     resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
+    passwordInfo:  (id)       => api.get(`/users/${id}/password-info`),
     import:        (formData) => api.post('/users/import', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importConfirm: (data)     => api.post('/users/import-confirm', data),

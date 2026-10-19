@@ -27,7 +27,7 @@ services:
         value: avnadmin
       # ---- Forgot password: link inside the email points here ----
       - key: FRONTEND_URL
-        value: https://oss-icare.netlify.app
+        value: https://bsuossicare.netlify.app
       # ---- Outgoing email: Gmail SMTP (needs a Google App Password) ----
       # NOTE: Render's free web services block outbound ports 25/465/587, so
       # Gmail will time out there. On a paid instance it works as-is. On the

@@ -46,6 +46,7 @@
           <div v-if="dayWarning" style="font-size:11px;color:var(--red);margin-top:4px">
             Please select a weekday (Monday to Friday).
           </div>
+          <div v-if="dateBlockedMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ dateBlockedMsg }}</div>
         </div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -66,7 +67,7 @@
         <div v-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
         <div v-else-if="availabilityChecked && !isAvailable"
              style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
-          ⚠ This time slot is already taken. Please choose another.
+          ⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}
         </div>
         <div v-else-if="availabilityChecked && isAvailable"
              style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
@@ -89,7 +90,8 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { useBlockedDates } from '../../utils/blockedDates';
 import { studentAppointmentAPI } from '../../api/index';
 import { localDateStr } from '../../utils/validators';
 
@@ -123,7 +125,13 @@ const form = ref({
 const today = new Date();
 const minDate = computed(() => localDateStr(today));
 
+const { load: loadBlocked, messageFor: blockedMessageFor } = useBlockedDates('student');
+onMounted(loadBlocked);
+const dateBlockedMsg = computed(() => blockedMessageFor(form.value.appointment_date));
+const availabilityMessage = ref('');
+
 const canSubmit = computed(() =>
+  !dateBlockedMsg.value &&
   !!form.value.concern &&
   !!form.value.appointment_date &&
   !!form.value.start_time &&
@@ -157,6 +165,7 @@ async function checkAvailability() {
       end_time:         form.value.end_time,
     });
     isAvailable.value = !res.data.has_conflict;
+    availabilityMessage.value = res.data.message || '';
     availabilityChecked.value = true;
   } catch (e) {
     isAvailable.value = false;

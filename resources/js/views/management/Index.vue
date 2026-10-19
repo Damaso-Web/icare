@@ -27,6 +27,16 @@
           Add College
         </button>
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <div v-if="loadingColleges" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -34,20 +44,24 @@
         <h3>No colleges yet</h3>
         <p>Add one to get started.</p>
       </div>
+      <div v-else-if="!visibleRows(colleges, 'name').length" class="empty-state">
+        <h3>No matching records</h3>
+        <p>Try a different search or status, or press Reset.</p>
+      </div>
       <div class="ts" v-else>
         <table class="itable">
           <thead>
             <tr><th>No.</th><th>Name</th><th>Abbrev.</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="(c, i) in colleges" :key="c.id">
+            <tr v-for="(c, i) in visibleRows(colleges, 'name')" :key="c.id">
               <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ c.name }}</td>
               <td>{{ c.abbrev || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(c.status)">{{ statusLabel(c.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="ibtn ibtn-o ibtn-sm" @click="openCollegeModal(c)">Edit</button>
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="(c.status || 'active') !== 'active'" :title="(c.status || 'active') !== 'active' ? 'Reactivate to edit. Deactivated and archived records are read-only.' : ''" @click="openCollegeModal(c)">Edit</button>
                   <button v-if="c.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('colleges', c, c.name, 'inactive')">Deactivate</button>
                   <button v-if="c.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('colleges', c, c.name, 'archived')">Archive</button>
                   <button v-if="c.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('colleges', c, c.name, 'active')">Reactivate</button>
@@ -75,6 +89,16 @@
           </button>
         </div>
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <div v-if="loadingPrograms" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -82,20 +106,24 @@
         <h3>No programs found</h3>
         <p>Add one, or add a College first.</p>
       </div>
+      <div v-else-if="!visibleRows(programs, 'name').length" class="empty-state">
+        <h3>No matching records</h3>
+        <p>Try a different search or status, or press Reset.</p>
+      </div>
       <div class="ts" v-else>
         <table class="itable">
           <thead>
             <tr><th>No.</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="(p, i) in programs" :key="p.id">
+            <tr v-for="(p, i) in visibleRows(programs, 'name')" :key="p.id">
               <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ p.name }}</td>
               <td>{{ p.college?.name || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(p.status)">{{ statusLabel(p.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="ibtn ibtn-o ibtn-sm" @click="openProgramModal(p)">Edit</button>
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="(p.status || 'active') !== 'active'" :title="(p.status || 'active') !== 'active' ? 'Reactivate to edit. Deactivated and archived records are read-only.' : ''" @click="openProgramModal(p)">Edit</button>
                   <button v-if="p.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('programs', p, p.name, 'inactive')">Deactivate</button>
                   <button v-if="p.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('programs', p, p.name, 'archived')">Archive</button>
                   <button v-if="p.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('programs', p, p.name, 'active')">Reactivate</button>
@@ -123,6 +151,16 @@
           </button>
         </div>
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <div v-if="loadingDepartments" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -130,20 +168,24 @@
         <h3>No departments found</h3>
         <p>Add one, or add a College first.</p>
       </div>
+      <div v-else-if="!visibleRows(departments, 'name').length" class="empty-state">
+        <h3>No matching records</h3>
+        <p>Try a different search or status, or press Reset.</p>
+      </div>
       <div class="ts" v-else>
         <table class="itable">
           <thead>
             <tr><th>No.</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="(d, i) in departments" :key="d.id">
+            <tr v-for="(d, i) in visibleRows(departments, 'name')" :key="d.id">
               <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ d.name }}</td>
               <td>{{ d.college?.name || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(d.status)">{{ statusLabel(d.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="ibtn ibtn-o ibtn-sm" @click="openDepartmentModal(d)">Edit</button>
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="(d.status || 'active') !== 'active'" :title="(d.status || 'active') !== 'active' ? 'Reactivate to edit. Deactivated and archived records are read-only.' : ''" @click="openDepartmentModal(d)">Edit</button>
                   <button v-if="d.status === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('departments', d, d.name, 'inactive')">Deactivate</button>
                   <button v-if="d.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('departments', d, d.name, 'archived')">Archive</button>
                   <button v-if="d.status !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('departments', d, d.name, 'active')">Reactivate</button>
@@ -168,9 +210,19 @@
       <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
         Populates "Service Requested" on the Refer Student form (counseling, testing, and other non-disciplinary services). Each service is tagged GCU or TMDU so filters and queues route correctly. Editing a Label only changes how it displays - existing referrals keep their stored value.
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <FormOptionTable
         :loading="loadingFormOptions"
-        :options="formOptions"
+        :options="visibleRows(formOptions, 'label')"
         :show-unit="true"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
@@ -190,9 +242,19 @@
       <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
         Populates the Act of Misconduct list used when filing a Complaint / SDU referral. Editing a Label only changes how it displays - existing records keep their stored value.
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <FormOptionTable
         :loading="loadingFormOptions"
-        :options="formOptions"
+        :options="visibleRows(formOptions, 'label')"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
         @status="(o, st) => askStatus('form-options', o, o.label, st)"
@@ -211,9 +273,19 @@
       <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
         Populates "Referral Source" on the Refer Student form. Editing a Label only changes how it displays - existing referrals keep their stored value.
       </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+      </div>
       <FormOptionTable
         :loading="loadingFormOptions"
-        :options="formOptions"
+        :options="visibleRows(formOptions, 'label')"
         @edit="openFormOptionModal"
         @delete="deleteFormOption"
         @status="(o, st) => askStatus('form-options', o, o.label, st)"
@@ -230,7 +302,17 @@
         </button>
       </div>
       <div style="padding:12px 16px;font-size:12px;color:var(--stone);border-bottom:1px solid var(--cloud)">
-        These dates drive the Academic Year and Semester options on the Reports page.
+        These dates drive the Academic Year and Semester options on the Reports page. The term marked Current is the one Reports opens on by default.
+      </div>
+      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search academic year..." />
+        <select v-model="mgStatus" class="fsm">
+          <option value="all">All Records</option>
+          <option value="active">Active</option>
+          <option value="inactive">Deactivated</option>
+          <option value="archived">Archived</option>
+        </select>
+        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
       </div>
       <div v-if="loadingAy" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -239,21 +321,33 @@
         <h3>No academic years yet</h3>
         <p>Add one to set the school calendar. Until then, Reports uses Aug 1 - Jul 31.</p>
       </div>
+      <div v-else-if="!visibleRows(academicYears, 'start_year').length" class="empty-state">
+        <h3>No matching records</h3>
+        <p>Try a different search or status, or press Reset.</p>
+      </div>
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>Academic Year</th><th>Year Dates</th><th>1st Semester</th><th>2nd Semester</th><th>Midyear</th><th></th></tr>
+            <tr><th>Academic Year</th><th>Year Dates</th><th>1st Semester</th><th>2nd Semester</th><th>Midyear</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="a in academicYears" :key="a.id">
-              <td style="font-weight:600">{{ a.start_year }}-{{ a.start_year + 1 }}</td>
+            <tr v-for="a in visibleRows(academicYears, 'start_year')" :key="a.id">
+              <td style="font-weight:600">
+                {{ a.start_year }}-{{ a.start_year + 1 }}
+                <span v-if="a.is_current" class="ibadge" style="background:var(--moss);color:#fff;margin-left:6px">Current</span>
+              </td>
               <td>{{ ayRange(a.year_start, a.year_end) }}</td>
               <td>{{ ayRange(a.first_sem_start, a.first_sem_end) }}</td>
               <td>{{ ayRange(a.second_sem_start, a.second_sem_end) }}</td>
               <td>{{ ayRange(a.midyear_start, a.midyear_end) }}</td>
+              <td><span class="ibadge" :style="statusStyle(a.status)">{{ statusLabel(a.status) }}</span></td>
               <td>
-                <div style="display:flex;gap:6px;justify-content:flex-end">
-                  <button class="ibtn ibtn-o ibtn-sm" @click="openAyModal(a)">Edit</button>
+                <div style="display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">
+                  <button v-if="(a.status || 'active') === 'active' && !a.is_current" class="ibtn ibtn-p ibtn-sm" @click="setCurrentTerm(a)">Set as Current</button>
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="(a.status || 'active') !== 'active'" :title="(a.status || 'active') !== 'active' ? 'Reactivate to edit. Deactivated and archived records are read-only.' : ''" @click="openAyModal(a)">Edit</button>
+                  <button v-if="(a.status || 'active') === 'active'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('academic-years', a, a.start_year + '-' + (a.start_year + 1), 'inactive')">Deactivate</button>
+                  <button v-if="a.status !== 'archived'" class="ibtn ibtn-o ibtn-sm" @click="askStatus('academic-years', a, a.start_year + '-' + (a.start_year + 1), 'archived')">Archive</button>
+                  <button v-if="(a.status || 'active') !== 'active'" class="ibtn ibtn-p ibtn-sm" @click="askStatus('academic-years', a, a.start_year + '-' + (a.start_year + 1), 'active')">Reactivate</button>
                   <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openDeleteConfirm('academicYear', a, a.start_year + '-' + (a.start_year + 1))">Delete</button>
                 </div>
               </td>
@@ -262,6 +356,8 @@
         </table>
       </div>
     </div>
+
+    <HolidaysSuspensions v-if="activeTab === 'calendar'" :can-manage="isAdmin" style="margin-top:16px" />
 
     <!-- ============ DOCUMENT HEADERS ============ -->
     <div v-if="activeTab === 'documents'" style="display:flex;flex-direction:column;gap:16px">
@@ -307,9 +403,12 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown on the Schedule Test Taking and Schedule PAR Release cards in a testing record. The Ctrl No. is blank on the printed slip, so it can stay empty.</div>
-          <button v-if="isSystemAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.tmduSlip" @click="askSave(true, saveTmduSlipDoc)">
-            {{ savingDoc.tmduSlip ? 'Saving...' : 'Save' }}
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button v-if="isSystemAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.tmduSlip" @click="openDocPreview('QF-TMDU-02', tmduSlipDoc, 'tmduSlip', 'Appointment Slip')">
+              {{ savingDoc.tmduSlip ? 'Saving...' : 'Preview &amp; Save as New Version' }}
+            </button>
+            <button v-if="isSystemAdmin" class="ibtn ibtn-o ibtn-sm" @click="openVersions('QF-TMDU-02', 'Appointment Slip', tmduSlipDoc)">Version History</button>
+          </div>
         </div>
       </div>
 
@@ -342,9 +441,12 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all referral forms, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.referral" @click="askSave(true, saveReferralDoc)">
-            {{ savingDoc.referral ? 'Saving...' : 'Save' }}
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.referral" @click="openDocPreview('QF-OSS-01', referralDoc, 'referral', 'Referral Slip')">
+              {{ savingDoc.referral ? 'Saving...' : 'Preview &amp; Save as New Version' }}
+            </button>
+            <button v-if="isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openVersions('QF-OSS-01', 'Referral Slip', referralDoc)">Version History</button>
+          </div>
         </div>
       </div>
 
@@ -376,9 +478,12 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all feedback slips, current and future.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.feedback" @click="askSave(true, saveFeedbackDoc)">
-            {{ savingDoc.feedback ? 'Saving...' : 'Save' }}
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.feedback" @click="openDocPreview('QF-OSS-03', feedbackDoc, 'feedback', 'Feedback Slip')">
+              {{ savingDoc.feedback ? 'Saving...' : 'Preview &amp; Save as New Version' }}
+            </button>
+            <button v-if="isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openVersions('QF-OSS-03', 'Feedback Slip', feedbackDoc)">Version History</button>
+          </div>
         </div>
       </div>
 
@@ -410,9 +515,12 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Student Information card in Case Files. The full Ctrl No. is Year-Term-Client No. (e.g. 26-1-0012); the client no. at the end is set per student on their record.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.sif" @click="askSave(true, saveSifDoc)">
-            {{ savingDoc.sif ? 'Saving...' : 'Save' }}
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.sif" @click="openDocPreview('QF-OSS-GCU-01', sifDoc, 'sif', 'Student Information File')">
+              {{ savingDoc.sif ? 'Saving...' : 'Preview &amp; Save as New Version' }}
+            </button>
+            <button v-if="isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openVersions('QF-OSS-GCU-01', 'Student Information File', sifDoc)">Version History</button>
+          </div>
         </div>
       </div>
 
@@ -448,16 +556,19 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Admission Slip on Class Attendance referrals.</div>
-          <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" style="margin-top:12px" :disabled="savingDoc.admission" @click="askSave(true, saveAdmissionDoc)">
-            {{ savingDoc.admission ? 'Saving...' : 'Save' }}
-          </button>
+          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+            <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.admission" @click="openDocPreview('QF-OSS-GCU-09', admissionDoc, 'admission', 'Admission Slip')">
+              {{ savingDoc.admission ? 'Saving...' : 'Preview &amp; Save as New Version' }}
+            </button>
+            <button v-if="isAdmin" class="ibtn ibtn-o ibtn-sm" @click="openVersions('QF-OSS-GCU-09', 'Admission Slip', admissionDoc)">Version History</button>
+          </div>
         </div>
       </div>
       </template>
     </div>
 
     <!-- ============ Academic Year Modal ============ -->
-    <div v-if="showAyModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAyModal = false">
+    <div v-if="showAyModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeModal('ay')">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;max-height:92vh;overflow:auto;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ ayForm.id ? 'Edit Academic Year' : 'Add Academic Year' }}</div>
@@ -484,14 +595,14 @@
             <button class="ibtn ibtn-p" :disabled="!ayValid || savingAy" @click="askSave(ayForm.id, saveAy)">
               {{ savingAy ? 'Saving...' : (ayForm.id ? 'Save Changes' : 'Add Academic Year') }}
             </button>
-            <button class="ibtn ibtn-o" @click="showAyModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="closeModal('ay')">Cancel</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============ College Modal ============ -->
-    <div v-if="showCollegeModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCollegeModal = false">
+    <div v-if="showCollegeModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeModal('college')">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ collegeForm.id ? 'Edit College' : 'Add College' }}</div>
@@ -511,14 +622,14 @@
             <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; askSave(collegeForm.id, saveCollege)">
               {{ savingCollege ? 'Saving...' : (collegeForm.id ? 'Save Changes' : 'Add College') }}
             </button>
-            <button class="ibtn ibtn-o" @click="showCollegeModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="closeModal('college')">Cancel</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============ Program Modal ============ -->
-    <div v-if="showProgramModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showProgramModal = false">
+    <div v-if="showProgramModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeModal('program')">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ programForm.id ? 'Edit Program' : 'Add Program' }}</div>
@@ -542,14 +653,14 @@
             <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; askSave(programForm.id, saveProgram)">
               {{ savingProgram ? 'Saving...' : (programForm.id ? 'Save Changes' : 'Add Program') }}
             </button>
-            <button class="ibtn ibtn-o" @click="showProgramModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="closeModal('program')">Cancel</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============ Department Modal ============ -->
-    <div v-if="showDepartmentModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showDepartmentModal = false">
+    <div v-if="showDepartmentModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeModal('department')">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ departmentForm.id ? 'Edit Department' : 'Add Department' }}</div>
@@ -573,14 +684,14 @@
             <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="departmentTouched = true; askSave(departmentForm.id, saveDepartment)">
               {{ savingDepartment ? 'Saving...' : (departmentForm.id ? 'Save Changes' : 'Add Department') }}
             </button>
-            <button class="ibtn ibtn-o" @click="showDepartmentModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="closeModal('department')">Cancel</button>
           </div>
         </div>
       </div>
     </div>
 
     <!-- ============ Form Option Modal (shared by Wellness / Disciplinary / Sources) ============ -->
-    <div v-if="showFormOptionModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showFormOptionModal = false">
+    <div v-if="showFormOptionModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeModal('formOption')">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ formOptionForm.id ? 'Edit' : 'Add' }} {{ formOptionModalNoun }}</div>
@@ -623,7 +734,7 @@
             <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="formOptionTouched = true; askSave(formOptionForm.id, saveFormOption)">
               {{ savingFormOption ? 'Saving...' : (formOptionForm.id ? 'Save Changes' : 'Add') }}
             </button>
-            <button class="ibtn ibtn-o" @click="showFormOptionModal = false">Cancel</button>
+            <button class="ibtn ibtn-o" @click="closeModal('formOption')">Cancel</button>
           </div>
         </div>
       </div>
@@ -645,20 +756,49 @@
       </div>
     </div>
 
-    <!-- ============ Deactivate / Archive / Reactivate ============ -->
-    <div v-if="statusAsk" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!statusBusy && (statusAsk = null)">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">{{ statusAsk.title }}</div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6" v-html="statusAsk.message"></div>
-          <div v-if="statusError" style="font-size:12.5px;color:var(--red)">{{ statusError }}</div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" :disabled="statusBusy" @click="doStatus">{{ statusBusy ? 'Please wait...' : statusAsk.confirm }}</button>
-            <button class="ibtn ibtn-o" :disabled="statusBusy" @click="statusAsk = null">Cancel</button>
-          </div>
+    <!-- ============ Document header: preview before saving a new version ============ -->
+    <div v-if="docPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:76;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="docPreview = null">
+      <div style="background:#fff;border-radius:var(--r);max-width:460px;width:100%;padding:22px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px">Preview header: {{ docPreview.label }}</div>
+        <div style="font-size:12px;color:var(--fog);margin-bottom:12px">This is how the header will read on new documents.</div>
+        <div style="border:1px solid var(--line, #ddd);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;line-height:1.7;background:#fafafa">
+          <div><strong>Document Code:</strong> {{ docPreview.code }}</div>
+          <div><strong>Revision No.:</strong> {{ docPreview.form.revision_no || '-' }}</div>
+          <div><strong>Effectivity Date:</strong> {{ docPreview.form.effectivity_date || '-' }}</div>
+          <div><strong>Ctrl No.:</strong> {{ docPreview.ctrl || '-' }}</div>
+        </div>
+        <div style="font-size:12px;color:var(--ink-2, #555);margin-top:12px">Saving creates a <strong>new version</strong> and makes it the active header. Documents already generated keep the header they were made with.</div>
+        <div v-if="docPreview.error" style="color:var(--red);font-size:12px;margin-top:8px">{{ docPreview.error }}</div>
+        <div style="display:flex;gap:8px;margin-top:16px">
+          <button class="ibtn ibtn-p" :disabled="savingDoc[docPreview.key]" @click="confirmDocPreview">{{ savingDoc[docPreview.key] ? 'Saving...' : 'Save as New Version' }}</button>
+          <button class="ibtn ibtn-o" @click="docPreview = null">Back to Edit</button>
         </div>
       </div>
     </div>
+
+    <DocumentHeaderVersions
+      v-if="versionsFor"
+      :code="versionsFor.code"
+      :label="versionsFor.label"
+      @close="versionsFor = null"
+      @changed="reloadDoc(versionsFor.target, versionsFor.code)"
+    />
+
+    <!-- ============ Deactivate / Archive / Reactivate (reason required) ============ -->
+    <ReasonDialog
+      :open="!!statusAsk"
+      :title="statusAsk?.title || ''"
+      :message="statusAsk?.message || ''"
+      :reasons="statusReasons"
+      reason-label="Reason"
+      :confirm-text="statusAsk?.confirm || 'Confirm'"
+      :danger="statusAsk?.status !== 'active'"
+      :blocked-message="statusAsk?.blocked || ''"
+      :busy="statusBusy"
+      :error="statusError"
+      @confirm="doStatus"
+      @cancel="statusAsk = null"
+    />
 
     <!-- ============ Delete Confirmation (reason required) ============ -->
     <ReasonDialog
@@ -684,9 +824,12 @@ import { ref, inject, computed, onMounted, h } from 'vue';
 import axios from 'axios';
 import { useAuthStore } from '../../stores/auth';
 import ReasonDialog from '../../components/ReasonDialog.vue';
-import { MANAGEMENT_DELETE_REASONS } from '../../constants/accountReasons';
+import HolidaysSuspensions from '../../components/HolidaysSuspensions.vue';
+import DocumentHeaderVersions from '../../components/DocumentHeaderVersions.vue';
+import { MANAGEMENT_DELETE_REASONS, MANAGEMENT_STATUS_REASONS } from '../../constants/accountReasons';
 
 const toast = inject('toast');
+const confirmDiscard = inject('confirmDiscard', null);
 const auth  = useAuthStore();
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -757,6 +900,7 @@ function openCollegeModal(c) {
   collegeForm.value = c ? { id: c.id, name: c.name, abbrev: c.abbrev || '' } : { id: null, name: '', abbrev: '' };
   collegeError.value = '';
   collegeTouched.value = false;
+  snapshot('college');
   showCollegeModal.value = true;
 }
 
@@ -810,6 +954,7 @@ function openProgramModal(p) {
   programForm.value = p ? { id: p.id, college_id: p.college_id, name: p.name } : { id: null, college_id: '', name: '' };
   programError.value = '';
   programTouched.value = false;
+  snapshot('program');
   showProgramModal.value = true;
 }
 
@@ -863,6 +1008,7 @@ function openDepartmentModal(d) {
   departmentForm.value = d ? { id: d.id, college_id: d.college_id, name: d.name } : { id: null, college_id: '', name: '' };
   departmentError.value = '';
   departmentTouched.value = false;
+  snapshot('department');
   showDepartmentModal.value = true;
 }
 
@@ -919,6 +1065,7 @@ function openFormOptionModal(o) {
     : { id: null, category, value: '', label: '', unit: '' };
   formOptionError.value = '';
   formOptionTouched.value = false;
+  snapshot('formOption');
   showFormOptionModal.value = true;
 }
 
@@ -1006,6 +1153,7 @@ function openAyModal(a) {
     ? { id: a.id, start_year: String(a.start_year), ...Object.fromEntries(AY_FIELDS.map(f => [f, String(a[f] || '').slice(0, 10)])) }
     : emptyAy();
   ayError.value = '';
+  snapshot('ay');
   showAyModal.value = true;
 }
 
@@ -1049,34 +1197,105 @@ function confirmSave() {
 const statusAsk = ref(null);
 const statusBusy = ref(false);
 const statusError = ref('');
+const STATUS_ACTION = { inactive: 'Deactivate', archived: 'Archive', active: 'Reactivate' };
 const STATUS_TEXT = {
-  inactive: (n) => ({ title: 'Deactivate?', confirm: 'Yes, Deactivate', message: `Deactivate <strong>"${escHtml(n)}"</strong>? It will no longer be offered when adding new records. Existing records keep it, and you can reactivate it anytime.` }),
-  archived: (n) => ({ title: 'Archive?', confirm: 'Yes, Archive', message: `Archive <strong>"${escHtml(n)}"</strong>? It will no longer be offered when adding new records and is kept only for historical records. You can reactivate it later.` }),
-  active:   (n) => ({ title: 'Reactivate?', confirm: 'Yes, Reactivate', message: `Reactivate <strong>"${escHtml(n)}"</strong>? It will be offered again when adding new records.` }),
+  inactive: (n) => ({ title: 'Deactivate?', confirm: 'Yes, Deactivate', message: `Deactivate <strong>"${escHtml(n)}"</strong>? It will be hidden from new forms but stays on existing records. You can reactivate it later.` }),
+  archived: (n) => ({ title: 'Archive?', confirm: 'Yes, Archive', message: `Archive <strong>"${escHtml(n)}"</strong>? It is retired and kept read-only for historical records.` }),
+  active:   (n) => ({ title: 'Reactivate?', confirm: 'Yes, Reactivate', message: `Reactivate <strong>"${escHtml(n)}"</strong>? It will be offered again on new forms.` }),
 };
-const STATUS_REFRESH = () => ({ colleges: fetchColleges, programs: fetchPrograms, departments: fetchDepartments, 'form-options': fetchFormOptions });
+const STATUS_REFRESH = () => ({ colleges: fetchColleges, programs: fetchPrograms, departments: fetchDepartments, 'form-options': fetchFormOptions, 'academic-years': fetchAcademicYears });
+const STATUS_KIND_TAB = { colleges: 'college', programs: 'program', departments: 'department', 'academic-years': 'calendar' };
+const STATUS_USAGE_PATH = { colleges: 'colleges', programs: 'programs', departments: 'departments', 'form-options': 'form-options', 'academic-years': 'academic-years' };
 
-function askStatus(kind, item, name, status) {
+function tabOfKind(kind, item) {
+  if (kind === 'form-options') return item.category === 'referral_type' ? 'wellness' : item.category === 'act_of_misconduct' ? 'disciplinary' : 'sources';
+  return STATUS_KIND_TAB[kind];
+}
+const statusReasons = computed(() => {
+  const a = statusAsk.value;
+  return a ? (MANAGEMENT_STATUS_REASONS[tabOfKind(a.kind, a.item)]?.[a.status] || []) : [];
+});
+
+const linkList = (links) => {
+  const parts = Object.entries(links || {}).filter(([, n]) => n > 0).map(([what, n]) => `${n} ${n === 1 ? what.replace(/s$/, '') : what}`);
+  if (!parts.length) return '';
+  return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
+};
+
+async function askStatus(kind, item, name, status) {
   statusError.value = '';
-  statusAsk.value = { kind, item, status, ...STATUS_TEXT[status](name) };
+  const ask = { kind, item, status, blocked: '', ...STATUS_TEXT[status](name) };
+  // The current term can't be deactivated or archived until another is set as current.
+  if (kind === 'academic-years' && item.is_current && status !== 'active') {
+    ask.blocked = 'This is the current term. Set another term as current first.';
+  }
+  // Show how many records still use the item (Deactivate and Archive); Archive is refused while any do.
+  if (status !== 'active') {
+    try {
+      const res = await axios.get(`${API_BASE}/management/${STATUS_USAGE_PATH[kind]}/${item.id}/usage`, authHeaders());
+      const list = linkList(res.data);
+      if (list) {
+        ask.message += `<br><br>Linked records: <strong>${escHtml(list)}</strong>.`;
+        if (status === 'archived' && kind !== 'academic-years') ask.blocked = `This item is used by ${list}, so it cannot be archived. Deactivate it instead, or reassign those records first.`;
+      } else {
+        ask.message += '<br><br>No linked records.';
+      }
+    } catch (e) { /* the server checks again */ }
+  }
+  statusAsk.value = ask;
 }
 
-async function doStatus() {
+async function doStatus({ reason, note }) {
   const a = statusAsk.value;
   if (!a || statusBusy.value) return;
   statusBusy.value = true;
   statusError.value = '';
   try {
-    await axios.post(`${API_BASE}/management/${a.kind}/${a.item.id}/status`, { status: a.status, version: a.item.updated_at || null }, authHeaders());
+    await axios.post(`${API_BASE}/management/${a.kind}/${a.item.id}/status`, { status: a.status, reason, note: note || null, version: a.item.updated_at || null }, authHeaders());
     toast?.success(a.status === 'active' ? 'Reactivated.' : a.status === 'archived' ? 'Archived.' : 'Deactivated.');
     statusAsk.value = null;
     STATUS_REFRESH()[a.kind]();
   } catch (e) {
     const d = e.response?.data;
-    statusError.value = d?.errors?.status?.[0] || d?.message || 'Please try again.';
+    statusError.value = d?.errors?.linked?.[0] || d?.errors?.reason?.[0] || d?.errors?.note?.[0] || d?.errors?.status?.[0] || d?.message || 'Please try again.';
   } finally {
     statusBusy.value = false;
   }
+}
+
+const confirmAction = inject('confirmAction', null);
+async function setCurrentTerm(a) {
+  const label = `${a.start_year}-${a.start_year + 1}`;
+  if (confirmAction && !(await confirmAction({ title: 'Set as current term?', message: `A.Y. ${label} will become the current term and be used by default for reports. Only one term can be current at a time.`, confirmText: 'Yes, set as current', cancelText: 'Cancel', danger: false }))) return;
+  try {
+    await axios.post(`${API_BASE}/management/academic-years/${a.id}/current`, { version: a.updated_at || null }, authHeaders());
+    toast?.success(`A.Y. ${label} is now the current term.`);
+    fetchAcademicYears();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Could not set the current term.');
+  }
+}
+
+// Search + status filter shared by the list tabs.
+const mgSearch = ref('');
+const mgStatus = ref('all');
+function resetMgFilter() { mgSearch.value = ''; mgStatus.value = 'all'; }
+function visibleRows(list, key) {
+  const q = mgSearch.value.trim().toLowerCase();
+  return (list || []).filter(r =>
+    (mgStatus.value === 'all' || (r.status || 'active') === mgStatus.value) &&
+    (!q || String(r[key] ?? '').toLowerCase().includes(q)));
+}
+
+// "Discard your changes?" - asked when a form is closed with unsaved input.
+const snapshots = {};
+const FORM_OF = () => ({ college: collegeForm, program: programForm, department: departmentForm, formOption: formOptionForm, ay: ayForm });
+const FLAG_OF = () => ({ college: showCollegeModal, program: showProgramModal, department: showDepartmentModal, formOption: showFormOptionModal, ay: showAyModal });
+function snapshot(kind) { snapshots[kind] = JSON.stringify(FORM_OF()[kind].value); }
+async function closeModal(kind) {
+  const dirty = JSON.stringify(FORM_OF()[kind].value) !== snapshots[kind];
+  if (dirty && confirmDiscard && !(await confirmDiscard())) return;
+  FLAG_OF()[kind].value = false;
 }
 
 const showDeleteConfirm = ref(false);
@@ -1113,13 +1332,17 @@ async function openDeleteConfirm(kind, target, name) {
   deleteError.value   = '';
 
   // Look up what still uses the record so the admin sees it before choosing a reason.
-  if (kind !== 'academicYear') {
+  if (kind === 'academicYear' && target.is_current) {
+    deleteBlocked.value = 'This is the current term. Set another term as current first.';
+  } else {
     try {
       const res = await axios.get(`${API_BASE}/management/${DELETE_PATHS[kind]}/${target.id}/usage`, authHeaders());
       const parts = Object.entries(res.data || {}).filter(([, n]) => n > 0).map(([what, n]) => `${n} ${n === 1 ? what.replace(/s$/, '') : what}`);
       if (parts.length) {
         const list = parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0];
-        deleteBlocked.value = `This ${DELETE_NOUN[kind]} is used by ${list}. Reassign or deactivate them first.`;
+        deleteBlocked.value = kind === 'academicYear'
+          ? `This term has ${list} dated within it, so it cannot be deleted. Archive it instead to keep the history.`
+          : `This ${DELETE_NOUN[kind]} is used by ${list}. Reassign or deactivate them first.`;
       }
     } catch (e) { /* the server checks again on delete */ }
   }
@@ -1188,6 +1411,26 @@ async function saveDocSettings(code, form, key) {
   }
 }
 
+
+// Preview, then save as a NEW version (older versions are kept; see Version History).
+const docPreview = ref(null);
+const versionsFor = ref(null);
+function openDocPreview(code, formRef, key, label) {
+  const f = { ...formRef.value };
+  const term = { '1': '1', '2': '2', 'S': 'S' }[f.ctrl_no_term] || '';
+  const ctrl = f.ctrl_no_year ? `${f.ctrl_no_year}${term ? '-' + term : ''}` : '';
+  docError.value[key] = '';
+  docPreview.value = { code, formRef, key, label, form: f, ctrl, error: '' };
+}
+async function confirmDocPreview() {
+  const d = docPreview.value; if (!d) return;
+  await saveDocSettings(d.code, d.formRef, d.key);
+  if (docError.value[d.key]) { d.error = docError.value[d.key]; return; }
+  docPreview.value = null;
+}
+function openVersions(code, label, target) { versionsFor.value = { code, label, target }; }
+function reloadDoc(target, code) { fetchDocSettings(code, target); }
+
 // Called from the template - wrapped so the ref itself (not its auto-unwrapped
 // value) reaches saveDocSettings, which needs the ref to read form.value.
 function saveReferralDoc() { return saveDocSettings('QF-OSS-01', referralDoc, 'referral'); }
@@ -1212,7 +1455,7 @@ async function fetchTmduSlipDoc() {
 
 // FormOptionTable - small local render-function component to avoid repeating
 // the same table markup three times (Wellness / Disciplinary / Sources).
-const STATUS_LABELS = { active: 'Active', inactive: 'Inactive', archived: 'Archived' };
+const STATUS_LABELS = { active: 'Active', inactive: 'Deactivated', archived: 'Archived' };
 const statusLabel = (st) => STATUS_LABELS[st || 'active'] || 'Active';
 const statusStyle = (st) => (st || 'active') === 'active'
   ? 'background:var(--mist);color:var(--moss)'
@@ -1255,7 +1498,7 @@ const FormOptionTable = {
               h('td', { style: 'font-family:var(--mono);font-size:12px;color:var(--fog)' }, o.value),
               h('td', h('span', { class: 'ibadge', style: statusStyle(o.status) }, statusLabel(o.status))),
               h('td', h('div', { style: 'display:flex;gap:6px;justify-content:flex-end' }, [
-                h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('edit', o) }, 'Edit'),
+                h('button', { class: 'ibtn ibtn-o ibtn-sm', disabled: (o.status || 'active') !== 'active', title: (o.status || 'active') !== 'active' ? 'Reactivate to edit. Deactivated and archived records are read-only.' : '', onClick: () => emit('edit', o) }, 'Edit'),
                 o.status === 'active' ? h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('status', o, 'inactive') }, 'Deactivate') : null,
                 o.status !== 'archived' ? h('button', { class: 'ibtn ibtn-o ibtn-sm', onClick: () => emit('status', o, 'archived') }, 'Archive') : null,
                 o.status !== 'active' ? h('button', { class: 'ibtn ibtn-p ibtn-sm', onClick: () => emit('status', o, 'active') }, 'Reactivate') : null,
@@ -1273,6 +1516,7 @@ const FormOptionTable = {
 // Switch tabs and refetch whichever section's data the newly active tab needs.
 function selectTab(key) {
   activeTab.value = key;
+  resetMgFilter();
   if (TAB_CATEGORY[key]) fetchFormOptions();
   if (key === 'calendar') fetchAcademicYears();
 }

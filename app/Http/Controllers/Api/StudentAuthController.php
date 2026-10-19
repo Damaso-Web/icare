@@ -183,6 +183,7 @@ class StudentAuthController extends Controller
             'temp_password_expires_at' => null,
             'must_change_password'  => false,
         ]);
+        \App\Support\PasswordReset::stamp($student, 'self');
         AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
         $student->notify(new PasswordChangedNotification());
 

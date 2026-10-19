@@ -318,6 +318,8 @@ class TestingRecordController extends Controller
             'end_time'         => 'required',
         ]);
 
+        \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
+
         $appointment = $this->recordAppointments($testingRecord, 'psychological_testing')
             ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
             ->latest()
@@ -431,6 +433,8 @@ class TestingRecordController extends Controller
             'end_time'         => 'required',
         ]);
 
+        \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
+
         $appointment = $this->recordAppointments($testingRecord, 'par_release')
             ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
             ->latest()
@@ -492,6 +496,7 @@ class TestingRecordController extends Controller
         abort_unless($appointment->appointment_type === 'par_release' && $appointment->unit === 'TMDU', 422, 'This is not a PAR release appointment.');
         abort_if(in_array($appointment->status, ['completed', 'cancelled'], true), 422, 'This PAR release is already ' . $appointment->status . '.');
         if ($validated['action'] === 'cancel' && !empty($validated['appointment_date'])) {
+            \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
             if ((int) date('N', strtotime($validated['appointment_date'])) > 5) {
                 abort(422, 'TMDU is closed on weekends. Please choose Monday to Friday.');
             }

@@ -49,12 +49,12 @@ trait SendsEmail
         $name  = $notifiable->first_name ?? $notifiable->name ?? null;
         $front = rtrim((string) config('app.frontend_url'), '/');
 
-        return (new MailMessage)
+        return \App\Support\MailTracking::off((new MailMessage)
             ->subject($this->emailSubject($notifiable))
             ->greeting($name ? 'Hello ' . $name . ',' : 'Hello,')
             ->line((string) ($data['message'] ?? 'You have a new notification in iCARE.'))
             ->action('Open iCARE', $front ?: url('/'))
             ->line('This is an automatic message from iCARE. Please do not reply to this email.')
-            ->salutation('iCARE - BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services'));
     }
 }

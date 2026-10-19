@@ -118,9 +118,9 @@ class StudentOutreachController extends Controller
 
     public function sentReferrals(Request $request)
     {
-        return Referral::with('student:id,student_id,first_name,last_name,college')
-            ->where('referred_by_student_id', $request->user('student')->id)
-            ->whereNull('complaint_id')
-            ->latest()->paginate(20);
+        return ReferralController::sentList(
+            Referral::where('referred_by_student_id', $request->user('student')->id)->whereNull('complaint_id'),
+            $request
+        );
     }
 }

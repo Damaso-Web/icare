@@ -824,23 +824,17 @@
       @cancel="showActivateConfirm = false"
     />
 
-    <!-- Reset Password Confirmation -->
-    <div v-if="showResetPwConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:75;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showResetPwConfirm = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Reset Student Password?</div>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            A new temporary password will be generated for <strong>{{ viewedStudent?.first_name }} {{ viewedStudent?.last_name }}</strong>. They'll be required to change it on next login.
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="ibtn" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="doConfirmedResetPw">Yes, Reset Password</button>
-            <button class="ibtn ibtn-o" @click="showResetPwConfirm = false">Cancel</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <!-- Reset Password (reason required) -->
+    <ResetPasswordDialog
+      :open="showResetPwConfirm"
+      kind="student"
+      :name="`${viewedStudent?.first_name || ''} ${viewedStudent?.last_name || ''}`.trim()"
+      :fetch-info="() => studentAPI.passwordInfo(viewedStudent.id).then(r => r.data)"
+      :busy="resetBusy"
+      :error="resetError"
+      @confirm="doConfirmedResetPw"
+      @cancel="showResetPwConfirm = false"
+    />
 
     <!-- Import Modal -->
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
@@ -1100,6 +1094,7 @@ import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import ReasonDialog from '../../components/ReasonDialog.vue';
+import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { STUDENT_DEACTIVATE_REASONS, studentReactivationReasonsFor, studentDeactivateLabel } from '../../constants/accountReasons';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
 
@@ -1530,17 +1525,24 @@ async function doConfirmedActivate({ reason, note }) {
 // Reset password flow
 const showResetPwConfirm = ref(false);
 
-const doConfirmedResetPw = async () => {
-  showResetPwConfirm.value = false;
+const resetBusy = ref(false);
+const resetError = ref('');
+const doConfirmedResetPw = async ({ reason, note }) => {
+  if (resetBusy.value) return;
+  resetBusy.value = true; resetError.value = '';
   try {
-    const res = await studentAPI.resetPassword(viewedStudent.value.id);
+    const res = await studentAPI.resetPassword(viewedStudent.value.id, { reason, note });
+    showResetPwConfirm.value = false;
     resetPasswordResult.value = res.data.temp_password;
     tempPasswordValue.value = res.data.temp_password;
     showTempPassword.value = true;
     viewedStudent.value.must_change_password = true;
-    toast?.success('Password reset successfully.');
+    toast?.success('Password reset successfully. The student was signed out and notified by email.');
   } catch (e) {
-    toast?.error('Failed to reset password.');
+    const errs = e.response?.data?.errors;
+    resetError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to reset password.';
+  } finally {
+    resetBusy.value = false;
   }
 };
 
@@ -1892,6 +1894,7 @@ async function saveEditedStudent() {
 }
 
 function resetStudentPassword() {
+  resetError.value = '';
   showResetPwConfirm.value = true;
 }
 

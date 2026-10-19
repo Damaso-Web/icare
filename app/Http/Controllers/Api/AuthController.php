@@ -158,7 +158,7 @@ class AuthController extends Controller
             'user'  => $user->only([
                 'id', 'name', 'first_name', 'middle_name', 'last_name',
                 'email', 'role', 'unit', 'college', 'department',
-                'contact_number', 'employee_id'
+                'contact_number', 'employee_id', 'must_change_password'
             ]),
         ]);
     }
@@ -254,6 +254,8 @@ class AuthController extends Controller
             'temp_password_expires_at' => null,
             'must_change_password'=> false,
         ]);
+        \App\Support\PasswordReset::stamp($user, 'self');
+        $user->tokens()->where('id', '!=', $request->user()->currentAccessToken()->id ?? 0)->delete();
         AuditLog::record('password_change', "User {$user->name} changed their password.");
         $user->notify(new PasswordChangedNotification());
 

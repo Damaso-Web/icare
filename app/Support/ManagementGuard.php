@@ -17,22 +17,94 @@ class ManagementGuard
     private const CREATED = ['created_error' => 'Created in Error'];
     private const DUP     = ['duplicate' => 'Duplicate Entry'];
 
-    /** tab => [reason key => label]. "other" always needs a note. */
+    /** Delete is only for mistaken or duplicate entries, whatever the tab. */
     public static function reasons(string $tab): array
     {
-        $specific = match ($tab) {
-            'college'      => ['no_longer_offered' => 'No Longer Offered', 'merged' => 'Merged with Another College'],
-            'program'      => ['discontinued' => 'Program Discontinued', 'replaced' => 'Renamed or Replaced'],
-            'department'   => ['dissolved' => 'Department Dissolved', 'merged' => 'Merged with Another Department'],
-            'wellness'     => ['no_longer_offered' => 'Service No Longer Offered', 'replaced' => 'Replaced by Another Service'],
-            'disciplinary' => ['no_longer_offered' => 'Service No Longer Offered', 'policy_change' => 'Replaced Following a Policy Change'],
-            default        => ['no_longer_used' => 'No Longer Used'],
-        };
-
-        return self::CREATED + self::DUP + $specific + ['other' => 'Other'];
+        return self::CREATED + self::DUP + ['other' => 'Other'];
     }
 
-    /** Validates the reason (and note for "Other"); returns [label, note]. */
+    /**
+     * Reasons for Deactivate / Archive / Reactivate, per Management tab.
+     * Keep in sync with MANAGEMENT_STATUS_REASONS in resources/js/constants/accountReasons.js.
+     */
+    public static function statusReasons(string $tab, string $action): array
+    {
+        $tab = $tab === 'referral sources' ? 'sources' : $tab;
+        $table = [
+            'college' => [
+                'deactivate' => ['temporarily_not_offered' => 'Temporarily Not Offered', 'under_reorganization' => 'Under Reorganization', 'pending_merger' => 'Pending Merger'],
+                'archive'    => ['no_longer_offered' => 'No Longer Offered', 'merged' => 'Merged', 'renamed_replaced' => 'Renamed or Replaced'],
+            ],
+            'program' => [
+                'deactivate' => ['temporarily_not_offered' => 'Temporarily Not Offered', 'under_curriculum_review' => 'Under Curriculum Review'],
+                'archive'    => ['phased_out' => 'Phased Out', 'replaced' => 'Replaced by New Program or Curriculum', 'merged' => 'Merged'],
+            ],
+            'department' => [
+                'deactivate' => ['under_reorganization' => 'Under Reorganization', 'pending_merger' => 'Pending Merger'],
+                'archive'    => ['merged' => 'Merged', 'dissolved' => 'Dissolved'],
+            ],
+            'wellness' => [
+                'deactivate' => ['temporarily_unavailable' => 'Temporarily Unavailable', 'under_review' => 'Under Review'],
+                'archive'    => ['service_discontinued' => 'Service Discontinued', 'replaced_merged' => 'Replaced or Merged with Another Service'],
+            ],
+            'disciplinary' => [
+                'deactivate' => ['temporarily_unavailable' => 'Temporarily Unavailable', 'pending_policy_update' => 'Pending Policy Update'],
+                'archive'    => ['discontinued' => 'Discontinued', 'replaced_policy' => 'Replaced by Updated Policy or Procedure'],
+            ],
+            'document header' => [
+                'deactivate' => [],
+                'archive'    => ['outdated_format' => 'Outdated Format', 'replaced_version' => 'Replaced by New Version', 'office_logo_changed' => 'Office Name or Logo Changed'],
+            ],
+            'holidays and suspensions' => [
+                'deactivate' => [],
+                'archive'    => ['date_changed' => 'Date Changed by the University', 'working_day' => 'Declared a Working Day', 'replaced_announcement' => 'Replaced by an Updated Announcement', 'event_cancelled' => 'Event Cancelled or Moved'],
+            ],
+            'calendar' => [
+                'deactivate' => ['entered_ahead' => 'Entered Ahead of Time', 'schedule_under_review' => 'Schedule Under Review'],
+                'archive'    => ['term_ended' => 'Term Ended', 'replaced_calendar' => 'Replaced by Updated Calendar'],
+            ],
+            'school calendar' => [
+                'deactivate' => ['entered_ahead' => 'Entered Ahead of Time', 'schedule_under_review' => 'Schedule Under Review'],
+                'archive'    => ['term_ended' => 'Term Ended', 'replaced_calendar' => 'Replaced by Updated Calendar'],
+            ],
+            'sources' => [
+                'deactivate' => ['not_currently_used' => 'Not Currently Used', 'under_review' => 'Under Review'],
+                'archive'    => ['no_longer_used' => 'No Longer Used', 'merged' => 'Merged with Another Source'],
+            ],
+        ];
+        $reactivate = ['offered_again' => 'Offered or Used Again', 'review_completed' => 'Review or Reorganization Completed', 'deactivated_in_error' => 'Deactivated in Error'];
+
+        $list = $action === 'reactivate' ? $reactivate : ($table[$tab][$action] ?? []);
+        return $list + ['other' => 'Other'];
+    }
+
+    /** Validates a status-change reason (and the note for "Other"); returns [label, note]. */
+    public static function requireStatusReason(Request $request, string $tab, string $action): array
+    {
+        $reasons = self::statusReasons($tab, $action);
+        $request->validate([
+            'reason' => ['required', \Illuminate\Validation\Rule::in(array_keys($reasons))],
+            'note'   => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+        ], [
+            'reason.required'  => 'Please select a reason.',
+            'reason.in'        => 'That reason is not allowed for this action.',
+            'note.required_if' => 'Please describe the reason briefly.',
+            'note.regex'       => 'Please explain in words, not numbers only.',
+        ]);
+
+        $note = trim((string) $request->input('note', ''));
+        return [$reasons[$request->input('reason')], $note === '' ? null : $note];
+    }
+
+    /** Deactivated and archived records are read-only until they are reactivated. */
+    public static function assertEditable(Model $model): void
+    {
+        if (($model->status ?: 'active') !== 'active') {
+            abort(422, 'Only active records can be edited. Reactivate it first.');
+        }
+    }
+
+    /** Validates the delete reason (and note for "Other"); returns [label, note]. */
     public static function requireDeleteReason(Request $request, string $tab): array
     {
         $reasons = self::reasons($tab);
@@ -59,7 +131,7 @@ class ManagementGuard
     }
 
     /** Blocks the delete while anything still references the record. $links = ['students' => 14, ...] */
-    public static function blockIfLinked(string $noun, array $links): void
+    public static function blockIfLinked(string $noun, array $links, string $hint = 'Reassign or deactivate them first.'): void
     {
         $parts = [];
         foreach ($links as $what => $n) {
@@ -69,7 +141,7 @@ class ManagementGuard
 
         $list = count($parts) > 1 ? implode(', ', array_slice($parts, 0, -1)) . ' and ' . end($parts) : $parts[0];
         throw ValidationException::withMessages([
-            'linked' => ["This {$noun} is used by {$list}. Reassign or deactivate them first."],
+            'linked' => ["This {$noun} is used by {$list}. {$hint}"],
         ])->status(422);
     }
 

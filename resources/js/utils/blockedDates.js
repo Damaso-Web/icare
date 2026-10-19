@@ -1,0 +1,34 @@
+import { ref } from 'vue';
+import axios from 'axios';
+
+// Dates blocked by active Holidays and Suspensions (School Calendar). Every appointment
+// date picker uses this so a blocked date shows its reason and cannot be submitted;
+// the server rejects it too. Entries archived or edited in Management are picked up
+// the next time a picker loads - no page refresh needed beyond reopening the form.
+const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+
+/** map = { 'YYYY-MM-DD': { type, name, label } }  */
+export function useBlockedDates(role = 'staff') {
+    const blocked = ref({});
+
+    async function load() {
+        const student = role === 'student';
+        const token = localStorage.getItem(student ? 'student_token' : 'token');
+        try {
+            const res = await axios.get(`${API_BASE}${student ? '/student' : ''}/calendar/blocked-dates`, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+            blocked.value = res.data?.blocked || {};
+        } catch (e) {
+            blocked.value = {};
+        }
+    }
+
+    /** "This date is not available: Holiday: All Saints' Day." or '' */
+    function messageFor(date) {
+        const hit = date ? blocked.value[String(date).slice(0, 10)] : null;
+        return hit ? `This date is not available: ${hit.label}.` : '';
+    }
+
+    return { blocked, load, messageFor };
+}

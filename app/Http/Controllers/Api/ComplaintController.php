@@ -25,10 +25,17 @@ class ComplaintController extends Controller
 
     public function index(Request $request)
     {
-        $query = Complaint::with(['complainee', 'filedBy', 'filedByStudent'])->latest();
+        $query = Complaint::with(['complainee', 'filedBy', 'filedByStudent']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
+        }
+        if ($request->filled('violation_type')) {
+            $query->where('violation_type', $request->violation_type);
+        }
+        // "Filed By" comes as u:<staff id> or s:<student id>.
+        if ($request->filled('filed_by') && preg_match('/^([us]):(\d+)$/', $request->filed_by, $m)) {
+            $query->where($m[1] === 'u' ? 'filed_by_user_id' : 'filed_by_student_id', (int) $m[2]);
         }
 
         if ($request->filled('search')) {
@@ -43,7 +50,58 @@ class ComplaintController extends Controller
             });
         }
 
-        return $query->paginate(20);
+        $this->applySort($query, $request);
+
+        $filers = [];
+        foreach (User::whereIn('id', Complaint::whereNotNull('filed_by_user_id')->select('filed_by_user_id'))->orderBy('name')->get(['id', 'name']) as $u) {
+            $filers[] = ['value' => 'u:' . $u->id, 'label' => $u->name];
+        }
+        foreach (Student::whereIn('id', Complaint::whereNotNull('filed_by_student_id')->select('filed_by_student_id'))->orderBy('last_name')->get(['id', 'first_name', 'last_name']) as $st) {
+            $filers[] = ['value' => 's:' . $st->id, 'label' => trim($st->first_name . ' ' . $st->last_name) . ' (student)'];
+        }
+
+        return array_merge($query->paginate(20)->toArray(), [
+            'filter_options' => [
+                'violation_types' => $this->distinctTypes(Complaint::query()),
+                'filers'          => $filers,
+            ],
+        ]);
+    }
+
+    // Newest first unless the caller asks for oldest first.
+    private function applySort($query, Request $request): void
+    {
+        $request->input('sort') === 'oldest'
+            ? $query->orderBy('created_at')->orderBy('id')
+            : $query->orderByDesc('created_at')->orderByDesc('id');
+    }
+
+    private function distinctTypes($query): array
+    {
+        return $query->whereNotNull('violation_type')->distinct()->orderBy('violation_type')->pluck('violation_type')->all();
+    }
+
+    // Search / Type / Status / Sort shared by the two "Sent Complaints" lists.
+    private function sentList($base, Request $request)
+    {
+        $options = [
+            'violation_types' => $this->distinctTypes(clone $base),
+            'statuses'        => (clone $base)->whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->all(),
+        ];
+        $query = $base->with(['complainee', 'filedBy', 'filedByStudent']);
+        if ($request->filled('status'))         $query->where('status', $request->status);
+        if ($request->filled('violation_type')) $query->where('violation_type', $request->violation_type);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('complaint_code', 'like', "%{$search}%")
+                  ->orWhereHas('complainee', fn($sq) => $sq->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('student_id', 'like', "%{$search}%"));
+            });
+        }
+        $this->applySort($query, $request);
+        return array_merge($query->paginate(20)->toArray(), ['filter_options' => $options]);
     }
 
     public function store(Request $request)
@@ -70,9 +128,7 @@ class ComplaintController extends Controller
     // Complaints the signed-in staff account has filed.
     public function mine(Request $request)
     {
-        return Complaint::with(['complainee', 'filedBy', 'filedByStudent'])
-            ->where('filed_by_user_id', $request->user()->id)
-            ->latest()->paginate(20);
+        return $this->sentList(Complaint::where('filed_by_user_id', $request->user()->id), $request);
     }
 
     public function showMine(Request $request, Complaint $complaint)
@@ -83,9 +139,7 @@ class ComplaintController extends Controller
 
     public function mineByStudent(Request $request)
     {
-        return Complaint::with(['complainee', 'filedByStudent'])
-            ->where('filed_by_student_id', $request->user('student')->id)
-            ->latest()->paginate(20);
+        return $this->sentList(Complaint::where('filed_by_student_id', $request->user('student')->id), $request);
     }
 
     public function showMineByStudent(Request $request, Complaint $complaint)

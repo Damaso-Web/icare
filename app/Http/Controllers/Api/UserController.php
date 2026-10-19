@@ -312,11 +312,11 @@ class UserController extends Controller
                 'deactivation_note'   => null,
                 'deactivated_at'      => null,
             ];
-            if ($validated['reason'] === 'security_verified') {
-                // The password itself is never logged - only that a reset is required.
-                $update['must_change_password'] = true;
-            }
+            // Every reactivation requires a new password at the next login (enforced by the
+            // password.fresh middleware). The password itself is never logged.
+            $update['must_change_password'] = true;
             $user->update($update);
+            $user->tokens()->delete();
 
             \App\Models\UserStatusEvent::create([
                 'user_id' => $user->id, 'action' => 'reactivated', 'reason_key' => $validated['reason'],
@@ -327,7 +327,7 @@ class UserController extends Controller
             $msg = "Reactivated {$user->name} (account {$user->email}). Reason: {$label}."
                 . ($note ? " Note: {$note}." : '')
                 . ($prevLabel ? " Originally deactivated for: {$prevLabel}." : '')
-                . ($validated['reason'] === 'security_verified' ? ' A password reset is required at the next login.' : '');
+                . ' A password change is required at the next login.';
             AuditLog::record('reactivated', $msg, $user, ['is_active' => false], ['is_active' => true, 'reason' => $label, 'note' => $note]);
         }
 
@@ -335,22 +335,22 @@ class UserController extends Controller
     }
 
     public function resetPassword(Request $request, User $user)
-{
-    $this->authorizeManaged($user);
-    $newPassword = Str::random(10);
-    $user->update([
-        'password'              => Hash::make($newPassword),
-        'temp_password'         => $newPassword,
-        'must_change_password'  => true,
-        'temp_password_expires_at' => null,
-    ]);
-    AuditLog::record('password_reset', "Password reset for {$user->name}.", $user);
+    {
+        $this->authorizeManaged($user);
+        abort_if(!$user->is_active, 422, 'This account is deactivated. Reactivate it before resetting the password.');
+        $newPassword = \App\Support\PasswordReset::perform($request, $user, 'employee');
 
-    return response()->json([
-        'message'       => 'Password reset successfully.',
-        'temp_password' => $newPassword,
-    ]);
-}
+        return response()->json([
+            'message'       => 'Password reset successfully.',
+            'temp_password' => $newPassword,
+        ]);
+    }
+
+    public function passwordInfo(Request $request, User $user)
+    {
+        $this->authorizeManaged($user);
+        return response()->json(['name' => $user->name] + \App\Support\PasswordReset::info($user));
+    }
 
     // Admin-only: view current temp password if the user hasn't changed it yet
     public function viewTempPassword(User $user)

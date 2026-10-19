@@ -13,11 +13,12 @@ class PublicSchedulingController extends Controller
     {
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
-            ->with(['student', 'case.latestReferral'])
+            ->with(['student', 'case.latestReferral', 'slotHistory'])
             ->firstOrFail();
 
         return response()->json([
             'appointment' => $appointment,
+            'previous_slots' => $this->previousSlots($appointment),
             'student'     => $appointment->student,
             'referral'    => $appointment->case?->latestReferral,
         ]);
@@ -48,6 +49,10 @@ class PublicSchedulingController extends Controller
             return response()->json(['available' => false, 'message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.']);
         }
 
+        if ($blocked = \App\Support\BlockedDates::message($request->appointment_date)) {
+            return response()->json(['available' => false, 'blocked' => true, 'message' => $blocked]);
+        }
+
         $conflict = Appointment::where('unit', $appointment->unit)
             ->where('appointment_date', $request->appointment_date)
             ->where('id', '!=', $appointment->id)
@@ -64,21 +69,36 @@ class PublicSchedulingController extends Controller
         return response()->json(['available' => !$conflict]);
     }
 
-    private const REPLACED_SLOT_MESSAGE = 'This is the time being rescheduled, so it is no longer available. Please choose another date or time.';
+    private const REPLACED_SLOT_MESSAGE = 'This time was already used and rescheduled, so it is no longer available. Please choose another date or time.';
 
-    // A reschedule replaces the old slot - the old row is marked 'rescheduled'
-    // and so stops counting as a booking - but that slot is exactly the time
-    // that didn't work, so the new pick may not overlap it on the same day.
+    // B471: every slot this appointment gave up stays unavailable to it - not just the latest one -
+    // so repeated reschedules cannot land back on a slot that was already rescheduled.
+    private function previousSlots(Appointment $appointment): array
+    {
+        $slots = $appointment->slotHistory()->get()->map(fn($h) => [
+            'date' => $h->slot_date->format('Y-m-d'), 'start' => substr($h->start_time, 0, 5), 'end' => substr($h->end_time, 0, 5),
+        ])->all();
+
+        // Older reschedules were stored as a chain of separate rows; include those slots too.
+        $prev = $appointment->rescheduled_from_id ? Appointment::find($appointment->rescheduled_from_id) : null;
+        $guard = 0;
+        while ($prev && $guard++ < 20) {
+            if ($prev->appointment_date && $prev->start_time && $prev->end_time) {
+                $slots[] = ['date' => $prev->appointment_date->format('Y-m-d'), 'start' => substr($prev->start_time, 0, 5), 'end' => substr($prev->end_time, 0, 5)];
+            }
+            $prev = $prev->rescheduled_from_id ? Appointment::find($prev->rescheduled_from_id) : null;
+        }
+        return $slots;
+    }
+
     private function overlapsReplacedSlot(Appointment $appointment, string $date, string $start, string $end): bool
     {
-        $previous = $appointment->rescheduled_from_id ? Appointment::find($appointment->rescheduled_from_id) : null;
-        if (!$previous || !$previous->appointment_date || !$previous->start_time || !$previous->end_time) {
-            return false;
+        foreach ($this->previousSlots($appointment) as $s) {
+            if ($s['date'] === substr($date, 0, 10) && $s['start'] < substr($end, 0, 5) && $s['end'] > substr($start, 0, 5)) {
+                return true;
+            }
         }
-
-        return $previous->appointment_date->format('Y-m-d') === substr($date, 0, 10)
-            && substr($previous->start_time, 0, 5) < substr($end, 0, 5)
-            && substr($previous->end_time, 0, 5) > substr($start, 0, 5);
+        return false;
     }
 
     public function monthAvailability(Request $request, $token)
@@ -113,6 +133,8 @@ class PublicSchedulingController extends Controller
             $bookedMinutesByDate[$date] = ($bookedMinutesByDate[$date] ?? 0) + max(0, $minutes);
         }
 
+        $blockedDays = \App\Support\BlockedDates::between($start->toDateString(), $end->toDateString());
+
         $days = [];
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
             $dateStr = $d->toDateString();
@@ -125,14 +147,16 @@ class PublicSchedulingController extends Controller
                 $status = 'closed';
             } elseif ($isPast) {
                 $status = 'past';
+            } elseif (isset($blockedDays[$dateStr])) {
+                $status = 'blocked';
             } elseif ($bookedMinutes >= $dailyCapacityMinutes) {
                 $status = 'full';
             }
 
-            $days[] = ['date' => $dateStr, 'status' => $status];
+            $days[] = ['date' => $dateStr, 'status' => $status] + (isset($blockedDays[$dateStr]) && $status === 'blocked' ? ['label' => $blockedDays[$dateStr]['label']] : []);
         }
 
-        return response()->json(['days' => $days]);
+        return response()->json(['days' => $days, 'previous_slots' => $this->previousSlots($appointment)]);
     }
 
     public function submit(Request $request, $token)
@@ -160,6 +184,10 @@ class PublicSchedulingController extends Controller
 
         if ($request->start_time < '08:00' || $request->end_time > '16:00') {
             return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
+        }
+
+        if ($blocked = \App\Support\BlockedDates::message($request->appointment_date)) {
+            return response()->json(['message' => $blocked, 'blocked' => true], 422);
         }
 
         $conflict = Appointment::where('unit', $appointment->unit)

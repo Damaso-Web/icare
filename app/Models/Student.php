@@ -79,6 +79,7 @@ class Student extends Authenticatable
         'birthdate'             => 'date',
         'is_active'             => 'boolean',
         'must_change_password'  => 'boolean',
+        'password_changed_at'   => 'datetime',
         'last_login_at'         => 'datetime',
         'temp_password_expires_at' => 'datetime',
         'deactivated_at'        => 'datetime',

@@ -12,10 +12,19 @@ class DocumentSetting extends Model
         'effectivity_date',
         'ctrl_no_year',
         'ctrl_no_term',
+        'version_no',
+        'status',
+        'is_active',
+        'activated_at',
+        'deactivated_at',
+        'created_by_user_id',
     ];
 
     protected $casts = [
         'effectivity_date' => 'date:Y-m-d',
+        'is_active'        => 'boolean',
+        'activated_at'     => 'datetime',
+        'deactivated_at'   => 'datetime',
     ];
 
     public function getCtrlNoAttribute(): ?string

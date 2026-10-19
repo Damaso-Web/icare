@@ -98,6 +98,8 @@ class AppointmentController extends Controller
         'notes'            => 'nullable|string|max:1000',
     ]);
 
+        \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
+
         $conflictFound = !empty($validated['staff_user_id'])
             ? Appointment::hasConflict($validated['staff_user_id'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'])
             : Appointment::hasUnitConflict($validated['unit'], $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
@@ -134,7 +136,7 @@ class AppointmentController extends Controller
         }
 
         // Fallback to the creating user if TBA/auto-assign was chosen (column is NOT NULL)
-        $validated['staff_user_id'] = $validated['staff_user_id'] ?: $request->user()->id;
+        $validated['staff_user_id'] = ($validated['staff_user_id'] ?? null) ?: $request->user()->id;
 
         // This endpoint is only ever used for a staff member directly
         // booking a date/time with the student already agreed face-to-face
@@ -168,7 +170,7 @@ class AppointmentController extends Controller
     public function show(Appointment $appointment)
     {
         $this->authorizeUnit($appointment);
-        return response()->json($appointment->load(['student', 'staff', 'case', 'createdBy']));
+        return response()->json($appointment->load(['student', 'staff', 'case', 'createdBy', 'slotHistory']));
     }
 
     public function update(Request $request, Appointment $appointment)
@@ -215,6 +217,8 @@ class AppointmentController extends Controller
             'staff_user_id'       => 'nullable|exists:users,id',
             'required_documents'  => 'nullable|string|max:1000',
         ]);
+
+        \App\Support\BlockedDates::assertOpen($appointment->appointment_date?->format('Y-m-d'));
 
         $staffToAssign = $validated['staff_user_id'] ?? $appointment->staff_user_id;
         $conflict = $staffToAssign ? Appointment::findConflict(
@@ -308,56 +312,73 @@ class AppointmentController extends Controller
             'reschedule_reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u'],
         ], ['reschedule_reason.regex' => 'Please explain the reason in words, not numbers only.']);
 
-        $newToken = \Illuminate\Support\Str::random(48);
+        $reason = trim($request->reschedule_reason);
+        $old = $this->slotSnapshot($appointment);
 
-        // Both writes or neither: previously the new row was created first
-        // and the original update failed afterwards, which left the old
-        // appointment active in the same slot as its replacement and made
-        // the replacement un-confirmable ("staff already has a conflicting
-        // appointment").
-        $newAppointment = DB::transaction(function () use ($request, $appointment, $newToken) {
-            $new = Appointment::create([
-                'case_id'             => $appointment->case_id,
-                'referral_id'         => $appointment->referral_id,
-                'student_id'          => $appointment->student_id,
-                'staff_user_id'       => $appointment->staff_user_id,
-                'created_by_user_id'  => $request->user()->id,
-                'unit'                => $appointment->unit,
-                'appointment_type'    => $appointment->appointment_type,
-                'appointment_date'    => $appointment->appointment_date,
-                'start_time'          => $appointment->start_time,
-                'end_time'            => $appointment->end_time,
-                'duration_minutes'    => $appointment->duration_minutes,
-                'location'            => $appointment->location,
-                'notes'               => $appointment->notes,
-                'required_documents'  => $appointment->required_documents,
-                'rescheduled_from_id' => $appointment->id,
-                'request_status'      => 'awaiting_student',
-                'status'              => 'pending',
-                'scheduling_token'    => $newToken,
-                'token_expires_at'    => now()->addDays(7),
-                'reschedule_reason'   => $request->reschedule_reason,
-                'reschedule_count'    => $appointment->reschedule_count,
-            ]);
+        // B469: the SAME appointment is updated - no second record. The slot it gives up goes to the
+        // history (never offered again) and the student is asked to pick a new one.
+        $newToken = $this->reopenForStudent($appointment, $reason, 'staff', $request->user()->name, $appointment->reschedule_count);
 
-            // 'rescheduled' is a valid request_status value; the old
-            // 'superseded' is not in the column's enum and made this 500.
-            $appointment->update([
-                'status'         => 'rescheduled',
-                'request_status' => 'rescheduled',
-            ]);
-
-            return $new;
-        });
-
-        AuditLog::record('reschedule_requested', "Requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reschedule_reason}", $appointment);
+        AuditLog::record('reschedule_requested',
+            "Requested reschedule for appointment {$appointment->appointment_code} (same record updated, no new appointment). "
+            . "Previous slot: {$old['date']} {$old['start']}-{$old['end']}. Reason: {$reason}. Rescheduled by {$request->user()->name}. Reschedule #{$appointment->times_rescheduled}. Student notified.",
+            $appointment, $old, ['status' => 'pending', 'request_status' => 'awaiting_student']);
 
         return response()->json([
             'message'               => 'Reschedule request sent to student.',
-            'appointment'           => $newAppointment,
-            'previous_appointment'  => $appointment,
-            'scheduling_link'       => url("/schedule/{$newToken}"),
+            'appointment'           => $appointment->fresh()->load('slotHistory'),
+            'previous_appointment'  => $old,
+            'scheduling_link'       => rtrim((string) config('app.frontend_url'), '/') . "/schedule/{$newToken}",
         ]);
+    }
+
+    /** The current slot, as stored before a reschedule changes it. */
+    private function slotSnapshot(Appointment $a): array
+    {
+        return [
+            'date'  => $a->appointment_date?->format('Y-m-d'),
+            'start' => substr((string) $a->start_time, 0, 5),
+            'end'   => substr((string) $a->end_time, 0, 5),
+            'staff_user_id' => $a->staff_user_id,
+        ];
+    }
+
+    /**
+     * Shared by staff- and student-initiated reschedules: stores the slot being given up,
+     * reopens the SAME appointment for the student to pick a new schedule and notifies them.
+     * Returns the new scheduling token.
+     */
+    private function reopenForStudent(Appointment $appointment, string $reason, string $byType, string $byName, int $newCount): string
+    {
+        $token = \Illuminate\Support\Str::random(48);
+        DB::transaction(function () use ($appointment, $reason, $byType, $byName, $newCount, $token) {
+            $old = $this->slotSnapshot($appointment);
+            if ($old['date']) {
+                \App\Models\AppointmentSlotHistory::create([
+                    'appointment_id' => $appointment->id, 'slot_date' => $old['date'], 'start_time' => $old['start'], 'end_time' => $old['end'],
+                    'staff_user_id' => $old['staff_user_id'], 'reason' => $reason, 'rescheduled_by_type' => $byType,
+                    'rescheduled_by_name' => $byName, 'created_at' => now(),
+                ]);
+            }
+            $appointment->update([
+                'status'            => 'pending',
+                'request_status'    => 'awaiting_student',
+                'scheduling_token'  => $token,
+                'token_expires_at'  => now()->addDays(7),
+                'reschedule_reason' => $reason,
+                'reschedule_count'  => $newCount,
+                'times_rescheduled' => $appointment->times_rescheduled + 1,
+                'checked_in'        => false,
+                'checked_in_at'     => null,
+            ]);
+        });
+
+        try {
+            $appointment->student?->notify(new \App\Notifications\AppointmentRescheduledNotification($appointment->fresh(), $reason));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+        return $token;
     }
 
     // The appointment itself plus every earlier appointment it was
@@ -417,54 +438,22 @@ class AppointmentController extends Controller
             ], 422);
         }
 
-        $newToken = \Illuminate\Support\Str::random(48);
+        $reason = trim($request->reason);
+        $old = $this->slotSnapshot($appointment);
+        $student = $request->user('student');
+        $newToken = $this->reopenForStudent($appointment, $reason, 'student', trim($student->first_name . ' ' . $student->last_name), $newCount);
 
-        // Same B234 change as the staff-initiated reschedule() above: create
-        // a new, linked Appointment row for the new slot instead of mutating
-        // this one, and mark this row 'rescheduled' so it's kept as a record
-        // without still counting as an open appointment. Done in one
-        // transaction so a failure can't leave both rows active.
-        $newAppointment = DB::transaction(function () use ($appointment, $newToken, $request, $newCount) {
-            $new = Appointment::create([
-                'case_id'             => $appointment->case_id,
-                'referral_id'         => $appointment->referral_id,
-                'student_id'          => $appointment->student_id,
-                'staff_user_id'       => $appointment->staff_user_id,
-                'created_by_user_id'  => $appointment->created_by_user_id,
-                'unit'                => $appointment->unit,
-                'appointment_type'    => $appointment->appointment_type,
-                'appointment_date'    => $appointment->appointment_date,
-                'start_time'          => $appointment->start_time,
-                'end_time'            => $appointment->end_time,
-                'duration_minutes'    => $appointment->duration_minutes,
-                'location'            => $appointment->location,
-                'notes'               => $appointment->notes,
-                'required_documents'  => $appointment->required_documents,
-                'rescheduled_from_id' => $appointment->id,
-                'request_status'      => 'awaiting_student',
-                'status'              => 'pending',
-                'scheduling_token'    => $newToken,
-                'token_expires_at'    => now()->addDays(7),
-                'reschedule_reason'   => $request->reason,
-                'reschedule_count'    => $newCount,
-            ]);
-
-            $appointment->update([
-                'status'         => 'rescheduled',
-                'request_status' => 'rescheduled',
-            ]);
-
-            return $new;
-        });
-
-        AuditLog::record('reschedule_requested', "Student requested reschedule for appointment {$appointment->appointment_code}; new linked appointment {$newAppointment->appointment_code} created. Reason: {$request->reason}", $appointment);
-        $newAppointment->notifyOffice('reschedule_requested');
+        AuditLog::record('reschedule_requested',
+            "Student requested reschedule for appointment {$appointment->appointment_code} (same record updated, no new appointment). "
+            . "Previous slot: {$old['date']} {$old['start']}-{$old['end']}. Reason: {$reason}. Reschedule #{$appointment->times_rescheduled}.",
+            $appointment, $old, ['status' => 'pending', 'request_status' => 'awaiting_student']);
+        $appointment->notifyOffice('reschedule_requested');
 
         return response()->json([
             'message'              => 'Reschedule requested.',
-            'appointment'          => $newAppointment,
-            'previous_appointment' => $appointment,
-            'scheduling_link'      => url("/schedule/{$newToken}"),
+            'appointment'          => $appointment->fresh()->load('slotHistory'),
+            'previous_appointment' => $old,
+            'scheduling_link'      => rtrim((string) config('app.frontend_url'), '/') . "/schedule/{$newToken}",
         ]);
     }
 
@@ -544,6 +533,8 @@ public function storeByStudent(Request $request)
         'end_time'         => 'required|date_format:H:i|after:start_time',
     ]);
 
+    \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
+
     if (Appointment::hasUnitConflict(
         'GCU',
         $validated['appointment_date'],
@@ -581,6 +572,11 @@ public function checkConflictByStudent(Request $request)
         'start_time'       => 'required|date_format:H:i',
         'end_time'         => 'required|date_format:H:i',
     ]);
+
+    $blocked = \App\Support\BlockedDates::message($validated['appointment_date']);
+    if ($blocked) {
+        return response()->json(['has_conflict' => true, 'blocked' => true, 'message' => $blocked]);
+    }
 
     $hasConflict = Appointment::hasUnitConflict(
         'GCU',
@@ -801,6 +797,10 @@ public function checkConflictByStudent(Request $request)
             'start_time'       => 'required',
             'end_time'         => 'required',
         ]);
+
+        if ($blocked = \App\Support\BlockedDates::message($request->appointment_date)) {
+            return response()->json(['has_conflict' => true, 'blocked' => true, 'message' => $blocked]);
+        }
 
         $conflict = !empty($request->staff_user_id)
             ? Appointment::hasConflict($request->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id)

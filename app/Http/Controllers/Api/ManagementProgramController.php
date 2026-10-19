@@ -46,6 +46,7 @@ class ManagementProgramController extends Controller
 
     public function update(Request $request, Program $program)
     {
+        ManagementGuard::assertEditable($program);
         $nameRules = ['required', 'string', 'max:255'];
         if ($request->input('name') !== $program->name) $nameRules[] = 'regex:' . self::LABEL_REGEX;
 

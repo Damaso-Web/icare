@@ -1258,6 +1258,7 @@
             <div>
               <label class="ifl">Date <span style="color:var(--red)">*</span></label>
               <input v-model="followUpForm.appointment_date" type="date" class="ifi" :min="todayStr" />
+              <div v-if="followUpBlockedMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ followUpBlockedMsg }}</div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
@@ -1895,6 +1896,7 @@
 
 <script setup>
 import { ref, onMounted, inject, computed, watch } from 'vue';
+import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
@@ -2346,7 +2348,9 @@ function authHeaders() {
 }
 async function fetchDocSettings(code, target) {
   try {
-    const res = await axios.get(`${API_BASE}/document-settings/${code}`, authHeaders());
+    // The header that was in force when this referral was made (older documents keep their header).
+    const at = referral.value?.created_at ? `?at=${encodeURIComponent(referral.value.created_at)}` : '';
+    const res = await axios.get(`${API_BASE}/document-settings/${code}${at}`, authHeaders());
     target.value = res.data;
   } catch (e) {
     console.error(e);
@@ -3010,7 +3014,11 @@ const todayStr = new Date().toISOString().split('T')[0];
 
 const showFollowUpConfirm = ref(false);
 
+const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
+const followUpBlockedMsg = computed(() => blockedMessageFor(followUpForm.value.appointment_date));
+
 function openFollowUpModal() {
+  loadBlockedDates();
   followUpError.value = '';
   followUpForm.value = { appointment_date: '', start_time: '', end_time: '', staff_user_id: '', notes: '' };
   showFollowUpModal.value = true;
@@ -3025,6 +3033,10 @@ function openFollowUpConfirm() {
   }
   if (followUpForm.value.appointment_date < todayStr) {
     followUpError.value = 'Follow-up date cannot be in the past.';
+    return;
+  }
+  if (followUpBlockedMsg.value) {
+    followUpError.value = followUpBlockedMsg.value;
     return;
   }
   showFollowUpConfirm.value = true;

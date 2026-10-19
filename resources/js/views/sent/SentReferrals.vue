@@ -10,12 +10,13 @@
     </div>
 
     <div class="icard">
+      <ListFilters :model="filters" :selects="filterSelects" placeholder="Search referral no. or student..." @change="load(1)" />
       <div v-if="loading" style="padding:30px;text-align:center">
         <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
       <div v-else-if="!rows.length" class="empty-state">
-        <h3>No referrals sent yet</h3>
-        <p>Referrals you send will be kept here.</p>
+        <h3>{{ filtered ? 'No matching referrals' : 'No referrals sent yet' }}</h3>
+        <p>{{ filtered ? 'Try a different search or reset the filters.' : 'Referrals you send will be kept here.' }}</p>
       </div>
       <div v-else class="ts">
         <table class="itable">
@@ -110,7 +111,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
+import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
 import api, { studentApi } from '../../api/index';
 
@@ -175,13 +177,26 @@ async function save() {
   }
 }
 
+const filters = reactive({ search: '', sort: 'newest', status: '', referral_type: '' });
+const options = ref({ types: [], statuses: [] });
+const filtered = computed(() => !!(filters.search || filters.status || filters.referral_type || filters.sort !== 'newest'));
+const filterSelects = computed(() => [
+  { key: 'status', all: 'All Status', options: options.value.statuses.map(v => ({ value: v, label: title(v) })) },
+  { key: 'referral_type', all: 'All Types', options: options.value.types.map(v => ({ value: v, label: title(v) })) },
+]);
+
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
 const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu)\b/g, m => m.toUpperCase()) : '');
 
 async function load(p = 1) {
   loading.value = true;
   try {
-    const res = await http.get(base, { params: { page: p } });
+    const params = { page: p, sort: filters.sort };
+    if (filters.search) params.search = filters.search;
+    if (filters.status) params.status = filters.status;
+    if (filters.referral_type) params.referral_type = filters.referral_type;
+    const res = await http.get(base, { params });
+    options.value = { types: res.data.filter_options?.types || [], statuses: res.data.filter_options?.statuses || [] };
     rows.value = res.data.data || [];
     page.value = res.data.current_page || 1;
     last.value = res.data.last_page || 1;

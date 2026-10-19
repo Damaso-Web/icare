@@ -15,8 +15,14 @@ class AcademicYear extends Model
 
     protected $fillable = ['start_year', ...self::DATE_FIELDS];
 
+    public function label(): string
+    {
+        return $this->start_year . '-' . ($this->start_year + 1);
+    }
+
     protected $casts = [
         'start_year' => 'integer',
+        'is_current' => 'boolean',
         'year_start' => 'date:Y-m-d',
         'year_end' => 'date:Y-m-d',
         'first_sem_start' => 'date:Y-m-d',

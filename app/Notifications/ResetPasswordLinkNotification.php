@@ -26,13 +26,13 @@ class ResetPasswordLinkNotification extends Notification
         ]);
         $minutes = (int) config('auth.passwords.' . ($this->type === 'student' ? 'students' : 'users') . '.expire', 60);
 
-        return (new MailMessage)
+        return \App\Support\MailTracking::off((new MailMessage)
             ->subject('Reset your iCARE password')
             ->greeting('Hello,')
             ->line('We received a request to reset the password of your iCARE account.')
             ->action('Reset Password', $url)
             ->line("This link expires in {$minutes} minutes and can be used once.")
             ->line('If you did not ask for this, you can ignore this email - your password will not change.')
-            ->salutation('iCARE - BSU Office of Student Services');
+            ->salutation('iCARE - BSU Office of Student Services'));
     }
 }

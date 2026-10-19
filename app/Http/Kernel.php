@@ -65,6 +65,7 @@ class Kernel extends HttpKernel
         'precognitive' => \Illuminate\Foundation\Http\Middleware\HandlePrecognitiveRequests::class,
         'role' => \App\Http\Middleware\EnsureRole::class,
         'actor' => \App\Http\Middleware\EnsureActor::class,
+        'password.fresh' => \App\Http\Middleware\EnsurePasswordChanged::class,
         'signed' => \App\Http\Middleware\ValidateSignature::class,
         'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
         'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,

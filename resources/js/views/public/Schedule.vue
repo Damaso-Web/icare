@@ -75,13 +75,16 @@
               <div
                 v-for="day in calDays"
                 :key="day.date"
-                :title="calStatusLabel(day.status)"
+                :title="calStatusLabel(day.status, day)"
                 style="width:100%;aspect-ratio:1;max-height:46px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:13.5px"
                 :style="calDayStyle(day)"
                 @click="day.status === 'available' && selectCalendarDate(day.date)"
               >
                 {{ Number(day.date.split('-')[2]) }}
               </div>
+            </div>
+            <div v-if="blockedList.length" style="margin-top:10px;font-size:11.5px;color:var(--stone);line-height:1.6">
+              <div v-for="b in blockedList" :key="b.date"><strong>{{ Number(b.date.split('-')[2]) }}</strong>: {{ b.label }} (not available)</div>
             </div>
           </div>
 
@@ -182,14 +185,24 @@ const calDays  = ref([]);
 const calMonthLabel = computed(() => new Date(calYear.value, calMonth.value, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
 const calLeadingBlanks = computed(() => new Date(calYear.value, calMonth.value, 1).getDay());
 
-function calStatusLabel(status) {
+function calStatusLabel(status, day) {
+  if (status === 'blocked') return day?.label || 'Not available';
   return { available: 'Available', full: 'Fully booked', closed: 'Not open for appointments', past: 'Past date' }[status] || '';
 }
+const previousSlots = ref([]);
+const blockedList = computed(() => calDays.value.filter(d => d.status === 'blocked'));
+// B471: slots this appointment already gave up are never offered again (the server checks too).
+function hitsPreviousSlot(date, start, end) {
+  return previousSlots.value.some(s => s.date === date && s.start < end.slice(0, 5) && s.end > start.slice(0, 5));
+}
+const PREV_MSG = 'This time was already used and rescheduled, so it is no longer available. Please choose another date or time.';
+
 
 function calDayStyle(day) {
   if (day.status === 'available') return 'cursor:pointer;background:var(--mist);color:var(--moss);font-weight:600';
   if (day.status === 'full') return 'cursor:not-allowed;background:var(--red-lt);color:var(--red)';
   if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
+  if (day.status === 'blocked') return 'cursor:not-allowed;background:var(--cloud);color:var(--fog);text-decoration:line-through';
   return 'cursor:not-allowed;background:var(--cloud);color:var(--fog)';
 }
 
@@ -203,6 +216,7 @@ async function fetchMonthAvailability() {
   try {
     const res = await axios.get(`${API_BASE}/schedule/${token}/month-availability`, { params: { month: monthStr } });
     calDays.value = res.data.days;
+    previousSlots.value = res.data.previous_slots || [];
   } catch (e) {
     calDays.value = [];
   }
@@ -241,6 +255,13 @@ async function checkAvailability() {
 
   if (form.value.end_time <= form.value.start_time) {
     timeOrderError.value = true;
+    return;
+  }
+
+  if (hitsPreviousSlot(form.value.appointment_date, form.value.start_time, form.value.end_time)) {
+    isAvailable.value = false;
+    availabilityMessage.value = PREV_MSG;
+    availabilityChecked.value = true;
     return;
   }
 

@@ -54,27 +54,55 @@ const created = ['created_error', 'Created in Error', 'The entry was added by mi
 const other   = ['other', 'Other', ''];
 const mk = (...items) => items.map(([key, label, description]) => ({ key, label, description }));
 
-// Management > Delete: reasons per tab (see ManagementDeletion.php).
+// Admin "Reset Password" reasons (keep in sync with app/Support/PasswordReset.php).
+export const PASSWORD_RESET_REASONS = {
+  student: mk(
+    ['no_email_access', 'Student cannot access their registered email', ''],
+    ['link_not_received', 'Reset link expired or was not received', ''],
+    ['link_not_working', 'Reset link is not working', ''],
+    ['unauthorized_access', 'Suspected unauthorized access to the account', ''],
+    ['identity_verified', 'Identity verified in person at the office', ''],
+    other),
+  employee: mk(
+    ['forgot_password', 'Employee forgot password', ''],
+    ['locked_out', 'Account locked out', ''],
+    ['compromised', 'Suspected compromised account', ''],
+    ['new_account', 'New account setup', ''],
+    other),
+};
+
+// Management > Delete: only mistaken or duplicate entries may be deleted, on every tab
+// (keep in sync with ManagementGuard::reasons). Retiring an item is an Archive reason instead.
+const MGMT_DELETE = mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'], other);
 export const MANAGEMENT_DELETE_REASONS = {
-  college: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['no_longer_offered', 'No Longer Offered', 'The college has been dissolved or closed.'],
-    ['merged', 'Merged with Another College', 'Its records were moved to another college.'], other),
-  program: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['discontinued', 'Program Discontinued', 'The program is no longer offered.'],
-    ['replaced', 'Renamed or Replaced', 'The program was replaced by a new one, and its records were moved.'], other),
-  department: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['dissolved', 'Department Dissolved', 'The department no longer exists.'],
-    ['merged', 'Merged with Another Department', 'Its records were moved to another department.'], other),
-  wellness: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['no_longer_offered', 'Service No Longer Offered', 'The service has been discontinued.'],
-    ['replaced', 'Replaced by Another Service', 'The service was renamed or replaced.'], other),
-  disciplinary: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['no_longer_offered', 'Service No Longer Offered', 'The service has been discontinued.'],
-    ['policy_change', 'Replaced Following a Policy Change', 'The service was replaced due to an updated policy.'], other),
-  sources: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['no_longer_used', 'No Longer Used', 'This option is no longer used.'], other),
-  calendar: mk(created, ['duplicate', 'Duplicate Entry', 'The entry duplicates an existing record.'],
-    ['no_longer_used', 'No Longer Used', 'This option is no longer used.'], other),
+  college: MGMT_DELETE, program: MGMT_DELETE, department: MGMT_DELETE,
+  wellness: MGMT_DELETE, disciplinary: MGMT_DELETE, sources: MGMT_DELETE, calendar: MGMT_DELETE, 'document header': MGMT_DELETE, 'holidays and suspensions': MGMT_DELETE,
+};
+
+// Management > Deactivate / Archive / Reactivate: reasons per tab and action
+// (keep in sync with ManagementGuard::statusReasons).
+const MGMT_REACTIVATE = mk(
+  ['offered_again', 'Offered or Used Again', 'The item is being offered or used again.'],
+  ['review_completed', 'Review or Reorganization Completed', 'The review or reorganization that paused it is finished.'],
+  ['deactivated_in_error', 'Deactivated in Error', 'It was deactivated by mistake.'], other);
+const sr = (deactivate, archive) => ({ inactive: mk(...deactivate, other), archived: mk(...archive, other), active: MGMT_REACTIVATE });
+export const MANAGEMENT_STATUS_REASONS = {
+  college: sr([['temporarily_not_offered', 'Temporarily Not Offered', ''], ['under_reorganization', 'Under Reorganization', ''], ['pending_merger', 'Pending Merger', '']],
+              [['no_longer_offered', 'No Longer Offered', ''], ['merged', 'Merged', ''], ['renamed_replaced', 'Renamed or Replaced', '']]),
+  program: sr([['temporarily_not_offered', 'Temporarily Not Offered', ''], ['under_curriculum_review', 'Under Curriculum Review', '']],
+              [['phased_out', 'Phased Out', ''], ['replaced', 'Replaced by New Program or Curriculum', ''], ['merged', 'Merged', '']]),
+  department: sr([['under_reorganization', 'Under Reorganization', ''], ['pending_merger', 'Pending Merger', '']],
+                 [['merged', 'Merged', ''], ['dissolved', 'Dissolved', '']]),
+  wellness: sr([['temporarily_unavailable', 'Temporarily Unavailable', ''], ['under_review', 'Under Review', '']],
+               [['service_discontinued', 'Service Discontinued', ''], ['replaced_merged', 'Replaced or Merged with Another Service', '']]),
+  disciplinary: sr([['temporarily_unavailable', 'Temporarily Unavailable', ''], ['pending_policy_update', 'Pending Policy Update', '']],
+                   [['discontinued', 'Discontinued', ''], ['replaced_policy', 'Replaced by Updated Policy or Procedure', '']]),
+  calendar: sr([['entered_ahead', 'Entered Ahead of Time', ''], ['schedule_under_review', 'Schedule Under Review', '']],
+               [['term_ended', 'Term Ended', ''], ['replaced_calendar', 'Replaced by Updated Calendar', '']]),
+  'holidays and suspensions': sr([], [['date_changed', 'Date Changed by the University', ''], ['working_day', 'Declared a Working Day', ''], ['replaced_announcement', 'Replaced by an Updated Announcement', ''], ['event_cancelled', 'Event Cancelled or Moved', '']]),
+  'document header': sr([], [['outdated_format', 'Outdated Format', ''], ['replaced_version', 'Replaced by New Version', ''], ['office_logo_changed', 'Office Name or Logo Changed', '']]),
+  sources: sr([['not_currently_used', 'Not Currently Used', ''], ['under_review', 'Under Review', '']],
+              [['no_longer_used', 'No Longer Used', ''], ['merged', 'Merged with Another Source', '']]),
 };
 
 // ---- Student accounts (keep in sync with app/Support/StudentAccountReasons.php) ----

@@ -46,6 +46,7 @@ class ManagementDepartmentController extends Controller
 
     public function update(Request $request, Department $department)
     {
+        ManagementGuard::assertEditable($department);
         $nameRules = ['required', 'string', 'max:255'];
         if ($request->input('name') !== $department->name) $nameRules[] = 'regex:' . self::LABEL_REGEX;
 

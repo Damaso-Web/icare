@@ -76,7 +76,8 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, onMounted } from 'vue';
+import { useBlockedDates } from '../utils/blockedDates';
 import { testingAPI } from '../api/index';
 import { formatTime12 } from '../utils/validators';
 
@@ -91,12 +92,16 @@ const error = ref('');
 const today = new Date().toLocaleDateString('en-CA');
 
 const ready = computed(() => !!(form.value.appointment_date && form.value.start_time && form.value.end_time));
+const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
+onMounted(loadBlockedDates);
+
 const formError = computed(() => {
   const f = form.value;
   if (f.appointment_date) {
     const day = new Date(f.appointment_date + 'T00:00:00').getDay();
     if (day === 0 || day === 6) return 'TMDU is closed on weekends. Please choose Monday to Friday.';
     if (f.appointment_date < today) return 'Choose today or a later date.';
+    if (blockedMessageFor(f.appointment_date)) return blockedMessageFor(f.appointment_date);
   }
   if (f.start_time && f.end_time) {
     if (f.start_time < '08:00' || f.end_time > '16:00') return 'PAR release must be between 8:00 AM and 4:00 PM.';

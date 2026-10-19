@@ -373,6 +373,7 @@ async function changePassword() {
   pwError.value = '';
   try {
     await api.put('/me/password', pwForm.value);
+    if (auth.user?.must_change_password) auth.setUser({ ...auth.user, must_change_password: false });
     toast?.success('Password changed successfully.');
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;

@@ -35,6 +35,7 @@ class ManagementCollegeController extends Controller
 
     public function update(Request $request, College $college)
     {
+        ManagementGuard::assertEditable($college);
         $nameRules   = ['required', 'string', 'max:255', 'unique:colleges,name,' . $college->id];
         $abbrevRules = ['nullable', 'string', 'max:20'];
         if ($request->input('name') !== $college->name)     $nameRules[]   = 'regex:' . self::LABEL_REGEX;

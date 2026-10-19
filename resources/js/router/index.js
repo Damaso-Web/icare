@@ -425,6 +425,19 @@ router.beforeEach((to, from, next) => {
     const user  = JSON.parse(localStorage.getItem('user') || '{}');
     const role  = user?.role;
 
+    // A student who must change their password can only use the Account page (the server refuses everything else).
+    if (to.path.startsWith('/student') && localStorage.getItem('student_token')) {
+        const stu = JSON.parse(localStorage.getItem('student') || '{}');
+        if (stu?.must_change_password && to.name !== 'student-account' && to.meta.public) {
+            return next({ name: 'student-account' });
+        }
+    }
+
+    // Staff who must change their password (temporary password, admin reset, reactivation) can only use My Account.
+    if (token && user?.must_change_password && to.name !== 'my-account' && !to.meta.guest && !to.meta.public) {
+        return next({ name: 'my-account' });
+    }
+
     // Public routes (no auth needed, e.g. student scheduling link, login choice)
     if (to.meta.public) {
         return next();

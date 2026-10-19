@@ -28,7 +28,7 @@
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
             <span class="ibadge" :class="'ibadge-' + appointment.status">{{ toTitleCase(appointment.status) }}</span>
-            <span v-if="appointment.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
+            <span v-if="appointment.rescheduled_from_id || appointment.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date &amp; Time</div>
@@ -113,13 +113,16 @@
               <div
                 v-for="day in calDays"
                 :key="day.date"
-                :title="calStatusLabel(day.status)"
+                :title="calStatusLabel(day.status, day)"
                 style="width:100%;aspect-ratio:1;max-height:46px;display:flex;align-items:center;justify-content:center;border-radius:6px;font-size:13.5px"
                 :style="calDayStyle(day)"
                 @click="day.status === 'available' && selectCalendarDate(day.date)"
               >
                 {{ Number(day.date.split('-')[2]) }}
               </div>
+            </div>
+            <div v-if="blockedList.length" style="margin-top:10px;font-size:11.5px;color:var(--stone);line-height:1.6">
+              <div v-for="b in blockedList" :key="b.date"><strong>{{ Number(b.date.split('-')[2]) }}</strong>: {{ b.label }} (not available)</div>
             </div>
           </div>
 
@@ -144,7 +147,7 @@
           <div v-if="timeOrderError" style="font-size:11px;color:var(--red)">End time must be later than start time.</div>
           <div v-if="sameAsOriginalError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ fmt12(appointment.start_time) }}–{{ fmt12(appointment.end_time) }} on {{ formatDate(appointment.appointment_date) }} is the time being rescheduled, so it is no longer available. Please choose another date or time.</div>
           <div v-else-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
-          <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ This time slot is already taken. Please choose another.</div>
+          <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}</div>
           <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">
@@ -345,15 +348,26 @@ const canSubmit = computed(() =>
 );
 
 // Calendar helpers
-function calStatusLabel(status) {
+function calStatusLabel(status, day) {
+  if (status === 'blocked') return day?.label || 'Not available';
   return { available: 'Available', full: 'Fully booked', closed: 'Not open for appointments', past: 'Past date' }[status] || '';
 }
+const previousSlots = ref([]);
+const availabilityMessage = ref('');
+const blockedList = computed(() => calDays.value.filter(d => d.status === 'blocked'));
+// B471: slots this appointment already gave up are never offered again (the server checks too).
+function hitsPreviousSlot(date, start, end) {
+  return previousSlots.value.some(s => s.date === date && s.start < end.slice(0, 5) && s.end > start.slice(0, 5));
+}
+const PREV_MSG = 'This time was already used and rescheduled, so it is no longer available. Please choose another date or time.';
+
 
 function calDayStyle(day) {
   if (day.date === scheduleForm.value.appointment_date) return 'cursor:pointer;background:var(--moss);color:#fff;font-weight:700;box-shadow:0 0 0 2px var(--moss)';
   if (day.status === 'available') return 'cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600';
   if (day.status === 'full') return 'cursor:not-allowed;background:#fee2e2;color:#b91c1c';
   if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
+  if (day.status === 'blocked') return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280;text-decoration:line-through';
   return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280';
 }
 
@@ -370,6 +384,7 @@ async function fetchMonthAvailability() {
     // The backend response has been seen marking past dates as still
     // "available" - this always forces any date before today back to
     // "past" client-side, regardless of what the API returned (B232).
+    previousSlots.value = res.data.previous_slots || [];
     const todayStr = new Date().toISOString().split('T')[0];
     calDays.value = (res.data.days || []).map(day =>
       day.date < todayStr ? { ...day, status: 'past' } : day
@@ -409,6 +424,14 @@ async function checkAvailability() {
     return;
   }
 
+  availabilityMessage.value = '';
+  if (hitsPreviousSlot(scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time)) {
+    isAvailable.value = false;
+    availabilityMessage.value = PREV_MSG;
+    availabilityChecked.value = true;
+    return;
+  }
+
   checkingAvailability.value = true;
   try {
     const res = await axios.post(
@@ -416,6 +439,7 @@ async function checkAvailability() {
       scheduleForm.value
     );
     isAvailable.value = res.data.available;
+    availabilityMessage.value = res.data.message || '';
     availabilityChecked.value = true;
   } catch (e) {
     isAvailable.value = false;

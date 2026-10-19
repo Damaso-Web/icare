@@ -91,7 +91,7 @@
                        reschedule" signal visible even after that point,
                        instead of disappearing once it's no longer waiting
                        on the student. -->
-                  <span v-if="a.rescheduled_from_id && a.request_status !== 'awaiting_student'" class="ibadge" style="background:var(--blue-lt);color:var(--blue)" title="This appointment was created from a reschedule request.">
+                  <span v-if="(a.rescheduled_from_id || a.times_rescheduled > 0) && a.request_status !== 'awaiting_student'" class="ibadge" style="background:var(--blue-lt);color:var(--blue)" title="This appointment was created from a reschedule request.">
                     Rescheduled
                   </span>
                   <!-- A Call Slip went to the Dean's Secretary for this appointment -->
@@ -187,7 +187,7 @@
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ detailTarget.student?.last_name }}, {{ detailTarget.student?.first_name }}</span>
               <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
-              <span v-if="detailTarget.rescheduled_from_id" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
+              <span v-if="detailTarget.rescheduled_from_id || detailTarget.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
               <span v-if="callSlipLabel(detailTarget)" class="ibadge ibadge-callslip" :title="callSlipTitle(detailTarget)">{{ callSlipLabel(detailTarget) }}</span>
             </div>
             <div style="font-size:11.5px;color:var(--fog);margin-top:3px">

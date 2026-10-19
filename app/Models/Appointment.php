@@ -30,6 +30,7 @@ class Appointment extends Model
         'reminder_sent',
         'reminder_sent_at',
         'rescheduled_from_id',
+        'times_rescheduled',
         'reschedule_reason',
         'cancellation_reason',
         'cancelled_at',
@@ -93,6 +94,7 @@ class Appointment extends Model
     public function createdBy()         { return $this->belongsTo(User::class, 'created_by_user_id'); }
     public function cancelledBy()       { return $this->belongsTo(User::class, 'cancelled_by_user_id'); }
     public function checkedInBy()       { return $this->belongsTo(User::class, 'checked_in_by_user_id'); }
+    public function slotHistory()       { return $this->hasMany(AppointmentSlotHistory::class)->orderBy('id'); }
     public function rescheduledFrom()   { return $this->belongsTo(Appointment::class, 'rescheduled_from_id'); }
 
     // The first other appointment that overlaps this staff member's slot, or

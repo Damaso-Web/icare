@@ -554,6 +554,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
+import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
@@ -692,9 +693,13 @@ function isWeekend(dateStr) {
   return day === 0 || day === 6;
 }
 
+const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
+onMounted(loadBlockedDates);
+
 function dateErrorFor(dateStr) {
   if (!dateStr) return '';
-  return isWeekend(dateStr) ? 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).' : '';
+  if (isWeekend(dateStr)) return 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).';
+  return blockedMessageFor(dateStr);
 }
 
 function timeErrorFor(startTime, endTime) {

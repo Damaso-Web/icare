@@ -31,7 +31,7 @@
         </div>
         <div v-if="error" class="rd-err">{{ error }}</div>
         <div class="rd-actions">
-          <button class="ibtn" :class="danger ? 'rd-danger' : 'ibtn-p'" :disabled="!valid || busy || !!blockedMessage" @click="$emit('confirm', { reason, note: note.trim() })">{{ busy ? 'Please wait...' : confirmText }}</button>
+          <button class="ibtn" :class="danger ? 'rd-danger' : 'ibtn-p'" :disabled="!valid || busy || extraDisabled || !!blockedMessage" @click="$emit('confirm', { reason, note: note.trim() })">{{ busy ? 'Please wait...' : confirmText }}</button>
           <button class="ibtn ibtn-o" :disabled="busy" @click="$emit('cancel')">Cancel</button>
         </div>
       </div>
@@ -54,6 +54,7 @@ const props = defineProps({
   danger: { type: Boolean, default: true },
   busy: { type: Boolean, default: false },
   error: { type: String, default: '' },
+  extraDisabled: { type: Boolean, default: false }, // caller-side condition (e.g. an unticked "I understand" box)
   blockedMessage: { type: String, default: '' }, // set when the action is not allowed (e.g. record still in use)
 });
 defineEmits(['confirm', 'cancel']);

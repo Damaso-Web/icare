@@ -85,6 +85,7 @@ class PasswordResetController extends Controller
                     'temp_password'        => null,
                     'temp_password_expires_at' => null,
                 ])->save();
+                \App\Support\PasswordReset::stamp($user, 'email_link');
                 $user->tokens()->delete(); // sign out every device
                 event(new PasswordReset($user));
                 AuditLog::record('password_reset', "Password reset by email link for {$data['email']}.", $user, [], [], $user);

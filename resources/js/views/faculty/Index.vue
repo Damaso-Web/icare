@@ -244,6 +244,32 @@
       </div>
     </div>
 
+    <!-- Deactivate / Reactivate (reason required) -->
+    <ReasonDialog
+      :open="!!statusAsk"
+      :title="statusAsk?.deactivating ? 'Deactivate account?' : 'Reactivate account?'"
+      :message="statusAsk ? (statusAsk.deactivating ? `Deactivate <strong>${statusAsk.name}</strong>? They will no longer be able to sign in.` : `Reactivate <strong>${statusAsk.name}</strong>? They will be required to change their password at their next login.`) : ''"
+      :reasons="statusAsk?.deactivating ? EMPLOYEE_DEACTIVATE_REASONS : EMPLOYEE_REACTIVATE_REASONS"
+      :confirm-text="statusAsk?.deactivating ? 'Yes, Deactivate' : 'Yes, Reactivate'"
+      :danger="!!statusAsk?.deactivating"
+      :busy="saving"
+      :error="statusError"
+      @confirm="doStatus"
+      @cancel="statusAsk = null"
+    />
+
+    <!-- Reset Password (reason required) -->
+    <ResetPasswordDialog
+      :open="!!resetAsk"
+      kind="employee"
+      :name="resetAsk?.name || ''"
+      :fetch-info="() => facultyAPI.passwordInfo(resetAsk.id).then(r => r.data)"
+      :busy="saving"
+      :error="resetError"
+      @confirm="doReset"
+      @cancel="resetAsk = null"
+    />
+
     <!-- Confirm modal -->
     <div v-if="confirm" class="fmodal" @click.self="confirm = null">
       <div class="fbox" style="max-width:400px">
@@ -339,6 +365,9 @@
 import { ref, computed, onMounted, inject } from 'vue';
 import axios from 'axios';
 import { facultyAPI } from '../../api/index';
+import ReasonDialog from '../../components/ReasonDialog.vue';
+import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
+import { EMPLOYEE_DEACTIVATE_REASONS, EMPLOYEE_REACTIVATE_REASONS } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
 import { safeSearchInput, blockSpecialKeypress, onlyLetters, isValidPHContact } from '../../utils/validators';
 import { matchCollege } from '../../utils/colleges';
@@ -485,17 +514,43 @@ async function saveForm() {
 
 // ---- confirm actions (reset, toggle, remove chair) ----
 const confirm = ref(null);
-function askAction(kind, u, text) { confirm.value = { kind, u, text }; }
+const statusAsk = ref(null);
+const statusError = ref('');
+const resetAsk = ref(null);
+const resetError = ref('');
+function askAction(kind, u, text) {
+  if (kind === 'toggle') { statusError.value = ''; statusAsk.value = { id: u.id, name: u.name, deactivating: !!u.is_active }; return; }
+  if (kind === 'reset')  { resetError.value = ''; resetAsk.value = { id: u.id, name: u.name }; return; }
+  confirm.value = { kind, u, text };
+}
+const apiMsg = (e, fallback) => { const errs = e.response?.data?.errors; return (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || fallback; };
+async function doStatus({ reason, note }) {
+  if (saving.value) return;
+  saving.value = true; statusError.value = '';
+  try {
+    await facultyAPI.toggleActive(statusAsk.value.id, { reason, note });
+    toast?.success(statusAsk.value.deactivating ? 'Account deactivated.' : 'Account reactivated.');
+    statusAsk.value = null;
+    fetchItems();
+  } catch (e) { statusError.value = apiMsg(e, 'Action failed.'); }
+  finally { saving.value = false; }
+}
+async function doReset({ reason, note }) {
+  if (saving.value) return;
+  saving.value = true; resetError.value = '';
+  try {
+    const res = await facultyAPI.resetPassword(resetAsk.value.id, { reason, note });
+    tempInfo.value = { name: resetAsk.value.name, password: res.data.temp_password };
+    resetAsk.value = null;
+    fetchItems();
+  } catch (e) { resetError.value = apiMsg(e, 'Could not reset the password.'); }
+  finally { saving.value = false; }
+}
 async function runConfirm() {
   const { kind, u } = confirm.value;
   saving.value = true;
   try {
-    if (kind === 'toggle') { await facultyAPI.toggleActive(u.id); toast?.success('Status updated.'); }
     if (kind === 'removeChair') { await facultyAPI.removeChair(u.id); toast?.success('Department Chair removed.'); }
-    if (kind === 'reset') {
-      const res = await facultyAPI.resetPassword(u.id);
-      tempInfo.value = { name: u.name, password: res.data.temp_password };
-    }
     confirm.value = null;
     fetchItems();
   } catch (e) {

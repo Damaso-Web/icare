@@ -166,15 +166,50 @@ class FacultyController extends UserController
     public function toggle(Request $request, User $user)
     {
         $this->authorizeTarget($request, $user);
-        $user->update(['is_active' => !$user->is_active]);
-        AuditLog::record('toggled', "User {$user->name} " . ($user->is_active ? 'activated' : 'deactivated') . ".", $user);
-        return response()->json($user);
+        // Same rules as User Management: a reason from the list for this action (checked here,
+        // not just in the dropdown), a status event, and a forced password change on reactivation.
+        $deactivating = (bool) $user->is_active;
+        abort_if($user->id === $request->user()->id && $deactivating, 422, 'You cannot deactivate your own account.');
+        $list = $deactivating ? \App\Support\EmployeeAccountReasons::DEACTIVATE : \App\Support\EmployeeAccountReasons::REACTIVATE;
+        $validated = $request->validate([
+            'reason' => ['required', \Illuminate\Validation\Rule::in(array_keys($list))],
+            'note'   => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+        ], [
+            'reason.required'  => 'Please select a reason.',
+            'reason.in'        => 'That reason is not allowed for this action.',
+            'note.required_if' => 'Please describe the reason when "Other" is selected.',
+            'note.regex'       => 'Please explain in words, not numbers only.',
+        ]);
+        $label = \App\Support\EmployeeAccountReasons::label($deactivating ? 'deactivate' : 'reactivate', $validated['reason']);
+        $note  = trim((string) ($validated['note'] ?? '')) ?: null;
+
+        if ($deactivating) {
+            $user->update(['is_active' => false, 'deactivation_reason' => $label, 'deactivation_note' => $note, 'deactivated_at' => now()]);
+        } else {
+            $user->update(['is_active' => true, 'deactivation_reason' => null, 'deactivation_note' => null, 'deactivated_at' => null, 'must_change_password' => true]);
+            $user->tokens()->delete();
+        }
+        \App\Models\UserStatusEvent::create([
+            'user_id' => $user->id, 'action' => $deactivating ? 'deactivated' : 'reactivated', 'reason_key' => $validated['reason'],
+            'reason_label' => $label, 'note' => $note, 'actor_id' => $request->user()->id, 'actor_name' => $request->user()->name, 'created_at' => now(),
+        ]);
+        AuditLog::record($deactivating ? 'deactivated' : 'reactivated',
+            ($deactivating ? 'Deactivated' : 'Reactivated') . " {$user->name} (account {$user->email}). Reason: {$label}." . ($note ? " Note: {$note}." : '')
+            . ($deactivating ? '' : ' A password change is required at the next login.'),
+            $user, ['is_active' => !$deactivating], ['is_active' => $deactivating ? false : true, 'reason' => $label, 'note' => $note]);
+        return response()->json($user->fresh());
     }
 
     public function resetPassword(Request $request, User $user)
     {
         $this->authorizeTarget($request, $user);
         return parent::resetPassword($request, $user);
+    }
+
+    public function passwordInfo(Request $request, User $user)
+    {
+        $this->authorizeTarget($request, $user);
+        return response()->json(['name' => $user->name] + \App\Support\PasswordReset::info($user));
     }
 
     public function tempPassword(Request $request, User $user)

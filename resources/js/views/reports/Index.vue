@@ -828,6 +828,8 @@ const fallbackAY = today.getMonth() + 1 >= AY_START_MONTH ? today.getFullYear() 
 // The A.Y. whose dates contain today; else the latest one that has started; else the fallback.
 const currentAY = computed(() => {
   if (!ayRows.value.length) return fallbackAY;
+  const flagged = ayRows.value.find(r => r.is_current && (r.status || 'active') === 'active');
+  if (flagged) return flagged.start_year;
   const within = ayRows.value.find(r => todayStr >= r.year_start && todayStr <= r.year_end);
   if (within) return within.start_year;
   const started = ayRows.value.filter(r => r.year_start <= todayStr).map(r => r.start_year);

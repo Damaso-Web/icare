@@ -57,6 +57,7 @@ class ManagementFormOptionController extends Controller
     // Only the display label and ordering can change; retire+recreate for a real rename.
     public function update(Request $request, ReferralFormOption $formOption)
     {
+        ManagementGuard::assertEditable($formOption);
         $labelRules = ['required', 'string', 'max:255'];
         if ($request->input('label') !== $formOption->label) $labelRules[] = 'regex:' . self::LABEL_REGEX;
 
@@ -89,6 +90,7 @@ class ManagementFormOptionController extends Controller
                 'referrals'  => \App\Models\Referral::whereIn('violation_type', [$o->value, $o->label])->count(),
                 'complaints' => \App\Models\Complaint::whereIn('violation_type', [$o->value, $o->label])->count(),
             ],
+            'referral_source'   => ['referrals' => \App\Models\Referral::whereIn('referrer_source', [$o->value, $o->label])->count()],
             default => [],
         };
     }

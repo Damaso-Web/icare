@@ -48,6 +48,7 @@ class User extends Authenticatable
         'deactivated_at'       => 'datetime',
         'is_active'            => 'boolean',
         'must_change_password' => 'boolean',
+        'password_changed_at'   => 'datetime',
     ];
 
     protected static function booted(): void

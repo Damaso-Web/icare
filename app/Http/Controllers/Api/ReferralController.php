@@ -150,14 +150,35 @@ class ReferralController extends Controller
     // Referrals the signed-in account has sent (Sent Referrals page).
     public function mine(Request $request)
     {
-        $q = Referral::with('student:id,student_id,first_name,last_name,college')
-            ->where('referred_by_user_id', $request->user()->id)
-            ->whereNull('complaint_id')
-            ->latest();
-        if ($request->filled('status')) {
-            $q->where('status', $request->status);
+        return self::sentList(
+            Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id'),
+            $request
+        );
+    }
+
+    // Search / Type / Status / Sort for a "Sent Referrals" list (staff and student).
+    public static function sentList($base, Request $request)
+    {
+        $options = [
+            'types'    => (clone $base)->distinct()->orderBy('referral_type')->pluck('referral_type')->all(),
+            'statuses' => (clone $base)->distinct()->orderBy('status')->pluck('status')->all(),
+        ];
+        $q = $base->with('student:id,student_id,first_name,last_name,college');
+        if ($request->filled('status'))        $q->where('status', $request->status);
+        if ($request->filled('referral_type')) $q->where('referral_type', $request->referral_type);
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $q->where(function ($w) use ($search) {
+                $w->where('referral_code', 'like', "%{$search}%")
+                  ->orWhereHas('student', fn($s) => $s->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('student_id', 'like', "%{$search}%"));
+            });
         }
-        return $q->paginate(20);
+        $request->input('sort') === 'oldest'
+            ? $q->orderBy('created_at')->orderBy('id')
+            : $q->orderByDesc('created_at')->orderByDesc('id');
+        return array_merge($q->paginate(20)->toArray(), ['filter_options' => $options]);
     }
 
     // The sender corrects a referral that GCU has not acknowledged yet.

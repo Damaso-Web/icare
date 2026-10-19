@@ -246,13 +246,10 @@ class StudentController extends Controller
         $originalNote  = $student->deactivation_notes;
         $originalAt    = $student->deactivated_at;
 
-        $update = ['is_active' => true];
-        // Security Verified: the student sets a new password at the next login.
-        // The password itself is never logged or shown.
-        if ($validated['reason'] === 'security_verified') {
-            $update['must_change_password'] = true;
-        }
-        $student->update($update);
+        // Every reactivation requires a new password at the next login (enforced by the
+        // password.fresh middleware). The password itself is never logged or shown.
+        $student->update(['is_active' => true, 'must_change_password' => true]);
+        $student->tokens()->delete();
 
         StudentStatusEvent::create([
             'student_id'            => $student->id,
@@ -270,7 +267,7 @@ class StudentController extends Controller
         $text = "Reactivated student {$student->student_id} ({$student->first_name} {$student->last_name}). "
             . ($originalLabel ? "Originally deactivated: {$originalLabel}" . ($originalAt ? ' on ' . $originalAt->format('M j, Y') : '') . ($originalNote ? " ({$originalNote})" : '') . '. ' : '')
             . "Reason for reactivation: {$label}" . ($note ? " - {$note}" : '') . '.'
-            . ($validated['reason'] === 'security_verified' ? ' A password reset is required at the next login.' : '');
+            . ' A password change is required at the next login.';
         AuditLog::record('reactivated', $text, $student);
 
         return response()->json($student->fresh());
@@ -371,21 +368,21 @@ class StudentController extends Controller
         return response()->json(['temp_password' => $student->temp_password]);
     }
 
+    // Last resort for a student who cannot use "Forgot password": needs a reason from the list.
     public function resetPassword(Request $request, Student $student)
     {
-        $newPassword = Str::random(10);
-        $student->update([
-            'password'              => Hash::make($newPassword),
-            'temp_password'         => $newPassword,
-            'must_change_password'  => true,
-            'temp_password_expires_at' => null,
-        ]);
-        AuditLog::record('password_reset', "Password reset for student {$student->student_id}.", $student);
+        abort_if(!$student->is_active, 422, 'This account is deactivated. Reactivate it before resetting the password.');
+        $newPassword = \App\Support\PasswordReset::perform($request, $student, 'student');
 
         return response()->json([
             'message'       => 'Password reset successfully.',
             'temp_password' => $newPassword,
         ]);
+    }
+
+    public function passwordInfo(Student $student)
+    {
+        return response()->json(['name' => trim($student->first_name . ' ' . $student->last_name)] + \App\Support\PasswordReset::info($student));
     }
 
     // ==========================
