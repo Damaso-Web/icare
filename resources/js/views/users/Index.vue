@@ -72,6 +72,7 @@
           <thead>
             <tr>
               <th>Employee ID</th>
+              <th>Full Name</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -79,6 +80,7 @@
           <tbody>
             <tr v-for="u in users" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
+              <td style="cursor:pointer" @click="openView(u)">{{ u.name || '-' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--ink);border:1px solid var(--fog)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
