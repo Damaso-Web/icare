@@ -277,11 +277,16 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
     });
 
+    // Masterlist upload: GCU Head (any account) and TMDU Head (TMDU Staff only -
+    // UserController::scopeImportRow keeps the rows to that).
+    Route::middleware('role:admin,tmdu_head')->group(function () {
+        Route::post('users/import-preview', [UserController::class, 'importPreview']);
+        Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
+    });
+
     // Admin only
     Route::middleware('role:admin')->group(function () {
         Route::post('users/import', [UserController::class, 'import']);
-        Route::post('users/import-preview', [UserController::class, 'importPreview']);
-        Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
         Route::get('audit-logs',        [AuditLogController::class, 'index']);
         Route::get('audit-logs/filter-options', [AuditLogController::class, 'filterOptions']);
         Route::get('audit-logs/summary', [AuditLogController::class, 'summary']);

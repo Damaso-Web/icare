@@ -616,6 +616,22 @@ class UserController extends Controller
      */
     protected function scopeImportRow(array $row, ?User $existing): array
     {
+        // The TMDU Head can only bring in TMDU Staff, and can only update
+        // accounts that already are TMDU Staff - never another role's account
+        // that happens to share an email.
+        if (request()->user()?->isTMDUHead()) {
+            $reasons = [];
+            if (($row['role'] ?? '') === '') {
+                $row['role'] = 'tmdu_staff';
+            }
+            if (($row['role'] ?? '') !== 'tmdu_staff') {
+                $reasons[] = 'The TMDU Head can only upload TMDU Staff (role: tmdu_staff).';
+            }
+            if ($existing && $existing->role !== 'tmdu_staff') {
+                $reasons[] = 'This email belongs to another account that the TMDU Head cannot change.';
+            }
+            return [$row, $reasons];
+        }
         return [$row, []];
     }
 

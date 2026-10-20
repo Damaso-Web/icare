@@ -185,7 +185,7 @@ class AuthController extends Controller
 
         $user = User::where('employee_id', trim($data['employee_id']))->first();
         if (!$user) {
-            throw ValidationException::withMessages(['employee_id' => 'This Employee ID is not in the employee list uploaded by the Guidance and Counseling Unit. Please contact the OSS administrator.']);
+            throw ValidationException::withMessages(['employee_id' => 'Employee not found. Please contact your College (the Dean\'s office) so you can be added to the faculty list. Deans and unit staff should contact their unit head or the OSS administrator.']);
         }
         if (!in_array($user->role, self::SELF_REGISTER_ROLES, true)) {
             throw ValidationException::withMessages(['employee_id' => 'Registration here is for faculty and deans only. Please contact the OSS administrator.']);
