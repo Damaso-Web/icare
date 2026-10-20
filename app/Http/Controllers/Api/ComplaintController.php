@@ -84,9 +84,12 @@ class ComplaintController extends Controller
     // Search / Type / Status / Sort shared by the two "Sent Complaints" lists.
     private function sentList($base, Request $request)
     {
+        // All acts of misconduct set up in Management and every complaint status, not only those already in use (B491).
+        $configured = \App\Models\ReferralFormOption::where('category', 'act_of_misconduct')->orderBy('sort_order')->pluck('label')->all();
         $options = [
-            'violation_types' => $this->distinctTypes(clone $base),
-            'statuses'        => (clone $base)->whereNotNull('status')->distinct()->orderBy('status')->pluck('status')->all(),
+            'violation_types' => collect($configured)->merge($this->distinctTypes(clone $base))->unique()->filter()->values()->all(),
+            'statuses'        => collect(['pending', 'under_review', 'resolved'])
+                ->merge((clone $base)->whereNotNull('status')->distinct()->pluck('status'))->unique()->values()->all(),
         ];
         $query = $base->with(['complainee', 'filedBy', 'filedByStudent']);
         if ($request->filled('status'))         $query->where('status', $request->status);

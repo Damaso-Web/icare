@@ -54,4 +54,22 @@ class SentListFiltersTest extends TestCase
         $this->getJson('/api/my/complaints?violation_type=Cheating')->assertJsonCount(1, 'data');
         $this->getJson('/api/my/complaints?violation_type=Bullying')->assertJsonCount(0, 'data');
     }
+    public function test_sent_filters_list_every_option_even_when_unused(): void
+    {
+        $sdu = User::factory()->create(['role' => 'sdu_head', 'is_active' => true]);
+        \App\Models\ReferralFormOption::create(['category' => 'referral_type', 'value' => 'counseling', 'label' => 'Counseling', 'sort_order' => 1]);
+        \App\Models\ReferralFormOption::create(['category' => 'referral_type', 'value' => 'shifting', 'label' => 'Shifting', 'sort_order' => 2]);
+        \App\Models\ReferralFormOption::create(['category' => 'act_of_misconduct', 'value' => 'cheating', 'label' => 'Cheating', 'sort_order' => 1]);
+        Sanctum::actingAs($sdu);
+
+        $ref = $this->getJson('/api/my/referrals')->assertOk();
+        $this->assertContains('counseling', $ref->json('filter_options.types'));
+        $this->assertContains('shifting', $ref->json('filter_options.types'));
+        $this->assertContains('scheduled', $ref->json('filter_options.statuses'));
+        $this->assertContains('in_progress', $ref->json('filter_options.statuses'));
+
+        $c = $this->getJson('/api/my/complaints')->assertOk();
+        $this->assertContains('Cheating', $c->json('filter_options.violation_types'));
+        $this->assertEqualsCanonicalizing(['pending', 'under_review', 'resolved'], $c->json('filter_options.statuses'));
+    }
 }

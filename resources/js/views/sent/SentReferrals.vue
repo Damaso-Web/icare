@@ -178,11 +178,11 @@ async function save() {
 }
 
 const filters = reactive({ search: '', sort: 'newest', status: '', referral_type: '' });
-const options = ref({ types: [], statuses: [] });
+const options = ref({ types: [], statuses: [], type_labels: {} });
 const filtered = computed(() => !!(filters.search || filters.status || filters.referral_type || filters.sort !== 'newest'));
 const filterSelects = computed(() => [
   { key: 'status', all: 'All Status', options: options.value.statuses.map(v => ({ value: v, label: title(v) })) },
-  { key: 'referral_type', all: 'All Types', options: options.value.types.map(v => ({ value: v, label: title(v) })) },
+  { key: 'referral_type', all: 'All Types', options: options.value.types.map(v => ({ value: v, label: options.value.type_labels?.[v] || title(v) })) },
 ]);
 
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
@@ -196,7 +196,7 @@ async function load(p = 1) {
     if (filters.status) params.status = filters.status;
     if (filters.referral_type) params.referral_type = filters.referral_type;
     const res = await http.get(base, { params });
-    options.value = { types: res.data.filter_options?.types || [], statuses: res.data.filter_options?.statuses || [] };
+    options.value = { types: res.data.filter_options?.types || [], statuses: res.data.filter_options?.statuses || [], type_labels: res.data.filter_options?.type_labels || {} };
     rows.value = res.data.data || [];
     page.value = res.data.current_page || 1;
     last.value = res.data.last_page || 1;

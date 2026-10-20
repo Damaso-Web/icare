@@ -159,9 +159,16 @@ class ReferralController extends Controller
     // Search / Type / Status / Sort for a "Sent Referrals" list (staff and student).
     public static function sentList($base, Request $request)
     {
+        // Every service GCU offers and every status a referral can have, not only the ones already in use (B490).
+        $serviceOptions = \App\Models\ReferralFormOption::where('category', 'referral_type')->orderBy('sort_order')->get(['value', 'label']);
+        $usedTypes      = (clone $base)->distinct()->pluck('referral_type')->all();
+        $types = $serviceOptions->pluck('value')->merge($usedTypes)->unique()->filter()->values()->all();
+        $allStatuses = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed'];
+        $usedStatuses = (clone $base)->distinct()->pluck('status')->all();
         $options = [
-            'types'    => (clone $base)->distinct()->orderBy('referral_type')->pluck('referral_type')->all(),
-            'statuses' => (clone $base)->distinct()->orderBy('status')->pluck('status')->all(),
+            'types'        => $types,
+            'type_labels'  => $serviceOptions->pluck('label', 'value')->all(),
+            'statuses'     => collect($allStatuses)->merge($usedStatuses)->unique()->filter()->values()->all(),
         ];
         $q = $base->with('student:id,student_id,first_name,last_name,college');
         if ($request->filled('status'))        $q->where('status', $request->status);

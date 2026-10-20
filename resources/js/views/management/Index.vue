@@ -20,15 +20,11 @@
 
     <!-- ============ COLLEGES ============ -->
     <div v-if="activeTab === 'colleges'" class="icard">
-      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span class="icard-title">Colleges</span>
-        <button class="ibtn ibtn-p ibtn-sm" @click="openCollegeModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add College
-        </button>
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="mg-head-filter">
+          <input v-model="mgSearch" class="ifi" style="width:200px" maxlength="60" placeholder="Search..." />
         <select v-model="mgStatus" class="fsm">
           <option value="all">All Records</option>
           <option value="active">Active</option>
@@ -36,6 +32,12 @@
           <option value="archived">Archived</option>
         </select>
         <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openCollegeModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add College
+          </button>
+        </div>
       </div>
       <div v-if="loadingColleges" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -46,7 +48,7 @@
       </div>
       <div v-else-if="!visibleRows(colleges, 'name').length" class="empty-state">
         <h3>No matching records</h3>
-        <p>Try a different search or status, or press Reset.</p>
+        <p>Try a different status, or press Reset.</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
@@ -83,21 +85,20 @@
             <option value="">All Colleges</option>
             <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
+          <div class="mg-head-filter">
+          <select v-model="mgStatus" class="fsm">
+            <option value="all">All Records</option>
+            <option value="active">Active</option>
+            <option value="inactive">Deactivated</option>
+            <option value="archived">Archived</option>
+          </select>
+          <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+          </div>
           <button class="ibtn ibtn-p ibtn-sm" @click="openProgramModal()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Program
           </button>
         </div>
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
-        <select v-model="mgStatus" class="fsm">
-          <option value="all">All Records</option>
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-          <option value="archived">Archived</option>
-        </select>
-        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
       </div>
       <div v-if="loadingPrograms" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -108,7 +109,7 @@
       </div>
       <div v-else-if="!visibleRows(programs, 'name').length" class="empty-state">
         <h3>No matching records</h3>
-        <p>Try a different search or status, or press Reset.</p>
+        <p>Try a different status, or press Reset.</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
@@ -145,21 +146,20 @@
             <option value="">All Colleges</option>
             <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
           </select>
+          <div class="mg-head-filter">
+          <select v-model="mgStatus" class="fsm">
+            <option value="all">All Records</option>
+            <option value="active">Active</option>
+            <option value="inactive">Deactivated</option>
+            <option value="archived">Archived</option>
+          </select>
+          <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+          </div>
           <button class="ibtn ibtn-p ibtn-sm" @click="openDepartmentModal()">
             <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             Add Department
           </button>
         </div>
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
-        <select v-model="mgStatus" class="fsm">
-          <option value="all">All Records</option>
-          <option value="active">Active</option>
-          <option value="inactive">Deactivated</option>
-          <option value="archived">Archived</option>
-        </select>
-        <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
       </div>
       <div v-if="loadingDepartments" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -170,7 +170,7 @@
       </div>
       <div v-else-if="!visibleRows(departments, 'name').length" class="empty-state">
         <h3>No matching records</h3>
-        <p>Try a different search or status, or press Reset.</p>
+        <p>Try a different status, or press Reset.</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
@@ -200,18 +200,11 @@
 
     <!-- ============ WELLNESS SERVICES (referral_type) ============ -->
     <div v-if="activeTab === 'wellness'" class="icard">
-      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span class="icard-title">Wellness Services</span>
-        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Service
-        </button>
-      </div>
-      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
-        Populates "Service Requested" on the Refer Student form (counseling, testing, and other non-disciplinary services). Each service is tagged GCU or TMDU so filters and queues route correctly. Editing a Label only changes how it displays - existing referrals keep their stored value.
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="mg-head-filter">
+          <input v-model="mgSearch" class="ifi" style="width:200px" maxlength="60" placeholder="Search..." />
         <select v-model="mgStatus" class="fsm">
           <option value="all">All Records</option>
           <option value="active">Active</option>
@@ -219,6 +212,15 @@
           <option value="archived">Archived</option>
         </select>
         <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Service
+          </button>
+        </div>
+      </div>
+      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
+        Populates "Service Requested" on the Refer Student form (counseling, testing, and other non-disciplinary services). Each service is tagged GCU or TMDU so filters and queues route correctly. Editing a Label only changes how it displays - existing referrals keep their stored value.
       </div>
       <FormOptionTable
         :loading="loadingFormOptions"
@@ -232,18 +234,11 @@
 
     <!-- ============ DISCIPLINARY SERVICES / ACTS OF MISCONDUCT (act_of_misconduct) ============ -->
     <div v-if="activeTab === 'disciplinary'" class="icard">
-      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span class="icard-title">Disciplinary Services (Acts of Misconduct)</span>
-        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Act of Misconduct
-        </button>
-      </div>
-      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
-        Populates the Act of Misconduct list used when filing a Complaint / SDU referral. Editing a Label only changes how it displays - existing records keep their stored value.
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="mg-head-filter">
+          <input v-model="mgSearch" class="ifi" style="width:200px" maxlength="60" placeholder="Search..." />
         <select v-model="mgStatus" class="fsm">
           <option value="all">All Records</option>
           <option value="active">Active</option>
@@ -251,6 +246,15 @@
           <option value="archived">Archived</option>
         </select>
         <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Act of Misconduct
+          </button>
+        </div>
+      </div>
+      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
+        Populates the Act of Misconduct list used when filing a Complaint / SDU referral. Editing a Label only changes how it displays - existing records keep their stored value.
       </div>
       <FormOptionTable
         :loading="loadingFormOptions"
@@ -263,18 +267,11 @@
 
     <!-- ============ REFERRAL SOURCES (referral_source) ============ -->
     <div v-if="activeTab === 'sources'" class="icard">
-      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span class="icard-title">Referral Sources</span>
-        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Source
-        </button>
-      </div>
-      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
-        Populates "Referral Source" on the Refer Student form. Editing a Label only changes how it displays - existing referrals keep their stored value.
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search..." />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="mg-head-filter">
+          <input v-model="mgSearch" class="ifi" style="width:200px" maxlength="60" placeholder="Search..." />
         <select v-model="mgStatus" class="fsm">
           <option value="all">All Records</option>
           <option value="active">Active</option>
@@ -282,6 +279,15 @@
           <option value="archived">Archived</option>
         </select>
         <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openFormOptionModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Source
+          </button>
+        </div>
+      </div>
+      <div style="padding:12px 18px;font-size:12px;color:var(--fog);border-bottom:1px solid var(--cloud)">
+        Populates "Referral Source" on the Refer Student form. Editing a Label only changes how it displays - existing referrals keep their stored value.
       </div>
       <FormOptionTable
         :loading="loadingFormOptions"
@@ -294,18 +300,11 @@
 
     <!-- ============ SCHOOL CALENDAR ============ -->
     <div v-if="activeTab === 'calendar'" class="icard">
-      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between">
+      <div class="icard-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
         <span class="icard-title">School Calendar (Academic Years)</span>
-        <button class="ibtn ibtn-p ibtn-sm" @click="openAyModal()">
-          <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Add Academic Year
-        </button>
-      </div>
-      <div style="padding:12px 16px;font-size:12px;color:var(--stone);border-bottom:1px solid var(--cloud)">
-        These dates drive the Academic Year and Semester options on the Reports page. The term marked Current is the one Reports opens on by default.
-      </div>
-      <div class="mg-filter" style="padding:12px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <input v-model="mgSearch" class="ifi" style="max-width:240px" maxlength="60" placeholder="Search academic year..." />
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <div class="mg-head-filter">
+          <input v-model="mgSearch" class="ifi" style="width:200px" maxlength="60" placeholder="Search academic year..." />
         <select v-model="mgStatus" class="fsm">
           <option value="all">All Records</option>
           <option value="active">Active</option>
@@ -313,6 +312,15 @@
           <option value="archived">Archived</option>
         </select>
         <button class="ibtn ibtn-o ibtn-sm" @click="resetMgFilter">Reset</button>
+        </div>
+        <button class="ibtn ibtn-p ibtn-sm" @click="openAyModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Add Academic Year
+          </button>
+        </div>
+      </div>
+      <div style="padding:12px 16px;font-size:12px;color:var(--stone);border-bottom:1px solid var(--cloud)">
+        These dates drive the Academic Year and Semester options on the Reports page. The term marked Current is the one Reports opens on by default.
       </div>
       <div v-if="loadingAy" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -323,7 +331,7 @@
       </div>
       <div v-else-if="!visibleRows(academicYears, 'start_year').length" class="empty-state">
         <h3>No matching records</h3>
-        <p>Try a different search or status, or press Reset.</p>
+        <p>Try a different status, or press Reset.</p>
       </div>
       <div class="ts" v-else>
         <table class="itable">
@@ -1241,6 +1249,18 @@ async function askStatus(kind, item, name, status) {
         ask.message += '<br><br>No linked records.';
       }
     } catch (e) { /* the server checks again */ }
+  }
+  // Reactivating: show why it was deactivated or archived before (B487).
+  if (status === 'active') {
+    try {
+      const res = await axios.get(`${API_BASE}/management/${STATUS_USAGE_PATH[kind]}/${item.id}/last-status-change`, authHeaders());
+      const d = res.data;
+      if (d?.found) {
+        const when = d.at ? new Date(d.at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+        const verb = d.action === 'archived' ? 'Archived' : 'Deactivated';
+        ask.message += `<br><br><strong>${verb}${when ? ' on ' + escHtml(when) : ''}${d.by ? ' by ' + escHtml(d.by) : ''}.</strong><br>Reason: ${escHtml(d.reason || 'Not recorded')}${d.note ? `<br>Note: ${escHtml(d.note)}` : ''}`;
+      }
+    } catch (e) { /* optional context only */ }
   }
   statusAsk.value = ask;
 }

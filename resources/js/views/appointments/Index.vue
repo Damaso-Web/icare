@@ -146,10 +146,11 @@
               <div
                 v-for="day in calendarDays"
                 :key="day.key"
-                :title="day.apptTitle"
+                :title="[day.blocked ? 'Unavailable - ' + day.blocked.label : '', day.apptTitle].filter(Boolean).join('\n')"
                 style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-size:10.5px;cursor:pointer;position:relative"
                 :style="{
-                  background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : '',
+                  background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : day.blocked ? 'var(--red-lt)' : '',
+                  outline: day.blocked ? '1px solid #f5c0c0' : '',
                   color: day.isToday ? '#fff' : day.isOther ? 'var(--silver)' : 'var(--slate)',
                   fontWeight: day.isToday ? '600' : '',
                   pointerEvents: day.isOther ? 'none' : 'auto',
@@ -157,6 +158,7 @@
                 @click="day.isOther ? null : selectDayPreview(day)"
               >
                 {{ day.date }}
+                <span v-if="day.blocked" style="width:4px;height:4px;border-radius:50%;background:var(--red);margin-top:1px"></span>
                 <span
                   v-if="day.apptCount > 0"
                   style="font-size:8px;line-height:1;margin-top:1px;padding:0 3px;border-radius:6px;font-weight:700"
@@ -167,6 +169,15 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Why a date is unavailable (holiday, class suspension or other School Calendar event) -->
+        <div v-if="blockedForPreview" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
+          <strong>Not available for appointments.</strong> {{ blockedForPreview.label }}.
+        </div>
+        <div v-if="blockedThisMonth.length" style="font-size:11px;color:var(--stone);line-height:1.6">
+          <div style="font-weight:600;color:var(--ink);margin-bottom:2px">Unavailable this month</div>
+          <div v-for="b in blockedThisMonth" :key="b.date"><span style="color:var(--red)">&#9679;</span> {{ b.day }}: {{ b.label }}</div>
         </div>
 
         <!-- Date Filter Indicator -->
@@ -332,6 +343,9 @@
             <div v-if="loadingAvailability">Checking schedule...</div>
             <template v-else>
               <div style="font-weight:600;color:var(--ink);margin-bottom:4px">Schedule for {{ confirmTarget?.appointment_date?.split('T')[0] }}</div>
+              <div v-if="blockedMap[confirmTarget?.appointment_date?.split('T')[0]]" style="color:var(--red);font-weight:600;margin-bottom:4px">
+                This date is not available: {{ blockedMap[confirmTarget?.appointment_date?.split('T')[0]].label }}.
+              </div>
               <div v-if="staffAvailability?.booked_slots?.length" style="display:flex;flex-direction:column;gap:2px">
                 <div v-for="(slot, i) in staffAvailability.booked_slots" :key="i" :style="isOverlapping(slot) ? 'color:var(--red);font-weight:600' : ''">
                   {{ formatTime12(slot.start_time) }}–{{ formatTime12(slot.end_time) }} · {{ toTitleCase(slot.appointment_type) }}
@@ -439,6 +453,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
+import axios from 'axios';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 
 const toast  = inject('toast');
@@ -809,6 +824,30 @@ const currentMonthLabel = computed(() => {
   return new Date(currentYear.value, currentMonth.value).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 });
 
+// Holidays, class suspensions and other School Calendar events (B486).
+const blockedMap = ref({});
+async function fetchBlockedDates() {
+  const d = new Date();
+  const iso = (x) => x.toISOString().slice(0, 10);
+  const from = new Date(d.getFullYear() - 1, 0, 1), to = new Date(d.getFullYear() + 2, 0, 1);
+  try {
+    const base = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+    const res = await axios.get(`${base}/calendar/blocked-dates`, {
+      params: { from: iso(from), to: iso(to) },
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    });
+    blockedMap.value = res.data?.blocked || {};
+  } catch (e) { blockedMap.value = {}; }
+}
+const blockedForPreview = computed(() => (previewDate.value ? blockedMap.value[previewDate.value] || null : null));
+const blockedThisMonth = computed(() => {
+  const prefix = `${currentYear.value}-${String(currentMonth.value + 1).padStart(2, '0')}-`;
+  return Object.entries(blockedMap.value)
+    .filter(([k]) => k.startsWith(prefix))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => ({ date: k, day: new Date(k + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), label: v.label }));
+});
+
 const calendarDays = computed(() => {
   const days = [];
   const firstDay    = new Date(currentYear.value, currentMonth.value, 1).getDay();
@@ -824,7 +863,7 @@ const calendarDays = computed(() => {
     const isSelected = d === selectedDate.value.getDate() && currentMonth.value === selectedDate.value.getMonth() && currentYear.value === selectedDate.value.getFullYear();
     const dayAppts   = allAppointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr && ['pending', 'confirmed'].includes(a.status));
     const apptTitle  = dayAppts.map(a => `${a.start_time} - ${a.student?.student_id || ''}`).join('\n');
-    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr });
+    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr, blocked: blockedMap.value[dateStr] || null });
   }
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
@@ -858,6 +897,7 @@ let refreshTimer = null;
 onMounted(() => {
   fetchAppointments();
   fetchAllAppointments();
+  fetchBlockedDates();
   fetchStaff();
   // Pick up schedules students set or change without a manual refresh.
   refreshTimer = setInterval(() => {

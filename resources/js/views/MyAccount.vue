@@ -9,6 +9,10 @@
          layout as the student portal's My Account. -->
     <div style="max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:16px">
 
+      <div v-if="auth.user?.must_change_password" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:14px 16px;color:var(--amber);font-size:13px;line-height:1.6">
+        <strong>Please set a new password to continue.</strong> You are signed in with a temporary password (a one-time password or one reset by an administrator). The rest of the menu stays locked until you change it in the Password tab below.
+      </div>
+
       <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
         <div style="min-width:0;align-self:center">

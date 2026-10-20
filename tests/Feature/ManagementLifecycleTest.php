@@ -38,6 +38,19 @@ class ManagementLifecycleTest extends TestCase
         $this->postJson("/api/management/colleges/{$c->id}/status", ['status' => 'active', 'reason' => 'review_completed'])->assertOk();
     }
 
+    public function test_reactivation_can_see_the_previous_deactivation_reason(): void
+    {
+        $this->admin();
+        $c = College::create(['name' => 'College of History', 'abbrev' => 'CH']);
+        $this->getJson("/api/management/colleges/{$c->id}/last-status-change")->assertOk()->assertJson(['found' => false]);
+
+        $this->postJson("/api/management/colleges/{$c->id}/status", ['status' => 'inactive', 'reason' => 'under_reorganization'])->assertOk();
+        $r = $this->getJson("/api/management/colleges/{$c->id}/last-status-change")->assertOk()->json();
+        $this->assertTrue($r['found']);
+        $this->assertSame('deactivated', $r['action']);
+        $this->assertNotEmpty($r['reason']);
+    }
+
     public function test_archive_is_blocked_while_students_use_the_college_and_edit_is_blocked_when_not_active(): void
     {
         $this->admin();

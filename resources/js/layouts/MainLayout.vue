@@ -20,8 +20,10 @@
             v-else
             :to="{ name: item.name }"
             class="nb"
-            :class="{ active: isActive(item.name) }"
-            :title="item.label"
+            :class="{ active: isActive(item.name), 'nb-locked': pwLocked && item.name !== 'my-account' }"
+            :title="pwLocked && item.name !== 'my-account' ? 'Change your password first' : item.label"
+            :aria-disabled="pwLocked && item.name !== 'my-account' ? 'true' : null"
+            @click="lockClick($event, item.name)"
           >
             <svg viewBox="0 0 24 24" v-html="item.icon"></svg>
             <span class="sb-hide">{{ item.label }}</span>
@@ -42,7 +44,7 @@
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
             </svg>
-            <span class="sb-hide" style="font-size:10.5px;margin-left:5px;align-self:center;letter-spacing:.2px">Log out</span>
+            <span class="sb-hide">Log out</span>
           </button>
         </div>
       </div>
@@ -495,6 +497,12 @@ function isActive(name) {
   if (name === 'testing'         && routeName === 'testing-show')    return true;
   if (name === 'students'        && routeName.startsWith('student')) return true;
   return routeName === name;
+}
+
+// An account on a temporary password can only use My Account until it is changed.
+const pwLocked = computed(() => !!auth.user?.must_change_password);
+function lockClick(e, name) {
+  if (pwLocked.value && name !== 'my-account') e.preventDefault();
 }
 
 async function handleLogout() {

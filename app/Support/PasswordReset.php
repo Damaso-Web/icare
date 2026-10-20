@@ -124,7 +124,7 @@ class PasswordReset
             'password_reset',
             "Administrator {$actor->name} reset the password of {$who}. Reason: {$label}." . ($note ? " Note: {$note}." : '')
                 . ($before['within_hour'] ? ' (Password had been changed within the last hour.)' : '')
-                . ' Outcome: success; all sessions signed out; password change required at next login; email notice ' . ($emailed ? 'sent' : 'not sent') . '.',
+                . ' Sessions signed out; email notice ' . ($emailed ? 'sent' : 'not sent') . '.',
             $account,
             ['password_last_changed' => $before['last_changed_at']],
             ['reason' => $label, 'note' => $note, 'sessions_signed_out' => true, 'email_notice_sent' => $emailed]

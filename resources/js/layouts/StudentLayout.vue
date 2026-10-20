@@ -24,7 +24,9 @@
           :key="item.name"
           :to="{ name: item.name }"
           class="stu-nb"
-          :title="item.label"
+          :class="{ 'nb-locked': pwLocked && item.name !== 'student-account' }"
+          :title="pwLocked && item.name !== 'student-account' ? 'Change your password first' : item.label"
+          @click="lockClick($event, item.name)"
           style="display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;transition:background .15s"
           :style="isActive(item.name) ? 'background:rgba(255,255,255,.12);color:#fff;font-weight:600' : ''"
         >
@@ -41,9 +43,9 @@
           <div style="font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ student.first_name }} {{ student.last_name }}</div>
           <div style="font-size:10px;color:rgba(255,255,255,.5)">{{ student.student_id }}</div>
         </div>
-        <button @click="session.askLogout()" title="Log out" aria-label="Log out" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;padding:4px;display:flex;align-items:center;gap:5px">
+        <button class="stu-logbtn" @click="session.askLogout()" title="Log out" aria-label="Log out">
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span class="sb-hide" style="font-size:10.5px;letter-spacing:.2px">Log out</span>
+          <span class="sb-hide">Log out</span>
         </button>
       </div>
     </div>
@@ -108,7 +110,7 @@
 
     <!-- Phones: every student page one tap away at the bottom -->
     <nav class="tabbar tabbar-fixed" aria-label="Main pages">
-      <router-link v-for="item in tabItems" :key="item.name" :to="{ name: item.name }" class="tab" :class="{ active: isActive(item.name) }">
+      <router-link v-for="item in tabItems" :key="item.name" :to="{ name: item.name }" class="tab" :class="{ active: isActive(item.name), 'nb-locked': pwLocked && item.name !== 'student-account' }" @click="lockClick($event, item.name)">
         <svg viewBox="0 0 24 24" v-html="item.icon"></svg>
         <span>{{ item.label.replace(/^My /, '') }}</span>
       </router-link>
@@ -221,6 +223,19 @@ const menuItems = [
 ];
 
 // The phone bar stays short; the Sent lists are linked from Refer Student.
+// A student on a temporary password can only use My Account until it is changed.
+const lockTick = ref(0);
+const pwLocked = computed(() => {
+  lockTick.value; route.fullPath;
+  try { return !!JSON.parse(localStorage.getItem('student') || '{}')?.must_change_password; } catch { return false; }
+});
+const bumpLock = () => { lockTick.value++; };
+onMounted(() => window.addEventListener('student-pw-changed', bumpLock));
+onBeforeUnmount(() => window.removeEventListener('student-pw-changed', bumpLock));
+function lockClick(e, name) {
+  if (pwLocked.value && name !== 'student-account') e.preventDefault();
+}
+
 const tabItems = menuItems.filter(i => !['student-sent-referrals', 'student-sent-complaints'].includes(i.name));
 
 const pageTitle = computed(() => {

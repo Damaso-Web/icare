@@ -55,7 +55,7 @@ class AuditLog extends Model
         'action'      => $action,
         'model_type'  => $model ? get_class($model) : null,
         'model_id'    => $model?->id,
-        'description' => $description,
+        'description' => mb_substr($description, 0, 4000),
         'old_values'  => $old,
         'new_values'  => $new,
         'url'         => mb_substr(request()->fullUrl(), 0, 255),

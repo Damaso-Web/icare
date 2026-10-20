@@ -317,6 +317,8 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
 
         Route::post('management/{kind}/{id}/status', [\App\Http\Controllers\Api\ManagementStatusController::class, 'update'])
             ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options', 'academic-years'])->whereNumber('id');
+        Route::get('management/{kind}/{id}/last-status-change', [\App\Http\Controllers\Api\ManagementStatusController::class, 'lastChange'])
+            ->whereIn('kind', ['colleges', 'programs', 'departments', 'form-options', 'academic-years'])->whereNumber('id');
         Route::post('management/colleges',             [ManagementCollegeController::class, 'store']);
         Route::put('management/colleges/{college}',     [ManagementCollegeController::class, 'update']);
         Route::delete('management/colleges/{college}',  [ManagementCollegeController::class, 'destroy']);

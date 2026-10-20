@@ -49,9 +49,39 @@ class ManagementStatusController extends Controller
         }
 
         $model->forceFill(['status' => $new])->save();
-        ManagementGuard::audit($tab, self::ACTION_FOR[$new], $name, $model, ['status' => $old], ['status' => $new], $reason, $note);
+        ManagementGuard::audit($tab, self::ACTION_FOR[$new], $name, $model, ['status' => $old], ['status' => $new, 'reason' => $reason, 'note' => $note], $reason, $note);
 
         return response()->json($model->fresh());
+    }
+
+    /**
+     * Why the item was last deactivated or archived, shown when it is about to be
+     * reactivated so the reviewer can see its previous status (B487).
+     */
+    public function lastChange(string $kind, int $id)
+    {
+        [$model] = $this->find($kind, $id);
+        $log = \App\Models\AuditLog::where('model_type', get_class($model))
+            ->where('model_id', $model->getKey())
+            ->whereIn('action', ['deactivated', 'archived'])
+            ->latest('id')->first();
+        if (!$log) return response()->json(['found' => false]);
+
+        $new = (array) $log->new_values;
+        $reason = $new['reason'] ?? null;
+        $note = $new['note'] ?? null;
+        if (!$reason && preg_match('/Reason: (.+?)\.(?: Note: (.+)\.)?$/s', (string) $log->description, $m)) {
+            $reason = $m[1];
+            $note = $m[2] ?? null;
+        }
+        return response()->json([
+            'found'  => true,
+            'action' => $log->action,
+            'reason' => $reason,
+            'note'   => $note,
+            'by'     => $log->user_name,
+            'at'     => optional($log->created_at)->toIso8601String(),
+        ]);
     }
 
     private function links(string $kind, $model): array
