@@ -16,7 +16,20 @@
           <a href="#how" @click.prevent="go('how')">How it works</a>
           <a href="#contact" @click.prevent="go('contact')">Contact</a>
         </nav>
-        <router-link :to="{ name: signedIn ? 'dashboard' : 'login-choice' }" class="lp-btn lp-btn-solid">
+        <router-link :to="{ name: signedIn ? 'dashboard' : 'login-choice' }" class="lp-btn lp-btn-solid lp-nav-cta">
+          {{ signedIn ? 'Go to dashboard' : 'Log in' }}
+        </router-link>
+        <button class="lp-burger" :aria-expanded="menuOpen" aria-label="Menu" @click="menuOpen = !menuOpen">
+          <svg v-if="!menuOpen" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          <svg v-else viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+        </button>
+      </div>
+      <!-- Mobile section menu -->
+      <div class="lp-mobile" :class="{ 'is-open': menuOpen }">
+        <a href="#services" @click.prevent="goM('services')">Services</a>
+        <a href="#how" @click.prevent="goM('how')">How it works</a>
+        <a href="#contact" @click.prevent="goM('contact')">Contact</a>
+        <router-link :to="{ name: signedIn ? 'dashboard' : 'login-choice' }" class="lp-btn lp-btn-solid lp-mobile-cta" @click="menuOpen = false">
           {{ signedIn ? 'Go to dashboard' : 'Log in' }}
         </router-link>
       </div>
@@ -216,11 +229,17 @@ const signedIn = computed(() => !!localStorage.getItem('token'));
 const scrolled = ref(false);
 const onScroll = () => { scrolled.value = window.scrollY > 8; };
 
+// Mobile section menu (hamburger).
+const menuOpen = ref(false);
+const goM = (id) => { menuOpen.value = false; go(id); };
+const onResize = () => { if (window.innerWidth > 860) menuOpen.value = false; };
+
 // Gentle fade-up as each block scrolls into view (skipped for reduced motion).
 let io = null;
 onMounted(() => {
   onScroll();
   window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onResize, { passive: true });
 
   const els = document.querySelectorAll('.lp .reveal');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -253,6 +272,7 @@ watch(showPrivacy, async open => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('scroll', onScroll);
+  window.removeEventListener('resize', onResize);
   io?.disconnect();
   document.body.style.overflow = '';
 });
@@ -308,6 +328,12 @@ function go(id) {
 .lp-links a::after { content: ''; position: absolute; left: 13px; right: 13px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--moss); transform: scaleX(0); transform-origin: left; transition: transform .22s ease; }
 .lp-links a:hover, .lp-links a:focus-visible { background: var(--mist); color: var(--forest); outline: none; }
 .lp-links a:hover::after, .lp-links a:focus-visible::after { transform: scaleX(1); }
+
+/* Hamburger + mobile menu (shown only on small screens) */
+.lp-burger { display: none; width: 40px; height: 40px; flex-shrink: 0; align-items: center; justify-content: center; border: 1px solid var(--cloud); border-radius: 10px; background: #fff; color: var(--slate); cursor: pointer; transition: background .15s, color .15s, border-color .15s; }
+.lp-burger:hover { background: var(--mist); color: var(--forest); border-color: var(--mint); }
+.lp-burger svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.lp-mobile { display: none; }
 
 /* Buttons */
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s var(--ease), background .15s, box-shadow .15s; }
@@ -425,13 +451,27 @@ function go(id) {
 
 /* Phones and small tablets */
 @media (max-width: 860px) {
-  .lp-hero-in { grid-template-columns: 1fr; padding-top: 56px; padding-bottom: 60px; gap: 36px; }
+  .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 56px; gap: 32px; }
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2 { grid-template-columns: 1fr; }
-  .lp-links { display: none; }
-  .lp-brand-text small { font-size: 9.5px; max-width: none; }
-  .lp-nav-in { gap: 10px; }
-  .lp-nav .lp-btn { flex-shrink: 0; padding: 9px 16px; }
+  .lp-links, .lp-nav-cta { display: none; }
+  .lp-brand-text small { display: none; }
+  .lp-nav-in { gap: 10px; min-height: 58px; }
+  .lp-burger { display: inline-flex; }
+  .lp-hero, .lp-sec { scroll-margin-top: 62px; }
   .lp-sec { padding: 56px 0; }
+  .lp-sec h2 { margin-bottom: 26px; }
+
+  /* Slide-down section menu */
+  .lp-mobile { display: grid; max-height: 0; overflow: hidden; background: #fff; border-top: 1px solid transparent; transition: max-height .28s var(--ease), border-color .28s; }
+  .lp-mobile.is-open { max-height: 320px; border-top-color: var(--cloud); box-shadow: 0 10px 24px rgba(20,48,30,.08); }
+  .lp-mobile a:not(.lp-btn) { padding: 13px 20px; font-size: 15px; font-weight: 500; color: var(--slate); text-decoration: none; border-bottom: 1px solid var(--snow); }
+  .lp-mobile a:not(.lp-btn):hover { background: var(--mist); color: var(--forest); }
+  .lp-mobile-cta { margin: 12px 20px 16px; }
+}
+@media (max-width: 420px) {
+  .lp-hero h1 { font-size: 34px; }
+  .lp-hero p { font-size: 15.5px; }
+  .lp-wrap { padding: 0 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-btn, .lp-card, .lp-contact, .lp-flow-card { transition: none; }
