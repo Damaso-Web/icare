@@ -165,6 +165,9 @@ onMounted(() => {
   if (route.query.status && typeof route.query.status === 'string') {
     filters.value.status = route.query.status;
   }
+  if (typeof route.query.unit === 'string' && ['GCU', 'SDU', 'TMDU'].includes(route.query.unit)) {
+    filters.value.unit = route.query.unit;
+  }
   fetchCases();
 });
 </script>

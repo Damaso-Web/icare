@@ -120,6 +120,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { referralAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress, toTitleCase } from '../../utils/validators';
@@ -130,6 +131,7 @@ function initials(first, last) {
   return `${first?.[0] || ''}${last?.[0] || ''}`.toUpperCase() || '?';
 }
 
+const route = useRoute();
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
@@ -218,6 +220,8 @@ function formatDate(date) {
 }
 
 onMounted(() => {
+  // Arriving from a Dashboard card (?status=submitted) shows exactly what the card counted.
+  if (typeof route.query.status === 'string') filters.value.status = route.query.status;
   fetchReferrals();
   fetchFilterOptions();
   fetchDeanOptions();

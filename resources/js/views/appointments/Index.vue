@@ -619,12 +619,14 @@ function selectDayPreview(day) {
   selectedDate.value = new Date(day.dateStr);
   previewDate.value = day.dateStr;
   filters.value.date = day.dateStr;
+  delete filters.value.active;
   fetchAppointments();
 }
 
 function clearDateFilter() {
   previewDate.value = null;
   filters.value.date = '';
+  delete filters.value.active;
   fetchAppointments();
 }
 
@@ -895,6 +897,16 @@ function statusText(a) {
 
 let refreshTimer = null;
 onMounted(() => {
+  // Arriving from the Dashboard's "Appointments Today" card: show exactly the appointments it counted.
+  const qd = typeof route.query.date === 'string' ? route.query.date : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(qd)) {
+    filters.value.date = qd;
+    previewDate.value = qd;
+    selectedDate.value = new Date(qd + 'T00:00:00');
+    currentMonth.value = selectedDate.value.getMonth();
+    currentYear.value = selectedDate.value.getFullYear();
+    if (route.query.active === '1') filters.value.active = 1;
+  }
   fetchAppointments();
   fetchAllAppointments();
   fetchBlockedDates();

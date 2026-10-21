@@ -3,7 +3,7 @@ import { roleIn } from '../utils/roles';
 import { SELF_REFERRAL_ENABLED } from '../utils/features';
 
 // Layouts
-import MainLayout from '../layouts/MainLayout.vue';
+import RootEntry from '../views/RootEntry.vue';
 
 // Views
 import Login from '../views/Login.vue';
@@ -87,9 +87,10 @@ const routes = [
         meta: { public: true },
     },
     {
+        // Resetting now uses an emailed 6-digit code on the Forgot Password page, not a link.
         path: '/reset-password',
         name: 'reset-password',
-        component: () => import('../views/ResetPassword.vue'),
+        redirect: (to) => ({ name: 'forgot-password', query: { type: to.query.type === 'student' ? 'student' : 'staff' } }),
         meta: { public: true },
     },
     {
@@ -199,7 +200,7 @@ const routes = [
     },
     {
         path: '/',
-        component: MainLayout,
+        component: RootEntry,
         meta: { requiresAuth: true },
         children: [
             {
@@ -451,6 +452,9 @@ router.beforeEach((to, from, next) => {
 
     // Auth required
     if (to.meta.requiresAuth || to.meta.roles) {
+        // The main address shows the landing page to visitors who are not signed in
+        // (RootEntry renders it, so the address stays "/").
+        if (!token && to.name === 'dashboard') return next();
         if (!token) return next({ name: 'login-choice' });
 
         // System Admin has no Dashboard (it's student/referral/case data, which

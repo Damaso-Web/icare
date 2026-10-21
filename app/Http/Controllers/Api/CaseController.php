@@ -76,7 +76,11 @@ class CaseController extends Controller
             // acknowledged at least one of its referrals - an unacknowledged
             // referral's placeholder case shouldn't show up here yet.
             ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'))
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            // "Open" is every case still being worked on (open and in progress), the same
+            // rule the Dashboard's Open Cases card counts with.
+            ->when($request->status, fn($q) => $request->status === 'open'
+                ? $q->whereIn('status', ['open', 'in_progress'])
+                : $q->where('status', $request->status))
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
             ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
             ->when($request->filled('requires_follow_up'), fn($q) => $q->where('requires_follow_up', $request->boolean('requires_follow_up')))

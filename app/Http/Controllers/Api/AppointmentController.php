@@ -51,7 +51,7 @@ class AppointmentController extends Controller
 
         return response()->json(
             Appointment::with(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy'])
-                ->when($request->date,        fn($q) => $q->where('appointment_date', $request->date))
+                ->when($request->date,        fn($q) => $q->whereDate('appointment_date', $request->date))
                 ->when($request->unit,        fn($q) => $q->where('unit', $request->unit))
                 ->when($request->status, function ($q) use ($request) {
                     if ($request->status === 'rescheduled') {
@@ -62,6 +62,10 @@ class AppointmentController extends Controller
                         $q->where('status', $request->status);
                     }
                 })
+                // The Dashboard's "Appointments Today" count leaves out cancelled, rescheduled and
+                // still-waiting-for-the-student requests; active=1 applies the same rule to the list.
+                ->when($request->boolean('active'), fn($q) => $q->whereNotIn('status', ['cancelled', 'rescheduled'])
+                    ->where(fn($w) => $w->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled'])))
                 ->when($request->referral_id,      fn($q) => $q->where('referral_id', $request->referral_id))
                 ->when($request->appointment_type, fn($q) => $q->where('appointment_type', $request->appointment_type))
                 // GCU and TMDU appointments are separate calendars.

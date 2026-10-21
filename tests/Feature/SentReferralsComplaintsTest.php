@@ -95,10 +95,22 @@ class SentReferralsComplaintsTest extends TestCase
         $b = User::factory()->create(['role' => 'faculty', 'college' => 'CIT', 'is_active' => true]);
         $s = $this->student('2300006', 'Subj');
         Sanctum::actingAs($a);
-        $id = $this->postJson('/api/complaints', [
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $data = [
             'complainant_name' => 'Faculty A', 'complainant_address' => 'Batangas', 'complainee_student_id' => $s->id,
             'violation_type' => 'Bullying', 'incident_date' => now()->subDay()->toDateString(),
             'description' => 'Seen in class.', 'certification_agreed' => true,
+        ];
+        $json = ['Accept' => 'application/json'];
+
+        // Evidence and the witness affidavit are both required for staff.
+        $this->withHeaders($json)->post('/api/complaints', $data)->assertStatus(422)->assertJsonValidationErrors(['evidence', 'affidavit']);
+        $this->withHeaders($json)->post('/api/complaints', $data + ['evidence' => [\Illuminate\Http\UploadedFile::fake()->create('e.pdf', 10)]])
+            ->assertStatus(422)->assertJsonValidationErrors(['affidavit']);
+
+        $id = $this->withHeaders($json)->post('/api/complaints', $data + [
+            'evidence'  => [\Illuminate\Http\UploadedFile::fake()->create('e.pdf', 10)],
+            'affidavit' => [\Illuminate\Http\UploadedFile::fake()->create('a.pdf', 10)],
         ])->assertStatus(201)->json("id");
 
         $this->getJson('/api/my/complaints')->assertOk()->assertJsonCount(1, 'data');

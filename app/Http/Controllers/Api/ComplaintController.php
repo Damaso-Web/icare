@@ -160,7 +160,13 @@ class ComplaintController extends Controller
 
     private function file(Request $request, array $filer)
     {
+        // Staff must attach both the evidence and the affidavit of a witness; students file from their own portal form.
+        $staff = $filer['user_id'] !== null;
+        $proofRules = $staff
+            ? ['evidence' => 'required|array|min:1', 'affidavit' => 'required|array|min:1']
+            : [];
         $validated = $request->validate([
+            ...$proofRules,
             'complainant_name'       => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainant_address'    => 'required|string|max:255',
             'complainee_student_id'  => 'required|exists:students,id',
@@ -175,6 +181,11 @@ class ComplaintController extends Controller
             'certification_agreed'   => 'required|accepted',
             'evidence.*'             => 'nullable|file|max:10240',
             'affidavit.*'            => 'nullable|file|max:10240',
+        ], [
+            'evidence.required'  => 'Please attach at least one evidence file.',
+            'evidence.min'       => 'Please attach at least one evidence file.',
+            'affidavit.required' => 'Please attach at least one Affidavit of Witness file.',
+            'affidavit.min'      => 'Please attach at least one Affidavit of Witness file.',
         ]);
 
         $student = Student::findOrFail($validated['complainee_student_id']);

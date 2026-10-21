@@ -60,6 +60,7 @@ class DashboardController extends Controller
     private function gcuDashboard($user): array
     {
         return [
+            'today' => today()->toDateString(),
             'stats' => [
                 // Counted per unit and with the same filters as the pages the
                 // cards link to (Student Information Files / Referral Queue), so
