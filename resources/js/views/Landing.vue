@@ -1,7 +1,7 @@
 <template>
   <div class="lp">
     <!-- Top bar -->
-    <header class="lp-nav">
+    <header class="lp-nav" :class="{ 'is-scrolled': scrolled }">
       <div class="lp-wrap lp-nav-in">
         <a class="lp-brand" href="#top" @click.prevent="go('top')">
           <img :src="'/bsu-logo.jpg'" alt="Benguet State University" />
@@ -58,29 +58,32 @@
           </div>
         </div>
       </div>
+      <div class="lp-hero-wave" aria-hidden="true">
+        <svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,24 C360,52 1080,-4 1440,24 L1440,48 L0,48 Z" fill="var(--snow)"/></svg>
+      </div>
     </section>
 
     <!-- Services -->
     <section id="services" class="lp-sec">
       <div class="lp-wrap">
-        <div class="lp-kicker">What <span class="lp-keepcase">iCARE</span> supports</div>
-        <h2>Three units, one system</h2>
+        <div class="lp-kicker reveal">What <span class="lp-keepcase">iCARE</span> supports</div>
+        <h2 class="reveal">Three units, one system</h2>
         <div class="lp-grid3">
-          <article class="lp-card">
+          <article class="lp-card reveal">
             <div class="lp-ico lp-ico-g">
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
             <h3>Guidance and Counseling Unit</h3>
             <p>Counseling and other student services, from the first referral to the final session notes.</p>
           </article>
-          <article class="lp-card">
+          <article class="lp-card reveal">
             <div class="lp-ico lp-ico-b">
               <svg viewBox="0 0 24 24"><path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/></svg>
             </div>
             <h3>Testing and Materials Development Unit</h3>
             <p>Psychological testing schedules and records, kept together with the student's referral.</p>
           </article>
-          <article class="lp-card">
+          <article class="lp-card reveal">
             <div class="lp-ico lp-ico-a">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
             </div>
@@ -94,20 +97,20 @@
     <!-- How it works -->
     <section id="how" class="lp-sec lp-sec-tint">
       <div class="lp-wrap">
-        <div class="lp-kicker">How it works</div>
-        <h2>From request to follow-up in three steps</h2>
+        <div class="lp-kicker reveal">How it works</div>
+        <h2 class="reveal">From request to follow-up in three steps</h2>
         <ol class="lp-steps">
-          <li>
+          <li class="reveal">
             <span class="lp-num">1</span>
             <h3>Sign in</h3>
             <p>Students sign in with their Student ID. BSU personnel sign in with their employee account.</p>
           </li>
-          <li>
+          <li class="reveal">
             <span class="lp-num">2</span>
             <h3>Refer or request</h3>
             <p>Send a referral, file a report, or pick the schedule offered for your appointment.</p>
           </li>
-          <li>
+          <li class="reveal">
             <span class="lp-num">3</span>
             <h3>Track progress</h3>
             <p>See the status of each referral and appointment, and get notified when something changes.</p>
@@ -115,9 +118,9 @@
         </ol>
 
         <div class="lp-who">
-          <div><strong>Students</strong><span>Refer yourself or a classmate, choose appointment times, follow your requests.</span></div>
-          <div><strong>Faculty and deans</strong><span>Refer students and see what happened with your referrals.</span></div>
-          <div><strong>OSS staff</strong><span>Refer students, and manage referrals, appointments, cases and records in one place.</span></div>
+          <div class="reveal"><strong>Students</strong><span>Refer yourself or a classmate, choose appointment times, follow your requests.</span></div>
+          <div class="reveal"><strong>Faculty and deans</strong><span>Refer students and see what happened with your referrals.</span></div>
+          <div class="reveal"><strong>OSS staff</strong><span>Refer students, and manage referrals, appointments, cases and records in one place.</span></div>
         </div>
       </div>
     </section>
@@ -125,10 +128,10 @@
     <!-- Contact -->
     <section id="contact" class="lp-sec">
       <div class="lp-wrap">
-        <div class="lp-kicker">Contact us</div>
-        <h2>Office of Student Services</h2>
+        <div class="lp-kicker reveal">Contact us</div>
+        <h2 class="reveal">Office of Student Services</h2>
         <div class="lp-grid2">
-          <article v-for="c in contacts" :key="c.name" class="lp-contact">
+          <article v-for="c in contacts" :key="c.name" class="lp-contact reveal">
             <h3>{{ c.name }}</h3>
             <ul>
               <li v-if="c.email"><span>Email</span><a :href="'mailto:' + c.email">{{ c.email }}</a></li>
@@ -137,7 +140,7 @@
             </ul>
           </article>
         </div>
-        <div class="lp-more">
+        <div class="lp-more reveal">
           <h3>More About the Office</h3>
           <p>
             Learn more about our programs and services on the
@@ -205,9 +208,33 @@
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 
 const signedIn = computed(() => !!localStorage.getItem('token'));
+
+// The header gains a shadow once the page is scrolled past the top.
+const scrolled = ref(false);
+const onScroll = () => { scrolled.value = window.scrollY > 8; };
+
+// Gentle fade-up as each block scrolls into view (skipped for reduced motion).
+let io = null;
+onMounted(() => {
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  const els = document.querySelectorAll('.lp .reveal');
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || !('IntersectionObserver' in window)) {
+    els.forEach(el => el.classList.add('is-in'));
+    return;
+  }
+  io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('is-in'); io.unobserve(e.target); }
+    });
+  }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+  els.forEach(el => io.observe(el));
+});
 
 const showPrivacy = ref(false);
 const dialog = ref(null);
@@ -223,7 +250,12 @@ watch(showPrivacy, async open => {
     document.body.style.overflow = '';
   }
 });
-onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; });
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey);
+  window.removeEventListener('scroll', onScroll);
+  io?.disconnect();
+  document.body.style.overflow = '';
+});
 
 const contacts = [
   {
@@ -262,7 +294,9 @@ function go(id) {
 .lp h1, .lp h2, .lp h3, .lp p { margin: 0; }
 
 /* Nav */
-.lp-nav { position: relative; z-index: 20; background: #fff; border-bottom: 1px solid var(--cloud); }
+.lp-nav { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--cloud); transition: box-shadow .25s var(--ease), border-color .25s; }
+.lp-nav.is-scrolled { box-shadow: 0 6px 24px rgba(20,48,30,.08); border-bottom-color: transparent; }
+.lp-hero, .lp-sec { scroll-margin-top: 72px; }
 .lp-nav-in { display: flex; align-items: center; gap: 20px; min-height: 66px; padding-top: 8px; padding-bottom: 8px; }
 .lp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; margin-right: auto; min-width: 0; }
 .lp-brand img { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
@@ -278,8 +312,8 @@ function go(id) {
 /* Buttons */
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s var(--ease), background .15s, box-shadow .15s; }
 .lp-btn:hover { transform: translateY(-1px); }
-.lp-btn-solid { background: var(--moss); color: #fff !important; }
-.lp-btn-solid:hover { background: var(--pine); }
+.lp-btn-solid { background: var(--moss); color: #fff !important; box-shadow: 0 4px 14px rgba(46,109,68,.22); }
+.lp-btn-solid:hover { background: var(--pine); box-shadow: 0 8px 22px rgba(46,109,68,.28); }
 .lp-btn-light { background: #fff; color: var(--forest) !important; box-shadow: 0 6px 20px rgba(0,0,0,.18); }
 .lp-btn-ghost { border-color: rgba(255,255,255,.45); color: #fff !important; }
 .lp-btn-ghost:hover { background: rgba(255,255,255,.1); }
@@ -295,7 +329,8 @@ function go(id) {
 .lp-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
 
 .lp-flow { display: flex; flex-direction: column; align-items: stretch; }
-.lp-flow-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-lg); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); }
+.lp-flow-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-lg); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); transition: background .2s var(--ease), transform .2s var(--ease); }
+.lp-flow-card:hover { background: rgba(255,255,255,.14); transform: translateX(3px); }
 .lp-flow-card strong { display: block; font-size: 15px; }
 .lp-flow-card small { display: block; font-size: 12.5px; color: rgba(255,255,255,.65); }
 .lp-flow-line { width: 2px; height: 22px; margin-left: 27px; background: linear-gradient(var(--mint), transparent); }
@@ -303,6 +338,9 @@ function go(id) {
 .lp-dot-a { background: var(--gold); }
 .lp-dot-b { background: var(--sage); }
 .lp-dot-c { background: var(--fern); box-shadow: 0 0 0 4px rgba(143,224,176,.25); }
+
+.lp-hero-wave { position: absolute; left: 0; right: 0; bottom: -1px; line-height: 0; pointer-events: none; z-index: 2; }
+.lp-hero-wave svg { display: block; width: 100%; height: 44px; }
 
 /* Sections */
 .lp-sec { padding: 84px 0; }
@@ -312,8 +350,13 @@ function go(id) {
 .lp-sec h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 40px); line-height: 1.15; color: var(--forest); margin-bottom: 36px; }
 
 .lp-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.lp-card { background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 26px; box-shadow: var(--sh-card); transition: transform .2s var(--ease), box-shadow .2s; }
+.lp-card { position: relative; overflow: hidden; background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 26px; box-shadow: var(--sh-card); transition: transform .2s var(--ease), box-shadow .2s; }
+.lp-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
+.lp-card:nth-child(1)::after { background: var(--moss); }
+.lp-card:nth-child(2)::after { background: var(--blue); }
+.lp-card:nth-child(3)::after { background: var(--amber); }
 .lp-card:hover { transform: translateY(-3px); box-shadow: var(--sh); }
+.lp-card:hover::after { transform: scaleX(1); }
 .lp-card h3 { font-size: 17px; margin: 16px 0 8px; color: var(--forest); }
 .lp-card p { color: var(--stone); font-size: 14.5px; }
 .lp-ico { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
@@ -326,16 +369,17 @@ function go(id) {
 .lp-steps li { position: relative; background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 26px; }
 .lp-steps h3 { font-size: 17px; margin: 14px 0 6px; color: var(--forest); }
 .lp-steps p { color: var(--stone); font-size: 14.5px; }
-.lp-num { width: 34px; height: 34px; border-radius: 50%; background: var(--grad-moss); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+.lp-num { width: 34px; height: 34px; border-radius: 50%; background: var(--grad-moss); color: #fff; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; box-shadow: 0 4px 12px rgba(46,109,68,.3); }
 
-.lp-who { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 28px; }
-.lp-who div { padding: 16px 4px 0; border-top: 2px solid var(--mint); }
+.lp-who { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 32px; }
+.lp-who div { background: #fff; border: 1px solid var(--cloud); border-top: 3px solid var(--mint); border-radius: var(--r-lg); padding: 18px 20px; }
 .lp-who strong { display: block; color: var(--forest); margin-bottom: 4px; }
 .lp-who span { color: var(--stone); font-size: 14px; }
 
 /* Contact */
 .lp-grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-.lp-contact { background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 22px 24px; }
+.lp-contact { background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 22px 24px; transition: transform .2s var(--ease), box-shadow .2s; }
+.lp-contact:hover { transform: translateY(-2px); box-shadow: var(--sh-card); }
 .lp-contact h3 { font-size: 16px; color: var(--forest); margin-bottom: 10px; }
 .lp-contact ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lp-contact li { display: flex; gap: 12px; font-size: 14px; }
@@ -372,6 +416,13 @@ function go(id) {
 .lp-dialog-links a { color: var(--moss); font-weight: 600; word-break: break-word; }
 .lp-dialog-foot { padding: 14px 22px; border-top: 1px solid var(--cloud); display: flex; justify-content: flex-end; }
 
+/* Scroll-reveal */
+.lp .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s var(--ease), transform .6s var(--ease); will-change: opacity, transform; }
+.lp .reveal.is-in { opacity: 1; transform: none; }
+.lp-grid3 > .reveal:nth-child(2), .lp-steps > .reveal:nth-child(2), .lp-who > .reveal:nth-child(2), .lp-grid2 > .reveal:nth-child(2) { transition-delay: .09s; }
+.lp-grid3 > .reveal:nth-child(3), .lp-steps > .reveal:nth-child(3), .lp-who > .reveal:nth-child(3), .lp-grid2 > .reveal:nth-child(3) { transition-delay: .18s; }
+.lp-grid2 > .reveal:nth-child(4) { transition-delay: .27s; }
+
 /* Phones and small tablets */
 @media (max-width: 860px) {
   .lp-hero-in { grid-template-columns: 1fr; padding-top: 56px; padding-bottom: 60px; gap: 36px; }
@@ -383,7 +434,8 @@ function go(id) {
   .lp-sec { padding: 56px 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .lp-btn, .lp-card { transition: none; }
-  .lp-btn:hover, .lp-card:hover { transform: none; }
+  .lp-btn, .lp-card, .lp-contact, .lp-flow-card { transition: none; }
+  .lp-btn:hover, .lp-card:hover, .lp-contact:hover, .lp-flow-card:hover { transform: none; }
+  .lp .reveal { opacity: 1; transform: none; transition: none; }
 }
 </style>
