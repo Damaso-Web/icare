@@ -42,16 +42,18 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="profileForm.last_name" class="ifi" maxlength="20" @input="profileForm.last_name = capFirst(profileForm.last_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
+              <input v-model="profileForm.last_name" class="ifi" maxlength="20" :style="lastNameProblem ? ERR_BORDER : ''" @input="profileForm.last_name = capFirst(profileForm.last_name.normalize('NFC').replace(/[^\p{L}\p{M}\s'-]/gu, ''))" />
+              <div v-if="lastNameProblem" class="fe">{{ lastNameProblem }}</div>
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="profileForm.first_name" class="ifi" maxlength="20" @input="profileForm.first_name = capFirst(profileForm.first_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
+              <input v-model="profileForm.first_name" class="ifi" maxlength="20" :style="firstNameProblem ? ERR_BORDER : ''" @input="profileForm.first_name = capFirst(profileForm.first_name.normalize('NFC').replace(/[^\p{L}\p{M}\s'-]/gu, ''))" />
+              <div v-if="firstNameProblem" class="fe">{{ firstNameProblem }}</div>
             </div>
           </div>
           <div>
             <label class="ifl">Middle Name</label>
-            <input v-model="profileForm.middle_name" class="ifi" maxlength="20" @input="profileForm.middle_name = capFirst(profileForm.middle_name.replace(/[^a-zA-Z\s'-]/g, ''))" />
+            <input v-model="profileForm.middle_name" class="ifi" maxlength="20" @input="profileForm.middle_name = capFirst(profileForm.middle_name.normalize('NFC').replace(/[^\p{L}\p{M}\s'-]/gu, ''))" />
           </div>
           <div>
             <label class="ifl">Suffix</label>
@@ -68,8 +70,8 @@
           </div>
           <div>
             <label class="ifl">Email Address</label>
-            <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" :style="profileForm.email && emailProblem ? 'border-color:var(--red)' : ''" />
-              <div v-if="profileForm.email && emailProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ emailProblem }}</div>
+            <input v-model="profileForm.email" type="email" class="ifi" maxlength="100" placeholder="Your personal email (eg. name@gmail.com)" :style="emailProblem ? ERR_BORDER : ''" />
+              <div v-if="emailProblem" class="fe">{{ emailProblem }}</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
@@ -84,7 +86,9 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Birthdate (mm/dd/yyyy)</label>
-              <input v-model="profileForm.birthdate" type="date" class="ifi" :max="todayStr" />
+              <input v-model="profileForm.birthdate" type="date" class="ifi" :max="maxBirth" :style="birthError ? ERR_BORDER : ''" />
+              <div v-if="birthError" class="fe">{{ birthError }}</div>
+              <div v-else-if="birthWarning" class="fw">{{ birthWarning }}</div>
             </div>
             <div>
               <label class="ifl">Sex</label>
@@ -105,20 +109,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Nationality</label>
-              <input v-model="profileForm.nationality" class="ifi" maxlength="100" @input="profileForm.nationality = capFirst(String(profileForm.nationality ?? '').replace(/[^a-zA-Z\s'.-]/g, ''))" />
+              <input v-model="profileForm.nationality" class="ifi" maxlength="100" @input="profileForm.nationality = capFirst(String(profileForm.nationality ?? '').normalize('NFC').replace(/[^\p{L}\p{M}\s'.-]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Birthplace</label>
-              <input v-model="profileForm.birthplace" class="ifi" maxlength="255" @input="profileForm.birthplace = capFirst(String(profileForm.birthplace ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="profileForm.birthplace" class="ifi" maxlength="255" @input="profileForm.birthplace = capFirst(String(profileForm.birthplace ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
           </div>
           <div>
             <label class="ifl">Languages that I understand</label>
-            <input v-model="profileForm.languages" class="ifi" maxlength="255" placeholder="e.g. Filipino, English, Bisaya" @input="profileForm.languages = capFirst(String(profileForm.languages ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+            <input v-model="profileForm.languages" class="ifi" maxlength="255" placeholder="e.g. Filipino, English, Bisaya" @input="profileForm.languages = capFirst(String(profileForm.languages ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
           </div>
           <div>
             <label class="ifl">Address while studying at BSU</label>
-            <input v-model="profileForm.address" class="ifi" maxlength="255" @input="profileForm.address = capFirst(String(profileForm.address ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, ''))" />
+            <input v-model="profileForm.address" class="ifi" maxlength="255" placeholder="Street, Barangay, Town / City" :style="addressProblem ? ERR_BORDER : ''" @input="profileForm.address = capFirst(String(profileForm.address ?? '').normalize('NFC').replace(/[^\p{L}\p{M}0-9À-ɏ'.,\x26()\- ]/gu, ''))" />
+            <div v-if="addressProblem" class="fe">{{ addressProblem }}</div>
           </div>
           <div>
             <label class="ifl">Contact Number</label>
@@ -132,7 +137,7 @@
           />
               <div v-if="contactProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ contactProblem }}</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged || (!!profileForm.email && !!emailProblem) || !!contactProblem" @click="requestSave('profile')">Save Changes</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="isProfileUnchanged || profileHasProblem" @click="requestSave('profile')">Save Changes</button>
         </div>
       </div>
 
@@ -149,21 +154,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="50" @input="backgroundForm.father_last_name = capFirst(String(backgroundForm.father_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="50" @input="backgroundForm.father_last_name = capFirst(String(backgroundForm.father_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="50" @input="backgroundForm.father_first_name = capFirst(String(backgroundForm.father_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.father_first_name" class="ifi" maxlength="50" @input="backgroundForm.father_first_name = capFirst(String(backgroundForm.father_first_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="50" @input="backgroundForm.father_middle_name = capFirst(String(backgroundForm.father_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="50" @input="backgroundForm.father_middle_name = capFirst(String(backgroundForm.father_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="50" @input="backgroundForm.father_occupation = capFirst(String(backgroundForm.father_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.father_occupation" class="ifi" maxlength="50" @input="backgroundForm.father_occupation = capFirst(String(backgroundForm.father_occupation ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -179,7 +184,7 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.father_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.father_educational_attainment = capFirst(String(backgroundForm.father_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.father_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.father_educational_attainment = capFirst(String(backgroundForm.father_educational_attainment ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
           </div>
 
@@ -187,21 +192,21 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="50" @input="backgroundForm.mother_last_name = capFirst(String(backgroundForm.mother_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="50" @input="backgroundForm.mother_last_name = capFirst(String(backgroundForm.mother_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="50" @input="backgroundForm.mother_first_name = capFirst(String(backgroundForm.mother_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.mother_first_name" class="ifi" maxlength="50" @input="backgroundForm.mother_first_name = capFirst(String(backgroundForm.mother_first_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="50" @input="backgroundForm.mother_middle_name = capFirst(String(backgroundForm.mother_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="50" @input="backgroundForm.mother_middle_name = capFirst(String(backgroundForm.mother_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="50" @input="backgroundForm.mother_occupation = capFirst(String(backgroundForm.mother_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.mother_occupation" class="ifi" maxlength="50" @input="backgroundForm.mother_occupation = capFirst(String(backgroundForm.mother_occupation ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -217,7 +222,7 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.mother_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.mother_educational_attainment = capFirst(String(backgroundForm.mother_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.mother_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.mother_educational_attainment = capFirst(String(backgroundForm.mother_educational_attainment ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
           </div>
 
@@ -225,15 +230,15 @@
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
-              <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_last_name = capFirst(String(backgroundForm.guardian_last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_last_name = capFirst(String(backgroundForm.guardian_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">First Name</label>
-              <input v-model="backgroundForm.guardian_first_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_first_name = capFirst(String(backgroundForm.guardian_first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.guardian_first_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_first_name = capFirst(String(backgroundForm.guardian_first_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_middle_name = capFirst(String(backgroundForm.guardian_middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+              <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_middle_name = capFirst(String(backgroundForm.guardian_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
@@ -243,13 +248,13 @@
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
-              <input v-model="backgroundForm.guardian_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.guardian_educational_attainment = capFirst(String(backgroundForm.guardian_educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.guardian_educational_attainment" class="ifi" maxlength="50" @input="backgroundForm.guardian_educational_attainment = capFirst(String(backgroundForm.guardian_educational_attainment ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
               <label class="ifl">Occupation</label>
-              <input v-model="backgroundForm.guardian_occupation" class="ifi" maxlength="50" @input="backgroundForm.guardian_occupation = capFirst(String(backgroundForm.guardian_occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+              <input v-model="backgroundForm.guardian_occupation" class="ifi" maxlength="50" @input="backgroundForm.guardian_occupation = capFirst(String(backgroundForm.guardian_occupation ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
             </div>
             <div>
               <label class="ifl">Contact Number</label>
@@ -277,15 +282,15 @@
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
-                <input v-model="sib.last_name" class="ifi" :style="sibNamesChecked && !String(sib.last_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+                <input v-model="sib.last_name" class="ifi" :style="sibNamesChecked && !String(sib.last_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
               </div>
               <div>
                 <label class="ifl">First Name</label>
-                <input v-model="sib.first_name" class="ifi" :style="sibNamesChecked && !String(sib.first_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+                <input v-model="sib.first_name" class="ifi" :style="sibNamesChecked && !String(sib.first_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
-                <input v-model="sib.middle_name" class="ifi" maxlength="50" @input="sib.middle_name = capFirst(String(sib.middle_name ?? '').replace(/[^a-zA-ZÀ-ɏ'.\- ]/g, ''))" />
+                <input v-model="sib.middle_name" class="ifi" maxlength="50" @input="sib.middle_name = capFirst(String(sib.middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
               </div>
             </div>
             <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px">
@@ -295,7 +300,7 @@
               </div>
               <div>
                 <label class="ifl">Highest Educational Attainment</label>
-                <input v-model="sib.educational_attainment" class="ifi" maxlength="50" @input="sib.educational_attainment = capFirst(String(sib.educational_attainment ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+                <input v-model="sib.educational_attainment" class="ifi" maxlength="50" @input="sib.educational_attainment = capFirst(String(sib.educational_attainment ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
               </div>
               <div>
                 <label class="ifl">Civil Status</label>
@@ -308,7 +313,7 @@
             <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
               <div>
                 <label class="ifl">Occupation (if currently studying, enter "Student")</label>
-                <input v-model="sib.occupation" class="ifi" maxlength="50" @input="sib.occupation = capFirst(String(sib.occupation ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
+                <input v-model="sib.occupation" class="ifi" maxlength="50" @input="sib.occupation = capFirst(String(sib.occupation ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
               </div>
               <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="removeSibling(idx)">Remove</button>
             </div>
@@ -326,8 +331,9 @@
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">School</label>
-              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="100" @input="backgroundForm.elementary_school = capFirst(String(backgroundForm.elementary_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
-            </div>
+              <input v-model="backgroundForm.elementary_school" class="ifi" maxlength="100" :style="wordsIssue(backgroundForm.elementary_school, 'a school name') ? ERR_BORDER : ''" @input="backgroundForm.elementary_school = capFirst(String(backgroundForm.elementary_school ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
+            <div v-if="wordsIssue(backgroundForm.elementary_school, 'a school name')" class="fe">{{ wordsIssue(backgroundForm.elementary_school, 'a school name') }}</div>
+              </div>
             <div>
               <label class="ifl">Year Graduated</label>
               <input v-model="backgroundForm.elementary_year_graduated" class="ifi" placeholder="e.g. 2016" maxlength="4" :style="yearIssue(backgroundForm.elementary_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.elementary_year_graduated = String(backgroundForm.elementary_year_graduated ?? '').replace(/[^0-9]/g, '')" />
@@ -336,14 +342,16 @@
           </div>
           <div v-if="'elementary_achievements'">
             <label class="ifl">Achievements</label>
-            <textarea v-model="backgroundForm.elementary_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+            <textarea v-model="backgroundForm.elementary_achievements" class="ifta" style="min-height:56px" maxlength="1000" :style="wordsIssue(backgroundForm.elementary_achievements, 'your achievements') ? ERR_BORDER : ''" placeholder="Honors, awards, recognitions..."></textarea>
+            <div v-if="wordsIssue(backgroundForm.elementary_achievements, 'your achievements')" class="fe">{{ wordsIssue(backgroundForm.elementary_achievements, 'your achievements') }}</div>
           </div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Junior High School</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">School</label>
-              <input v-model="backgroundForm.high_school" class="ifi" maxlength="100" @input="backgroundForm.high_school = capFirst(String(backgroundForm.high_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
-            </div>
+              <input v-model="backgroundForm.high_school" class="ifi" maxlength="100" :style="wordsIssue(backgroundForm.high_school, 'a school name') ? ERR_BORDER : ''" @input="backgroundForm.high_school = capFirst(String(backgroundForm.high_school ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
+            <div v-if="wordsIssue(backgroundForm.high_school, 'a school name')" class="fe">{{ wordsIssue(backgroundForm.high_school, 'a school name') }}</div>
+              </div>
             <div>
               <label class="ifl">Year Graduated</label>
               <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" :style="yearIssue(backgroundForm.high_school_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
@@ -352,14 +360,16 @@
           </div>
           <div v-if="'high_school_achievements'">
             <label class="ifl">Achievements</label>
-            <textarea v-model="backgroundForm.high_school_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+            <textarea v-model="backgroundForm.high_school_achievements" class="ifta" style="min-height:56px" maxlength="1000" :style="wordsIssue(backgroundForm.high_school_achievements, 'your achievements') ? ERR_BORDER : ''" placeholder="Honors, awards, recognitions..."></textarea>
+            <div v-if="wordsIssue(backgroundForm.high_school_achievements, 'your achievements')" class="fe">{{ wordsIssue(backgroundForm.high_school_achievements, 'your achievements') }}</div>
           </div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Senior High School</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">School</label>
-              <input v-model="backgroundForm.senior_high_school" class="ifi" maxlength="100" @input="backgroundForm.senior_high_school = capFirst(String(backgroundForm.senior_high_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
-            </div>
+              <input v-model="backgroundForm.senior_high_school" class="ifi" maxlength="100" :style="wordsIssue(backgroundForm.senior_high_school, 'a school name') ? ERR_BORDER : ''" @input="backgroundForm.senior_high_school = capFirst(String(backgroundForm.senior_high_school ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
+            <div v-if="wordsIssue(backgroundForm.senior_high_school, 'a school name')" class="fe">{{ wordsIssue(backgroundForm.senior_high_school, 'a school name') }}</div>
+              </div>
             <div>
               <label class="ifl">Year Graduated</label>
               <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" :style="yearIssue(backgroundForm.senior_high_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
@@ -368,14 +378,16 @@
           </div>
           <div v-if="'senior_high_achievements'">
             <label class="ifl">Achievements</label>
-            <textarea v-model="backgroundForm.senior_high_achievements" class="ifta" style="min-height:56px" maxlength="1000" placeholder="Honors, awards, recognitions..."></textarea>
+            <textarea v-model="backgroundForm.senior_high_achievements" class="ifta" style="min-height:56px" maxlength="1000" :style="wordsIssue(backgroundForm.senior_high_achievements, 'your achievements') ? ERR_BORDER : ''" placeholder="Honors, awards, recognitions..."></textarea>
+            <div v-if="wordsIssue(backgroundForm.senior_high_achievements, 'your achievements')" class="fe">{{ wordsIssue(backgroundForm.senior_high_achievements, 'your achievements') }}</div>
           </div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">College (current)</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
             <div>
               <label class="ifl">College / University</label>
-              <input v-model="backgroundForm.college_school" class="ifi" maxlength="100" @input="backgroundForm.college_school = capFirst(String(backgroundForm.college_school ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
-            </div>
+              <input v-model="backgroundForm.college_school" class="ifi" maxlength="100" :style="wordsIssue(backgroundForm.college_school, 'a school name') ? ERR_BORDER : ''" @input="backgroundForm.college_school = capFirst(String(backgroundForm.college_school ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
+            <div v-if="wordsIssue(backgroundForm.college_school, 'a school name')" class="fe">{{ wordsIssue(backgroundForm.college_school, 'a school name') }}</div>
+              </div>
             <div>
               <label class="ifl">Year Graduated</label>
               <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" :style="yearIssue(backgroundForm.college_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
@@ -384,7 +396,7 @@
           </div>
 
           <div style="display:flex;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isEducationUnchanged || savingEducation" @click="requestSave('education')">{{ savingEducation ? 'Saving...' : 'Save Educational Attainment' }}</button>
+            <button type="button" class="ibtn ibtn-p ibtn-sm" :disabled="isEducationUnchanged || savingEducation || educationProblem" @click="requestSave('education')">{{ savingEducation ? 'Saving...' : 'Save Educational Attainment' }}</button>
           </div>
           </div>
         </div>
@@ -446,19 +458,30 @@
     </div>
     <!-- Save confirmation -->
     <div v-if="confirmAction" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="confirmAction = null">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Save changes?</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Review your changes</div>
         </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
-          <div style="font-size:13px;color:var(--slate)">Are you sure you want to save your changes to <strong>{{ CONFIRM_LABELS[confirmAction] }}</strong>?</div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
+          <div style="font-size:13px;color:var(--slate)">Please review what will be saved to your <strong>{{ CONFIRM_LABELS[confirmAction] }}</strong>.</div>
+          <div class="chg">
+            <div v-if="!pendingChanges.length" style="color:var(--stone);font-size:12.5px">No changes.</div>
+            <div v-for="c in pendingChanges" :key="c.key" class="chg-row">
+              <div class="chg-l">{{ c.label }}</div>
+              <div class="chg-v"><span class="chg-old">{{ c.from }}</span><span class="chg-arrow">&rarr;</span><strong>{{ c.to }}</strong></div>
+            </div>
+          </div>
+          <label v-if="needsAgeConfirm" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px">
+            <input type="checkbox" v-model="ageConfirmed" style="margin-top:3px;flex-shrink:0" />
+            <span style="font-size:12px;line-height:1.5;color:var(--amber)">{{ birthWarning }} I confirm this birthdate is correct.</span>
+          </label>
           <label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;background:var(--foam);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px">
             <input type="checkbox" v-model="consentChecked" style="margin-top:3px;flex-shrink:0" />
             <span style="font-size:12px;line-height:1.5;color:var(--slate)">I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Guidance and Counseling Unit (GCU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Guidance and Counseling Unit (GCU) necessary and relevant data pertaining to my personal data. I certify that the information I am saving is true and correct.</span>
           </label>
           <div style="display:flex;gap:8px;justify-content:flex-end">
             <button type="button" class="ibtn ibtn-o" @click="confirmAction = null">Cancel</button>
-            <button type="button" class="ibtn ibtn-p" :disabled="!consentChecked" @click="confirmSave">Yes, Save</button>
+            <button type="button" class="ibtn ibtn-p" :disabled="!consentChecked || !pendingChanges.length || (needsAgeConfirm && !ageConfirmed)" @click="confirmSave">Yes, Save</button>
           </div>
         </div>
       </div>
@@ -470,6 +493,7 @@
 import { ref, computed, watch, onMounted, inject } from 'vue';
 import PasswordChecklist from '../../components/PasswordChecklist.vue';
 import axios from 'axios';
+import { emailProblem as checkEmail } from '../../utils/emailCheck';
 
 const toast = inject('toast', null);
 const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
@@ -516,7 +540,17 @@ const headerDetails = computed(() => {
   return [s.student_id, [s.program, year].filter(Boolean).join(' - '), s.college].filter(Boolean).join(' · ');
 });
 const CIVIL_STATUSES = ['Single', 'Married', 'Divorced', 'Widowed', 'Separated'];
-const todayStr = new Date().toISOString().split('T')[0];
+const pad = n => String(n).padStart(2, '0');
+const localDate = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+// The latest birthdate that can be picked is yesterday (never today or later).
+const maxBirth = localDate(new Date(Date.now() - 86400000));
+function ageOf(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  const now = new Date();
+  let age = now.getFullYear() - y;
+  if (now.getMonth() + 1 < m || (now.getMonth() + 1 === m && now.getDate() < d)) age--;
+  return age;
+}
 const profileForm = ref({
   first_name: '', last_name: '', middle_name: '', suffix: '', email: '', contact_number: '',
   birthdate: '', sex: '', civil_status: '', nationality: '', birthplace: '', languages: '', address: '',
@@ -531,9 +565,7 @@ const pwError = ref('');
 
 // ---- Checked as the user types (B379, B380) ----
 const emailProblem = computed(() => {
-  const v = String(profileForm.value.email || '').trim();
-  if (!v) return 'Email address is required.';
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : 'Enter a complete email address, like name@bsu.edu.ph.';
+  return checkEmail(profileForm.value.email);
 });
 const contactProblem = computed(() => {
   const v = String(profileForm.value.contact_number || '');
@@ -542,11 +574,58 @@ const contactProblem = computed(() => {
   return v.length === 11 ? '' : `The contact number must be 11 digits (${v.length} so far).`;
 });
 
-// Leaving the Password tab clears whatever was typed there (B381).
+const hasLetter = v => /\p{L}/u.test(String(v ?? ''));
+const nameProblem = (v, label) => (String(v ?? '').trim() ? '' : `${label} is required.`);
+const firstNameProblem = computed(() => nameProblem(profileForm.value.first_name, 'First name'));
+const lastNameProblem = computed(() => nameProblem(profileForm.value.last_name, 'Last name'));
+// B507: an address needs words, not just numbers.
+const addressProblem = computed(() => {
+  const v = String(profileForm.value.address || '').trim();
+  if (!v) return '';
+  if (!hasLetter(v)) return 'Enter a complete address with the street, barangay and town, not just numbers.';
+  return v.length < 5 ? 'The address is too short. Enter a complete address.' : '';
+});
+// B505: no today/future birthdate; under 18 is flagged but allowed (accelerated students).
+const birthIssue = computed(() => {
+  const v = profileForm.value.birthdate;
+  if (!v) return null;
+  if (v > maxBirth) return { error: true, text: 'The birthdate cannot be today or a future date.' };
+  if (v < '1900-01-01') return { error: true, text: 'Enter a valid birthdate.' };
+  const age = ageOf(v);
+  if (age < 15) return { error: true, text: `This birthdate makes you ${age} years old, which is too young for a college student. Please check it.` };
+  if (age < 18) return { error: false, text: `This birthdate makes you ${age} years old, younger than the usual college entry age (18). If you are an accelerated student this is fine, but please confirm it is correct when saving. The office may verify it.` };
+  return null;
+});
+const birthError = computed(() => (birthIssue.value?.error ? birthIssue.value.text : ''));
+const birthWarning = computed(() => (birthIssue.value && !birthIssue.value.error ? birthIssue.value.text : ''));
+const profileHasProblem = computed(() =>
+  !!(firstNameProblem.value || lastNameProblem.value || (profileForm.value.email && emailProblem.value) || !profileForm.value.email
+    || contactProblem.value || addressProblem.value || birthError.value));
+
+// B509: school names and achievements need words, not just numbers.
+function wordsIssue(v, what) {
+  v = String(v ?? '').trim();
+  if (!v) return '';
+  return hasLetter(v) ? '' : `Enter ${what} with words, not just numbers.`;
+}
+const SCHOOL_KEYS = ['elementary_school', 'high_school', 'senior_high_school', 'college_school'];
+const ACHIEVE_KEYS = ['elementary_achievements', 'high_school_achievements', 'senior_high_achievements'];
+const educationProblem = computed(() => {
+  const f = backgroundForm.value;
+  return SCHOOL_KEYS.some(k => wordsIssue(f[k], 'a school name')) || ACHIEVE_KEYS.some(k => wordsIssue(f[k], 'your achievements'))
+    || ['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'].some(k => yearIssue(f[k]));
+});
+
+// B506: leaving a tab drops anything typed there but not saved; the saved data comes back.
 watch(tab, (now, before) => {
-  // Unsaved profile edits are discarded when the user switches to the Password tab.
-  if (now === 'password' && before !== 'password' && profileSnapshot.value) {
-    try { profileForm.value = JSON.parse(profileSnapshot.value); } catch (e) { /* keep the current values */ }
+  if (now !== before) {
+    if (profileSnapshot.value) {
+      try { profileForm.value = JSON.parse(profileSnapshot.value); } catch (e) { /* keep the current values */ }
+    }
+    if (backgroundSnapshot.value) {
+      try { backgroundForm.value = JSON.parse(backgroundSnapshot.value); } catch (e) { /* keep the current values */ }
+    }
+    confirmAction.value = null;
   }
   if (before === 'password' && now !== 'password') {
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
@@ -641,6 +720,47 @@ const CONFIRM_LABELS = {
 const confirmAction = ref(null);
 const consentChecked = ref(false);
 
+// B508: what is about to change, shown in the confirmation so it can be reviewed.
+const FIELD_LABELS = {
+  first_name: 'First Name', last_name: 'Last Name', middle_name: 'Middle Name', suffix: 'Suffix', email: 'Email Address',
+  contact_number: 'Contact Number', birthdate: 'Birthdate', sex: 'Sex', civil_status: 'Civil Status', nationality: 'Nationality',
+  birthplace: 'Birthplace', languages: 'Languages', address: 'Address',
+  father_first_name: "Father's First Name", father_middle_name: "Father's Middle Name", father_last_name: "Father's Last Name",
+  father_occupation: "Father's Occupation", father_contact_number: "Father's Contact Number", father_age: "Father's Age",
+  father_educational_attainment: "Father's Educational Attainment",
+  mother_first_name: "Mother's First Name", mother_middle_name: "Mother's Middle Name", mother_last_name: "Mother's Last Name",
+  mother_occupation: "Mother's Occupation", mother_contact_number: "Mother's Contact Number", mother_age: "Mother's Age",
+  mother_educational_attainment: "Mother's Educational Attainment",
+  guardian_first_name: "Guardian's First Name", guardian_middle_name: "Guardian's Middle Name", guardian_last_name: "Guardian's Last Name",
+  guardian_age: "Guardian's Age", guardian_occupation: "Guardian's Occupation", guardian_educational_attainment: "Guardian's Educational Attainment",
+  guardian_contact: "Guardian's Contact Number",
+  elementary_school: 'Elementary School', elementary_year_graduated: 'Elementary Year Graduated', elementary_achievements: 'Elementary Achievements',
+  high_school: 'Junior High School', high_school_year_graduated: 'Junior High Year Graduated', high_school_achievements: 'Junior High Achievements',
+  senior_high_school: 'Senior High School', senior_high_year_graduated: 'Senior High Year Graduated', senior_high_achievements: 'Senior High Achievements',
+  college_school: 'College / University', college_year_graduated: 'College Year Graduated',
+};
+function diffOf(keys, now, before) {
+  return keys
+    .filter(k => String(now?.[k] ?? '') !== String(before?.[k] ?? ''))
+    .map(k => ({ key: k, label: FIELD_LABELS[k] || k, from: String(before?.[k] ?? '') || '(empty)', to: String(now?.[k] ?? '') || '(empty)' }));
+}
+function changesFor(kind) {
+  try {
+    if (kind === 'profile') return diffOf(Object.keys(profileForm.value), profileForm.value, JSON.parse(profileSnapshot.value || '{}'));
+    const now = backgroundForm.value, before = snapOf();
+    if (kind === 'family') return diffOf(FAMILY_KEYS, now, before);
+    if (kind === 'education') return diffOf(EDUCATION_KEYS, now, before);
+    if (kind === 'siblings') {
+      const a = pickSiblings(before), b = pickSiblings(now);
+      return [{ key: 'siblings', label: 'Siblings', from: `${a.length} listed`, to: b.map(x => `${x.first_name} ${x.last_name}`.trim()).join(', ') || '(none)' }];
+    }
+  } catch (e) { /* fall through */ }
+  return [];
+}
+const pendingChanges = computed(() => (confirmAction.value ? changesFor(confirmAction.value) : []));
+const needsAgeConfirm = computed(() => confirmAction.value === 'profile' && !!birthWarning.value);
+const ageConfirmed = ref(false);
+
 function requestSave(kind) {
   backgroundError.value = '';
   backgroundSuccess.value = '';
@@ -651,6 +771,8 @@ function requestSave(kind) {
       profileError.value = 'Contact number must start with 09 and be 11 digits long.';
       return;
     }
+    const first = firstNameProblem.value || lastNameProblem.value || emailProblem.value || birthError.value || addressProblem.value;
+    if (first) { profileError.value = first; return; }
   }
   if (kind === 'family') {
     const f = backgroundForm.value;
@@ -676,12 +798,17 @@ function requestSave(kind) {
   }
   if (kind === 'education') {
     const f = backgroundForm.value;
+    if (SCHOOL_KEYS.some(k => wordsIssue(f[k], 'x')) || ACHIEVE_KEYS.some(k => wordsIssue(f[k], 'x'))) {
+      backgroundError.value = 'Please correct the school names and achievements marked in red.';
+      return;
+    }
     if (['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'].some(k => yearIssue(f[k]))) {
       backgroundError.value = 'Please correct the year graduated marked in red.';
       return;
     }
   }
   consentChecked.value = false;
+  ageConfirmed.value = false;
   confirmAction.value = kind;
 }
 
@@ -707,6 +834,7 @@ function authHeaders() {
 }
 
 async function saveProfile() {
+  const savedLabels = changesFor('profile').map(c => c.label).join(', ');
   profileError.value = '';
   profileSuccess.value = '';
 
@@ -721,7 +849,7 @@ async function saveProfile() {
     student.value = { ...student.value, ...res.data };
     localStorage.setItem('student', JSON.stringify(student.value));
     profileSnapshot.value = JSON.stringify(profileForm.value);
-    profileSuccess.value = 'Profile updated successfully.';
+    profileSuccess.value = 'Profile updated successfully.' + (savedLabels ? ` Updated: ${savedLabels}.` : '');
     toast?.success('Profile updated successfully.');
   } catch (e) {
     profileError.value = firstApiError(e, 'Failed to update profile.');
@@ -922,3 +1050,15 @@ onMounted(async () => {
   }
 });
 </script>
+
+<style scoped>
+.fe{font-size:11.5px;color:var(--red);margin-top:4px}
+.fw{font-size:11.5px;color:var(--amber);background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:6px 8px;margin-top:4px;line-height:1.5}
+.chg{border:1px solid var(--cloud);border-radius:var(--r-sm);background:var(--snow);padding:4px 12px;max-height:260px;overflow-y:auto}
+.chg-row{padding:8px 0;border-bottom:1px solid var(--cloud);font-size:12.5px}
+.chg-row:last-child{border-bottom:0}
+.chg-l{font-size:11px;font-weight:600;color:var(--stone);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px}
+.chg-v{word-break:break-word;color:var(--ink)}
+.chg-old{color:var(--fog);text-decoration:line-through}
+.chg-arrow{margin:0 6px;color:var(--stone)}
+</style>

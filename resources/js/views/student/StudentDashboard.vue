@@ -7,11 +7,11 @@
           <h1>{{ greeting }}, {{ student.first_name }}!</h1>
           <p>Your appointments, referrals and testing with the Office of Student Services, in one place.</p>
           <div class="hero-chips">
-            <span class="hero-chip">{{ student.student_id }}</span>
-            <span v-if="student.college" class="hero-chip">{{ student.college }}</span>
+            <span v-for="(c, i) in infoChips" :key="i" class="hero-chip">{{ c }}</span>
           </div>
+          <div v-if="termLabel" class="hero-term">{{ termLabel }}</div>
         </div>
-        <div class="hero-actions">
+        <div class="hero-actions hero-actions-side">
           <router-link :to="{ name: 'student-appointments' }" class="hero-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>My Appointments</router-link>
           <router-link :to="{ name: 'student-referrals' }" class="hero-btn"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>My Referrals</router-link>
         </div>
@@ -108,6 +108,14 @@ const parentConferenceSlips = ref([]);
 function formatSlipDate(d) { return d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; }
 const pendingAppointments = ref([]);
 
+const term = ref(null);
+// ID · College · Program · Year level · Section, then "AY 2026–2027 · 1st Semester".
+const infoChips = computed(() => {
+  const s = student.value;
+  return [s.student_id, s.college, s.program, s.year_level, s.section].map(v => String(v ?? '').trim()).filter(Boolean);
+});
+const termLabel = computed(() => (term.value?.academic_year ? ['AY ' + term.value.academic_year, term.value.semester].filter(Boolean).join(' · ') : ''));
+
 const scheduleAppointmentId = computed(() => pendingAppointments.value[0]?.id || null);
 
 function authHeaders() {
@@ -130,6 +138,11 @@ async function fetchData() {
     appointments.value = res.data.appointments || [];
     referrals.value = res.data.referrals || [];
     parentConferenceSlips.value = res.data.parent_conference_slips || [];
+    term.value = res.data.term || null;
+    if (res.data.student) {
+      student.value = { ...student.value, ...res.data.student };
+      localStorage.setItem('student', JSON.stringify(student.value));
+    }
     // Matches the same fallback used in the student Appointments list - if the
     // API ever sends the singular `pending_appointment` instead of the plural
     // array, this banner shouldn't just silently disappear.
@@ -143,3 +156,11 @@ async function fetchData() {
 
 onMounted(() => fetchData());
 </script>
+
+<style scoped>
+.hero-term{margin-top:8px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.78)}
+@media (max-width:640px){
+  .hero-actions-side{display:none}
+  .hero-chips{gap:6px}
+}
+</style>

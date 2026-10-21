@@ -55,6 +55,10 @@
           <div v-if="loading" style="text-align:center;padding:44px">
             <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
           </div>
+          <div v-else-if="appointments.length === 0 && blockedForPreview" class="empty-state">
+            <h3>{{ blockedForPreview.name || blockedForPreview.label }}</h3>
+            <p>{{ previewDateLabel }}: {{ blockedTypeLabel(blockedForPreview.type) }}. Appointments cannot be scheduled on this date.</p>
+          </div>
           <div v-else-if="appointments.length === 0" class="empty-state">
             <h3>No appointments found</h3>
             <p>TMDU appointments will appear here once scheduled from a Testing Record, or once a student picks a time for a self-schedulable slot.</p>
@@ -136,10 +140,11 @@
               <div
                 v-for="day in calendarDays"
                 :key="day.key"
-                :title="day.apptTitle"
+                :title="[day.blocked ? 'Unavailable - ' + day.blocked.label : '', day.apptTitle].filter(Boolean).join('\n')"
                 style="aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:4px;font-size:10.5px;cursor:pointer;position:relative"
                 :style="{
-                  background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : '',
+                  background: day.isToday ? 'var(--moss)' : day.isSelected ? 'var(--mist)' : day.blocked ? 'var(--red-lt)' : '',
+                  outline: day.blocked ? '1px solid #f5c0c0' : '',
                   color: day.isToday ? '#fff' : day.isOther ? 'var(--silver)' : 'var(--slate)',
                   fontWeight: day.isToday ? '600' : '',
                   pointerEvents: day.isOther ? 'none' : 'auto',
@@ -157,6 +162,11 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Why a date is unavailable (holiday, class suspension or other School Calendar event) -->
+        <div v-if="blockedForPreview" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
+          <strong>Not available for appointments.</strong> {{ blockedForPreview.label }}.
         </div>
 
         <!-- Date Filter Indicator -->
@@ -333,6 +343,7 @@ import { appointmentAPI, testingAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 import ParCancelDialog from '../../components/ParCancelDialog.vue';
+import { useBlockedDates } from '../../utils/blockedDates';
 
 const toast  = inject('toast');
 const auth   = useAuthStore();
@@ -413,6 +424,14 @@ const currentYear  = ref(today.getFullYear());
 const selectedDate = ref(today);
 
 const previewDate = ref(null);
+
+// Holidays, class suspensions and other School Calendar entries (Management).
+const { blocked: blockedMap, load: loadBlocked } = useBlockedDates('staff');
+const blockedForPreview = computed(() => (previewDate.value ? blockedMap.value[previewDate.value] || null : null));
+function blockedTypeLabel(t) {
+  const m = { holiday: 'Holiday', suspension: 'Class suspension', class_suspension: 'Class suspension' };
+  return m[String(t)] || String(t || 'Unavailable').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
+}
 
 const previewDateLabel = computed(() => {
   if (!previewDate.value) return '';
@@ -598,7 +617,7 @@ const calendarDays = computed(() => {
     const isSelected = d === selectedDate.value.getDate() && currentMonth.value === selectedDate.value.getMonth() && currentYear.value === selectedDate.value.getFullYear();
     const dayAppts   = allAppointments.value.filter(a => a.appointment_date?.split('T')[0] === dateStr && ['pending', 'confirmed'].includes(a.status));
     const apptTitle  = dayAppts.map(a => `${a.start_time} - ${a.student?.student_id || ''}`).join('\n');
-    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr });
+    days.push({ date: d, isToday, isSelected, isOther: false, key: `cur-${d}`, hasAppt: dayAppts.length > 0, apptCount: dayAppts.length, apptTitle, dateStr, blocked: blockedMap.value[dateStr] || null });
   }
   const remaining = 42 - days.length;
   for (let i = 1; i <= remaining; i++) {
@@ -621,6 +640,7 @@ function getMonth(date) { return new Date(date).toLocaleDateString('en-US', { mo
 function getDay(date)   { return new Date(date).getDate(); }
 
 onMounted(() => {
+  loadBlocked();
   fetchAppointments();
   fetchAllAppointments();
 });

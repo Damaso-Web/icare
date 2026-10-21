@@ -140,6 +140,8 @@ class PasswordResetController extends Controller
         DB::table('password_reset_otps')->where('id', $row->id)->delete();
         (new LoginGuard($data['type'] === 'student' ? 'student' : 'staff', $data['type'] === 'student' ? $user->student_id : $email))->clear();
         AuditLog::record('password_reset', "Password reset with an emailed code for {$email}.", $user, [], [], $user);
+        // Leave a notice in the account's own notification bell and tab.
+        $user->notify(new \App\Notifications\PasswordChangedNotification('reset'));
 
         return response()->json(['message' => 'Your password has been reset. You can now sign in.']);
     }

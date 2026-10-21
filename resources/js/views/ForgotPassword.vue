@@ -53,7 +53,13 @@
             <PasswordChecklist :password="password" />
 
             <label class="ifl" style="margin-top:14px;display:block">Confirm New Password</label>
-            <input v-model="confirmation" :type="show ? 'text' : 'password'" class="ifi" maxlength="64" autocomplete="new-password" />
+            <div style="position:relative">
+              <input v-model="confirmation" :type="showConfirm ? 'text' : 'password'" class="ifi" maxlength="64" style="padding-right:40px" autocomplete="new-password" />
+              <button type="button" :aria-label="showConfirm ? 'Hide password' : 'Show password'" @click="showConfirm = !showConfirm" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--stone);display:flex">
+                <svg v-if="showConfirm" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg v-else viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
             <div v-if="confirmation && password !== confirmation" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
 
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || otp.length !== 6">
@@ -100,6 +106,7 @@ const otp = ref('');
 const password = ref('');
 const confirmation = ref('');
 const show = ref(false);
+const showConfirm = ref(false);
 const loading = ref(false);
 const error = ref('');
 const note = ref('');

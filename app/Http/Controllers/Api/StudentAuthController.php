@@ -103,7 +103,7 @@ class StudentAuthController extends Controller
     {
         $data = $request->validate([
             'student_id'       => 'required|string|max:20',
-            'email'            => 'required|email|max:100',
+            'email'            => ['required', 'email', 'max:100', new \App\Rules\CompleteEmail],
             'consent_accepted' => 'required|accepted',
         ]);
         $email = strtolower(trim($data['email']));
@@ -207,7 +207,30 @@ class StudentAuthController extends Controller
         'pending_appointments'  => $pendingAppointments,
         'pending_appointment'   => $pendingAppointments->first(),
         'parent_conference_slips' => $this->studentParentConferenceSlips($student),
+        // The same record My Account reads, so a changed program / year level shows on the banner at once.
+        'student'               => $student->only(['student_id', 'first_name', 'last_name', 'college', 'program', 'year_level', 'section']),
+        'term'                  => $this->currentTermLabel(),
     ]);
+}
+
+/** "AY 2026–2027 · 1st Semester" from the current term set in Management > School Calendar (null when none). */
+private function currentTermLabel(): ?array
+{
+    $ay = \App\Models\AcademicYear::where('is_current', true)->first();
+    if (! $ay) {
+        return null;
+    }
+    $today = now('Asia/Manila')->toDateString();
+    $in = fn ($from, $to) => $from && $to && $today >= substr((string) $from, 0, 10) && $today <= substr((string) $to, 0, 10);
+    $sem = null;
+    if ($in($ay->first_sem_start, $ay->first_sem_end)) {
+        $sem = '1st Semester';
+    } elseif ($in($ay->second_sem_start, $ay->second_sem_end)) {
+        $sem = '2nd Semester';
+    } elseif ($in($ay->midyear_start, $ay->midyear_end)) {
+        $sem = 'Midyear';
+    }
+    return ['academic_year' => $ay->start_year . '–' . ($ay->start_year + 1), 'semester' => $sem];
 }
 
 public function parentConferenceSlips(Request $request)
@@ -231,17 +254,18 @@ public function updateProfile(Request $request)
         'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
-        'email'          => ['nullable', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail('student', $student->id)],
+        'email'          => ['nullable', 'email', new \App\Rules\CompleteEmail, new \App\Rules\UniqueAccountEmail('student', $student->id)],
         'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
 
         // Personal Information (Student Information Sheet)
-        'birthdate'      => 'nullable|date|before:today',
+        // Not today or later; under 15 is refused (15-17 is allowed, with a warning on the form, for accelerated students).
+        'birthdate'      => 'nullable|date|before:today|after:1900-01-01|before_or_equal:-15 years',
         'sex'            => 'nullable|in:Male,Female',
         'civil_status'   => 'nullable|in:Single,Married,Divorced,Widowed,Separated',
         'nationality'    => ['nullable', 'string', 'max:100', 'regex:' . self::NAME_REGEX],
         'birthplace'     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'languages'      => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
-        'address'        => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'address'        => ['nullable', 'string', 'min:5', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
 
         // Family Information - names split into first/middle/last, same as
         // the student's own name and the guardian_first_name/middle/last
@@ -280,17 +304,17 @@ public function updateProfile(Request $request)
         'siblings.*.civil_status'     => 'nullable|in:Single,Married,Divorced,Widowed,Separated',
 
         // Educational Attainment (school history)
-        'elementary_school'               => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'elementary_school'               => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
         'elementary_year_graduated'       => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
-        'high_school'                     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'high_school'                     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
         'high_school_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
-        'college_school'                  => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'college_school'                  => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
         'college_year_graduated'          => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
-        'senior_high_school'              => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
+        'senior_high_school'              => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
         'senior_high_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
-        'senior_high_achievements'        => 'nullable|string|max:1000',
-        'high_school_achievements'        => 'nullable|string|max:1000',
-        'elementary_achievements'         => 'nullable|string|max:1000',
+        'senior_high_achievements'        => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
+        'high_school_achievements'        => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
+        'elementary_achievements'         => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
     ]);
 
     // The father's and mother's contact numbers cannot be the same number.

@@ -45,6 +45,10 @@
           <div v-if="loading" style="text-align:center;padding:44px">
             <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
           </div>
+          <div v-else-if="appointments.length === 0 && blockedForPreview" class="empty-state">
+            <h3>{{ blockedForPreview.name || blockedForPreview.label }}</h3>
+            <p>{{ previewDateLabel }}: {{ blockedForPreview.type ? blockedTypeLabel(blockedForPreview.type) + '. ' : '' }}Appointments cannot be scheduled on this date.</p>
+          </div>
           <div v-else-if="appointments.length === 0" class="empty-state">
             <h3>No appointments found</h3>
             <p>Appointments will appear here once students request them from their acknowledged referrals.</p>
@@ -840,6 +844,11 @@ async function fetchBlockedDates() {
     });
     blockedMap.value = res.data?.blocked || {};
   } catch (e) { blockedMap.value = {}; }
+}
+// What kind of School Calendar entry it is (the calendar stores holiday / suspension types).
+function blockedTypeLabel(t) {
+  const m = { holiday: 'Holiday', regular_holiday: 'Holiday', special_holiday: 'Holiday', suspension: 'Class suspension', class_suspension: 'Class suspension', office_closure: 'Office closure', closure: 'Office closure' };
+  return m[String(t)] || String(t).replace(/_/g, ' ').replace(/^./, c => c.toUpperCase());
 }
 const blockedForPreview = computed(() => (previewDate.value ? blockedMap.value[previewDate.value] || null : null));
 const blockedThisMonth = computed(() => {

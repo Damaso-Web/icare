@@ -18,14 +18,15 @@
             <input v-model="form.student_id" class="ifi" inputmode="numeric" maxlength="10" placeholder="e.g. 2302021" required @input="onId" />
 
             <label class="ifl" style="margin-top:14px;display:block">Email Address</label>
-            <input v-model="form.email" type="email" class="ifi" maxlength="100" placeholder="Your personal or school email" required autocomplete="email" @input="error = ''" />
+            <input v-model="form.email" type="email" class="ifi" maxlength="100" placeholder="Your personal email (eg. name@gmail.com)" required autocomplete="email" :style="emailIssue ? 'border-color:var(--red);border-width:1.5px' : ''" @input="error = ''" />
+            <div v-if="emailIssue" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ emailIssue }}</div>
 
             <label class="cons">
               <input v-model="consent" type="checkbox" />
               <span>I agree to the Data Privacy Notice and Consent Authorization of the Office of Student Services.</span>
             </label>
 
-            <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || !consent || !form.student_id || !form.email.trim()">
+            <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || !consent || !form.student_id || !form.email.trim() || !!emailIssue">
               {{ loading ? 'Sending...' : 'Send One-Time Password' }}
             </button>
           </form>
@@ -45,15 +46,18 @@
 
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { skipConsentNextTime } from '../utils/consentSkip';
+import { emailProblem } from '../utils/emailCheck';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 const router = useRouter();
 
 const form = ref({ student_id: '', email: '' });
+// Checked as they type; nothing shown until something is typed.
+const emailIssue = computed(() => (form.value.email.trim() ? emailProblem(form.value.email) : ''));
 const consent = ref(false);
 const loading = ref(false);
 const sent = ref(false);

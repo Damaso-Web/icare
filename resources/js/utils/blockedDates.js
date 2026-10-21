@@ -15,7 +15,10 @@ export function useBlockedDates(role = 'staff') {
         const student = role === 'student';
         const token = localStorage.getItem(student ? 'student_token' : 'token');
         try {
+            // From the start of last year, so a past holiday picked on a calendar still shows its reason.
+            const y = new Date().getFullYear();
             const res = await axios.get(`${API_BASE}${student ? '/student' : ''}/calendar/blocked-dates`, {
+                params: { from: `${y - 1}-01-01`, to: `${y + 2}-01-01` },
                 headers: { Authorization: `Bearer ${token}` },
             });
             blocked.value = res.data?.blocked || {};

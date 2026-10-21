@@ -41,8 +41,13 @@
         </button>
       </div>
 
+      <button type="button" class="back-landing" @click="router.push('/')">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Landing Page
+      </button>
+
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
-      <div style="text-align:center;margin-top:20px;font-size:12px;color:var(--fog)">
+      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>
@@ -59,3 +64,9 @@ const router = useRouter();
 // so any earlier agreement is forgotten.
 clearConsent();
 </script>
+
+<style scoped>
+.back-landing{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:20px;padding:10px 14px;border-radius:10px;border:1.5px solid var(--moss);background:var(--foam);color:var(--moss);font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,color .15s}
+.back-landing svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.back-landing:hover,.back-landing:focus-visible{background:var(--moss);color:#fff;outline:none}
+</style>

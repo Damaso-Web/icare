@@ -6,7 +6,10 @@
         <a class="lp-brand" href="#top" @click.prevent="go('top')">
           <img :src="'/bsu-logo.jpg'" alt="Benguet State University" />
           <img :src="'/oss-logo.jpg'" alt="Office of Student Services" />
-          <span>iCARE</span>
+          <span class="lp-brand-text">
+            <b>iCARE</b>
+            <small>An Integrated Case Management System for Benguet State University &ndash; Office of Student Services</small>
+          </span>
         </a>
         <nav class="lp-links" aria-label="Sections">
           <a href="#services" @click.prevent="go('services')">Services</a>
@@ -134,10 +137,13 @@
             </ul>
           </article>
         </div>
-        <p class="lp-web">
-          More about the office on the
-          <a href="https://bsu.edu.ph/office-of-student-services/" target="_blank" rel="noopener noreferrer">BSU Office of Student Services website</a>.
-        </p>
+        <div class="lp-more">
+          <h3>More About the Office</h3>
+          <p>
+            Learn more about our programs and services on the
+            <a href="https://bsu.edu.ph/office-of-student-services/" target="_blank" rel="noopener noreferrer">BSU Office of Student Services website</a>.
+          </p>
+        </div>
       </div>
     </section>
 
@@ -149,17 +155,75 @@
           <span>An Integrated Case Management System for Benguet State University - Office of Student Services</span>
         </div>
         <div class="lp-foot-r">
-          Personal information is handled under the Data Privacy Act of 2012 (RA 10173).
+          Personal information is handled under the
+          <button type="button" class="lp-linkbtn" @click="showPrivacy = true">Data Privacy Act of 2012 (RA 10173)</button>.
         </div>
       </div>
     </footer>
+
+    <!-- What the Data Privacy Act means -->
+    <div v-if="showPrivacy" class="lp-modal" @click.self="showPrivacy = false" @keydown.esc="showPrivacy = false">
+      <div ref="dialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-priv-title" tabindex="-1">
+        <div class="lp-dialog-head">
+          <h3 id="lp-priv-title">Data Privacy Act of 2012 (RA 10173)</h3>
+          <button type="button" class="lp-x" aria-label="Close" @click="showPrivacy = false">&times;</button>
+        </div>
+        <div class="lp-dialog-body">
+          <h4>Purpose</h4>
+          <p>
+            The law protects the fundamental human right to privacy of communication while ensuring the free flow of information.
+            It covers every organization in the Philippines, public or private, that collects or handles personal information.
+          </p>
+          <h4>How your information is protected</h4>
+          <p>
+            Your personal information may only be collected for a clear and lawful purpose, with your knowledge and consent, and used only for that purpose.
+            It must be kept accurate, stored securely and kept no longer than needed. At the Office of Student Services, what you share is seen only by the personnel handling your request.
+          </p>
+          <h4>Your rights as a data subject</h4>
+          <ul>
+            <li>To be informed how your data is collected and used</li>
+            <li>To access the personal information held about you</li>
+            <li>To object to the processing of your data</li>
+            <li>To correct inaccurate or outdated information</li>
+            <li>To have your data erased or blocked when it is no longer needed or was unlawfully obtained</li>
+            <li>To data portability, a copy of your data in a usable format</li>
+            <li>To claim compensation for damages caused by misuse of your data</li>
+            <li>To file a complaint with the National Privacy Commission</li>
+          </ul>
+          <h4>Read the law</h4>
+          <p class="lp-dialog-links">
+            <a href="https://privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer">National Privacy Commission: Data Privacy Act</a>
+            <a href="https://www.officialgazette.gov.ph/2012/08/15/republic-act-no-10173/" target="_blank" rel="noopener noreferrer">Official Gazette: full text of RA 10173</a>
+          </p>
+        </div>
+        <div class="lp-dialog-foot">
+          <button type="button" class="lp-btn lp-btn-solid" @click="showPrivacy = false">Close</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue';
 
 const signedIn = computed(() => !!localStorage.getItem('token'));
+
+const showPrivacy = ref(false);
+const dialog = ref(null);
+const onKey = e => { if (e.key === 'Escape') showPrivacy.value = false; };
+watch(showPrivacy, async open => {
+  if (open) {
+    window.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    await nextTick();
+    dialog.value?.focus();
+  } else {
+    window.removeEventListener('keydown', onKey);
+    document.body.style.overflow = '';
+  }
+});
+onBeforeUnmount(() => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; });
 
 const contacts = [
   {
@@ -198,14 +262,18 @@ function go(id) {
 .lp h1, .lp h2, .lp h3, .lp p { margin: 0; }
 
 /* Nav */
-.lp-nav { position: sticky; top: 0; z-index: 20; background: rgba(248,250,249,.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--cloud); }
-.lp-nav-in { display: flex; align-items: center; gap: 20px; height: 62px; }
-.lp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; margin-right: auto; }
-.lp-brand img { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
-.lp-brand span { font-weight: 700; font-size: 18px; letter-spacing: .3px; color: var(--forest); margin-left: 4px; }
-.lp-links { display: flex; gap: 22px; }
-.lp-links a { text-decoration: none; font-size: 14px; color: var(--slate); }
-.lp-links a:hover { color: var(--moss); }
+.lp-nav { position: relative; z-index: 20; background: #fff; border-bottom: 1px solid var(--cloud); }
+.lp-nav-in { display: flex; align-items: center; gap: 20px; min-height: 66px; padding-top: 8px; padding-bottom: 8px; }
+.lp-brand { display: flex; align-items: center; gap: 8px; text-decoration: none; margin-right: auto; min-width: 0; }
+.lp-brand img { flex-shrink: 0; width: 34px; height: 34px; border-radius: 50%; object-fit: cover; background: #fff; }
+.lp-brand-text { display: flex; flex-direction: column; margin-left: 4px; min-width: 0; }
+.lp-brand-text b { font-weight: 700; font-size: 18px; line-height: 1.15; letter-spacing: .3px; color: var(--forest); }
+.lp-brand-text small { font-size: 11px; line-height: 1.3; color: var(--stone); max-width: 340px; }
+.lp-links { display: flex; gap: 6px; }
+.lp-links a { position: relative; text-decoration: none; font-size: 14px; font-weight: 500; color: var(--slate); padding: 7px 13px; border-radius: 999px; transition: background .2s ease, color .2s ease; }
+.lp-links a::after { content: ''; position: absolute; left: 13px; right: 13px; bottom: 3px; height: 2px; border-radius: 2px; background: var(--moss); transform: scaleX(0); transform-origin: left; transition: transform .22s ease; }
+.lp-links a:hover, .lp-links a:focus-visible { background: var(--mist); color: var(--forest); outline: none; }
+.lp-links a:hover::after, .lp-links a:focus-visible::after { transform: scaleX(1); }
 
 /* Buttons */
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s var(--ease), background .15s, box-shadow .15s; }
@@ -273,20 +341,44 @@ function go(id) {
 .lp-contact li span { width: 64px; flex-shrink: 0; color: var(--fog); }
 .lp-contact a { color: var(--moss); text-decoration: none; word-break: break-word; }
 .lp-contact a:hover { text-decoration: underline; }
-.lp-web { margin-top: 22px; color: var(--stone); font-size: 14px; }
-.lp-web a { color: var(--moss); font-weight: 600; }
+.lp-more { margin: 44px auto 0; max-width: 560px; text-align: center; }
+.lp-more h3 { font-size: 18px; color: var(--forest); margin-bottom: 6px; }
+.lp-more p { color: var(--stone); font-size: 14.5px; }
+.lp-more a { color: var(--moss); font-weight: 600; }
 
 /* Footer */
 .lp-foot { background: var(--forest); color: rgba(255,255,255,.75); padding: 28px 0; font-size: 13px; }
 .lp-foot-in { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
 .lp-foot strong { display: block; color: #fff; font-size: 15px; margin-bottom: 2px; }
 .lp-foot-r { max-width: 340px; }
+.lp-linkbtn { background: none; border: 0; padding: 0; font: inherit; color: #fff; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.lp-linkbtn:hover { color: var(--mint); }
+.lp-linkbtn:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; border-radius: 3px; }
+
+/* Data Privacy Act dialog */
+.lp-modal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.lp-dialog { background: #fff; color: var(--ink); width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; border-radius: var(--r-lg); box-shadow: var(--sh-lg); outline: none; font-size: 14px; }
+.lp-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--cloud); }
+.lp-dialog-head h3 { font-size: 16px; color: var(--forest); }
+.lp-x { background: none; border: 0; font-size: 26px; line-height: 1; color: var(--stone); cursor: pointer; padding: 0 4px; }
+.lp-x:hover { color: var(--ink); }
+.lp-dialog-body { padding: 18px 22px; overflow-y: auto; line-height: 1.6; }
+.lp-dialog-body h4 { margin: 14px 0 4px; font-size: 13px; color: var(--moss); text-transform: uppercase; letter-spacing: .6px; }
+.lp-dialog-body h4:first-child { margin-top: 0; }
+.lp-dialog-body p, .lp-dialog-body li { color: var(--slate); }
+.lp-dialog-body ul { margin: 6px 0 0; padding-left: 20px; }
+.lp-dialog-links { display: flex; flex-direction: column; gap: 6px; }
+.lp-dialog-links a { color: var(--moss); font-weight: 600; word-break: break-word; }
+.lp-dialog-foot { padding: 14px 22px; border-top: 1px solid var(--cloud); display: flex; justify-content: flex-end; }
 
 /* Phones and small tablets */
 @media (max-width: 860px) {
   .lp-hero-in { grid-template-columns: 1fr; padding-top: 56px; padding-bottom: 60px; gap: 36px; }
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2 { grid-template-columns: 1fr; }
   .lp-links { display: none; }
+  .lp-brand-text small { font-size: 9.5px; max-width: none; }
+  .lp-nav-in { gap: 10px; }
+  .lp-nav .lp-btn { flex-shrink: 0; padding: 9px 16px; }
   .lp-sec { padding: 56px 0; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -75,6 +75,9 @@ class ForgotPasswordTest extends TestCase
         $this->assertSame(0, $u->tokens()->count());
         $this->assertSame(0, DB::table('password_reset_otps')->count());
 
+        // The account is told in its notification bell.
+        Notification::assertSentTo($u, \App\Notifications\PasswordChangedNotification::class, fn ($n) => $n->how === 'reset');
+
         // A code works once.
         $this->postJson('/api/reset-password', [
             'email' => 'staff@bsu.edu.ph', 'type' => 'staff', 'otp' => $code,
