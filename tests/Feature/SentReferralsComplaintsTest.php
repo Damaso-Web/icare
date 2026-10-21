@@ -45,22 +45,34 @@ class SentReferralsComplaintsTest extends TestCase
         $friend = $this->student('2300003', 'Friend');
         Sanctum::actingAs($me, [], 'student');
 
-        $this->postJson('/api/student/outreach/lookup', ['student_id' => '2300003'])->assertOk()->assertJsonPath('id', $friend->id);
-        $this->postJson('/api/student/outreach/lookup', ['student_id' => '2300002'])->assertStatus(404);
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => '2300003'])->assertOk()->assertJsonPath('matches.0.id', $friend->id);
+        // by full name (first + last), any case; one word alone is refused so the list cannot be browsed
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => 'friend cruz'])->assertOk()->assertJsonPath('matches.0.id', $friend->id);
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => 'Cruz, Friend'])->assertOk()->assertJsonCount(1, 'matches');
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => 'Cruz'])->assertStatus(404);
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => 'Fri Cruz'])->assertStatus(404);
+        $this->postJson('/api/student/outreach/lookup', ['student_id' => '2300002'])->assertOk()->assertJsonPath('matches.0.is_me', true);
         $this->postJson('/api/student/outreach/lookup', ['student_id' => '999'])->assertStatus(404);
 
         $this->postJson('/api/student/outreach/referrals', [
             'student_id' => $friend->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Seems very stressed lately.',
         ])->assertCreated();
+        // choosing yourself is a self-referral, not an error
         $this->postJson('/api/student/outreach/referrals', [
-            'student_id' => $me->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Seems very stressed lately.',
+            'student_id' => $me->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'I need someone to talk to.',
+        ])->assertCreated();
+        $mine = Referral::where('student_id', $me->id)->first();
+        $this->assertTrue($mine->is_self_referred);
+        $this->assertSame('self', $mine->referrer_source);
+        $this->postJson('/api/student/outreach/referrals', [
+            'student_id' => $me->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Sending a second one.',
         ])->assertStatus(422);
         $this->postJson('/api/student/outreach/referrals', [
             'student_id' => $friend->id, 'referral_type' => 'disciplinary', 'nature_of_concern' => 'Seems very stressed lately.',
         ])->assertStatus(422);
 
-        $this->getJson('/api/student/outreach/referrals')->assertOk()->assertJsonCount(1, 'data');
-        $this->assertSame($me->id, Referral::first()->referred_by_student_id);
+        $this->getJson('/api/student/outreach/referrals')->assertOk()->assertJsonCount(2, 'data');
+        $this->assertSame($me->id, Referral::where('student_id', $friend->id)->first()->referred_by_student_id);
     }
 
     public function test_student_can_file_complaint_and_only_sees_their_own(): void
@@ -70,11 +82,20 @@ class SentReferralsComplaintsTest extends TestCase
         $other = $this->student('2300005', 'Other');
         Sanctum::actingAs($me, [], 'student');
 
-        $r = $this->postJson('/api/student/outreach/complaints', [
+        \Illuminate\Support\Facades\Storage::fake('public');
+        $json = ['Accept' => 'application/json'];
+        $file = fn ($n) => \Illuminate\Http\UploadedFile::fake()->create($n, 10);
+        $data = [
             'complainant_address' => 'Batangas City', 'complainee_student_id' => $other->id,
             'violation_type' => 'Bullying', 'incident_date' => now()->subDay()->toDateString(),
             'description' => 'It happened in the hallway.', 'certification_agreed' => true,
-        ]);
+        ];
+        // evidence and affidavit are required, allowed types only, narration 10 to 1000 characters
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', $data)->assertStatus(422)->assertJsonValidationErrors(['evidence', 'affidavit']);
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.exe')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['evidence.0']);
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => 'short']) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => str_repeat('x', 1001)]) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
+        $r = $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.docx')]]);
         $r->assertStatus(201)->assertJsonPath("filer_name", 'Me Cruz');
         $id = $r->json('id');
         $this->assertNull(Complaint::find($id)->filed_by_user_id);

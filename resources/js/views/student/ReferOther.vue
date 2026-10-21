@@ -1,12 +1,13 @@
 <!--
   Refer a Student (student portal): a student asks GCU to reach out to another
-  student. Found by exact Student ID Number; kept under Sent Referrals.
+  student. Found by exact Student ID Number or full name; kept under Sent Referrals.
 -->
 <template>
   <div class="fade-up">
+    <button type="button" class="ibtn ibtn-o" style="margin-bottom:12px" @click="goBack">&larr; Back</button>
     <div class="ph" style="margin-bottom:20px">
       <h1>Refer a Student</h1>
-      <p>Tell GCU about a student who may need support. You can follow what you sent under Sent Referrals.</p>
+      <p>Tell GCU about a student who may need support, or about yourself. You can follow what you sent under Sent Referrals.</p>
     </div>
     <div class="icard" style="max-width:640px">
       <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
@@ -26,7 +27,7 @@
         <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
         <div style="display:flex;gap:8px">
           <button class="ibtn ibtn-p" :disabled="sending" @click="submit">{{ sending ? 'Sending...' : 'Send Referral' }}</button>
-          <button class="ibtn ibtn-o" :disabled="sending" @click="$router.push({ name: 'student-dashboard' })">Cancel</button>
+          <button class="ibtn ibtn-o" :disabled="sending" @click="goBack">Cancel</button>
         </div>
       </div>
     </div>
@@ -41,6 +42,11 @@ import StudentIdLookup from '../../components/StudentIdLookup.vue';
 
 const router = useRouter();
 const toast = inject('toast', null);
+
+function goBack() {
+  if (window.history.state && window.history.state.back) router.back();
+  else router.push({ name: 'student-refer-choice' });
+}
 
 const SERVICES = [
   { value: 'counseling',          label: 'Counseling' },
@@ -59,7 +65,7 @@ const error = ref('');
 
 async function submit() {
   error.value = '';
-  if (!target.value) { error.value = "Find the student by their ID Number first."; return; }
+  if (!target.value) { error.value = "Find the student by their ID Number or full name first."; return; }
   if (!form.value.referral_type) { error.value = 'Please choose a service.'; return; }
   if (form.value.nature_of_concern.trim().length < 10) { error.value = 'Please describe the reason in at least 10 characters.'; return; }
   sending.value = true;

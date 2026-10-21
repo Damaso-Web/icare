@@ -5,6 +5,7 @@
 -->
 <template>
   <div class="fade-up">
+    <button type="button" class="ibtn ibtn-o" style="margin-bottom:12px" @click="goBack">&larr; Back</button>
     <div class="ph" style="margin-bottom:20px">
       <h1>File a Complaint</h1>
       <p>Report an act of misconduct against a student. This is reviewed by the SDU Head.</p>
@@ -19,7 +20,7 @@
           <label class="ifl">Your Address <span style="color:var(--red)">*</span></label>
           <input v-model="form.complainant_address" class="ifi" maxlength="255" />
         </div>
-        <StudentIdLookup v-model="target" />
+        <StudentIdLookup v-model="target" :allow-self="false" />
         <div>
           <label class="ifl">Act of Misconduct <span style="color:var(--red)">*</span></label>
           <select v-model="form.violation_type" class="ifse">
@@ -32,12 +33,19 @@
           <input v-model="form.incident_date" type="date" class="ifi" :max="today" />
         </div>
         <div>
-          <label class="ifl">Narration of Facts <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(what, when, where, how)</span></label>
-          <textarea v-model="form.description" class="ifta" style="min-height:130px" maxlength="2000"></textarea>
+          <label class="ifl">Narration of Facts <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(what, when, where, how; at least 10 characters, max 1000)</span></label>
+          <textarea v-model="form.description" class="ifta" style="min-height:130px" maxlength="1000"></textarea>
+          <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ form.description.length }}/1000</div>
         </div>
         <div>
-          <label class="ifl">Evidence <span style="color:var(--fog);font-weight:400">(optional, up to 10 MB each)</span></label>
-          <input type="file" multiple @change="evidence = Array.from($event.target.files)" />
+          <label class="ifl">Evidence <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
+          <input type="file" multiple :accept="ACCEPT" @change="pick($event, evidence)" />
+          <div v-if="evidence.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidence.length }} file(s) selected</div>
+        </div>
+        <div>
+          <label class="ifl">Affidavit of Witness <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
+          <input type="file" multiple :accept="ACCEPT" @change="pick($event, affidavit)" />
+          <div v-if="affidavit.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavit.length }} file(s) selected</div>
         </div>
         <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--ink)">
           <input v-model="form.certification_agreed" type="checkbox" style="margin-top:3px" />
@@ -46,7 +54,7 @@
         <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
         <div style="display:flex;gap:8px">
           <button class="ibtn ibtn-p" :disabled="sending" @click="submit">{{ sending ? 'Submitting...' : 'Submit Complaint' }}</button>
-          <button class="ibtn ibtn-o" :disabled="sending" @click="$router.push({ name: 'student-dashboard' })">Cancel</button>
+          <button class="ibtn ibtn-o" :disabled="sending" @click="goBack">Cancel</button>
         </div>
       </div>
     </div>
@@ -79,6 +87,11 @@ const today = new Date().toISOString().slice(0, 10);
 const target = ref(null);
 const violationTypes = ref([]);
 const evidence = ref([]);
+const affidavit = ref([]);
+const ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png';
+const OK_EXT = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
+const MAX_BYTES = 10 * 1024 * 1024;
+
 const form = ref({ complainant_address: '', violation_type: '', incident_date: '', description: '', certification_agreed: false });
 const sending = ref(false);
 const error = ref('');
@@ -91,11 +104,29 @@ onMounted(async () => {
   } catch (e) { /* the list stays empty */ }
 });
 
+function goBack() {
+  if (window.history.state && window.history.state.back) router.back();
+  else router.push({ name: 'student-refer-choice' });
+}
+
+// Keep only the chosen files in the list; wrong types and big files are reported on submit.
+function pick(event, list) {
+  list.splice(0, list.length, ...Array.from(event.target.files));
+}
+function badFile(files) {
+  return files.find(f => !OK_EXT.includes((f.name.split('.').pop() || '').toLowerCase()) || f.size > MAX_BYTES);
+}
+
 async function submit() {
   error.value = '';
   const f = form.value;
-  if (!target.value) { error.value = 'Find the student by their ID Number first.'; return; }
+  if (!target.value) { error.value = 'Find the student by their ID Number or full name first.'; return; }
   if (!f.complainant_address.trim() || !f.violation_type || !f.incident_date || !f.description.trim()) { error.value = 'Please fill out all required fields.'; return; }
+  if (f.description.trim().length < 10) { error.value = 'Please describe the facts in at least 10 characters.'; return; }
+  if (!evidence.value.length) { error.value = 'Please attach at least one Evidence file.'; return; }
+  if (!affidavit.value.length) { error.value = 'Please attach at least one Affidavit of Witness file.'; return; }
+  const bad = badFile(evidence.value) || badFile(affidavit.value);
+  if (bad) { error.value = `"${bad.name}" is not allowed. Use PDF, DOC, DOCX, JPG or PNG files up to 10 MB.`; return; }
   if (!f.certification_agreed) { error.value = 'Please tick the certification.'; return; }
 
   const fd = new FormData();
@@ -106,6 +137,7 @@ async function submit() {
   fd.append('description', f.description.trim());
   fd.append('certification_agreed', '1');
   evidence.value.forEach(file => fd.append('evidence[]', file));
+  affidavit.value.forEach(file => fd.append('affidavit[]', file));
 
   sending.value = true;
   try {

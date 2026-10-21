@@ -122,6 +122,24 @@ class ComplaintController extends Controller
         $me = $request->user('student');
         abort_if((int) $request->complainee_student_id === (int) $me->id, 422, 'You cannot file a complaint against yourself.');
         $request->merge(['complainant_name' => trim($me->first_name . ' ' . $me->last_name)]);
+        // Student form: Narration of Facts is 10 to 1000 characters; evidence and
+        // affidavit are required and limited to document or image files.
+        $fileRule = 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240';
+        $request->validate([
+            'description'  => 'required|string|min:10|max:1000',
+            'evidence'     => 'required|array|min:1',
+            'evidence.*'   => $fileRule,
+            'affidavit'    => 'required|array|min:1',
+            'affidavit.*'  => $fileRule,
+        ], [
+            'description.min'    => 'Please describe the facts in at least 10 characters.',
+            'evidence.required'  => 'Please attach at least one evidence file.',
+            'evidence.min'       => 'Please attach at least one evidence file.',
+            'affidavit.required' => 'Please attach at least one Affidavit of Witness file.',
+            'affidavit.min'      => 'Please attach at least one Affidavit of Witness file.',
+            'evidence.*.mimes'   => 'Evidence must be a PDF, Word document (DOC, DOCX) or image (JPG, PNG).',
+            'affidavit.*.mimes'  => 'Affidavit of Witness must be a PDF, Word document (DOC, DOCX) or image (JPG, PNG).',
+        ]);
         return $this->file($request, [
             'user_id' => null, 'student_id' => $me->id, 'name' => trim($me->first_name . ' ' . $me->last_name),
             'role' => 'student', 'college' => $me->college,

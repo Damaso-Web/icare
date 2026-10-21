@@ -26,23 +26,53 @@ class StudentOutreachController extends Controller
     // referrals are not offered; a misconduct report is a Complaint instead.
     private const TYPES = ['counseling', 'class_attendance', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'];
 
-    // Exact ID match only, so a student cannot browse the masterlist.
+    // Find a student by exact Student ID Number OR by full name (first and last
+    // name both required), so a student cannot browse the masterlist. Returns
+    // the matches (more than one when two students share a name). A student
+    // can find themselves too; the complaint form rejects that on submit.
     public function lookup(Request $request)
     {
-        $me = $request->user('student');
-        $request->validate(['student_id' => 'required|string|max:50']);
+        $request->validate(['student_id' => 'required|string|max:100']);
+        $q = trim($request->student_id);
 
-        $student = Student::where('student_id', trim($request->student_id))->where('is_active', true)->first();
-        if (! $student || $student->id === $me->id) {
-            return response()->json(['message' => $student ? 'You cannot choose yourself.' : 'No active student found with that ID Number.'], 404);
+        $found = Student::where('student_id', $q)->where('is_active', true)->get();
+
+        if ($found->isEmpty()) {
+            $tokens = collect(preg_split('/[\s,]+/u', mb_strtolower($q), -1, PREG_SPLIT_NO_EMPTY))
+                ->map(fn ($t) => trim($t, '.'))->filter()->values();
+            if ($tokens->count() >= 2) {
+                $found = Student::where('is_active', true)
+                    ->where(function ($w) use ($tokens) {
+                        foreach ($tokens as $t) {
+                            $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $t) . '%';
+                            $w->orWhere('first_name', 'like', $like)->orWhere('last_name', 'like', $like);
+                        }
+                    })
+                    ->limit(100)->get()
+                    ->filter(function ($s) use ($tokens) {
+                        $first = preg_split('/\s+/u', mb_strtolower(trim($s->first_name)), -1, PREG_SPLIT_NO_EMPTY);
+                        $last = preg_split('/\s+/u', mb_strtolower(trim($s->last_name)), -1, PREG_SPLIT_NO_EMPTY);
+                        $middle = preg_split('/\s+/u', mb_strtolower(trim((string) $s->middle_name)), -1, PREG_SPLIT_NO_EMPTY);
+                        $all = array_merge($first, $last, $middle);
+                        // every typed word belongs to this student, and both a first and a last name word were typed
+                        return $tokens->every(fn ($t) => in_array($t, $all, true))
+                            && $tokens->contains(fn ($t) => in_array($t, $first, true))
+                            && $tokens->contains(fn ($t) => in_array($t, $last, true));
+                    })->take(10)->values();
+            }
         }
 
-        return [
-            'id'      => $student->id,
-            'name'    => trim($student->first_name . ' ' . $student->last_name),
-            'college' => $student->college,
-            'program' => $student->program,
-        ];
+        if ($found->isEmpty()) {
+            return response()->json(['message' => 'No active student found. Enter the exact ID Number or the full name (first and last name).'], 404);
+        }
+
+        return ['matches' => $found->map(fn ($s) => [
+            'id'      => $s->id,
+            'name'    => trim($s->first_name . ' ' . $s->last_name),
+            'college' => $s->college,
+            'program' => $s->program,
+            'is_me'   => (int) $s->id === (int) $request->user('student')->id,
+        ])->values()];
     }
 
     public function formOptions()
@@ -65,7 +95,12 @@ class StudentOutreachController extends Controller
             'nature_of_concern.min' => 'Please describe the concern in at least 10 characters.',
         ]);
 
-        abort_if((int) $validated['student_id'] === (int) $me->id, 422, 'You cannot refer yourself here.');
+        // Choosing yourself is allowed: it is recorded as a self-referral.
+        $self = (int) $validated['student_id'] === (int) $me->id;
+        if ($self) {
+            $waiting = $me->referrals()->where('is_self_referred', true)->where('status', 'submitted')->exists();
+            abort_if($waiting, 422, 'You already have a request waiting for GCU. Please wait until it is acknowledged.');
+        }
         $student = Student::findOrFail($validated['student_id']);
         abort_unless($student->is_active, 422, 'This student record is inactive.');
 
@@ -91,17 +126,21 @@ class StudentOutreachController extends Controller
             'referred_by_student_id' => $me->id,
             'referrer_name'          => $name,
             'referrer_role'          => 'student',
-            'referrer_source'        => 'student',
+            'referrer_source'        => $self ? 'self' : 'student',
             'referrer_college'       => $me->college,
-            'is_self_referred'       => false,
+            'is_self_referred'       => $self,
             'status'                 => 'submitted',
         ]);
 
-        AuditLog::record('created', "Student {$me->student_id} referred student {$student->student_id} ({$referral->referral_code}).", $referral);
+        AuditLog::record('created', $self
+            ? "Student {$me->student_id} referred themselves ({$referral->referral_code})."
+            : "Student {$me->student_id} referred student {$student->student_id} ({$referral->referral_code}).", $referral);
 
         $recipients = User::whereIn('role', ['admin', 'gcu_staff'])->where('is_active', true)->get();
         Notification::send($recipients, new NewReferralNotification($referral));
-        $student->notify(new ReferredStudentNotification($referral));
+        if (! $self) {
+            $student->notify(new ReferredStudentNotification($referral));
+        }
         if (! $isExisting) {
             $student->notify(new FillOutFormsNotification());
         }
