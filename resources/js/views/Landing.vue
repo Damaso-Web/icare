@@ -63,7 +63,7 @@
     <!-- Services -->
     <section id="services" class="lp-sec">
       <div class="lp-wrap">
-        <div class="lp-kicker">What iCARE supports</div>
+        <div class="lp-kicker">What <span class="lp-keepcase">iCARE</span> supports</div>
         <h2>Three units, one system</h2>
         <div class="lp-grid3">
           <article class="lp-card">
@@ -117,7 +117,7 @@
         <div class="lp-who">
           <div><strong>Students</strong><span>Refer yourself or a classmate, choose appointment times, follow your requests.</span></div>
           <div><strong>Faculty and deans</strong><span>Refer students and see what happened with your referrals.</span></div>
-          <div><strong>OSS staff</strong><span>Manage referrals, appointments, cases and records in one place.</span></div>
+          <div><strong>OSS staff</strong><span>Refer students, and manage referrals, appointments, cases and records in one place.</span></div>
         </div>
       </div>
     </section>
@@ -308,6 +308,7 @@ function go(id) {
 .lp-sec { padding: 84px 0; }
 .lp-sec-tint { background: var(--foam); border-top: 1px solid var(--cloud); border-bottom: 1px solid var(--cloud); }
 .lp-kicker { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--moss); font-weight: 700; margin-bottom: 8px; }
+.lp-keepcase { text-transform: none; }
 .lp-sec h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 40px); line-height: 1.15; color: var(--forest); margin-bottom: 36px; }
 
 .lp-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
