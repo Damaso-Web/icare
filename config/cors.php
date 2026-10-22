@@ -20,12 +20,7 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-    'https://sensational-donut-8d1d65.netlify.app',
-    'https://curious-malabi-34cbb3.netlify.app',
-    'https://clinquant-alfajores-987799.netlify.app',
-    'https://halloicare.netlify.app',
-    'https://caringforyou.netlify.app',
-    'https://oss-icare.netlify.app',
+    // The live site, plus localhost for local development.
     'https://bsuossicare.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
