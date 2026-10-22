@@ -297,7 +297,6 @@ const contacts = [
   {
     name: 'Testing and Materials Development Unit',
     email: 'oss.tmdu@bsu.edu.ph',
-    facebook: 'https://www.facebook.com/tmdu.bsuoss', facebookLabel: 'TMDU BSU OSS',
   },
   {
     name: 'Student Discipline Unit',
