@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.org",
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "iCARE",
+  "alternateName": "iCARE — BSU Office of Student Services",
+  "description": "The Integrated Case Management System of the Benguet State University Office of Student Services: student referrals, appointments, counseling cases, psychological testing and disciplinary records in one connected place.",
+  "url": "https://captsone-icare.netlify.app/",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Web",
+  "browserRequirements": "Requires JavaScript.",
+  "isAccessibleForFree": true,
+  "publisher": {
+    "@type": "CollegeOrUniversity",
+    "name": "Benguet State University — Office of Student Services",
+    "url": "https://bsu.edu.ph/office-of-student-services/"
+  }
+}

@@ -60,7 +60,7 @@ return [
 
     // Where the Vue frontend lives (used in links inside emails, e.g. password reset).
     // If FRONTEND_URL is missing in production, fall back to the live site - never the backend address.
-    'frontend_url' => env('FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://bsuossicare.netlify.app' : env('APP_URL', 'http://localhost')),
+    'frontend_url' => env('FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://captsone-icare.netlify.app' : env('APP_URL', 'http://localhost')),
 
     'asset_url' => env('ASSET_URL'),
 

@@ -6,10 +6,12 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, defineAsyncComponent } from 'vue';
 import { useRoute } from 'vue-router';
-import MainLayout from '../layouts/MainLayout.vue';
 import Landing from './Landing.vue';
+// Loaded only once someone is signed in, so a landing visitor never downloads
+// the whole authenticated app shell.
+const MainLayout = defineAsyncComponent(() => import('../layouts/MainLayout.vue'));
 
 const route = useRoute();
 const showLanding = computed(() => {
