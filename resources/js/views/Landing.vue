@@ -4,8 +4,8 @@
     <header class="lp-nav" :class="{ 'is-scrolled': scrolled }">
       <div class="lp-wrap lp-nav-in">
         <a class="lp-brand" href="#top" @click.prevent="go('top')">
-          <img :src="'/bsu-logo.jpg'" alt="Benguet State University" />
-          <img :src="'/oss-logo.jpg'" alt="Office of Student Services" />
+          <img :src="'/bsu-logo.jpg'" alt="Benguet State University" width="288" height="284" />
+          <img :src="'/oss-logo.jpg'" alt="Office of Student Services" width="250" height="333" />
           <span class="lp-brand-text">
             <b>iCARE</b>
             <small>An Integrated Case Management System for Benguet State University &ndash; Office of Student Services</small>
@@ -409,7 +409,7 @@ function go(id) {
 .lp-contact h3 { font-size: 16px; color: var(--forest); margin-bottom: 10px; }
 .lp-contact ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lp-contact li { display: flex; gap: 12px; font-size: 14px; }
-.lp-contact li span { width: 64px; flex-shrink: 0; color: var(--fog); }
+.lp-contact li span { width: 64px; flex-shrink: 0; color: var(--stone); }
 .lp-contact a { color: var(--moss); text-decoration: none; word-break: break-word; }
 .lp-contact a:hover { text-decoration: underline; }
 .lp-more { margin: 44px auto 0; max-width: 560px; text-align: center; }

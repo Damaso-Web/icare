@@ -6,8 +6,8 @@
 <template>
   <div class="ab">
     <div class="ab-row">
-      <img v-show="bsuOk" class="logo-bsu ab-seal" :src="'/bsu-logo.jpg'" alt="Benguet State University" @error="bsuOk = false" />
-      <img v-show="ossOk" class="logo-oss ab-seal" :src="'/oss-logo.jpg'" alt="Office of Student Services" @error="ossOk = false" />
+      <img v-show="bsuOk" class="logo-bsu ab-seal" :src="'/bsu-logo.jpg'" alt="Benguet State University" width="288" height="284" @error="bsuOk = false" />
+      <img v-show="ossOk" class="logo-oss ab-seal" :src="'/oss-logo.jpg'" alt="Office of Student Services" width="250" height="333" @error="ossOk = false" />
     </div>
     <div class="ab-name">iCARE</div>
     <div class="ab-org">Benguet State University</div>

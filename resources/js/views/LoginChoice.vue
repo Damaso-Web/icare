@@ -47,7 +47,7 @@
       </button>
 
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
+      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--stone)">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>
