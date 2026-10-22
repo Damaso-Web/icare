@@ -6,6 +6,24 @@
     </div>
     <button v-if="SELF_REFERRAL_ENABLED" class="ibtn ibtn-p" style="margin-bottom:14px" @click="$router.push({ name: 'student-refer' })">+ Refer Myself</button>
 
+    <!-- B543: filter by status, type and a date range; filters combine and can be reset. -->
+    <div class="filter-bar">
+      <select v-model="filters.status" class="fsm">
+        <option value="">All Status</option>
+        <option v-for="s in statusOptions" :key="s" :value="s">{{ toTitleCase(s) }}</option>
+      </select>
+      <select v-model="filters.type" class="fsm">
+        <option value="">All Types</option>
+        <option v-for="t in typeOptions" :key="t" :value="t">{{ toTitleCase(t) }}</option>
+      </select>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" :max="filters.date_to || undefined" aria-label="From date" />
+        <span style="color:var(--stone);font-size:13px">-</span>
+        <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" :min="filters.date_from || undefined" aria-label="To date" />
+      </div>
+      <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
+    </div>
+
     <div class="icard">
       <div v-if="loading" style="padding:30px;text-align:center">
         <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -13,9 +31,13 @@
       <div v-else-if="referrals.length === 0" class="empty-state">
         <h3>No referrals yet</h3>
       </div>
+      <div v-else-if="filteredReferrals.length === 0" class="empty-state">
+        <h3>No referrals match your filters</h3>
+        <p>Try adjusting or resetting the filters above.</p>
+      </div>
       <div v-else>
         <div
-          v-for="r in referrals"
+          v-for="r in filteredReferrals"
           :key="r.id"
           style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
           @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
@@ -32,13 +54,18 @@
 
 <script setup>
 import { SELF_REFERRAL_ENABLED } from '../../utils/features';
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const loading = ref(true);
 const referrals = ref([]);
+
+// B543: Status and Type options are built from the referrals actually on file
+// (rather than a fixed, possibly-incomplete list), so every referral a student
+// might have is always filterable.
+const filters = ref({ status: '', type: '', date_from: '', date_to: '' });
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };
@@ -51,6 +78,31 @@ function toTitleCase(str) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+const statusOptions = computed(() => {
+  const order = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'completed', 'closed'];
+  const present = new Set(referrals.value.map(r => r.status).filter(Boolean));
+  return order.filter(s => present.has(s));
+});
+
+const typeOptions = computed(() => {
+  const present = [...new Set(referrals.value.map(r => r.referral_type).filter(Boolean))];
+  return present.sort();
+});
+
+const filteredReferrals = computed(() => {
+  return referrals.value.filter(r => {
+    if (filters.value.status && r.status !== filters.value.status) return false;
+    if (filters.value.type && r.referral_type !== filters.value.type) return false;
+    if (filters.value.date_from && (!r.created_at || r.created_at < filters.value.date_from)) return false;
+    if (filters.value.date_to && (!r.created_at || r.created_at.slice(0, 10) > filters.value.date_to)) return false;
+    return true;
+  });
+});
+
+function resetFilters() {
+  filters.value = { status: '', type: '', date_from: '', date_to: '' };
 }
 
 async function fetchData() {
