@@ -63,7 +63,13 @@ return [
             'prefix_indexes' => true,
             'strict' => true,
             'engine' => null,
-            'options' => [],
+            // Encrypted, verified connection to the database host (Aiven). Set MYSQL_ATTR_SSL_CA to the
+            // path of Aiven's CA certificate (ca.pem); with it set, the server's certificate is checked,
+            // so nobody can sit in the middle of the connection. Left empty (local XAMPP/Laragon), nothing changes.
+            'options' => extension_loaded('pdo_mysql') && env('MYSQL_ATTR_SSL_CA') ? [
+                \PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+                \PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => filter_var(env('MYSQL_ATTR_SSL_VERIFY', true), FILTER_VALIDATE_BOOLEAN),
+            ] : [],
         ],
 
         'pgsql' => [
