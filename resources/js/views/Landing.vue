@@ -16,9 +16,6 @@
           <a href="#how" @click.prevent="go('how')">How it works</a>
           <a href="#contact" @click.prevent="go('contact')">Contact</a>
         </nav>
-        <router-link :to="{ name: signedIn ? 'dashboard' : 'login-choice' }" class="lp-btn lp-btn-solid lp-nav-cta">
-          {{ signedIn ? 'Go to dashboard' : 'Log in' }}
-        </router-link>
         <button class="lp-burger" :aria-expanded="menuOpen" aria-label="Menu" @click="menuOpen = !menuOpen">
           <svg v-if="!menuOpen" viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
           <svg v-else viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
@@ -219,6 +216,11 @@
         </div>
       </div>
     </div>
+
+    <!-- Back to top -->
+    <button type="button" class="lp-totop" :class="{ 'is-visible': showTop }" aria-label="Back to top" @click="toTop">
+      <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
   </div>
 </template>
 
@@ -227,9 +229,15 @@ import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const signedIn = computed(() => !!localStorage.getItem('token'));
 
-// The header gains a shadow once the page is scrolled past the top.
+// The header gains a shadow once the page is scrolled past the top, and the
+// "back to top" button appears once the visitor has scrolled a good way down.
 const scrolled = ref(false);
-const onScroll = () => { scrolled.value = window.scrollY > 8; };
+const showTop = ref(false);
+const onScroll = () => {
+  scrolled.value = window.scrollY > 8;
+  showTop.value = window.scrollY > 500;
+};
+const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
 // Mobile section menu (hamburger).
 const menuOpen = ref(false);
@@ -338,6 +346,12 @@ function go(id) {
 .lp-burger:hover { background: var(--mist); color: var(--forest); border-color: var(--mint); }
 .lp-burger svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .lp-mobile { display: none; }
+
+/* Back-to-top button */
+.lp-totop { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--moss); color: #fff; box-shadow: 0 8px 22px rgba(46,109,68,.35); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease), background .2s; }
+.lp-totop.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+.lp-totop:hover { background: var(--pine); transform: translateY(-2px); }
+.lp-totop svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Buttons */
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s var(--ease), background .15s, box-shadow .15s; }
@@ -457,7 +471,7 @@ function go(id) {
 @media (max-width: 860px) {
   .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 56px; gap: 32px; }
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2 { grid-template-columns: 1fr; }
-  .lp-links, .lp-nav-cta { display: none; }
+  .lp-links { display: none; }
   .lp-brand-text small { display: none; }
   .lp-nav-in { gap: 10px; min-height: 58px; }
   .lp-burger { display: inline-flex; }
