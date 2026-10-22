@@ -157,6 +157,9 @@
             Learn more about our programs and services on the
             <a href="https://bsu.edu.ph/office-of-student-services/" target="_blank" rel="noopener noreferrer">BSU Office of Student Services website</a>.
           </p>
+          <button type="button" class="lp-totop" aria-label="Back to top" @click="toTop">
+            <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
         </div>
       </div>
     </section>
@@ -217,10 +220,6 @@
       </div>
     </div>
 
-    <!-- Back to top -->
-    <button type="button" class="lp-totop" :class="{ 'is-visible': showTop }" aria-label="Back to top" @click="toTop">
-      <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
-    </button>
   </div>
 </template>
 
@@ -229,14 +228,9 @@ import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 
 const signedIn = computed(() => !!localStorage.getItem('token'));
 
-// The header gains a shadow once the page is scrolled past the top, and the
-// "back to top" button appears once the visitor has scrolled a good way down.
+// The header gains a shadow once the page is scrolled past the top.
 const scrolled = ref(false);
-const showTop = ref(false);
-const onScroll = () => {
-  scrolled.value = window.scrollY > 8;
-  showTop.value = window.scrollY > 500;
-};
+const onScroll = () => { scrolled.value = window.scrollY > 8; };
 const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
 // Mobile section menu (hamburger).
@@ -348,8 +342,8 @@ function go(id) {
 .lp-mobile { display: none; }
 
 /* Back-to-top button */
-.lp-totop { position: fixed; right: 20px; bottom: 20px; z-index: 40; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--moss); color: #fff; box-shadow: 0 8px 22px rgba(46,109,68,.35); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease), background .2s; }
-.lp-totop.is-visible { opacity: 1; transform: none; pointer-events: auto; }
+/* Back-to-top button, centered under the "More About the Office" text */
+.lp-totop { display: inline-flex; align-items: center; justify-content: center; margin: 18px auto 0; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--moss); color: #fff; box-shadow: 0 8px 22px rgba(46,109,68,.3); cursor: pointer; transition: transform .2s var(--ease), background .2s; }
 .lp-totop:hover { background: var(--pine); transform: translateY(-2px); }
 .lp-totop svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
