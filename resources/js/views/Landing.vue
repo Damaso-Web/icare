@@ -290,7 +290,7 @@ const contacts = [
   },
   {
     name: 'Guidance and Counseling Unit',
-    email: 'oss.gcu@bsu.edu.ph',
+    email: 'oss.cgu@bsu.edu.ph',
     phoneLabel: 'Mobile', phone: '0907-905-0644',
     facebook: 'https://www.facebook.com/bsuossgcu', facebookLabel: 'BSU OSS GCU',
   },
