@@ -256,6 +256,9 @@ class AuthController extends Controller
         ]);
         \App\Support\PasswordReset::stamp($user, 'self');
         $user->tokens()->where('id', '!=', $request->user()->currentAccessToken()->id ?? 0)->delete();
+        // The password is no longer temporary, so the "please change your password" bell
+        // reminder from before is stale now - clear it, or it keeps showing on every login.
+        $user->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->delete();
         AuditLog::record('password_change', "User {$user->name} changed their password.");
         $user->notify(new PasswordChangedNotification());
 

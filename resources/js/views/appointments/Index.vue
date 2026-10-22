@@ -100,6 +100,8 @@
                   </span>
                   <!-- A Call Slip went to the Dean's Secretary for this appointment -->
                   <span v-if="callSlipLabel(a)" class="ibadge ibadge-callslip" :title="callSlipTitle(a)">{{ callSlipLabel(a) }}</span>
+                  <!-- B534: flagged because its date was declared a holiday/suspension after it was booked. -->
+                  <span v-if="a.holiday_conflict_label" class="ibadge" style="background:var(--red-lt);color:var(--red)" title="This appointment's date was declared a holiday or class suspension after it was booked.">{{ a.holiday_conflict_label }}</span>
                   <span v-if="a.location" style="font-size:11px;color:var(--stone)">📍 {{ a.location }}</span>
                 </div>
               </div>
@@ -175,20 +177,10 @@
           </div>
         </div>
 
-        <!-- Why a date is unavailable (holiday, class suspension or other School Calendar event) -->
-        <div v-if="blockedForPreview" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--red)">
-          <strong>Not available for appointments.</strong> {{ blockedForPreview.label }}.
-        </div>
-        <div v-if="blockedThisMonth.length" style="font-size:11px;color:var(--stone);line-height:1.6">
-          <div style="font-weight:600;color:var(--ink);margin-bottom:2px">Unavailable this month</div>
-          <div v-for="b in blockedThisMonth" :key="b.date"><span style="color:var(--red)">&#9679;</span> {{ b.day }}: {{ b.label }}</div>
-        </div>
-
-        <!-- Date Filter Indicator -->
-        <div v-if="previewDate" style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--mist);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--ink)">
-          <span>Filtering: <strong>{{ previewDateLabel }}</strong></span>
-          <button class="ibtn ibtn-g ibtn-sm" @click="clearDateFilter">Clear ✕</button>
-        </div>
+        <!-- B532: the calendar's own red dot/background on a blocked date is
+             enough; the extra notice, "Unavailable this month" list and
+             filter-indicator bar were cut as clutter. "Reset" in the filter
+             bar above still clears a date picked here. -->
       </div>
     </div>
 
@@ -204,6 +196,7 @@
               <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
               <span v-if="detailTarget.rescheduled_from_id || detailTarget.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
               <span v-if="callSlipLabel(detailTarget)" class="ibadge ibadge-callslip" :title="callSlipTitle(detailTarget)">{{ callSlipLabel(detailTarget) }}</span>
+              <span v-if="detailTarget.holiday_conflict_label" class="ibadge" style="background:var(--red-lt);color:var(--red)">{{ detailTarget.holiday_conflict_label }}</span>
             </div>
             <div style="font-size:11.5px;color:var(--fog);margin-top:3px">
               Appointment <span style="font-family:var(--mono)">{{ detailTarget.appointment_code }}</span>

@@ -13,7 +13,7 @@ class CalendarEntry extends Model
         'office_closed'    => 'Office Closed',
     ];
 
-    protected $fillable = ['entry_date', 'name', 'type', 'status', 'created_by_user_id'];
+    protected $fillable = ['entry_date', 'name', 'type', 'status', 'created_by_user_id', 'archive_reason', 'archive_note'];
 
     protected $casts = ['entry_date' => 'date:Y-m-d'];
 

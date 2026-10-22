@@ -1,5 +1,5 @@
 <template>
-  <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
+  <main class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div class="auth-card auth-panel" style="width:100%;max-width:480px">
       <AuthBrand />
 
@@ -41,17 +41,22 @@
         </button>
       </div>
 
-      <button type="button" class="back-landing" @click="router.push('/')">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Landing Page
-      </button>
+      <!-- B542: a quiet text link, not a bordered full-width button, so it
+           reads as secondary navigation rather than a third option alongside
+           the two login cards above. -->
+      <div style="text-align:center;margin-top:20px">
+        <button type="button" class="back-landing" @click="router.push('/')">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Back to Home
+        </button>
+      </div>
 
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
-      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--fog)">
+      <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--stone)">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
@@ -66,7 +71,10 @@ clearConsent();
 </script>
 
 <style scoped>
-.back-landing{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:20px;padding:10px 14px;border-radius:10px;border:1.5px solid var(--moss);background:var(--foam);color:var(--moss);font-family:var(--font);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s,color .15s}
-.back-landing svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.back-landing:hover,.back-landing:focus-visible{background:var(--moss);color:#fff;outline:none}
+/* B542: plain text link - no border, background or full-width container. */
+.back-landing{display:inline-flex;align-items:center;gap:6px;padding:4px 2px;border:0;background:none;color:var(--stone);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border-radius:4px;transition:color .15s}
+.back-landing svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.back-landing:hover,.back-landing:focus-visible{color:var(--moss);outline:none}
+.back-landing:hover svg,.back-landing:focus-visible svg{transform:translateX(-2px)}
+.back-landing:focus-visible{outline:2px solid var(--moss);outline-offset:2px}
 </style>

@@ -35,11 +35,12 @@
     <div v-else-if="!rows.length" class="empty-state"><h3>No matching records</h3><p>Try a different search or filter, or press Reset.</p></div>
     <div class="ts" v-else>
       <table class="itable">
-        <thead><tr><th>No.</th><th>Date</th><th>Name</th><th>Type</th><th>Status</th><th v-if="canManage"></th></tr></thead>
+        <thead><tr><th>No.</th><th>Date</th><th>Academic Year</th><th>Name</th><th>Type</th><th>Status</th><th v-if="canManage"></th></tr></thead>
         <tbody>
           <tr v-for="(e, i) in rows" :key="e.id" :style="e.status === 'archived' ? 'opacity:.65' : ''">
             <td>{{ i + 1 }}</td>
             <td>{{ fmt(e.entry_date) }}</td>
+            <td>{{ ayLabel(e.entry_date) }}</td>
             <td style="font-weight:600">{{ e.name }}</td>
             <td>{{ e.type_label }}</td>
             <td><span class="ibadge" :style="e.status === 'active' ? 'background:var(--mint);color:var(--moss)' : 'background:#eee;color:#666'">{{ e.status === 'active' ? 'Active' : 'Archived' }}</span></td>
@@ -75,6 +76,28 @@
             <button class="ibtn ibtn-p" :disabled="!formValid || busy" @click="saveForm">{{ busy ? 'Saving...' : 'Save' }}</button>
             <button class="ibtn ibtn-o" :disabled="busy" @click="closeForm">Cancel</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B534: this date affects existing appointments - ask how to handle them. -->
+    <div v-if="holidayConflict" class="hs-back" @click.self="!busy && (holidayConflict = null)">
+      <div class="hs-card" style="max-width:460px">
+        <div class="hs-head">Holiday Conflict</div>
+        <div class="hs-body">
+          <div style="font-size:13px;color:var(--ink);line-height:1.55">{{ holidayConflict.message }}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0;justify-content:flex-start;text-align:left" :disabled="busy" @click="pickHolidayResolution('auto_cancel')">
+              <strong>A.</strong>&nbsp; Auto-cancel these appointments and notify students with a rebooking link
+            </button>
+            <button class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue);justify-content:flex-start;text-align:left" :disabled="busy" @click="pickHolidayResolution('auto_reschedule')">
+              <strong>B.</strong>&nbsp; Auto-reschedule each to the next business day, same time (subject to availability)
+            </button>
+            <button class="ibtn ibtn-o ibtn-sm" style="justify-content:flex-start;text-align:left" :disabled="busy" @click="pickHolidayResolution('manual_review')">
+              <strong>C.</strong>&nbsp; Leave them flagged for manual review
+            </button>
+          </div>
+          <button class="ibtn ibtn-g ibtn-sm" :disabled="busy" @click="holidayConflict = null">Cancel, don't add the entry</button>
         </div>
       </div>
     </div>
@@ -140,6 +163,20 @@ async function load() {
   finally { loading.value = false; }
 }
 
+// B533: each entry's Academic Year is computed from its date against the Academic
+// Years list, not stored or typed in by hand, so it is always correct and moves on
+// its own whenever the admin adds/edits academic years or changes which one is current.
+const academicYears = ref([]);
+async function loadAcademicYears() {
+  try { academicYears.value = (await axios.get(`${API_BASE}/management/academic-years`, headers())).data; }
+  catch (e) { /* non-critical: the Academic Year column just shows "-" */ }
+}
+function ayLabel(dateStr) {
+  const d = String(dateStr).slice(0, 10);
+  const ay = academicYears.value.find(a => a.year_start && a.year_end && d >= String(a.year_start).slice(0, 10) && d <= String(a.year_end).slice(0, 10));
+  return ay ? `${ay.start_year}-${ay.start_year + 1}${ay.is_current ? ' (Current)' : ''}` : '-';
+}
+
 // ---- Add / Edit ----
 const form = ref(null);
 const formError = ref('');
@@ -154,14 +191,51 @@ async function saveForm() {
   busy.value = true; formError.value = '';
   try {
     const { id, ...body } = form.value;
-    if (id) await axios.put(url(`/${id}`), body, headers()); else await axios.post(url(), body, headers());
-    toast?.success?.(id ? 'Entry updated.' : 'Entry added.');
-    form.value = null;
-    await load();
+    if (id) { await axios.put(url(`/${id}`), body, headers()); afterSaved(id); return; }
+    await createEntry(body);
   } catch (e) {
     const errs = e.response?.data?.errors;
     formError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Could not save the entry.';
-  } finally { busy.value = false; }
+    busy.value = false;
+  }
+}
+
+function afterSaved(hadId, resolvedCount = 0) {
+  toast?.success?.(hadId
+    ? 'Entry updated.'
+    : (resolvedCount ? `Entry added. ${resolvedCount} affected appointment${resolvedCount === 1 ? '' : 's'} processed.` : 'Entry added.'));
+  form.value = null;
+  busy.value = false;
+  load();
+}
+
+// B534 (4): if creating the entry would affect existing appointments, the
+// backend refuses with 409 and a count instead of creating it; show the
+// warning and ask how to proceed, then resubmit with that choice.
+const holidayConflict = ref(null); // { body, message, count }
+async function createEntry(body, resolution = null) {
+  try {
+    const res = await axios.post(url(), resolution ? { ...body, resolution } : body, headers());
+    holidayConflict.value = null;
+    afterSaved(false, res.data.resolved_conflicts || 0);
+  } catch (e) {
+    if (e.response?.status === 409 && e.response.data?.needs_resolution) {
+      holidayConflict.value = { body, message: e.response.data.message, count: e.response.data.conflict_count };
+      busy.value = false;
+      return;
+    }
+    throw e;
+  }
+}
+function pickHolidayResolution(resolution) {
+  if (!holidayConflict.value || busy.value) return;
+  busy.value = true; formError.value = '';
+  createEntry(holidayConflict.value.body, resolution).catch(e => {
+    const errs = e.response?.data?.errors;
+    formError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Could not save the entry.';
+    holidayConflict.value = null;
+    busy.value = false;
+  });
 }
 
 // ---- Archive / Reactivate / Delete ----
@@ -182,7 +256,12 @@ const dlg = computed(() => {
     return { title: 'Archive this entry?', message: `${describe(e)} will be archived.<br>${warn}`, reasons: MANAGEMENT_STATUS_REASONS[TAB].archived, reasonLabel: 'Reason for archiving', confirm: 'Archive', blocked: '' };
   }
   if (a.mode === 'reactivate') {
-    return { title: 'Reactivate this entry?', message: `${describe(e)} will block its date in the appointment calendar again.`, reasons: MANAGEMENT_STATUS_REASONS[TAB].active, reasonLabel: 'Reason for reactivating', confirm: 'Reactivate', blocked: '' };
+    // B536: show why it was archived in the first place, right where the admin is
+    // choosing the reactivation reason, so the two stay easy to compare.
+    const original = e.archive_reason
+      ? `<br><br>Archived for: <strong>${esc(e.archive_reason)}</strong>${e.archive_note ? ' - ' + esc(e.archive_note) : ''}`
+      : '';
+    return { title: 'Reactivate this entry?', message: `${describe(e)} will block its date in the appointment calendar again.${original}`, reasons: MANAGEMENT_STATUS_REASONS[TAB].active, reasonLabel: 'Reason for reactivating', confirm: 'Reactivate', blocked: '' };
   }
   const blocked = (e.is_past || e.linked_total > 0)
     ? `"${e.name}" is linked to ${e.linked.appointments} appointment${e.linked.appointments === 1 ? '' : 's'} and ${e.linked.notifications} notification${e.linked.notifications === 1 ? '' : 's'}, or its date has already passed. Deleting it would remove the reason shown in those records. Archive it instead.`
@@ -216,7 +295,7 @@ async function doAsk({ reason, note }) {
   } finally { busy.value = false; }
 }
 
-onMounted(load);
+onMounted(() => { load(); loadAcademicYears(); });
 </script>
 
 <style scoped>

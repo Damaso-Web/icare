@@ -50,12 +50,21 @@ class Appointment extends Model
         'required_documents',
         'reschedule_count',
         'on_hold_at',
+        'holiday_conflict_entry_id',
+        'holiday_conflict_flagged_at',
+        'holiday_conflict_resolution',
+        'holiday_conflict_resolved_at',
+        'holiday_conflict_resolved_by_user_id',
     ];
+
+    protected $appends = ['holiday_conflict_label'];
 
     protected $casts = [
         'token_expires_at'       => 'datetime',
         'call_slip_initiated_at' => 'datetime',
         'on_hold_at'             => 'datetime',
+        'holiday_conflict_flagged_at'  => 'datetime',
+        'holiday_conflict_resolved_at' => 'datetime',
         'appointment_date'      => 'date:Y-m-d',
         'confirmation_sent'     => 'boolean',
         'confirmation_sent_at'  => 'datetime',
@@ -86,6 +95,15 @@ class Appointment extends Model
             $appt->appointment_code = 'APT-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
+
+    // B534: "Action Required: Holiday Conflict" while flagged and not yet resolved.
+    public function getHolidayConflictLabelAttribute(): ?string
+    {
+        return ($this->holiday_conflict_flagged_at && !$this->holiday_conflict_resolved_at)
+            ? 'Action Required: Holiday Conflict' : null;
+    }
+
+    public function holidayConflictEntry()  { return $this->belongsTo(CalendarEntry::class, 'holiday_conflict_entry_id'); }
 
     public function case()              { return $this->belongsTo(CaseFile::class, 'case_id'); }
     public function referral()          { return $this->belongsTo(Referral::class, 'referral_id'); }

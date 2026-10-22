@@ -4,8 +4,8 @@
     <header class="lp-nav" :class="{ 'is-scrolled': scrolled }">
       <div class="lp-wrap lp-nav-in">
         <a class="lp-brand" href="#top" @click.prevent="go('top')">
-          <img :src="'/bsu-logo.jpg'" alt="Benguet State University" />
-          <img :src="'/oss-logo.jpg'" alt="Office of Student Services" />
+          <img :src="'/bsu-logo.jpg'" alt="Benguet State University" width="288" height="284" />
+          <img :src="'/oss-logo.jpg'" alt="Office of Student Services" width="250" height="333" />
           <span class="lp-brand-text">
             <b>iCARE</b>
             <small>An Integrated Case Management System for Benguet State University &ndash; Office of Student Services</small>
@@ -35,6 +35,7 @@
       </div>
     </header>
 
+    <main>
     <!-- Hero -->
     <section id="top" class="lp-hero">
       <div class="lp-wrap lp-hero-in">
@@ -151,6 +152,8 @@
               <li v-if="c.phone"><span>{{ c.phoneLabel }}</span><a :href="'tel:' + c.phone.replace(/[^0-9+]/g, '')">{{ c.phone }}</a></li>
               <li v-if="c.facebook"><span>Facebook</span><a :href="c.facebook" target="_blank" rel="noopener noreferrer">{{ c.facebookLabel }}</a></li>
             </ul>
+            <!-- B539: confirm this reflects the Office's actual hours/response time before publishing. -->
+            <p class="lp-contact-hours">Office hours are Monday&ndash;Friday. Standard response time for email inquiries is within 2 business days.</p>
           </article>
         </div>
         <div class="lp-more reveal">
@@ -162,17 +165,35 @@
         </div>
       </div>
     </section>
+    </main>
 
-    <!-- Footer -->
+    <!-- Footer (B540): branding / Quick Links / Legal, then a divider and the privacy + copyright lines. -->
     <footer class="lp-foot">
       <div class="lp-wrap lp-foot-in">
-        <div>
+        <div class="lp-foot-col lp-foot-brand">
           <strong>iCARE</strong>
-          <span>An Integrated Case Management System for Benguet State University - Office of Student Services</span>
+          <span>Benguet State University</span>
+          <span>Office of Student Services</span>
+          <span>Integrated Case Management System</span>
         </div>
-        <div class="lp-foot-r">
-          Personal information is handled under the
-          <button type="button" class="lp-linkbtn" @click="showPrivacy = true">Data Privacy Act of 2012 (RA 10173)</button>.
+        <div class="lp-foot-col">
+          <h4>Quick Links</h4>
+          <a href="#services" @click.prevent="go('services')">Services</a>
+          <a href="#how" @click.prevent="go('how')">How it works</a>
+          <a href="#contact" @click.prevent="go('contact')">Contacts</a>
+          <button type="button" class="lp-linkbtn" @click="showFaq = true">FAQs</button>
+        </div>
+        <div class="lp-foot-col">
+          <h4>Legal</h4>
+          <button type="button" class="lp-linkbtn" @click="showPrivacy = true">Privacy Policy</button>
+          <button type="button" class="lp-linkbtn" @click="showTerms = true">Terms of Use</button>
+        </div>
+      </div>
+      <div class="lp-wrap">
+        <div class="lp-foot-divider"></div>
+        <div class="lp-foot-bottom">
+          <p>Personal information is handled in compliance with the Data Privacy Act of 2012 (RA 10173).</p>
+          <p>&copy; 2026 Benguet State University - Office of Student Services. All Rights Reserved.</p>
         </div>
       </div>
     </footer>
@@ -180,9 +201,9 @@
     <!-- What the Data Privacy Act means -->
     <div v-if="showPrivacy" class="lp-modal" @click.self="showPrivacy = false" @keydown.esc="showPrivacy = false">
       <div ref="dialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-priv-title" tabindex="-1">
+        <!-- B537: a single close control (the "Close" button below) instead of two. -->
         <div class="lp-dialog-head">
           <h3 id="lp-priv-title">Data Privacy Act of 2012 (RA 10173)</h3>
-          <button type="button" class="lp-x" aria-label="Close" @click="showPrivacy = false">&times;</button>
         </div>
         <div class="lp-dialog-body">
           <h4>Purpose</h4>
@@ -217,6 +238,54 @@
         </div>
       </div>
     </div>
+
+    <!-- B541: FAQs, opened from the footer instead of being a landing-page section. -->
+    <div v-if="showFaq" class="lp-modal" @click.self="showFaq = false">
+      <div ref="faqDialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-faq-title" tabindex="-1">
+        <div class="lp-dialog-head">
+          <h3 id="lp-faq-title">Frequently Asked Questions</h3>
+        </div>
+        <div class="lp-dialog-body">
+          <div v-for="(f, i) in faqs" :key="i" class="lp-faq-item">
+            <h4>{{ f.q }}</h4>
+            <p>{{ f.a }}</p>
+          </div>
+        </div>
+        <div class="lp-dialog-foot">
+          <button type="button" class="lp-btn lp-btn-solid" @click="showFaq = false">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- B540 (Legal): a short Terms of Use, kept as a modal to match Privacy and FAQs. -->
+    <div v-if="showTerms" class="lp-modal" @click.self="showTerms = false">
+      <div ref="termsDialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-terms-title" tabindex="-1">
+        <div class="lp-dialog-head">
+          <h3 id="lp-terms-title">Terms of Use</h3>
+        </div>
+        <div class="lp-dialog-body">
+          <h4>Using iCARE</h4>
+          <p>iCARE is for Benguet State University students, faculty, deans and Office of Student Services (OSS) staff, to send and track referrals, appointments and case records with the OSS.</p>
+          <h4>Your account</h4>
+          <p>Sign in with your own Student ID or employee account. You are responsible for what happens under your account, so keep your password to yourself and sign out on shared devices.</p>
+          <h4>Acceptable use</h4>
+          <p>Use iCARE only for its intended purpose - your own referrals, appointments and case records, or those you are authorized to handle. Do not attempt to access another person's records or disrupt the system.</p>
+          <h4>Your information</h4>
+          <p>How your personal information is collected and used is covered in our Privacy Policy, consistent with the Data Privacy Act of 2012 (RA 10173).</p>
+          <h4>Changes</h4>
+          <p>These terms may be updated from time to time as the system and the Office's policies evolve.</p>
+        </div>
+        <div class="lp-dialog-foot">
+          <button type="button" class="lp-btn lp-btn-solid" @click="showTerms = false">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- B538: floating back-to-top button - hidden at the top, shown only once
+         the hero has scrolled out of view. -->
+    <button v-show="showBackToTop" type="button" class="lp-totop-float" aria-label="Back to top" title="Back to top" @click="toTop">
+      <svg viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></svg>
+    </button>
   </div>
 </template>
 
@@ -227,7 +296,15 @@ const signedIn = computed(() => !!localStorage.getItem('token'));
 
 // The header gains a shadow once the page is scrolled past the top.
 const scrolled = ref(false);
-const onScroll = () => { scrolled.value = window.scrollY > 8; };
+// B538: the floating back-to-top button only appears once the hero is fully
+// scrolled past (its bottom edge above the viewport), not just "scrolled a bit".
+const showBackToTop = ref(false);
+const onScroll = () => {
+  scrolled.value = window.scrollY > 8;
+  const hero = document.getElementById('top');
+  showBackToTop.value = hero ? hero.getBoundingClientRect().bottom <= 0 : window.scrollY > 400;
+};
+const toTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
 // Mobile section menu (hamburger).
 const menuOpen = ref(false);
@@ -255,20 +332,42 @@ onMounted(() => {
   els.forEach(el => io.observe(el));
 });
 
+// Privacy, FAQs and Terms are all simple modals - closable by button, outside
+// click (see @click.self on each) or Escape, with the body locked while any is open.
 const showPrivacy = ref(false);
+const showFaq = ref(false);
+const showTerms = ref(false);
 const dialog = ref(null);
-const onKey = e => { if (e.key === 'Escape') showPrivacy.value = false; };
-watch(showPrivacy, async open => {
+const faqDialog = ref(null);
+const termsDialog = ref(null);
+const anyModalOpen = computed(() => showPrivacy.value || showFaq.value || showTerms.value);
+const onKey = e => {
+  if (e.key !== 'Escape') return;
+  showPrivacy.value = false; showFaq.value = false; showTerms.value = false;
+};
+async function watchModal(open, dialogRef) {
   if (open) {
     window.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
     await nextTick();
-    dialog.value?.focus();
-  } else {
+    dialogRef.value?.focus();
+  } else if (!anyModalOpen.value) {
     window.removeEventListener('keydown', onKey);
     document.body.style.overflow = '';
   }
-});
+}
+watch(showPrivacy, open => watchModal(open, dialog));
+watch(showFaq, open => watchModal(open, faqDialog));
+watch(showTerms, open => watchModal(open, termsDialog));
+
+// B541: verify the response time, login steps and emergency number with OSS before publishing.
+const faqs = [
+  { q: 'What is the response time for email inquiries?', a: 'Standard response time for email inquiries is within 2 business days.' },
+  { q: 'Who can use iCARE?', a: 'Students, faculty and deans, and Office of Student Services (OSS) staff can all use iCARE, each with access suited to their role.' },
+  { q: 'How do I request an appointment or referral?', a: "Students sign in with their Student ID and can refer themselves or pick an offered appointment schedule. Faculty and deans sign in with their employee account to refer a student; the OSS unit then schedules it and follows up." },
+  { q: 'Is my information kept confidential?', a: 'Yes. Personal information is handled in compliance with the Data Privacy Act of 2012 (RA 10173), and is seen only by the personnel handling your request.' },
+  { q: 'Who do I contact in an emergency?', a: 'For urgent concerns, call the Guidance and Counseling Unit at 0907-905-0644.' },
+];
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey);
   window.removeEventListener('scroll', onScroll);
@@ -293,7 +392,6 @@ const contacts = [
   {
     name: 'Testing and Materials Development Unit',
     email: 'oss.tmdu@bsu.edu.ph',
-    facebook: 'https://www.facebook.com/tmdu.bsuoss', facebookLabel: 'TMDU BSU OSS',
   },
   {
     name: 'Student Discipline Unit',
@@ -307,7 +405,9 @@ function go(id) {
 </script>
 
 <style scoped>
-.lp { min-height: 100vh; background: var(--snow); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; overflow-x: hidden; }
+/* overflow-x: clip (not hidden) stops sideways scroll without turning .lp into a
+   scroll container, which would break the sticky header. */
+.lp { min-height: 100vh; background: var(--snow); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; overflow-x: clip; }
 .lp * { box-sizing: border-box; }
 .lp-wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 .lp a { color: inherit; }
@@ -334,6 +434,11 @@ function go(id) {
 .lp-burger:hover { background: var(--mist); color: var(--forest); border-color: var(--mint); }
 .lp-burger svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .lp-mobile { display: none; }
+
+/* B538: floating back-to-top button, fixed to the viewport. */
+.lp-totop-float { position: fixed; bottom: 32px; right: 32px; z-index: 40; display: inline-flex; align-items: center; justify-content: center; width: 46px; height: 46px; border-radius: 50%; border: none; background: var(--moss); color: #fff; box-shadow: 0 8px 22px rgba(46,109,68,.3); cursor: pointer; transition: transform .2s var(--ease), background .2s, opacity .2s; }
+.lp-totop-float:hover { background: var(--pine); transform: translateY(-2px); }
+.lp-totop-float svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 
 /* Buttons */
 .lp-btn { display: inline-flex; align-items: center; justify-content: center; padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: transform .15s var(--ease), background .15s, box-shadow .15s; }
@@ -409,21 +514,30 @@ function go(id) {
 .lp-contact h3 { font-size: 16px; color: var(--forest); margin-bottom: 10px; }
 .lp-contact ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .lp-contact li { display: flex; gap: 12px; font-size: 14px; }
-.lp-contact li span { width: 64px; flex-shrink: 0; color: var(--fog); }
+.lp-contact li span { width: 64px; flex-shrink: 0; color: var(--stone); }
 .lp-contact a { color: var(--moss); text-decoration: none; word-break: break-word; }
 .lp-contact a:hover { text-decoration: underline; }
+/* B539 */
+.lp-contact-hours { margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--cloud); font-size: 13px; color: var(--stone); }
 .lp-more { margin: 44px auto 0; max-width: 560px; text-align: center; }
 .lp-more h3 { font-size: 18px; color: var(--forest); margin-bottom: 6px; }
 .lp-more p { color: var(--stone); font-size: 14.5px; }
 .lp-more a { color: var(--moss); font-weight: 600; }
 
-/* Footer */
-.lp-foot { background: var(--forest); color: rgba(255,255,255,.75); padding: 28px 0; font-size: 13px; }
-.lp-foot-in { display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.lp-foot strong { display: block; color: #fff; font-size: 15px; margin-bottom: 2px; }
-.lp-foot-r { max-width: 340px; }
-.lp-linkbtn { background: none; border: 0; padding: 0; font: inherit; color: #fff; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.lp-linkbtn:hover { color: var(--mint); }
+/* Footer (B540): branding / Quick Links / Legal columns, then a divider and the privacy + copyright lines. */
+.lp-foot { background: var(--forest); color: rgba(255,255,255,.75); padding: 40px 0 24px; font-size: 13px; }
+.lp-foot-in { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 28px; padding-bottom: 24px; }
+.lp-foot-col { display: flex; flex-direction: column; gap: 9px; }
+.lp-foot-col h4 { font-size: 12px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: #fff; margin: 0 0 3px; }
+.lp-foot-brand strong { display: block; color: #fff; font-size: 16px; margin-bottom: 2px; }
+.lp-foot-brand span { line-height: 1.5; }
+.lp-foot-col a { color: rgba(255,255,255,.75); text-decoration: none; }
+.lp-foot-col a:hover { color: #fff; text-decoration: underline; }
+.lp-foot-divider { border-top: 1px solid rgba(255,255,255,.18); }
+.lp-foot-bottom { padding-top: 16px; display: flex; flex-direction: column; gap: 4px; }
+.lp-foot-bottom p { margin: 0; font-size: 12px; color: rgba(255,255,255,.65); }
+.lp-linkbtn { background: none; border: 0; padding: 0; text-align: left; font: inherit; color: rgba(255,255,255,.75); cursor: pointer; }
+.lp-linkbtn:hover { color: #fff; text-decoration: underline; }
 .lp-linkbtn:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; border-radius: 3px; }
 
 /* Data Privacy Act dialog */
@@ -431,8 +545,6 @@ function go(id) {
 .lp-dialog { background: #fff; color: var(--ink); width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column; border-radius: var(--r-lg); box-shadow: var(--sh-lg); outline: none; font-size: 14px; }
 .lp-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 22px; border-bottom: 1px solid var(--cloud); }
 .lp-dialog-head h3 { font-size: 16px; color: var(--forest); }
-.lp-x { background: none; border: 0; font-size: 26px; line-height: 1; color: var(--stone); cursor: pointer; padding: 0 4px; }
-.lp-x:hover { color: var(--ink); }
 .lp-dialog-body { padding: 18px 22px; overflow-y: auto; line-height: 1.6; }
 .lp-dialog-body h4 { margin: 14px 0 4px; font-size: 13px; color: var(--moss); text-transform: uppercase; letter-spacing: .6px; }
 .lp-dialog-body h4:first-child { margin-top: 0; }
@@ -441,6 +553,11 @@ function go(id) {
 .lp-dialog-links { display: flex; flex-direction: column; gap: 6px; }
 .lp-dialog-links a { color: var(--moss); font-weight: 600; word-break: break-word; }
 .lp-dialog-foot { padding: 14px 22px; border-top: 1px solid var(--cloud); display: flex; justify-content: flex-end; }
+
+/* FAQs (B541) */
+.lp-faq-item + .lp-faq-item { margin-top: 16px; }
+.lp-faq-item h4 { margin: 0 0 4px; font-size: 14px; color: var(--forest); text-transform: none; letter-spacing: normal; }
+.lp-faq-item p { margin: 0; color: var(--slate); }
 
 /* Scroll-reveal */
 .lp .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s var(--ease), transform .6s var(--ease); will-change: opacity, transform; }
@@ -452,8 +569,9 @@ function go(id) {
 /* Phones and small tablets */
 @media (max-width: 860px) {
   .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 56px; gap: 32px; }
-  .lp-grid3, .lp-steps, .lp-who, .lp-grid2 { grid-template-columns: 1fr; }
+  .lp-grid3, .lp-steps, .lp-who, .lp-grid2, .lp-foot-in { grid-template-columns: 1fr; }
   .lp-links, .lp-nav-cta { display: none; }
+  .lp-totop-float { bottom: 20px; right: 20px; }
   .lp-brand-text small { display: none; }
   .lp-nav-in { gap: 10px; min-height: 58px; }
   .lp-burger { display: inline-flex; }

@@ -135,6 +135,9 @@ class PasswordResetController extends Controller
             'temp_password'            => null,
             'temp_password_expires_at' => null,
         ])->save();
+        // The password is no longer temporary, so the "please change your password" bell
+        // reminder from before is stale now - clear it, or it keeps showing on every login.
+        $user->unreadNotifications()->where('type', \App\Notifications\ChangePasswordReminderNotification::class)->delete();
         \App\Support\PasswordReset::stamp($user, 'email_otp');
         $user->tokens()->delete(); // sign out every device
         DB::table('password_reset_otps')->where('id', $row->id)->delete();

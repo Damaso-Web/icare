@@ -144,14 +144,14 @@
       <div v-show="tab === 'family' || tab === 'education'" class="icard">
         <div class="icard-header"><span class="icard-title">{{ tab === 'education' ? 'Educational Background' : 'Family Background' }}</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:16px">
-          <div v-if="backgroundError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundError }}</div>
-          <div v-if="backgroundSuccess" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundSuccess }}</div>
 
           <div v-show="tab === 'family'" style="display:flex;flex-direction:column;gap:16px">
+          <div v-if="backgroundError && backgroundSection !== 'education'" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundError }}</div>
+          <div v-if="backgroundSuccess && backgroundSection !== 'education'" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundSuccess }}</div>
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Family Information</div>
 
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Father</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 90px;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
               <input v-model="backgroundForm.father_last_name" class="ifi" maxlength="50" @input="backgroundForm.father_last_name = capFirst(String(backgroundForm.father_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
@@ -163,6 +163,13 @@
             <div>
               <label class="ifl">Middle Name</label>
               <input v-model="backgroundForm.father_middle_name" class="ifi" maxlength="50" @input="backgroundForm.father_middle_name = capFirst(String(backgroundForm.father_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <select v-model="backgroundForm.father_suffix" class="ifse">
+                <option value="">None</option>
+                <option v-for="s in SUFFIXES" :key="s" :value="s">{{ s }}</option>
+              </select>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -180,7 +187,8 @@
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
             <div>
               <label class="ifl">Age</label>
-              <input v-model="backgroundForm.father_age" class="ifi" maxlength="3" @input="backgroundForm.father_age = String(backgroundForm.father_age ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.father_age" class="ifi" maxlength="3" :style="parentAgeIssue('father_age') ? ERR_BORDER : ''" @input="backgroundForm.father_age = String(backgroundForm.father_age ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="parentAgeIssue('father_age')" style="font-size:11px;color:var(--red);margin-top:4px">{{ parentAgeIssue('father_age') }}</div>
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
@@ -189,7 +197,7 @@
           </div>
 
           <div style="font-size:11.5px;font-weight:600;color:var(--slate);margin-top:4px">Mother</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 90px;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
               <input v-model="backgroundForm.mother_last_name" class="ifi" maxlength="50" @input="backgroundForm.mother_last_name = capFirst(String(backgroundForm.mother_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
@@ -201,6 +209,13 @@
             <div>
               <label class="ifl">Middle Name</label>
               <input v-model="backgroundForm.mother_middle_name" class="ifi" maxlength="50" @input="backgroundForm.mother_middle_name = capFirst(String(backgroundForm.mother_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <select v-model="backgroundForm.mother_suffix" class="ifse">
+                <option value="">None</option>
+                <option v-for="s in SUFFIXES" :key="s" :value="s">{{ s }}</option>
+              </select>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -218,7 +233,8 @@
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
             <div>
               <label class="ifl">Age</label>
-              <input v-model="backgroundForm.mother_age" class="ifi" maxlength="3" @input="backgroundForm.mother_age = String(backgroundForm.mother_age ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.mother_age" class="ifi" maxlength="3" :style="parentAgeIssue('mother_age') ? ERR_BORDER : ''" @input="backgroundForm.mother_age = String(backgroundForm.mother_age ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="parentAgeIssue('mother_age')" style="font-size:11px;color:var(--red);margin-top:4px">{{ parentAgeIssue('mother_age') }}</div>
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
@@ -244,7 +260,8 @@
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
             <div>
               <label class="ifl">Age</label>
-              <input v-model="backgroundForm.guardian_age" class="ifi" maxlength="3" @input="backgroundForm.guardian_age = String(backgroundForm.guardian_age ?? '').replace(/[^0-9]/g, '')" />
+              <input v-model="backgroundForm.guardian_age" class="ifi" maxlength="3" :style="parentAgeIssue('guardian_age') ? ERR_BORDER : ''" @input="backgroundForm.guardian_age = String(backgroundForm.guardian_age ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="parentAgeIssue('guardian_age')" style="font-size:11px;color:var(--red);margin-top:4px">{{ parentAgeIssue('guardian_age') }}</div>
             </div>
             <div>
               <label class="ifl">Highest Educational Attainment</label>
@@ -279,18 +296,27 @@
             :key="idx"
             style="border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px;display:flex;flex-direction:column;gap:10px"
           >
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 90px;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
                 <input v-model="sib.last_name" class="ifi" :style="sibNamesChecked && !String(sib.last_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.last_name = capFirst(String(sib.last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+                <div v-if="sibNamesChecked && !String(sib.last_name ?? '').trim()" class="fe">Please fill in this field.</div>
               </div>
               <div>
                 <label class="ifl">First Name</label>
                 <input v-model="sib.first_name" class="ifi" :style="sibNamesChecked && !String(sib.first_name ?? '').trim() ? ERR_BORDER : ''" maxlength="50" @input="sib.first_name = capFirst(String(sib.first_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+                <div v-if="sibNamesChecked && !String(sib.first_name ?? '').trim()" class="fe">Please fill in this field.</div>
               </div>
               <div>
                 <label class="ifl">Middle Name</label>
                 <input v-model="sib.middle_name" class="ifi" maxlength="50" @input="sib.middle_name = capFirst(String(sib.middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+              </div>
+              <div>
+                <label class="ifl">Suffix</label>
+                <select v-model="sib.suffix" class="ifse">
+                  <option value="">None</option>
+                  <option v-for="s in SUFFIXES" :key="s" :value="s">{{ s }}</option>
+                </select>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:80px 1fr 1fr;gap:10px">
@@ -315,7 +341,7 @@
                 <label class="ifl">Occupation (if currently studying, enter "Student")</label>
                 <input v-model="sib.occupation" class="ifi" maxlength="50" @input="sib.occupation = capFirst(String(sib.occupation ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.,\x26()\- ]/gu, ''))" />
               </div>
-              <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="removeSibling(idx)">Remove</button>
+              <button type="button" class="ibtn ibtn-o ibtn-sm" style="color:var(--red)" @click="askRemoveSibling(idx)">Remove</button>
             </div>
           </div>
 
@@ -326,6 +352,8 @@
 
 
           <div v-show="tab === 'education'" style="display:flex;flex-direction:column;gap:16px">
+          <div v-if="backgroundError && backgroundSection === 'education'" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundError }}</div>
+          <div v-if="backgroundSuccess && backgroundSection === 'education'" style="background:var(--mist);border:1px solid #bfe3c8;color:var(--moss);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ backgroundSuccess }}</div>
           <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Educational Attainment</div>
           <div style="font-size:11.5px;font-weight:600;color:var(--slate)">Elementary</div>
           <div style="display:grid;grid-template-columns:1fr 120px;gap:12px">
@@ -486,6 +514,38 @@
         </div>
       </div>
     </div>
+
+    <!-- Remove sibling confirmation (B525/B529) -->
+    <div v-if="removeSiblingIdx !== null" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:66;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="removeSiblingIdx = null">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Remove Sibling</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to remove this sibling's information? This action cannot be undone.</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-o" :disabled="removingSibling" @click="removeSiblingIdx = null">Cancel</button>
+            <button type="button" class="ibtn ibtn-p" style="background:var(--red);border-color:var(--red)" :disabled="removingSibling" @click="confirmRemoveSibling">{{ removingSibling ? 'Removing...' : 'Confirm Removal' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Blank sibling entry: continue editing or discard (B524) -->
+    <div v-if="blankSiblingIdx !== null" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:66;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="blankSiblingIdx = null">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Empty Sibling Entry</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">You haven't entered any information for this sibling. Do you want to continue or discard this entry?</div>
+          <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button type="button" class="ibtn ibtn-o" style="color:var(--red)" @click="discardBlankSibling">Discard Entry</button>
+            <button type="button" class="ibtn ibtn-p" @click="blankSiblingIdx = null">Continue Editing</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -501,6 +561,20 @@ const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
 // B311: what is wrong with a field, shown on the field itself ('' when fine).
 const ERR_BORDER = 'border-color:var(--red);border-width:1.5px';
 const sibNamesChecked = ref(false);
+const SUFFIXES = ['Jr.', 'Sr.', 'I', 'II', 'III', 'IV'];
+// B522/B528: a parent/guardian age that is not biologically plausible.
+const MIN_PARENT_AGE = 15;
+const MIN_GUARDIAN_AGE = 25;
+function parentAgeIssue(key) {
+  const v = String(backgroundForm.value[key] ?? '').trim();
+  if (!v) return '';
+  const n = Number(v);
+  if (key === 'guardian_age') {
+    return n < MIN_GUARDIAN_AGE ? `Guardian must be at least ${MIN_GUARDIAN_AGE} years old.` : '';
+  }
+  const who = key === 'father_age' ? 'Father' : 'Mother';
+  return n < MIN_PARENT_AGE ? `${who}'s age seems too low. Please check it.` : '';
+}
 function contactIssue(key) {
   const f = backgroundForm.value;
   const v = String(f[key] ?? '');
@@ -617,6 +691,9 @@ const educationProblem = computed(() => {
 });
 
 // B506: leaving a tab drops anything typed there but not saved; the saved data comes back.
+// B526/B527: an error or success message belongs to the section it came
+// from - it is cleared the moment the user navigates to another section, so
+// it never reappears, stale, when they come back.
 watch(tab, (now, before) => {
   if (now !== before) {
     if (profileSnapshot.value) {
@@ -626,10 +703,16 @@ watch(tab, (now, before) => {
       try { backgroundForm.value = JSON.parse(backgroundSnapshot.value); } catch (e) { /* keep the current values */ }
     }
     confirmAction.value = null;
+    profileError.value = '';
+    profileSuccess.value = '';
+    backgroundError.value = '';
+    backgroundSuccess.value = '';
+    sibNamesChecked.value = false;
   }
   if (before === 'password' && now !== 'password') {
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
     pwError.value = '';
+    pwSuccess.value = '';
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
   }
 });
@@ -659,9 +742,9 @@ function firstApiError(e, fallback) {
 
 function emptyBackgroundForm() {
   return {
-    father_first_name: '', father_middle_name: '', father_last_name: '', father_occupation: '', father_contact_number: '',
+    father_first_name: '', father_middle_name: '', father_last_name: '', father_suffix: '', father_occupation: '', father_contact_number: '',
     father_age: '', father_educational_attainment: '',
-    mother_first_name: '', mother_middle_name: '', mother_last_name: '', mother_occupation: '', mother_contact_number: '',
+    mother_first_name: '', mother_middle_name: '', mother_last_name: '', mother_suffix: '', mother_occupation: '', mother_contact_number: '',
     mother_age: '', mother_educational_attainment: '',
     guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '', guardian_age: '',
     guardian_occupation: '', guardian_educational_attainment: '', guardian_contact: '',
@@ -676,8 +759,8 @@ const backgroundForm = ref(emptyBackgroundForm());
 const backgroundSnapshot = ref('');
 const isBackgroundUnchanged = computed(() => JSON.stringify(backgroundForm.value) === backgroundSnapshot.value);
 const FAMILY_KEYS = [
-  'father_first_name', 'father_middle_name', 'father_last_name', 'father_occupation', 'father_contact_number',
-  'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_occupation', 'mother_contact_number',
+  'father_first_name', 'father_middle_name', 'father_last_name', 'father_suffix', 'father_occupation', 'father_contact_number',
+  'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_suffix', 'mother_occupation', 'mother_contact_number',
   'father_age', 'father_educational_attainment', 'mother_age', 'mother_educational_attainment',
   'guardian_first_name', 'guardian_middle_name', 'guardian_last_name', 'guardian_age',
   'guardian_occupation', 'guardian_educational_attainment', 'guardian_contact',
@@ -698,7 +781,7 @@ const EDUCATION_KEYS = [
 ];
 const pickEducation = (src) => Object.fromEntries(EDUCATION_KEYS.map(k => [k, src?.[k] ?? '']));
 const pickSiblings = (src) => (src?.siblings || []).map(x => ({
-  first_name: x.first_name ?? '', middle_name: x.middle_name ?? '', last_name: x.last_name ?? '',
+  first_name: x.first_name ?? '', middle_name: x.middle_name ?? '', last_name: x.last_name ?? '', suffix: x.suffix ?? '',
   age: x.age ?? '', occupation: x.occupation ?? '',
   educational_attainment: x.educational_attainment ?? '', civil_status: x.civil_status ?? '',
 }));
@@ -709,6 +792,9 @@ const savingSiblings = ref(false);
 const savingEducation = ref(false);
 const backgroundError = ref('');
 const backgroundSuccess = ref('');
+// B530: which sub-tab a background message belongs to, so a Family/Siblings
+// message never shows while viewing Education, or the other way around.
+const backgroundSection = ref('');
 
 // Every save goes through a confirmation modal first.
 const CONFIRM_LABELS = {
@@ -726,9 +812,11 @@ const FIELD_LABELS = {
   contact_number: 'Contact Number', birthdate: 'Birthdate', sex: 'Sex', civil_status: 'Civil Status', nationality: 'Nationality',
   birthplace: 'Birthplace', languages: 'Languages', address: 'Address',
   father_first_name: "Father's First Name", father_middle_name: "Father's Middle Name", father_last_name: "Father's Last Name",
+  father_suffix: "Father's Suffix",
   father_occupation: "Father's Occupation", father_contact_number: "Father's Contact Number", father_age: "Father's Age",
   father_educational_attainment: "Father's Educational Attainment",
   mother_first_name: "Mother's First Name", mother_middle_name: "Mother's Middle Name", mother_last_name: "Mother's Last Name",
+  mother_suffix: "Mother's Suffix",
   mother_occupation: "Mother's Occupation", mother_contact_number: "Mother's Contact Number", mother_age: "Mother's Age",
   mother_educational_attainment: "Mother's Educational Attainment",
   guardian_first_name: "Guardian's First Name", guardian_middle_name: "Guardian's Middle Name", guardian_last_name: "Guardian's Last Name",
@@ -776,6 +864,10 @@ function requestSave(kind) {
   }
   if (kind === 'family') {
     const f = backgroundForm.value;
+    if (['father_age', 'mother_age', 'guardian_age'].some(k => parentAgeIssue(k))) {
+      backgroundError.value = 'Please correct the ages marked in red.';
+      return;
+    }
     if (f.father_contact_number && f.father_contact_number === f.mother_contact_number) {
       backgroundError.value = "The father's and mother's contact numbers are the same. Please enter a different number for each parent.";
       return;
@@ -789,7 +881,12 @@ function requestSave(kind) {
   }
   if (kind === 'siblings') {
     sibNamesChecked.value = true;
-    for (const sib of backgroundForm.value.siblings) {
+    for (let i = 0; i < backgroundForm.value.siblings.length; i++) {
+      const sib = backgroundForm.value.siblings[i];
+      if (siblingIsBlank(sib)) {
+        blankSiblingIdx.value = i;
+        return;
+      }
       if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
         backgroundError.value = 'Please fill in a first and last name for every sibling, or remove the empty row.';
         return;
@@ -823,10 +920,52 @@ async function confirmSave() {
 }
 
 function addSibling() {
-  backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', age: '', occupation: '', educational_attainment: '', civil_status: '' });
+  backgroundForm.value.siblings.push({ first_name: '', middle_name: '', last_name: '', suffix: '', age: '', occupation: '', educational_attainment: '', civil_status: '' });
 }
-function removeSibling(idx) {
+
+// B524: a sibling row with nothing filled in at all gets a "continue or
+// discard" prompt instead of a hard validation error.
+function siblingIsBlank(sib) {
+  return !['first_name', 'middle_name', 'last_name', 'suffix', 'age', 'occupation', 'educational_attainment', 'civil_status']
+    .some(k => String(sib?.[k] ?? '').trim());
+}
+const blankSiblingIdx = ref(null);
+function discardBlankSibling() {
+  if (blankSiblingIdx.value !== null) backgroundForm.value.siblings.splice(blankSiblingIdx.value, 1);
+  blankSiblingIdx.value = null;
+}
+
+// B525/B529: removing a sibling is confirmed, then saved to the server right
+// away - it no longer waits for a separate "Save Siblings Information" click,
+// which is what let a removed sibling reappear after navigating away and back.
+const removeSiblingIdx = ref(null);
+const removingSibling = ref(false);
+function askRemoveSibling(idx) {
+  removeSiblingIdx.value = idx;
+}
+async function confirmRemoveSibling() {
+  if (removeSiblingIdx.value === null) return;
+  removingSibling.value = true;
+  const idx = removeSiblingIdx.value;
+  const removed = backgroundForm.value.siblings[idx];
   backgroundForm.value.siblings.splice(idx, 1);
+  try {
+    const payload = { siblings: pickSiblings(backgroundForm.value) };
+    await axios.put(`${API_BASE}/student/profile`, payload, authHeaders());
+    backgroundSnapshot.value = JSON.stringify({ ...snapOf(), ...payload });
+    backgroundSection.value = 'family';
+    backgroundSuccess.value = 'Sibling removed successfully.';
+    backgroundError.value = '';
+    toast?.success('Sibling removed successfully.');
+  } catch (e) {
+    // Put it back locally - the server didn't confirm the removal.
+    backgroundForm.value.siblings.splice(idx, 0, removed);
+    backgroundSection.value = 'family';
+    backgroundError.value = firstApiError(e, 'Failed to remove the sibling. Please try again.');
+  } finally {
+    removingSibling.value = false;
+    removeSiblingIdx.value = null;
+  }
 }
 
 function authHeaders() {
@@ -861,6 +1000,7 @@ async function saveProfile() {
 async function saveFamily() {
   backgroundError.value = '';
   backgroundSuccess.value = '';
+  backgroundSection.value = 'family';
   savingFamily.value = true;
   try {
     const payload = pickFamily(backgroundForm.value);
@@ -880,6 +1020,7 @@ async function saveFamily() {
 async function saveSiblings() {
   backgroundError.value = '';
   backgroundSuccess.value = '';
+  backgroundSection.value = 'family';
 
   for (const sib of backgroundForm.value.siblings) {
     if (!sib.first_name?.trim() || !sib.last_name?.trim()) {
@@ -906,6 +1047,7 @@ async function saveSiblings() {
 async function saveEducation() {
   backgroundError.value = '';
   backgroundSuccess.value = '';
+  backgroundSection.value = 'education';
   savingEducation.value = true;
   try {
     const payload = pickEducation(backgroundForm.value);
@@ -1018,11 +1160,13 @@ onMounted(async () => {
       father_first_name: d.father_first_name || '',
       father_middle_name: d.father_middle_name || '',
       father_last_name: d.father_last_name || '',
+      father_suffix: d.father_suffix || '',
       father_occupation: d.father_occupation || '',
       father_contact_number: d.father_contact_number || '',
       mother_first_name: d.mother_first_name || '',
       mother_middle_name: d.mother_middle_name || '',
       mother_last_name: d.mother_last_name || '',
+      mother_suffix: d.mother_suffix || '',
       mother_occupation: d.mother_occupation || '',
       mother_contact_number: d.mother_contact_number || '',
       father_age: d.father_age || '', father_educational_attainment: d.father_educational_attainment || '',

@@ -3,40 +3,40 @@ import { roleIn } from '../utils/roles';
 import { SELF_REFERRAL_ENABLED } from '../utils/features';
 
 // Layouts
-import RootEntry from '../views/RootEntry.vue';
+import RootEntry from '../views/RootEntry.vue';   // eager: it renders the landing at "/"
 
 // Views
-import Login from '../views/Login.vue';
+const Login = () => import('../views/Login.vue');
 // Imported up front (not lazy) so their styles ship with the main bundle and a
 // stale/failed chunk can never leave these pages blank or unstyled.
-import StudentLogin from '../views/StudentLogin.vue';
-import CaseStudyReport from '../views/cases/StudyReport.vue';
-import Dashboard from '../views/Dashboard.vue';
-import Students from '../views/students/Index.vue';
-import StudentShow from '../views/students/Show.vue';
-import Referrals from '../views/referrals/Index.vue';
-import ReferChoice from '../views/referrals/ReferChoice.vue';
-import ReferralCreate from '../views/referrals/Create.vue';
-import ReferralShow from '../views/referrals/Show.vue';
-import ComplaintCreate from '../views/complaints/Create.vue';
-import Complaints from '../views/complaints/Index.vue';
-import IncidentReports from '../views/incident-reports/Index.vue';
-import IncidentReportShow from '../views/incident-reports/Show.vue';
-import Cases from '../views/cases/Index.vue';
-import Appointments from '../views/appointments/Index.vue';
-import TestingRecords from '../views/testing/Index.vue';
-import TestingRecordShow from '../views/testing/Show.vue';
-import TmduAppointments from '../views/testing/Appointments.vue';
-import Reports from '../views/reports/Index.vue';
-import Users from '../views/users/Index.vue';
-import AuditLogs from '../views/audit/Index.vue';
-import MyAccount from '../views/MyAccount.vue';
-import Notifications from '../views/Notifications.vue';
-import CallSlips from '../views/callslips/Index.vue';
-import Management from '../views/management/Index.vue';
-import Faculty from '../views/faculty/Index.vue';
-import CaseReferrals from '../views/caseReferrals/Index.vue';
-import CaseReferralShow from '../views/caseReferrals/Show.vue';
+const StudentLogin = () => import('../views/StudentLogin.vue');
+const CaseStudyReport = () => import('../views/cases/StudyReport.vue');
+const Dashboard = () => import('../views/Dashboard.vue');
+const Students = () => import('../views/students/Index.vue');
+const StudentShow = () => import('../views/students/Show.vue');
+const Referrals = () => import('../views/referrals/Index.vue');
+const ReferChoice = () => import('../views/referrals/ReferChoice.vue');
+const ReferralCreate = () => import('../views/referrals/Create.vue');
+const ReferralShow = () => import('../views/referrals/Show.vue');
+const ComplaintCreate = () => import('../views/complaints/Create.vue');
+const Complaints = () => import('../views/complaints/Index.vue');
+const IncidentReports = () => import('../views/incident-reports/Index.vue');
+const IncidentReportShow = () => import('../views/incident-reports/Show.vue');
+const Cases = () => import('../views/cases/Index.vue');
+const Appointments = () => import('../views/appointments/Index.vue');
+const TestingRecords = () => import('../views/testing/Index.vue');
+const TestingRecordShow = () => import('../views/testing/Show.vue');
+const TmduAppointments = () => import('../views/testing/Appointments.vue');
+const Reports = () => import('../views/reports/Index.vue');
+const Users = () => import('../views/users/Index.vue');
+const AuditLogs = () => import('../views/audit/Index.vue');
+const MyAccount = () => import('../views/MyAccount.vue');
+const Notifications = () => import('../views/Notifications.vue');
+const CallSlips = () => import('../views/callslips/Index.vue');
+const Management = () => import('../views/management/Index.vue');
+const Faculty = () => import('../views/faculty/Index.vue');
+const CaseReferrals = () => import('../views/caseReferrals/Index.vue');
+const CaseReferralShow = () => import('../views/caseReferrals/Show.vue');
 
 // Role definitions
 const ALL_ROLES = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_head', 'tmdu_staff', 'faculty', 'dean', 'dept_chair', 'dean_secretary'];
@@ -114,7 +114,13 @@ const routes = [
     {
         path: '/student',
         component: () => import('../layouts/StudentLayout.vue'),
-        meta: { public: true },
+        // B2 (security test): this was `meta: { public: true }`, which the global
+        // guard below (`if (to.meta.public) return next();`) let through with no
+        // auth check at all - so every page in here (dashboard, appointments,
+        // account, referrals...) was reachable with no student_token whatsoever,
+        // including by pressing Back after logging out. `studentArea` is checked
+        // explicitly instead, so it can require student_token (see beforeEach).
+        meta: { studentArea: true },
         children: [
             {
                 path: 'dashboard',
@@ -427,9 +433,11 @@ router.beforeEach((to, from, next) => {
     const role  = user?.role;
 
     // A student who must change their password can only use the Account page (the server refuses everything else).
+    // (Not gated on to.meta.public/studentArea - this is about which PAGE is being
+    // visited, not whether that page itself needs a token.)
     if (to.path.startsWith('/student') && localStorage.getItem('student_token')) {
         const stu = JSON.parse(localStorage.getItem('student') || '{}');
-        if (stu?.must_change_password && to.name !== 'student-account' && to.meta.public) {
+        if (stu?.must_change_password && to.name !== 'student-account') {
             return next({ name: 'student-account' });
         }
     }
@@ -437,6 +445,14 @@ router.beforeEach((to, from, next) => {
     // Staff who must change their password (temporary password, admin reset, reactivation) can only use My Account.
     if (token && user?.must_change_password && to.name !== 'my-account' && !to.meta.guest && !to.meta.public) {
         return next({ name: 'my-account' });
+    }
+
+    // The student portal (dashboard, appointments, account, referrals...) - distinct
+    // from the public student-login/student-register pages, which are separate,
+    // genuinely `meta: { public: true }` routes outside this group.
+    if (to.meta.studentArea) {
+        if (!localStorage.getItem('student_token')) return next({ name: 'login-choice' });
+        return next();
     }
 
     // Public routes (no auth needed, e.g. student scheduling link, login choice)

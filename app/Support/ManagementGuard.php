@@ -73,8 +73,18 @@ class ManagementGuard
             ],
         ];
         $reactivate = ['offered_again' => 'Offered or Used Again', 'review_completed' => 'Review or Reorganization Completed', 'deactivated_in_error' => 'Deactivated in Error'];
+        // B535: "Deactivated in Error" talks about deactivation, which doesn't apply to an
+        // archived holiday/suspension. This tab gets its own, archiving-appropriate set.
+        $holidayReactivate = [
+            'needed_again'                     => 'Needed for Current Operations',
+            'archived_by_mistake'              => 'Archived by Mistake',
+            'review_completed'                 => 'Review or Reorganization Completed',
+            'previously_archived_now_relevant' => 'Previously Archived/Now Relevant',
+        ];
 
-        $list = $action === 'reactivate' ? $reactivate : ($table[$tab][$action] ?? []);
+        $list = $action === 'reactivate'
+            ? ($tab === 'holidays and suspensions' ? $holidayReactivate : $reactivate)
+            : ($table[$tab][$action] ?? []);
         return $list + ['other' => 'Other'];
     }
 

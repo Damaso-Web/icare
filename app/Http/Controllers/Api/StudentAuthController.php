@@ -184,6 +184,9 @@ class StudentAuthController extends Controller
             'must_change_password'  => false,
         ]);
         \App\Support\PasswordReset::stamp($student, 'self');
+        // The password is no longer temporary, so the "please change your password" bell
+        // reminder from before is stale now - clear it, or it keeps showing on every login.
+        $student->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->delete();
         AuditLog::record('password_change', "Student {$student->student_id} changed their password.", $student);
         $student->notify(new PasswordChangedNotification());
 
@@ -273,21 +276,31 @@ public function updateProfile(Request $request)
         'father_first_name'       => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'father_middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'father_last_name'        => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'father_suffix'           => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'father_occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'father_contact_number'   => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
         'mother_first_name'       => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'mother_middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'mother_last_name'        => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'mother_suffix'           => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'mother_occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'mother_contact_number'   => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
-        'father_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        // B522: a parent's age below what is biologically plausible is refused.
+        'father_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX, function ($attr, $value, $fail) {
+            if ($value !== null && $value !== '' && (int) $value < 15) $fail("The father's age seems too low. Please check it.");
+        }],
         'father_educational_attainment'   => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
-        'mother_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        'mother_age'                      => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX, function ($attr, $value, $fail) {
+            if ($value !== null && $value !== '' && (int) $value < 15) $fail("The mother's age seems too low. Please check it.");
+        }],
         'mother_educational_attainment'   => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'guardian_first_name'             => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'guardian_middle_name'            => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'guardian_last_name'              => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
-        'guardian_age'                    => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
+        // B528: a guardian must be at least 25.
+        'guardian_age'                    => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX, function ($attr, $value, $fail) {
+            if ($value !== null && $value !== '' && (int) $value < 25) $fail('Guardian must be at least 25 years old.');
+        }],
         'guardian_occupation'             => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'guardian_educational_attainment' => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'guardian_contact'                => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
@@ -298,6 +311,7 @@ public function updateProfile(Request $request)
         'siblings.*.first_name'       => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'siblings.*.middle_name'      => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'siblings.*.last_name'        => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'siblings.*.suffix'           => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         'siblings.*.age'              => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX],
         'siblings.*.occupation'       => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
         'siblings.*.educational_attainment' => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],

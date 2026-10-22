@@ -3,9 +3,12 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AppointmentSlotHistory;
 use App\Models\Appointment;
+use App\Models\AuditLog;
 use App\Models\CalendarEntry;
 use App\Support\ManagementGuard;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -51,12 +54,127 @@ class ManagementCalendarEntryController extends Controller
     public function store(Request $request)
     {
         $this->authorizeManage($request);
+        $request->validate(['resolution' => ['nullable', Rule::in(['auto_cancel', 'auto_reschedule', 'manual_review'])]]);
         $data = $this->validated($request);
         $this->assertNoDuplicate($data['entry_date'], $data['type'], null);
 
+        // B534 (1): check for appointments already booked on this date before
+        // committing the new entry. If there are any and the admin hasn't said
+        // how to handle them yet, stop here and let the frontend show the
+        // warning modal with the count, instead of silently creating the
+        // holiday and leaving those appointments stranded.
+        $conflicts = $this->conflictingAppointments($data['entry_date']);
+        $resolution = $request->input('resolution'); // auto_cancel | auto_reschedule | manual_review
+        if ($conflicts->isNotEmpty() && !$resolution) {
+            $label = CalendarEntry::TYPES[$data['type']] ?? 'holiday';
+            return response()->json([
+                'needs_resolution' => true,
+                'conflict_count'   => $conflicts->count(),
+                'message'          => "Marking {$this->fmtDate($data['entry_date'])} as a {$label} affects {$conflicts->count()} scheduled appointment" . ($conflicts->count() === 1 ? '' : 's') . '. How would you like to process them?',
+            ], 409);
+        }
+
         $e = CalendarEntry::create($data + ['status' => 'active', 'created_by_user_id' => $request->user()->id]);
         ManagementGuard::audit('holidays and suspensions', 'created', $e->describe(), $e, [], $this->snap($e));
-        return response()->json($this->row($e), 201);
+
+        if ($conflicts->isNotEmpty()) {
+            $this->resolveConflicts($conflicts, $e, $resolution, $request->user());
+        }
+
+        return response()->json($this->row($e) + ['resolved_conflicts' => $conflicts->count()], 201);
+    }
+
+    /** Appointments on $date that are still "live" (not already cancelled/done/unscheduled). */
+    private function conflictingAppointments(string $date)
+    {
+        return Appointment::whereDate('appointment_date', $date)
+            ->whereNotIn('status', ['cancelled', 'rescheduled', 'completed', 'no_show'])
+            ->where('request_status', '!=', 'awaiting_student')
+            ->get();
+    }
+
+    private function fmtDate(string $date): string
+    {
+        return Carbon::parse($date)->format('M j, Y');
+    }
+
+    /**
+     * B534 (3)+(5): flag every affected appointment, then act on the admin's
+     * chosen resolution: auto-cancel, auto-reschedule to the next open
+     * business day at the same time (falls back to manual review if no slot
+     * is free), or leave all of them for manual review.
+     */
+    private function resolveConflicts($conflicts, CalendarEntry $entry, ?string $resolution, $admin): void
+    {
+        foreach ($conflicts as $appt) {
+            $appt->forceFill([
+                'holiday_conflict_entry_id'   => $entry->id,
+                'holiday_conflict_flagged_at' => now(),
+            ]);
+
+            if ($resolution === 'auto_cancel') {
+                $appt->forceFill([
+                    'status'                               => 'cancelled',
+                    'cancellation_reason'                  => "Cancelled automatically: \"{$entry->name}\" was declared a {$entry->type_label} on this date.",
+                    'cancelled_at'                          => now(),
+                    'cancelled_by_user_id'                  => $admin->id,
+                    'holiday_conflict_resolution'           => 'auto_cancelled',
+                    'holiday_conflict_resolved_at'          => now(),
+                    'holiday_conflict_resolved_by_user_id'  => $admin->id,
+                ])->save();
+                AuditLog::record('holiday_conflict_cancelled', "[Holiday Conflict] Cancelled {$appt->appointment_code} - \"{$entry->name}\" was declared a {$entry->type_label} on {$this->fmtDate($entry->entry_date->format('Y-m-d'))}.", $appt, [], [], $admin);
+                try {
+                    $appt->student?->notify(new \App\Notifications\AppointmentHolidayCancelledNotification($appt, $entry->name));
+                } catch (\Throwable $ex) {
+                    report($ex);
+                }
+                continue;
+            }
+
+            if ($resolution === 'auto_reschedule') {
+                $moved = $this->tryAutoReschedule($appt, $entry, $admin);
+                $appt->forceFill([
+                    'holiday_conflict_resolution'          => $moved ? 'auto_rescheduled' : null,
+                    'holiday_conflict_resolved_at'          => $moved ? now() : null,
+                    'holiday_conflict_resolved_by_user_id'  => $moved ? $admin->id : null,
+                ])->save();
+                AuditLog::record($moved ? 'holiday_conflict_rescheduled' : 'holiday_conflict_flagged',
+                    $moved
+                        ? "[Holiday Conflict] Moved {$appt->appointment_code} to {$this->fmtDate($appt->appointment_date->format('Y-m-d'))} - \"{$entry->name}\" was declared on its original date."
+                        : "[Holiday Conflict] Could not auto-reschedule {$appt->appointment_code} (no open slot found); left for manual review because \"{$entry->name}\" was declared on {$this->fmtDate($entry->entry_date->format('Y-m-d'))}.",
+                    $appt, [], [], $admin);
+                continue;
+            }
+
+            // Manual review (explicit choice, or the default when no resolution
+            // is given but the entry is created anyway): just flag it.
+            $appt->save();
+            AuditLog::record('holiday_conflict_flagged', "[Holiday Conflict] Flagged {$appt->appointment_code} for manual review - \"{$entry->name}\" was declared a {$entry->type_label} on {$this->fmtDate($entry->entry_date->format('Y-m-d'))}.", $appt, [], [], $admin);
+        }
+    }
+
+    /** Moves $appt to the next open business day at the same time and staff, if one is free within two weeks. */
+    private function tryAutoReschedule(Appointment $appt, CalendarEntry $entry, $admin): bool
+    {
+        $date = Carbon::parse($appt->appointment_date);
+        for ($i = 0; $i < 14; $i++) {
+            $date = $date->copy()->addDay();
+            if ($date->isWeekend()) continue;
+            if (CalendarEntry::blocking($date->format('Y-m-d'))) continue;
+            if ($appt->staff_user_id && Appointment::hasConflict($appt->staff_user_id, $date->format('Y-m-d'), $appt->start_time, $appt->end_time, $appt->id)) continue;
+
+            AppointmentSlotHistory::create([
+                'appointment_id' => $appt->id, 'slot_date' => $appt->appointment_date, 'start_time' => $appt->start_time, 'end_time' => $appt->end_time,
+                'staff_user_id' => $appt->staff_user_id, 'reason' => "Holiday: {$entry->name}", 'rescheduled_by_type' => 'admin', 'rescheduled_by_name' => $admin->name ?? 'Admin', 'created_at' => now(),
+            ]);
+            $appt->forceFill([
+                'appointment_date'   => $date->format('Y-m-d'),
+                'reschedule_reason'  => "Automatically moved to the next open business day: \"{$entry->name}\" was declared on the original date.",
+                'reschedule_count'   => ($appt->reschedule_count ?? 0) + 1,
+            ])->save();
+            return true;
+        }
+        return false;
     }
 
     public function update(Request $request, CalendarEntry $entry)
@@ -84,7 +202,9 @@ class ManagementCalendarEntryController extends Controller
             throw ValidationException::withMessages(['acknowledged' => ['Please tick "I understand" to archive an upcoming date that affected appointments.']]);
         }
 
-        $entry->forceFill(['status' => 'archived'])->save();
+        // B536: keep the reason (and note) on the entry itself, not only in the audit
+        // log, so it can be shown back to the admin when they come to reactivate it.
+        $entry->forceFill(['status' => 'archived', 'archive_reason' => $reason, 'archive_note' => $note])->save();
         ManagementGuard::audit('holidays and suspensions', 'archived', $entry->describe() . " [{$links['appointments']} linked appointments, {$links['notifications']} notifications]",
             $entry, ['status' => 'active'], ['status' => 'archived'], $reason, $note);
         return response()->json($this->row($entry->fresh()));
@@ -98,6 +218,8 @@ class ManagementCalendarEntryController extends Controller
         $this->assertNoDuplicate($entry->entry_date->format('Y-m-d'), $entry->type, $entry->id);
         [$reason, $note] = ManagementGuard::requireStatusReason($request, 'holidays and suspensions', 'reactivate');
 
+        // The archive reason/note are left in place as a historical record of why
+        // it was archived; the reactivation reason is recorded separately below.
         $entry->forceFill(['status' => 'active'])->save();
         ManagementGuard::audit('holidays and suspensions', 'reactivated', $entry->describe(), $entry, ['status' => 'archived'], ['status' => 'active'], $reason, $note);
         return response()->json($this->row($entry->fresh()));

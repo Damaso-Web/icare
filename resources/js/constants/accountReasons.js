@@ -85,7 +85,14 @@ const MGMT_REACTIVATE = mk(
   ['offered_again', 'Offered or Used Again', 'The item is being offered or used again.'],
   ['review_completed', 'Review or Reorganization Completed', 'The review or reorganization that paused it is finished.'],
   ['deactivated_in_error', 'Deactivated in Error', 'It was deactivated by mistake.'], other);
-const sr = (deactivate, archive) => ({ inactive: mk(...deactivate, other), archived: mk(...archive, other), active: MGMT_REACTIVATE });
+// B535: "Deactivated in Error" refers to deactivation, which doesn't apply to an
+// archived (not deactivated) holiday/suspension entry, so it gets its own list.
+const HOL_REACTIVATE = mk(
+  ['needed_again', 'Needed for Current Operations', 'The date is needed for current office operations.'],
+  ['archived_by_mistake', 'Archived by Mistake', 'It was archived by mistake.'],
+  ['review_completed', 'Review or Reorganization Completed', 'The review or reorganization that paused it is finished.'],
+  ['previously_archived_now_relevant', 'Previously Archived/Now Relevant', 'It was archived before, and is relevant again.'], other);
+const sr = (deactivate, archive, reactivate = null) => ({ inactive: mk(...deactivate, other), archived: mk(...archive, other), active: reactivate || MGMT_REACTIVATE });
 export const MANAGEMENT_STATUS_REASONS = {
   college: sr([['temporarily_not_offered', 'Temporarily Not Offered', ''], ['under_reorganization', 'Under Reorganization', ''], ['pending_merger', 'Pending Merger', '']],
               [['no_longer_offered', 'No Longer Offered', ''], ['merged', 'Merged', ''], ['renamed_replaced', 'Renamed or Replaced', '']]),
@@ -99,7 +106,7 @@ export const MANAGEMENT_STATUS_REASONS = {
                    [['discontinued', 'Discontinued', ''], ['replaced_policy', 'Replaced by Updated Policy or Procedure', '']]),
   calendar: sr([['entered_ahead', 'Entered Ahead of Time', ''], ['schedule_under_review', 'Schedule Under Review', '']],
                [['term_ended', 'Term Ended', ''], ['replaced_calendar', 'Replaced by Updated Calendar', '']]),
-  'holidays and suspensions': sr([], [['date_changed', 'Date Changed by the University', ''], ['working_day', 'Declared a Working Day', ''], ['replaced_announcement', 'Replaced by an Updated Announcement', ''], ['event_cancelled', 'Event Cancelled or Moved', '']]),
+  'holidays and suspensions': sr([], [['date_changed', 'Date Changed by the University', ''], ['working_day', 'Declared a Working Day', ''], ['replaced_announcement', 'Replaced by an Updated Announcement', ''], ['event_cancelled', 'Event Cancelled or Moved', '']], HOL_REACTIVATE),
   'document header': sr([], [['outdated_format', 'Outdated Format', ''], ['replaced_version', 'Replaced by New Version', ''], ['office_logo_changed', 'Office Name or Logo Changed', '']]),
   sources: sr([['not_currently_used', 'Not Currently Used', ''], ['under_review', 'Under Review', '']],
               [['no_longer_used', 'No Longer Used', ''], ['merged', 'Merged with Another Source', '']]),

@@ -85,4 +85,38 @@ class StudentAccountRulesTest extends TestCase
         $s->update(['program' => 'BS Nursing']);
         $this->getJson('/api/student/dashboard')->assertJsonPath('student.program', 'BS Nursing');
     }
+
+    // B522/B528: an implausibly young father/mother or an under-25 guardian is refused.
+    public function test_parent_and_guardian_age_rules(): void
+    {
+        Sanctum::actingAs($this->student(), [], 'student');
+
+        $this->putJson('/api/student/profile', ['father_age' => '12'])->assertStatus(422)->assertJsonValidationErrors('father_age');
+        $this->putJson('/api/student/profile', ['mother_age' => '13'])->assertStatus(422)->assertJsonValidationErrors('mother_age');
+        $this->putJson('/api/student/profile', ['guardian_age' => '24'])->assertStatus(422)->assertJsonValidationErrors('guardian_age');
+
+        $this->putJson('/api/student/profile', ['father_age' => '45'])->assertOk();
+        $this->putJson('/api/student/profile', ['mother_age' => '42'])->assertOk();
+        $this->putJson('/api/student/profile', ['guardian_age' => '25'])->assertOk();
+    }
+
+    // B523: a suffix for the father, mother and each sibling is accepted and saved.
+    public function test_family_and_sibling_suffixes_are_saved(): void
+    {
+        $s = $this->student();
+        Sanctum::actingAs($s, [], 'student');
+
+        $this->putJson('/api/student/profile', [
+            'father_suffix' => 'Jr.',
+            'mother_suffix' => '',
+            'siblings' => [
+                ['first_name' => 'Juan', 'last_name' => 'Galo', 'suffix' => 'III'],
+            ],
+        ])->assertOk();
+
+        $s->refresh();
+        $this->assertSame('Jr.', $s->father_suffix);
+        $siblings = is_array($s->siblings) ? $s->siblings : json_decode($s->siblings, true);
+        $this->assertSame('III', $siblings[0]['suffix']);
+    }
 }

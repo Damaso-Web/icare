@@ -92,4 +92,29 @@ class HolidaysSuspensionsTest extends TestCase
         $this->postJson("/api/management/calendar-entries/{$e->id}/archive", ['reason' => 'date_changed'])->assertStatus(422);
         $this->postJson("/api/management/calendar-entries/{$e->id}/archive", ['reason' => 'date_changed', 'acknowledged' => true])->assertOk();
     }
+
+    // B535/B536: a holiday/suspension gets its own reactivation reasons (the generic
+    // "Deactivated in Error" list doesn't fit an archived entry), and the reason it
+    // was archived for is kept on the entry so it can be shown again on reactivate.
+    public function test_reactivate_uses_its_own_reasons_and_shows_the_archive_reason(): void
+    {
+        $this->admin();
+        $d = now()->addDays(7)->toDateString();
+        $e = $this->make($d);
+
+        $this->postJson("/api/management/calendar-entries/{$e->id}/archive", [
+            'reason' => 'working_day', 'note' => 'Declared a working day by the university.',
+        ])->assertOk()
+            ->assertJsonPath('archive_reason', 'Declared a Working Day')
+            ->assertJsonPath('archive_note', 'Declared a working day by the university.');
+
+        // The generic Management reactivate reason ("Offered or Used Again") isn't in
+        // this tab's list; a reason from the new holiday-specific list is required.
+        $this->postJson("/api/management/calendar-entries/{$e->id}/reactivate", ['reason' => 'offered_again'])->assertStatus(422);
+        $res = $this->postJson("/api/management/calendar-entries/{$e->id}/reactivate", ['reason' => 'archived_by_mistake'])
+            ->assertOk()
+            ->assertJsonPath('status', 'active');
+        // The original archive reason stays on the record after reactivating, for history.
+        $res->assertJsonPath('archive_reason', 'Declared a Working Day');
+    }
 }
