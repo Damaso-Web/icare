@@ -309,7 +309,9 @@ function go(id) {
 </script>
 
 <style scoped>
-.lp { min-height: 100vh; background: var(--snow); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; overflow-x: hidden; }
+/* overflow-x: clip (not hidden) stops sideways scroll without turning .lp into a
+   scroll container, which would break the sticky header. */
+.lp { min-height: 100vh; background: var(--snow); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.6; overflow-x: clip; }
 .lp * { box-sizing: border-box; }
 .lp-wrap { width: 100%; max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 .lp a { color: inherit; }
