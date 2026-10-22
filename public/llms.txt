@@ -1,0 +1,11 @@
+# iCARE — BSU Office of Student Services
+
+> iCARE is the Integrated Case Management System of the Benguet State University (BSU) Office of Student Services. It brings student referrals, appointments, counseling cases, psychological testing and disciplinary records together in one connected place, so every student request is seen, scheduled and followed through.
+
+iCARE is a private system for BSU staff, faculty and students. Most pages require signing in, so content beyond the public landing page is not available to anonymous crawlers.
+
+## About
+- [Benguet State University — Office of Student Services](https://bsu.edu.ph/office-of-student-services/): The office that iCARE serves, including the Guidance and Counseling Unit, the Testing and Materials Development Unit, and the Student Discipline Unit.
+
+## Access
+- [Sign in](https://bsuossicare.netlify.app/welcome): Staff sign in with their employee account; students sign in with their Student ID.

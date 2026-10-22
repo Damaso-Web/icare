@@ -9,6 +9,9 @@ export default defineConfig({
     // load their own CSS later (e.g. Student Login) asked for /build/... and got
     // a blank screen. Laravel serving the build locally keeps the default /build/.
     base: process.env.NETLIFY ? '/' : undefined,
+    // Ship source maps so the browser (and Lighthouse) can map the minified
+    // bundle back to source — clears the "missing source maps" best-practice flag.
+    build: { sourcemap: true },
     plugins: [
         laravel({
             input: ['resources/js/app.js'],
@@ -29,7 +32,15 @@ export default defineConfig({
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>iCARE · BSU Office of Student Services</title>
+    <meta name="description" content="iCARE is the Integrated Case Management System of the Benguet State University Office of Student Services — referrals, appointments and student case records in one connected place.">
+    <meta name="theme-color" content="#0e2d1e">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="iCARE · BSU Office of Student Services">
+    <meta property="og:description" content="Referrals, appointments and student case records of the BSU Office of Student Services, in one connected place.">
+    <meta property="og:image" content="/icare-logo.png">
     <link rel="icon" type="image/png" href="/icare-logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/${cssFile}">
 </head>
@@ -53,8 +64,9 @@ export default defineConfig({
                     console.log('✓ Templates copied to build output');
                 }
 
-                // Copy the logos into the build output so Netlify can serve them too
-                for (const logo of ['icare-logo.png', 'bsu-logo.jpg', 'oss-logo.jpg']) {
+                // Copy the logos and crawler/agent files into the build output so
+                // Netlify serves the real files instead of the SPA fallback HTML.
+                for (const logo of ['icare-logo.png', 'bsu-logo.jpg', 'oss-logo.jpg', 'robots.txt', 'llms.txt', 'ai-catalog.json']) {
                     if (fs.existsSync(`./public/${logo}`)) {
                         fs.copyFileSync(`./public/${logo}`, `./public/build/${logo}`);
                     }

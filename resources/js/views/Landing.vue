@@ -35,6 +35,7 @@
       </div>
     </header>
 
+    <main>
     <!-- Hero -->
     <section id="top" class="lp-hero">
       <div class="lp-wrap lp-hero-in">
@@ -162,6 +163,7 @@
         </div>
       </div>
     </section>
+    </main>
 
     <!-- Footer -->
     <footer class="lp-foot">

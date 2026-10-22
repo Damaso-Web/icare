@@ -1,5 +1,5 @@
 <template>
-  <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
+  <main class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div class="auth-card auth-panel" style="width:100%;max-width:480px">
       <AuthBrand />
 
@@ -51,7 +51,7 @@
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
       </div>
     </div>
-  </div>
+  </main>
 </template>
 
 <script setup>
