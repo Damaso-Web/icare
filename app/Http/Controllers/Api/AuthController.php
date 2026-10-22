@@ -179,9 +179,12 @@ class AuthController extends Controller
         ]);
         $email = strtolower(trim($data['email']));
 
-        if (!str_ends_with($email, '@bsu.edu.ph')) {
-            throw ValidationException::withMessages(['email' => 'Please enter your BSU email address (it must end in @bsu.edu.ph).']);
-        }
+        // TEMPORARY (for testing the OTP email flow with a non-BSU inbox):
+        // the @bsu.edu.ph domain check is disabled below. Re-enable it before
+        // the real demo/deployment by uncommenting this block.
+        // if (!str_ends_with($email, '@bsu.edu.ph')) {
+        //     throw ValidationException::withMessages(['email' => 'Please enter your BSU email address (it must end in @bsu.edu.ph).']);
+        // }
 
         $user = User::where('employee_id', trim($data['employee_id']))->first();
         if (!$user) {
