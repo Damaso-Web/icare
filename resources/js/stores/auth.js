@@ -28,10 +28,13 @@ export const useAuthStore = defineStore('auth', {
     },
 
     actions: {
+        // `audience` ('faculty' / 'oss') is which sign-in card the person
+        // picked on Login Choice; the server uses it to refuse a Faculty
+        // account signing in through the OSS Personnel card or vice versa.
         // Returns { otpRequired, otpToken, emailHint } when the server wants the
         // emailed 6-digit code; otherwise logs in and returns { otpRequired: false }.
-        async login(email, password) {
-            const response = await axios.post('/api/login', { email, password });
+        async login(email, password, audience) {
+            const response = await axios.post('/api/login', { email, password, audience: audience || undefined });
             if (response.data.otp_required) {
                 return { otpRequired: true, otpToken: response.data.otp_token, emailHint: response.data.email_hint };
             }

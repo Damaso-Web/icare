@@ -23,11 +23,19 @@ class AuthController extends Controller
     // used to discover which emails have accounts. The real reason goes to the audit log.
     private const BAD_LOGIN = 'Invalid email or password.';
 
+    // Which sign-in card (Login Choice) each role belongs under. Every staff
+    // role is in exactly one of these two groups.
+    private const FACULTY_AUDIENCE_ROLES = ['faculty', 'dept_chair', 'dean', 'dean_secretary'];
+    private const OSS_AUDIENCE_ROLES     = ['admin', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head'];
+
     public function login(Request $request)
     {
         $request->validate([
             'email'    => 'required|email|max:255',
             'password' => 'required|string|max:255',
+            // Which sign-in card was used ('faculty' / 'oss'); optional so a
+            // bare /login (no audience known) still works.
+            'audience' => 'nullable|in:faculty,oss',
         ]);
 
         // Too many wrong passwords in a row locks this email for a few minutes.
@@ -52,6 +60,19 @@ class AuthController extends Controller
             $left = $guard->fail();
             AuditLog::record('login_failed', "Failed staff login for {$user->name}: incorrect password" . ($left === 0 ? ' - sign-in locked for ' . \App\Support\LoginGuard::LOCK_MINUTES . ' minutes.' : " ({$left} attempt(s) left)."), $user, [], [], $user);
             return response()->json(['message' => self::BAD_LOGIN . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
+        }
+
+        // Right card, wrong audience: the password was correct, so this isn't
+        // a credential failure - don't count it against the lockout guard,
+        // just point them at the sign-in card their account actually belongs
+        // under. (No audience sent - a bare /login - skips this check.)
+        if ($request->audience === 'faculty' && !in_array($user->role, self::FACULTY_AUDIENCE_ROLES, true)) {
+            AuditLog::record('login_failed', "Staff login refused for {$user->name}: {$user->role} account used the Faculty sign-in.", $user, [], [], $user);
+            return response()->json(['message' => 'This is an OSS Personnel account. Please use the OSS Personnel sign-in instead.'], 401);
+        }
+        if ($request->audience === 'oss' && !in_array($user->role, self::OSS_AUDIENCE_ROLES, true)) {
+            AuditLog::record('login_failed', "Staff login refused for {$user->name}: {$user->role} account used the OSS Personnel sign-in.", $user, [], [], $user);
+            return response()->json(['message' => 'This is a Faculty account. Please use the Faculty sign-in instead.'], 401);
         }
 
         // A one-time password (from registering) works only for a short time.

@@ -226,7 +226,7 @@ async function handleLogin() {
   error.value   = '';
   loading.value = true;
   try {
-    const r = await auth.login(form.value.email, form.value.password);
+    const r = await auth.login(form.value.email, form.value.password, audience.value);
     if (r.otpRequired) {
       otpToken.value  = r.otpToken;
       emailHint.value = r.emailHint;
