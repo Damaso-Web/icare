@@ -768,11 +768,88 @@ public function checkConflictByStudent(Request $request)
 
         $appointment->update($attrs);
 
-        $who = $request->user()->isTMDUStaff() ? 'TMDU Head' : 'GCU Head';
+        $who = match ($request->user()->role) {
+            'tmdu_head' => 'TMDU Head',
+            'gcu_staff' => 'GCU Staff',
+            default     => 'Admin',
+        };
         AuditLog::record('status_overridden', "{$who} changed appointment {$appointment->appointment_code} from {$from} to {$status}/{$requestStatus}. Reason: {$data['reason']}", $appointment);
 
         return response()->json([
             'message'     => 'Appointment status updated.',
+            'appointment' => $appointment->fresh()->load(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy']),
+        ]);
+    }
+
+    // GCU staff/admin, from the Override Status panel: directly set a date
+    // and time for a student still on "Waiting for Student to Pick a
+    // Schedule" (request_status = awaiting_student), instead of waiting on
+    // them to use their scheduling link. Mirrors the checks the student's
+    // own PublicSchedulingController::submit() applies (weekday, business
+    // hours, blocked dates, a unit-level conflict check).
+    public function scheduleForStudent(Request $request, Appointment $appointment)
+    {
+        $this->authorizeUnit($appointment);
+
+        if ($appointment->request_status !== 'awaiting_student') {
+            abort(422, 'This appointment is not waiting for a schedule to be picked.');
+        }
+
+        $data = $request->validate([
+            'appointment_date' => 'required|date',
+            'start_time'       => 'required|date_format:H:i',
+            'end_time'         => 'required|date_format:H:i|after:start_time',
+        ]);
+
+        $dayOfWeek = Carbon::parse($data['appointment_date'])->dayOfWeekIso;
+        if ($dayOfWeek > 5) {
+            abort(422, 'Appointments can only be scheduled Monday to Friday.');
+        }
+        if ($data['start_time'] < '08:00' || $data['end_time'] > '16:00') {
+            abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
+        }
+        if ($blocked = \App\Support\BlockedDates::message($data['appointment_date'])) {
+            abort(422, $blocked);
+        }
+
+        $conflict = Appointment::where('unit', $appointment->unit)
+            ->where('appointment_date', $data['appointment_date'])
+            ->where('id', '!=', $appointment->id)
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
+            ->where('request_status', '!=', 'awaiting_student')
+            ->where('start_time', '<', $data['end_time'])
+            ->where('end_time', '>', $data['start_time'])
+            ->exists();
+        if ($conflict) {
+            abort(422, 'This time slot conflicts with another appointment for this unit. Please pick another.');
+        }
+
+        $old = ['date' => $appointment->appointment_date?->format('Y-m-d'), 'start' => $appointment->start_time, 'end' => $appointment->end_time];
+
+        $appointment->update([
+            'appointment_date' => $data['appointment_date'],
+            'start_time'       => $data['start_time'],
+            'end_time'         => $data['end_time'],
+            'request_status'   => 'pending_confirmation',
+            'status'           => 'pending',
+        ]);
+
+        if ($appointment->case?->latestReferral) {
+            $appointment->case->latestReferral->update(['status' => 'scheduled']);
+        }
+
+        AuditLog::record('scheduled_by_staff',
+            "{$request->user()->name} scheduled appointment {$appointment->appointment_code} for {$data['appointment_date']} {$data['start_time']}-{$data['end_time']} on the student's behalf.",
+            $appointment, $old, $data);
+
+        // Same as a student's own self-scheduling: this still needs office
+        // confirmation (status stays "pending"), so no "confirmed" notice is
+        // sent here - the usual confirm() step notifies the student once
+        // that happens.
+        $appointment->notifyOffice('scheduled');
+
+        return response()->json([
+            'message'     => 'Appointment scheduled for the student.',
             'appointment' => $appointment->fresh()->load(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy']),
         ]);
     }

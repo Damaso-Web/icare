@@ -101,7 +101,7 @@
 
       <!-- Case History -->
       <section class="sr-sec">
-        <h2>Case History</h2>
+        <h2>Case History <span class="sr-count">({{ historyRows.length }} {{ historyRows.length === 1 ? 'entry' : 'entries' }})</span></h2>
         <div v-if="!historyRows.length" class="sr-muted">Nothing recorded yet.</div>
         <table v-else class="sr-table sr-history">
           <thead>
@@ -319,6 +319,7 @@ onMounted(async () => {
 .sr-page { max-width: 860px; margin: 0 auto; padding: 32px 24px; background: #fff; font-family: var(--sans, sans-serif); }
 .sr-sec { margin-bottom: 18px; }
 .sr-sec h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .5px; color: var(--forest); border-bottom: 1px solid var(--cloud); padding-bottom: 4px; margin: 0 0 8px; }
+.sr-count { font-size: 11px; font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--stone); }
 .sr-grid2 { display: grid; grid-template-columns: 1fr 2fr; gap: 10px 16px; font-size: 13px; }
 .sr-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 16px; font-size: 13px; }
 .sr-span2 { grid-column: span 2; }

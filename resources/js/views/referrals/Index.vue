@@ -89,7 +89,7 @@
               <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
             </div>
             <div class="qmeta">
-              {{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }} · {{ r.referral_code }}
+              {{ toTitleCase(r.referral_type) }} · {{ formatDateTime(r.created_at) }} · {{ r.referral_code }}
             </div>
           </div>
           <div class="qacts">
@@ -217,6 +217,12 @@ function changePage(page) { fetchReferrals(page); }
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+function formatDateTime(date) {
+  if (!date) return '-';
+  const d = new Date(date);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 onMounted(() => {

@@ -43,8 +43,8 @@
           @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
         >
           <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
-          <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDate(r.created_at) }}</div>
-          <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(r.status) }}</span>
+          <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDateTime(r.created_at) }}</div>
+          <span class="ibadge" :class="'ibadge-' + simplifiedStatus(r.status)" style="margin-top:6px;display:inline-block" :title="toTitleCase(r.status)">{{ simplifiedStatus(r.status) === 'closed' ? 'Closed' : 'Pending' }}</span>
           <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
         </div>
       </div>
@@ -78,6 +78,22 @@ function toTitleCase(str) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+// Students see a simplified Pending/Closed badge instead of the internal
+// workflow stage (submitted, acknowledged, scheduled, in_progress,
+// completed, closed) - only "closed" reads as Closed, everything else is
+// still in progress from the student's point of view. The Status filter
+// above keeps the real, granular stages so staff-reported stages are still
+// filterable; only the badge text/color is simplified here.
+function simplifiedStatus(status) {
+  return status === 'closed' ? 'closed' : 'pending';
+}
+
+function formatDateTime(date) {
+  if (!date) return '-';
+  const d = new Date(date);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 const statusOptions = computed(() => {

@@ -294,6 +294,7 @@ export const appointmentAPI = {
     escalateNoShow: (id, action) => api.post(`/appointments/${id}/escalate-no-show`, { action }),
     sendCallSlipUnscheduled: (id) => api.post(`/appointments/${id}/send-call-slip`),
     overrideStatus: (id, data) => api.post(`/appointments/${id}/override-status`, data),
+    scheduleForStudent: (id, data) => api.post(`/appointments/${id}/schedule-student`, data),
     availability:   (params)   => api.get('/appointments/availability', { params }),
     checkConflict:  (data)     => api.post('/appointments/check-conflict', data),
 };

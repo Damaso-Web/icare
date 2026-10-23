@@ -74,6 +74,7 @@
                 <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
                   <div style="font-size:13.5px;font-weight:600;color:var(--ink)">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ a.appointment_code }}</div>
+                  <div v-if="a.referral?.referral_code" style="font-size:11px;color:var(--blue);font-family:var(--mono);background:var(--blue-lt);padding:1px 6px;border-radius:4px">{{ a.referral.referral_code }}</div>
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
                 <div v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
@@ -193,6 +194,7 @@
           <div style="min-width:0">
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ detailTarget.student?.last_name }}, {{ detailTarget.student?.first_name }}</span>
+              <span v-if="detailTarget.referral?.referral_code" style="font-size:11px;color:var(--blue);font-family:var(--mono);background:var(--blue-lt);padding:1px 6px;border-radius:4px">{{ detailTarget.referral.referral_code }}</span>
               <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
               <span v-if="detailTarget.rescheduled_from_id || detailTarget.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
               <span v-if="callSlipLabel(detailTarget)" class="ibadge ibadge-callslip" :title="callSlipTitle(detailTarget)">{{ callSlipLabel(detailTarget) }}</span>
@@ -200,6 +202,7 @@
             </div>
             <div style="font-size:11.5px;color:var(--fog);margin-top:3px">
               Appointment <span style="font-family:var(--mono)">{{ detailTarget.appointment_code }}</span>
+              <template v-if="detailTarget.referral?.referral_code"> · <span style="font-family:var(--mono)">{{ detailTarget.referral.referral_code }}</span></template>
               <template v-if="detailTarget.case?.case_number"> · <span style="font-family:var(--mono)">{{ detailTarget.case.case_number }}</span></template>
             </div>
           </div>
@@ -249,9 +252,9 @@
             </div>
           </div>
 
-          <!-- GCU Head only: manually override the appointment's status -->
-          <div v-if="overrideOpen && auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" class="ad-override">
-            <div class="ad-label" style="margin-bottom:6px">Override Status (GCU Head)</div>
+          <!-- Admin / GCU Staff only: manually override the appointment's status -->
+          <div v-if="overrideOpen && canOverride && detailTarget.unit !== 'TMDU'" class="ad-override">
+            <div class="ad-label" style="margin-bottom:6px">Override Status</div>
             <div class="ad-override-row">
               <select v-model="overrideForm.target" class="ifse">
                 <option value="">Change status to...</option>
@@ -266,6 +269,21 @@
               <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!overrideForm.target || overrideForm.reason.trim().length < 5 || overridingStatus" @click="applyOverride">
                 {{ overridingStatus ? 'Updating...' : 'Apply' }}
               </button>
+            </div>
+
+            <!-- Schedule a date/time directly for the student, instead of waiting
+                 on them to use their own scheduling link - only makes sense while
+                 the appointment is still waiting for one to be picked. -->
+            <div v-if="detailTarget.request_status === 'awaiting_student'" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cloud)">
+              <div class="ad-label" style="margin-bottom:6px">Schedule Student</div>
+              <div class="ad-override-row">
+                <input v-model="scheduleForm.appointment_date" type="date" class="ifi" />
+                <input v-model="scheduleForm.start_time" type="time" class="ifi" />
+                <input v-model="scheduleForm.end_time" type="time" class="ifi" />
+                <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent" @click="applyScheduleStudent">
+                  {{ schedulingStudent ? 'Scheduling...' : 'Schedule' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -283,7 +301,7 @@
             </template>
           </div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-left:auto">
-            <button v-if="auth.user?.role === 'admin' && detailTarget.unit !== 'TMDU'" class="ibtn ibtn-g ibtn-sm" @click="overrideOpen = !overrideOpen">{{ overrideOpen ? 'Hide Override' : 'Override Status' }}</button>
+            <button v-if="canOverride && detailTarget.unit !== 'TMDU'" class="ibtn ibtn-g ibtn-sm" @click="overrideOpen = !overrideOpen">{{ overrideOpen ? 'Hide Override' : 'Override Status' }}</button>
             <button class="ibtn ibtn-o ibtn-sm" @click="goToReferral(detailTarget)">View Case File</button>
           </div>
         </div>
@@ -505,6 +523,7 @@ const detailTarget = ref(null);
 watch(detailTarget, () => {
   callSlipPrompt.value = false;
   overrideForm.value = { target: '', reason: '' };
+  scheduleForm.value = { appointment_date: '', start_time: '', end_time: '' };
 });
 
 // ---- Send Call Slip (student has not picked a schedule yet) ----
@@ -530,7 +549,11 @@ async function sendCallSlip() {
   }
 }
 
-// ---- GCU Head: manual status override ----
+// ---- Admin / GCU Staff: manual status override ----
+// (Historically labeled "GCU Head," but that role doesn't exist in this
+// system - the actual role is gcu_staff. Admin and GCU staff can both use
+// this panel on non-TMDU appointments.)
+const canOverride = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
 const overrideForm = ref({ target: '', reason: '' });
 const overridingStatus = ref(false);
 async function applyOverride() {
@@ -552,10 +575,34 @@ async function applyOverride() {
   }
 }
 
+// ---- Admin / GCU Staff: schedule a date/time directly for the student ----
+const scheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+const schedulingStudent = ref(false);
+async function applyScheduleStudent() {
+  if (!detailTarget.value || schedulingStudent.value) return;
+  schedulingStudent.value = true;
+  try {
+    const res = await appointmentAPI.scheduleForStudent(detailTarget.value.id, {
+      appointment_date: scheduleForm.value.appointment_date,
+      start_time: scheduleForm.value.start_time,
+      end_time: scheduleForm.value.end_time,
+    });
+    toast?.success(res.data.message || 'Appointment scheduled for the student.');
+    detailTarget.value = null;
+    fetchAppointments(pagination.value?.current_page || 1, true);
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to schedule the appointment.');
+  } finally {
+    schedulingStudent.value = false;
+  }
+}
+
 function openApptDetail(a) {
   detailTarget.value = a;
   overrideOpen.value = false;
   overrideForm.value = { target: '', reason: '' };
+  scheduleForm.value = { appointment_date: '', start_time: '', end_time: '' };
 }
 
 // 24h "HH:MM(:SS)" -> "h:mm AM/PM"

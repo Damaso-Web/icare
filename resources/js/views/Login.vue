@@ -10,7 +10,7 @@
       </div>
 
       <!-- Logo -->
-      <AuthBrand subtitle="BSU Personnel Sign In" />
+      <AuthBrand :subtitle="subtitle" />
 
       <!-- Confidentiality agreement - shown every time, before the sign-in form -->
       <ConsentGate
@@ -117,7 +117,7 @@
       </form>
       </template>
 
-      <div v-if="agreed && !otpToken" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty or dean</router-link></div>
+      <div v-if="agreed && !otpToken && audience !== 'oss'" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty or dean</router-link></div>
       <LoginHelp v-if="agreed" />
 
       <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--fog);opacity:.8">
@@ -133,13 +133,25 @@ import AuthBrand from '../components/AuthBrand.vue';
 import ConsentGate from '../components/ConsentGate.vue';
 import LoginHelp from '../components/LoginHelp.vue';
 import { consumeConsentSkip } from '../utils/consentSkip';
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { applyRememberMe, rememberedId } from '../utils/session';
 
 const router = useRouter();
+const route  = useRoute();
 const auth   = useAuthStore();
+
+// "audience" distinguishes Faculty vs OSS Personnel sign-in (LoginChoice now
+// offers both separately instead of one combined "BSU Personnel" card).
+// Both still hit the same /login endpoint - this only changes the subtitle
+// and whether the faculty/dean self-register link is shown.
+const audience = computed(() => route.query.audience || '');
+const subtitle = computed(() => {
+  if (audience.value === 'faculty') return 'Faculty Sign In';
+  if (audience.value === 'oss') return 'OSS Personnel Sign In';
+  return 'BSU Personnel Sign In';
+});
 
 // The Confidentiality Agreement is agreed to afresh on every visit to this page.
 const agreed = ref(consumeConsentSkip('staff'));

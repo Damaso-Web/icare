@@ -206,25 +206,10 @@
             </div>
           </div>
 
-          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
-            Referred By
-            <div style="flex:1;height:1px;background:var(--cloud)"></div>
-          </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px">
-            <div>
-              <label class="ifl">Referrer Last Name</label>
-              <input :value="form.referrer_last_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
-            </div>
-            <div>
-              <label class="ifl">Referrer First Name</label>
-              <input :value="form.referrer_first_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
-            </div>
-            <div>
-              <label class="ifl">Referrer Middle Name</label>
-              <input :value="form.referrer_middle_name" class="ifi" readonly style="background:var(--snow);color:var(--stone)" />
-            </div>
-          </div>
+          <!-- The referrer's own name is still recorded with the referral
+               (filled from the signed-in account below) and shown on the
+               GCU/SDU side once submitted - it just isn't displayed back to
+               the person creating the referral here. -->
 
           <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
             Referral Details
@@ -292,7 +277,6 @@
             <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
             <div><strong>College:</strong> {{ form.college }}</div>
             <div><strong>Program:</strong> {{ form.program }}</div>
-            <div><strong>Referrer:</strong> {{ form.referrer_last_name }}, {{ form.referrer_first_name }} {{ form.referrer_middle_name }}</div>
             <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
             <div><strong>Concern:</strong> {{ form.nature_of_concern }}</div>
           </div>

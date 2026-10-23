@@ -160,7 +160,11 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);
     Route::post('appointments/{appointment}/send-call-slip', [AppointmentController::class, 'sendCallSlipUnscheduled']);
-    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin,tmdu_head');
+    Route::post('appointments/{appointment}/override-status', [AppointmentController::class, 'overrideStatus'])->middleware('role:admin,tmdu_head,gcu_staff');
+    // GCU staff/admin: directly schedule a date/time for a student on an
+    // appointment still awaiting the student to pick one (from the Override
+    // Status panel), instead of waiting for them to use their scheduling link.
+    Route::post('appointments/{appointment}/schedule-student', [AppointmentController::class, 'scheduleForStudent'])->middleware('role:admin,gcu_staff');
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 

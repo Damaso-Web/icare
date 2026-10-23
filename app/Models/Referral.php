@@ -73,14 +73,24 @@ class Referral extends Model
     protected static function booted(): void
     {
         static::creating(function (Referral $referral) {
-            $year = now()->year;
+            // The Referral Slip's (QF-OSS-01) own Ctrl No. - e.g. "26-1" - is
+            // the basis for the referral code, the same way the Ctrl No. is
+            // the basis for a case's case_number. Falls back to the old
+            // REF-{year}-#### scheme if no active document header is set up
+            // yet, so creation never breaks on a fresh install.
+            $ctrlNo = DocumentSetting::where('document_code', 'QF-OSS-01')
+                ->where('is_active', true)
+                ->value(\Illuminate\Support\Facades\DB::raw("CONCAT(ctrl_no_year, '-', ctrl_no_term)"));
+
+            $prefix = $ctrlNo ?: 'REF-' . now()->year;
+
             $lastCode = static::withTrashed()
-                ->where('referral_code', 'like', "REF-{$year}-%")
+                ->where('referral_code', 'like', "{$prefix}-%")
                 ->orderByRaw('CAST(SUBSTRING(referral_code, -4) AS UNSIGNED) DESC')
                 ->value('referral_code');
 
             $nextNumber = $lastCode ? ((int) substr($lastCode, -4)) + 1 : 1;
-            $referral->referral_code = 'REF-' . $year . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+            $referral->referral_code = $prefix . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
 

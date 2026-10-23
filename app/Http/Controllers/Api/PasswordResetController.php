@@ -96,7 +96,10 @@ class PasswordResetController extends Controller
             'otp'      => ['required', 'digits:6'],
             'email'    => 'required|email|max:255',
             'type'     => 'required|in:staff,student',
-            'password' => ['required', 'confirmed', 'max:64', PasswordRule::min(8)->letters()->mixedCase()->numbers()->symbols()],
+            // No "confirmed" (retype) rule - the confirm-password step was
+            // removed from this flow; the strength rule below already
+            // guards against a typo producing an unusable password.
+            'password' => ['required', 'max:64', PasswordRule::min(8)->letters()->mixedCase()->numbers()->symbols()],
         ], ['otp.digits' => 'Enter the 6-digit code from your email.']);
 
         $email = strtolower(trim($data['email']));

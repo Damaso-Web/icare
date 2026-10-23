@@ -262,7 +262,7 @@
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
-                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(referral.created_at) }}</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDateTime(referral.created_at) }}</div>
                 </div>
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
@@ -2286,6 +2286,12 @@ async function acknowledge() {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+function formatDateTime(date) {
+  if (!date) return '-';
+  const d = new Date(date);
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 }
 
 function initials(first, last) {
