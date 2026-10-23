@@ -22,7 +22,7 @@
 
             <label class="cons">
               <input v-model="consent" type="checkbox" />
-              <span>I acknowledge my data protection responsibilities and agree to the Confidentiality Agreement.</span>
+              <span>I have read and agree to the Confidentiality Agreement.</span>
             </label>
 
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || !consent || !form.employee_id || !form.email.trim()">

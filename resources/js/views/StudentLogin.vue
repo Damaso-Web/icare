@@ -5,43 +5,21 @@
         <button @click="goBack" aria-label="Back" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:0">
           <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
-        <router-link v-if="consentGiven" :to="{ name: 'login-choice' }" style="font-size:12px;color:var(--moss)">Change sign-in type</router-link>
+        <router-link :to="{ name: 'login-choice' }" style="font-size:12px;color:var(--moss)">Change sign-in type</router-link>
       </div>
 
       <AuthBrand subtitle="Student Portal" />
 
-      <!-- Confidentiality Notice + Consent Gate - shown every time, before the login form -->
-      <ConsentGate
-        v-if="!consentGiven"
-        type="student"
-        checkbox-label="I agree to the Data Privacy Notice and Consent Authorization."
-        @accept="acceptConsent"
-        @decline="declineConsent"
-      >
-        <h3>Data Privacy Notice</h3>
-        <p>
-          Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS), including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and Materials Development Unit (TMDU) at the La Trinidad Campus, is committed to keeping all sensitive personal information collected from students with the utmost confidentiality.
-        </p>
-        <p>
-          Personal information is collected, accessed, used, and disclosed strictly on a "need to know basis" and only as reasonably required. Confidential information will not be communicated within or outside the University except to authorized personnel. Furthermore, only authorized hardware, software, and equipment shall be used in accessing, processing, and transmitting your personal data.
-        </p>
+      <!-- The sign-in form is shown right away. The Data Privacy Notice is a
+           link rather than a full-page block shown up front; it's only
+           required - as a modal the person must scroll, tick and accept -
+           the first time they click Sign In each visit. -->
+      <div>
+        <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
+          {{ error }}
+        </div>
 
-        <h3>Student's Agreement, Consent, and Authorization</h3>
-        <p>
-          I have read and understood the Data Privacy Notice of Benguet State University (BSU). I hereby grant my full consent to the OSS-SDU, OSS-GCU, and OSS-TMDU to collect, process, and utilize necessary and relevant personal data through this medium for official university support purposes.
-        </p>
-        <p>
-          I understand that the aforementioned units will abide by the data privacy policies, except in cases mandated by law or outside of institutional control. By proceeding, I authorize the secure handling of my information across these designated student support units.
-        </p>
-      </ConsentGate>
-
-      <div v-else>
-        <div>
-          <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:13px;margin-bottom:14px">
-            {{ error }}
-          </div>
-
-          <form @submit.prevent="handleLogin">
+        <form @submit.prevent="onSignInClick">
             <div style="margin-bottom:14px">
               <label class="ifl">Student ID</label>
               <input
@@ -97,15 +75,47 @@
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ loading ? 'Signing in...' : 'Sign In' }}
             </button>
+            <div style="text-align:center;margin-top:10px;font-size:11.5px;color:var(--fog)">
+              By signing in, you agree to the
+              <button type="button" class="link-btn" @click.stop="openConsent(false)">Data Privacy Notice and Consent Authorization</button>.
+            </div>
           </form>
         </div>
-      </div>
 
-      <div v-if="consentGiven" class="change-type">First time here? <router-link :to="{ name: 'student-register' }">Register with your Student ID</router-link></div>
-      <LoginHelp v-if="consentGiven" />
+      <div class="change-type">First time here? <router-link :to="{ name: 'student-register' }">Register with your Student ID</router-link></div>
+      <LoginHelp />
       <!-- The system's full name sits at the bottom, as on BSU Personnel sign-in, so the top stays light. -->
       <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--fog);opacity:.8">
         iCARE: An Integrated Case Management System for Benguet State University-Office of Student Services
+      </div>
+    </div>
+
+    <!-- Data Privacy Notice - a link to read it any time (openConsent(false)),
+         and a required step - must scroll, tick, Continue - the first time
+         Sign In is clicked each visit (openConsent(true) via onSignInClick). -->
+    <div v-if="showConsent" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeConsent">
+      <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:28px 26px;box-shadow:var(--sh-lg)">
+        <ConsentGate
+          type="student"
+          checkbox-label="I have read and agree to the Data Privacy Notice and Consent Authorization above."
+          @accept="onConsentAccept"
+        >
+          <h3>Data Privacy Notice</h3>
+          <p>
+            Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS), including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and Materials Development Unit (TMDU) at the La Trinidad Campus, is committed to keeping all sensitive personal information collected from students with the utmost confidentiality.
+          </p>
+          <p>
+            Personal information is collected, accessed, used, and disclosed strictly on a "need to know basis" and only as reasonably required. Confidential information will not be communicated within or outside the University except to authorized personnel. Furthermore, only authorized hardware, software, and equipment shall be used in accessing, processing, and transmitting your personal data.
+          </p>
+
+          <h3>Student's Agreement, Consent, and Authorization</h3>
+          <p>
+            I have read and understood the Data Privacy Notice of Benguet State University (BSU). I hereby grant my full consent to the OSS-SDU, OSS-GCU, and OSS-TMDU to collect, process, and utilize necessary and relevant personal data through this medium for official university support purposes.
+          </p>
+          <p>
+            I understand that the aforementioned units will abide by the data privacy policies, except in cases mandated by law or outside of institutional control. By proceeding, I authorize the secure handling of my information across these designated student support units.
+          </p>
+        </ConsentGate>
       </div>
     </div>
   </div>
@@ -127,21 +137,42 @@ const error   = ref('');
 const showPassword = ref(false);
 const capsLockOn = ref(false);
 
-// Shown fresh every time this page is visited - not remembered across visits.
+// The Data Privacy Notice is a link the student can read any time
+// (openConsent(false)), and is only required - as a modal they must scroll,
+// tick and accept - the first time they click Sign In each visit to this
+// page (openConsent(true), via onSignInClick). Coming back here right after
+// accepting it elsewhere (e.g. from "Forgot password") skips that prompt.
 const consentGiven = ref(consumeConsentSkip('student'));
+const showConsent  = ref(false);
+const pendingLogin = ref(false);
 
-function acceptConsent() {
-  consentGiven.value = true;
-}
-function declineConsent() {
+function goBack() {
   router.push({ name: 'login-choice' });
 }
-function goBack() {
-  if (consentGiven.value) {
-    consentGiven.value = false;
-  } else {
-    router.push({ name: 'login-choice' });
+
+function openConsent(gatingLogin) {
+  pendingLogin.value = gatingLogin;
+  showConsent.value = true;
+}
+function closeConsent() {
+  showConsent.value = false;
+  pendingLogin.value = false;
+}
+function onConsentAccept() {
+  consentGiven.value = true;
+  showConsent.value = false;
+  if (pendingLogin.value) {
+    pendingLogin.value = false;
+    handleLogin();
   }
+}
+
+function onSignInClick() {
+  if (!consentGiven.value) {
+    openConsent(true);
+    return;
+  }
+  handleLogin();
 }
 
 // A Student ID remembered on this browser is filled in, with the box already ticked.
@@ -200,4 +231,5 @@ function checkCapsLock(e) {
 <style scoped>
 .change-type { text-align: center; margin-top: 16px; font-size: 12.5px; }
 .change-type a { color: var(--moss); font-weight: 600; }
+.link-btn { background: none; border: none; padding: 0; color: var(--moss); font-weight: 600; text-decoration: underline; cursor: pointer; font-size: inherit; font-family: inherit; }
 </style>

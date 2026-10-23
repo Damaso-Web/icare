@@ -1,8 +1,9 @@
 <!--
-  The notice a person must agree to before the sign-in form is shown: the
-  text (default slot), a checkbox they have to tick, then Continue / Decline.
-  Used for the student Data Privacy Notice and the personnel Confidentiality
-  Agreement.
+  The notice a person must agree to - as a modal, the first time they click
+  Sign In (or Register) each visit: the text (default slot), a checkbox they
+  have to tick, then Continue. There is no Decline button; closing the modal
+  without ticking and continuing simply leaves them signed out. Used for the
+  student Data Privacy Notice and the personnel Confidentiality Agreement.
 -->
 <template>
   <div>
@@ -16,8 +17,7 @@
     </label>
 
     <div class="cg-actions">
-      <button type="button" class="ibtn ibtn-p" :disabled="!agreed" @click="$emit('accept')">Continue</button>
-      <button type="button" class="ibtn ibtn-g" @click="$emit('decline')">Decline</button>
+      <button type="button" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="!agreed" @click="$emit('accept')">Continue</button>
     </div>
     <div v-if="!atEnd" class="cg-hint">Scroll to the end of the notice to enable the checkbox.</div>
     <div v-else-if="!agreed" class="cg-hint">Tick the box above to continue.</div>
@@ -33,7 +33,7 @@ const props = defineProps({
   checkboxLabel: { type: String, required: true },
   type: { type: String, default: '' },
 });
-defineEmits(['accept', 'decline']);
+defineEmits(['accept']);
 
 const agreed = ref(false);
 
