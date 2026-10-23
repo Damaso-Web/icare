@@ -83,12 +83,11 @@
 <script setup>
 import AuthBrand from '../components/AuthBrand.vue';
 import { useRouter } from 'vue-router';
-import { clearConsent } from '../utils/consentSkip';
 const router = useRouter();
-
-// Arriving here means the person is choosing (or switching) the sign-in type,
-// so any earlier agreement is forgotten.
-clearConsent();
+// Once accepted on this device, the Confidentiality Agreement / Data Privacy
+// Notice stays accepted (saved in localStorage - see consentSkip.js) and
+// isn't asked again here, including after switching sign-in type or logging
+// out and back in. It's only re-asked if the agreement's own text changes.
 </script>
 
 <style scoped>

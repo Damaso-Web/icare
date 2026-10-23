@@ -12,12 +12,13 @@ export function consumeConsentSkip(type) {
   } catch (e) { return false; }
 }
 
-// Keeping the agreement ticked while the person moves around within the same
-// browser tab (e.g. from the sign-in form back to the agreement). It is kept
-// in sessionStorage, so closing the tab or browser forgets it. It is also
-// cleared on logout, when the sign-in type is switched, and whenever the text
-// of the agreement / notice changes (the saved hash of the text no longer
-// matches).
+// Remembering that the agreement was already accepted on this device, so it
+// isn't asked again on every visit/login - only once per device, ever, per
+// sign-in type ('staff' / 'student'). Kept in localStorage (not
+// sessionStorage), so it survives closing the tab/browser and logging out.
+// It is still asked again automatically if the text of the agreement/notice
+// itself changes later (the saved hash of the text no longer matches), since
+// that's a materially different thing to agree to.
 const OK_KEY = 'consent_ok_';
 
 export function hashText(text) {
@@ -27,14 +28,14 @@ export function hashText(text) {
   return String(h);
 }
 export function rememberConsent(type, hash) {
-  try { sessionStorage.setItem(OK_KEY + type, hash); } catch (e) { /* asked again */ }
+  try { localStorage.setItem(OK_KEY + type, hash); } catch (e) { /* asked again */ }
 }
 export function consentStillValid(type, hash) {
-  try { return sessionStorage.getItem(OK_KEY + type) === hash; } catch (e) { return false; }
+  try { return localStorage.getItem(OK_KEY + type) === hash; } catch (e) { return false; }
 }
 /** Forget the agreement for one type ('staff' / 'student'), or both. */
 export function clearConsent(type) {
   try {
-    (type ? [type] : ['staff', 'student']).forEach(t => sessionStorage.removeItem(OK_KEY + t));
+    (type ? [type] : ['staff', 'student']).forEach(t => localStorage.removeItem(OK_KEY + t));
   } catch (e) { /* nothing stored */ }
 }

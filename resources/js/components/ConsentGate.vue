@@ -33,7 +33,7 @@ const props = defineProps({
   checkboxLabel: { type: String, required: true },
   type: { type: String, default: '' },
 });
-defineEmits(['accept']);
+const emit = defineEmits(['accept']);
 
 const agreed = ref(false);
 
@@ -49,12 +49,16 @@ let textHash = '';
 onMounted(() => {
   checkEnd(); // a short notice that needs no scrolling is already "read"
   window.addEventListener('resize', checkEnd);
-  // Already agreed to this exact text earlier in this browser tab: come back
-  // ticked, with the checkbox and Continue enabled.
+  // Already agreed to this exact text on this device before (saved in
+  // localStorage - see consentSkip.js): come back ticked, with the checkbox
+  // and Continue already enabled, and tell the parent right away so it can
+  // skip showing this as a required step at all (it's kept mounted, just
+  // hidden, precisely so this check runs on page load).
   textHash = hashText(textEl.value?.textContent);
   if (props.type && consentStillValid(props.type, textHash)) {
     atEnd.value = true;
     agreed.value = true;
+    emit('accept');
   }
 });
 watch(agreed, (on) => {

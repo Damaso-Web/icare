@@ -110,7 +110,11 @@
     <!-- Confidentiality Agreement - a link to read it any time (openAgreement(false)),
          and a required step - must scroll, tick, Continue - the first time Sign
          In is clicked each visit (openAgreement(true) via onSignInClick). -->
-    <div v-if="showAgreement" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeAgreement">
+    <!-- v-show, not v-if: ConsentGate stays mounted (just hidden) from page
+         load so its "already agreed on this device" check runs immediately,
+         letting Sign In skip the modal entirely when it's already been
+         accepted here before - see ConsentGate.vue's onMounted. -->
+    <div v-show="showAgreement" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeAgreement">
       <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:28px 26px;box-shadow:var(--sh-lg)">
         <ConsentGate
           type="staff"
