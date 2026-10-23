@@ -1947,9 +1947,15 @@ watch(sessionNotesTotalPages, (total) => {
   if (sessionNotesPage.value > total) sessionNotesPage.value = total;
 });
 
+const followUps          = ref([]);
+const staffList          = ref([]);
+
 // Follow-up Session list, paged the same way - 3 at a time. followUps is
 // built oldest-first (each new one is pushed to the end, not unshifted),
 // so "go to the newest" after scheduling one means jumping to the last page.
+// Declared after followUps itself - watch() below reads the computed right
+// away to set its baseline, which would throw (followUps still in its
+// temporal dead zone) if this sat above the ref() line.
 const FOLLOW_UPS_PER_PAGE = 3;
 const followUpsPage = ref(1);
 const followUpsTotalPages = computed(() =>
@@ -1962,9 +1968,6 @@ const pagedFollowUps = computed(() => {
 watch(followUpsTotalPages, (total) => {
   if (followUpsPage.value > total) followUpsPage.value = total;
 });
-
-const followUps          = ref([]);
-const staffList          = ref([]);
 const showFollowUpModal  = ref(false);
 const followUpError      = ref('');
 const schedulingFollowUp = ref(false);

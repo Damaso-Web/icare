@@ -117,7 +117,7 @@
             <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
             <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="askChangePassword">Change Password</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="changingPw" @click="askChangePassword">{{ changingPw ? 'Changing...' : 'Change Password' }}</button>
         </div>
       </div>
 
@@ -174,12 +174,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import PasswordChecklist from '../components/PasswordChecklist.vue';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
 
-const toast = inject('toast');
-const auth  = useAuthStore();
+const toast  = inject('toast');
+const auth   = useAuthStore();
+const router = useRouter();
 
 // ---- Tabs ----
 const TABS = [
@@ -360,6 +362,15 @@ function askChangePassword() {
   }
   const problem = passwordProblem(f.password);
   if (problem) { pwError.value = problem; return; }
+
+  // A brand-new/temporary password being changed for the first time (forced
+  // by must_change_password) skips the "Are you sure?" step - there's
+  // nothing to second-guess, it's a required step to get into the system at
+  // all. The confirmation modal is only for a voluntary change afterwards.
+  if (auth.user?.must_change_password) {
+    changePassword();
+    return;
+  }
   showPwConfirm.value = true;
 }
 
@@ -375,15 +386,26 @@ async function confirmChangePassword() {
 
 async function changePassword() {
   pwError.value = '';
+  // Captured before the request, since a successful change flips
+  // must_change_password to false below - this is what the account was
+  // actually doing just now (its forced, first-time change or not).
+  const wasForced = !!auth.user?.must_change_password;
+  changingPw.value = true;
   try {
     await api.put('/me/password', pwForm.value);
-    if (auth.user?.must_change_password) auth.setUser({ ...auth.user, must_change_password: false });
+    if (wasForced) auth.setUser({ ...auth.user, must_change_password: false });
     toast?.success('Password changed successfully.');
     pwForm.value = { current_password: '', password: '', password_confirmation: '' };
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
+    // The account was locked to this page until the temporary password was
+    // replaced - now that it has been, go on to the dashboard like a normal
+    // sign-in would, instead of leaving them sitting on My Account.
+    if (wasForced) router.push({ name: 'dashboard' });
   } catch (e) {
     const errs = e.response?.data?.errors;
     pwError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to change password.';
+  } finally {
+    changingPw.value = false;
   }
 }
 
