@@ -210,7 +210,7 @@
                 </template>
                 <template v-else-if="!sifArchived">
                   <span class="ctrl-value">{{ sifDoc.ctrl_no || '-' }}-</span>
-                  <input v-model="clientNoDraft" class="ifi" style="width:70px;padding:3px 8px;font-family:var(--mono)" maxlength="4" inputmode="numeric" placeholder="____" @input="clientNoDraft = String(clientNoDraft ?? '').replace(/\D/g, '')" @keyup.enter="saveClientNo" />
+                  <input v-model="clientNoDraft" class="ifi" style="width:90px;padding:3px 8px;font-family:var(--mono)" maxlength="6" inputmode="numeric" placeholder="______" @input="clientNoDraft = String(clientNoDraft ?? '').replace(/\D/g, '')" @keyup.enter="saveClientNo" />
                   <button type="button" class="ibtn ibtn-p ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="saveClientNo">{{ savingClientNo ? '...' : 'Save' }}</button>
                   <button type="button" class="ibtn ibtn-g ibtn-sm" style="padding:2px 8px" :disabled="savingClientNo" @click="editingClientNo = false">Cancel</button>
                 </template>
@@ -793,7 +793,8 @@ function formatDocDate(date) {
 
 const sifCtrlNo = computed(() => {
   const n = student.value?.sif_client_no;
-  const tail = n ? String(n).padStart(4, '0') : '____';
+  // 6 digits - enough to count the ~12,000-student body without running out.
+  const tail = n ? String(n).padStart(6, '0') : '______';
   return `${sifDoc.value?.ctrl_no || '-'}-${tail}`;
 });
 

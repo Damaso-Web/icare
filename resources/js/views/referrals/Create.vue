@@ -265,21 +265,56 @@
       </div>
     </div>
 
-    <!-- Confirmation Preview Modal -->
+    <!-- Confirmation Preview Modal - laid out like the actual Referral Slip
+         (QF-OSS-01) document, the same way it reads once submitted, rather
+         than a plain key:value list. Referrer name, Referral Code and Date
+         Submitted aren't shown here (not known yet / referrer name is kept
+         off this form - see the note above the Referral Details section). -->
     <div v-if="showPreview" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showPreview = false">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Referral Details</div>
         </div>
+
+        <!-- Document Code Header - same as the form above -->
+        <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+          <div style="font-size:11px;color:var(--stone)">
+            <div><strong>Document Code:</strong> QF-OSS-01</div>
+            <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>
+          </div>
+          <div style="font-size:11px;color:var(--stone);text-align:right">
+            <div><strong>Effectivity:</strong> {{ formatDocDate(docSettings.effectivity_date) }}</div>
+            <div><strong>Ctrl No.:</strong> {{ docSettings.ctrl_no || '-' }}</div>
+          </div>
+        </div>
+
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--stone)">Please review before submitting:</div>
-          <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:8px;font-size:13px">
-            <div><strong>Student:</strong> {{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} ({{ form.student_id_input }})</div>
-            <div><strong>College:</strong> {{ form.college }}</div>
-            <div><strong>Program:</strong> {{ form.program }}</div>
-            <div><strong>Service:</strong> {{ toTitleCase(form.referral_type) }}</div>
-            <div><strong>Concern:</strong> {{ form.nature_of_concern }}</div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div style="grid-column:span 2">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Student</div>
+              <div style="font-size:13px;color:var(--ink)">{{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} <span style="color:var(--fog)">({{ form.student_id_input }})</span></div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+              <div style="font-size:13px;color:var(--ink)">{{ form.college }}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+              <div style="font-size:13px;color:var(--ink)">{{ form.program }}</div>
+            </div>
+            <div style="grid-column:span 2">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
+              <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(form.referral_type) }}</div>
+            </div>
           </div>
+
+          <div>
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Concern / Reason for Referral</div>
+            <div style="font-size:13.5px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);white-space:pre-line">{{ form.nature_of_concern }}</div>
+          </div>
+
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="confirmSubmit" :disabled="loading">
               {{ loading ? 'Submitting...' : 'Confirm & Submit' }}

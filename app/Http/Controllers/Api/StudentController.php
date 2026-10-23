@@ -850,11 +850,12 @@ class StudentController extends Controller
     }
 
     // Student Information Sheet Ctrl No. - the client count at the end of
-    // "26-1-____". Blank until GCU fills it in; editable any time.
+    // "26-1-______". Blank until GCU fills it in; editable any time.
+    // 6 digits (not 4) so the count can accommodate the ~12,000 student body.
     public function updateClientNo(Request $request, Student $student)
     {
         $data = $request->validate([
-            'sif_client_no' => ['nullable', 'integer', 'min:1', 'max:9999'],
+            'sif_client_no' => ['nullable', 'integer', 'min:1', 'max:999999'],
         ]);
 
         // An archived file (deactivated student, or a closed case) is view only.
@@ -867,7 +868,7 @@ class StudentController extends Controller
         if (!empty($data['sif_client_no'])) {
             $taken = Student::where('sif_client_no', $data['sif_client_no'])->where('id', '!=', $student->id)->first();
             if ($taken) {
-                $msg = 'Client number ' . str_pad((string) $data['sif_client_no'], 4, '0', STR_PAD_LEFT) . " is already used by another student ({$taken->student_id}).";
+                $msg = 'Client number ' . str_pad((string) $data['sif_client_no'], 6, '0', STR_PAD_LEFT) . " is already used by another student ({$taken->student_id}).";
                 return response()->json(['message' => $msg, 'errors' => ['sif_client_no' => [$msg]]], 422);
             }
         }
