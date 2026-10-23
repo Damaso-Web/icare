@@ -315,7 +315,7 @@
               <p>Log the first session to start tracking progress.</p>
             </div>
             <div v-else>
-              <div v-for="note in sessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
+              <div v-for="note in pagedSessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">
                     Session #{{ note.session_number }} - {{ toTitleCase(note.session_type) }}
@@ -332,6 +332,11 @@
                   <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
                 </div>
                 <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
+              </div>
+              <div v-if="sessionNotesTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === 1" @click="sessionNotesPage--">Prev</button>
+                <span style="font-size:11.5px;color:var(--fog)">Page {{ sessionNotesPage }} of {{ sessionNotesTotalPages }}</span>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === sessionNotesTotalPages" @click="sessionNotesPage++">Next</button>
               </div>
             </div>
           </div>
@@ -910,7 +915,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, watch, onMounted, inject } from 'vue';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
@@ -1040,6 +1045,22 @@ const caseFile     = ref({});
 const sessionNotes = ref([]);
 const appointments = ref([]);
 
+// Session Notes list is paged client-side, 3 at a time (newest first) -
+// there's no separate paginated endpoint for this card, the notes already
+// arrive embedded in the case load above.
+const SESSION_NOTES_PER_PAGE = 3;
+const sessionNotesPage = ref(1);
+const sessionNotesTotalPages = computed(() =>
+  Math.max(1, Math.ceil(sessionNotes.value.length / SESSION_NOTES_PER_PAGE))
+);
+const pagedSessionNotes = computed(() => {
+  const start = (sessionNotesPage.value - 1) * SESSION_NOTES_PER_PAGE;
+  return sessionNotes.value.slice(start, start + SESSION_NOTES_PER_PAGE);
+});
+watch(sessionNotesTotalPages, (total) => {
+  if (sessionNotesPage.value > total) sessionNotesPage.value = total;
+});
+
 const sessionForm = ref({
   session_date: '', session_start_time: '', session_end_time: '',
   session_type: 'follow_up', observations: '', interventions: '',
@@ -1058,6 +1079,7 @@ async function logSession() {
   try {
     const res = await sessionNoteAPI.store(caseFile.value.id, sessionForm.value);
     sessionNotes.value.unshift(res.data);
+    sessionNotesPage.value = 1;
     caseFile.value.total_sessions++;
     showSessionModal.value = false;
     toast?.success('Session notes saved successfully.');

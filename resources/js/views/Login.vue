@@ -98,7 +98,7 @@
         </div>
       </form>
 
-      <div v-if="!otpToken && audience !== 'oss'" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty, department chair, dean, or dean's secretary</router-link></div>
+      <div v-if="!otpToken && audience !== 'oss'" class="change-type">First time here? <router-link :to="{ name: 'staff-register' }">Register as faculty, department chair, or dean</router-link></div>
       <LoginHelp />
 
       <div style="text-align:center;margin-top:14px;font-size:10px;color:var(--fog);opacity:.8">

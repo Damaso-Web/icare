@@ -25,7 +25,7 @@
           </div>
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--ink)">Faculty</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">Faculty, Dean, Department Chair, Dean's Secretary</div>
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">Faculty, Dean, Department Chair</div>
           </div>
         </button>
 

@@ -251,16 +251,17 @@ class ReferralController extends Controller
 
         AuditLog::record('created', "Submitted referral {$referral->referral_code} for student {$student->student_id}.", $referral);
 
+        // 'admin' is the GCU Head - GCU-scoped, not a system-wide role (that's
+        // system_admin) - so it's only notified about GCU referrals, same as
+        // gcu_staff. SDU/TMDU referrals go to their own unit only.
         $sduTypes  = ['disciplinary'];
         $tmduTypes = ['psychological_testing'];
-        $unitRoles = ['admin'];
         if (in_array($validated['referral_type'], $sduTypes)) {
-            $unitRoles[] = 'sdu_head';
+            $unitRoles = ['sdu_head'];
         } elseif (in_array($validated['referral_type'], $tmduTypes)) {
-            $unitRoles[] = 'tmdu_staff';
-            $unitRoles[] = 'tmdu_head';
+            $unitRoles = ['tmdu_staff', 'tmdu_head'];
         } else {
-            $unitRoles[] = 'gcu_staff';
+            $unitRoles = ['admin', 'gcu_staff'];
         }
 
         $recipients = User::whereIn('role', $unitRoles)->where('is_active', true)->get();

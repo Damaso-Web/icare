@@ -699,7 +699,7 @@
               <p>Log the first session to start tracking progress.</p>
             </div>
             <div v-else>
-              <div v-for="note in sessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
+              <div v-for="note in pagedSessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">
                     Session #{{ note.session_number }} - {{ formatDate(note.session_date) }}
@@ -715,6 +715,11 @@
                   <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
                 </div>
                 <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
+              </div>
+              <div v-if="sessionNotesTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === 1" @click="sessionNotesPage--">Prev</button>
+                <span style="font-size:11.5px;color:var(--fog)">Page {{ sessionNotesPage }} of {{ sessionNotesTotalPages }}</span>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === sessionNotesTotalPages" @click="sessionNotesPage++">Next</button>
               </div>
             </div>
           </div>
@@ -738,7 +743,7 @@
             </div>
             <div v-else>
               <div
-                v-for="fu in followUps"
+                v-for="fu in pagedFollowUps"
                 :key="fu.id"
                 style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:flex-start;gap:12px;cursor:pointer;transition:background .1s"
                 @mouseover="$event.currentTarget.style.background='var(--foam)'"
@@ -753,6 +758,11 @@
                   <div v-if="fu.created_by" style="font-size:10.5px;color:var(--fog);margin-top:4px">Recorded by {{ fu.created_by?.name }}</div>
                 </div>
                 <span class="ibadge" :class="'ibadge-' + fu.status">{{ toTitleCase(fu.status) }}</span>
+              </div>
+              <div v-if="followUpsTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="followUpsPage === 1" @click="followUpsPage--">Prev</button>
+                <span style="font-size:11.5px;color:var(--fog)">Page {{ followUpsPage }} of {{ followUpsTotalPages }}</span>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="followUpsPage === followUpsTotalPages" @click="followUpsPage++">Next</button>
               </div>
             </div>
           </div>
@@ -1922,6 +1932,37 @@ const referral = ref({});
 const sessionNotes      = ref([]);
 const showSessionModal  = ref(false);
 
+// Session Notes list is paged client-side, 3 at a time (newest first) -
+// same approach as cases/Show.vue, no separate paginated endpoint needed.
+const SESSION_NOTES_PER_PAGE = 3;
+const sessionNotesPage = ref(1);
+const sessionNotesTotalPages = computed(() =>
+  Math.max(1, Math.ceil(sessionNotes.value.length / SESSION_NOTES_PER_PAGE))
+);
+const pagedSessionNotes = computed(() => {
+  const start = (sessionNotesPage.value - 1) * SESSION_NOTES_PER_PAGE;
+  return sessionNotes.value.slice(start, start + SESSION_NOTES_PER_PAGE);
+});
+watch(sessionNotesTotalPages, (total) => {
+  if (sessionNotesPage.value > total) sessionNotesPage.value = total;
+});
+
+// Follow-up Session list, paged the same way - 3 at a time. followUps is
+// built oldest-first (each new one is pushed to the end, not unshifted),
+// so "go to the newest" after scheduling one means jumping to the last page.
+const FOLLOW_UPS_PER_PAGE = 3;
+const followUpsPage = ref(1);
+const followUpsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(followUps.value.length / FOLLOW_UPS_PER_PAGE))
+);
+const pagedFollowUps = computed(() => {
+  const start = (followUpsPage.value - 1) * FOLLOW_UPS_PER_PAGE;
+  return followUps.value.slice(start, start + FOLLOW_UPS_PER_PAGE);
+});
+watch(followUpsTotalPages, (total) => {
+  if (followUpsPage.value > total) followUpsPage.value = total;
+});
+
 const followUps          = ref([]);
 const staffList          = ref([]);
 const showFollowUpModal  = ref(false);
@@ -2385,6 +2426,7 @@ async function logSession() {
     };
     const res = await sessionNoteAPI.storeByReferral(referral.value.id, payload);
     sessionNotes.value.unshift(res.data);
+    sessionNotesPage.value = 1;
     // Mirrors ReferralController/SessionNoteController::storeByReferral()'s
     // server-side bump to "In Progress" - only move the badge forward here
     // too, so it doesn't visually override a status that's already moved on
@@ -3084,6 +3126,7 @@ async function saveFollowUp() {
     // slow request resolves after a retry already added it).
     if (!followUps.value.some(f => f.id === res.data.id)) {
       followUps.value.push(res.data);
+      followUpsPage.value = followUpsTotalPages.value;
     }
     showFollowUpConfirm.value = false;
     showFollowUpModal.value = false;

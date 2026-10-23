@@ -13,13 +13,15 @@ export function consumeConsentSkip(type) {
 }
 
 // Remembering that the agreement was already accepted on this device, so it
-// isn't asked again on every visit/login - only once per device, ever, per
-// sign-in type ('staff' / 'student'). Kept in localStorage (not
-// sessionStorage), so it survives closing the tab/browser and logging out.
-// It is still asked again automatically if the text of the agreement/notice
-// itself changes later (the saved hash of the text no longer matches), since
-// that's a materially different thing to agree to.
+// isn't asked again on every visit/login - for up to CONSENT_TTL_MS
+// (currently 7 days) per sign-in type ('staff' / 'student'). Kept in
+// localStorage (not sessionStorage), so it survives closing the tab/browser
+// and logging out. It is asked again once that window passes, or
+// immediately if the text of the agreement/notice itself changes (the saved
+// hash of the text no longer matches), since that's a materially different
+// thing to agree to.
 const OK_KEY = 'consent_ok_';
+const CONSENT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function hashText(text) {
   let h = 5381;
@@ -28,10 +30,22 @@ export function hashText(text) {
   return String(h);
 }
 export function rememberConsent(type, hash) {
-  try { localStorage.setItem(OK_KEY + type, hash); } catch (e) { /* asked again */ }
+  try {
+    localStorage.setItem(OK_KEY + type, JSON.stringify({ hash, acceptedAt: Date.now() }));
+  } catch (e) { /* asked again */ }
 }
 export function consentStillValid(type, hash) {
-  try { return localStorage.getItem(OK_KEY + type) === hash; } catch (e) { return false; }
+  try {
+    const raw = localStorage.getItem(OK_KEY + type);
+    if (!raw) return false;
+    // Older saves (before the 7-day timer) stored a bare hash string, not
+    // JSON - treat those as expired so everyone lands on the new scheme.
+    let saved;
+    try { saved = JSON.parse(raw); } catch (e) { return false; }
+    if (!saved || typeof saved !== 'object') return false;
+    if (saved.hash !== hash) return false;
+    return (Date.now() - Number(saved.acceptedAt || 0)) < CONSENT_TTL_MS;
+  } catch (e) { return false; }
 }
 /** Forget the agreement for one type ('staff' / 'student'), or both. */
 export function clearConsent(type) {

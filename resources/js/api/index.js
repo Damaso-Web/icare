@@ -1,4 +1,3 @@
-import { clearConsent } from '../utils/consentSkip';
 import axios from 'axios';
 
 const API_ROOT = import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com';
@@ -69,7 +68,10 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            clearConsent();
+            // Signing out (here or below) does not forget that this device
+            // already agreed to the Confidentiality Agreement / Data Privacy
+            // Notice - that's remembered per device for up to 7 days (see
+            // consentSkip.js), independent of any one login session.
             window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -187,7 +189,6 @@ studentApi.interceptors.response.use(
         if (error.response?.status === 401) {
             localStorage.removeItem('student_token');
             localStorage.removeItem('student');
-            clearConsent();
             window.location.href = '/student/login';
         }
         return Promise.reject(error);
