@@ -118,6 +118,7 @@
       <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:28px 26px;box-shadow:var(--sh-lg)">
         <ConsentGate
           type="staff"
+          :visible="showAgreement"
           checkbox-label="I have read and agree to the Confidentiality Agreement above."
           @accept="onAgreementAccept"
         >

@@ -25,29 +25,41 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { hashText, rememberConsent, consentStillValid, clearConsent } from '../utils/consentSkip';
 
 // `type` ('staff' / 'student') is what the ticked box is remembered under.
+// `visible` is whether the parent's modal wrapper is actually shown right
+// now (Login.vue/StudentLogin.vue keep this component mounted-but-hidden
+// behind v-show from page load, so its "already agreed" check can run
+// immediately - see onMounted below). While hidden (display:none), the
+// text box has no real layout - clientHeight/scrollHeight both read 0 - so
+// checking whether it needs scrolling has to wait until it's actually
+// visible, not happen once at mount.
 const props = defineProps({
   checkboxLabel: { type: String, required: true },
   type: { type: String, default: '' },
+  visible: { type: Boolean, default: true },
 });
 const emit = defineEmits(['accept']);
 
 const agreed = ref(false);
 
-// The checkbox stays disabled until the notice has been scrolled to the bottom.
+// The checkbox stays disabled until the notice has been scrolled to the
+// bottom - or is already fully visible with nothing to scroll.
 const textEl = ref(null);
 const atEnd = ref(false);
 function checkEnd() {
   const el = textEl.value;
   if (!el) return;
-  if (el.scrollTop + el.clientHeight >= el.scrollHeight - 4) atEnd.value = true;
+  atEnd.value = el.scrollTop + el.clientHeight >= el.scrollHeight - 4;
 }
+watch(() => props.visible, (shown) => {
+  if (shown) nextTick(checkEnd);
+});
 let textHash = '';
 onMounted(() => {
-  checkEnd(); // a short notice that needs no scrolling is already "read"
+  if (props.visible) checkEnd(); // a short notice that needs no scrolling is already "read"
   window.addEventListener('resize', checkEnd);
   // Already agreed to this exact text on this device before (saved in
   // localStorage - see consentSkip.js): come back ticked, with the checkbox
