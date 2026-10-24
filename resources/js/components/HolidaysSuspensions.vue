@@ -27,7 +27,15 @@
         <option value="active">Active</option>
         <option value="archived">Archived</option>
       </select>
-      <button class="ibtn ibtn-o ibtn-sm" @click="search = ''; typeFilter = 'all'; statusFilter = 'all'">Reset</button>
+      <!-- B547: scoped to the Current academic year by default so admins aren't
+           reading last year's holidays after the term rolls over; "All Academic
+           Years" (or picking a specific one) lifts that scope on demand. -->
+      <select v-model="ayFilter" class="fsm">
+        <option value="current">Current Academic Year{{ currentAy ? ` (${currentAy.start_year}-${currentAy.start_year + 1})` : '' }}</option>
+        <option value="all">All Academic Years</option>
+        <option v-for="a in ayOptions" :key="a.id" :value="String(a.id)">{{ a.start_year }}-{{ a.start_year + 1 }}</option>
+      </select>
+      <button class="ibtn ibtn-o ibtn-sm" @click="search = ''; typeFilter = 'all'; statusFilter = 'all'; ayFilter = 'current'">Reset</button>
     </div>
 
     <div v-if="loading" style="text-align:center;padding:36px;color:var(--fog);font-size:13px">Loading...</div>
@@ -63,7 +71,18 @@
         <div class="hs-head">{{ form.id ? 'Edit Entry' : 'Add Entry' }}</div>
         <div class="hs-body">
           <div v-if="formError" class="hs-err">{{ formError }}</div>
-          <div><label class="ifl">Date <span style="color:var(--red)">*</span></label><input v-model="form.entry_date" type="date" class="ifi" /></div>
+          <!-- B547: picking an Academic Year here just bounds the date picker to
+               that term's range, as a guard rail - it defaults to the Current term
+               on Add so new entries land in the right place without the admin
+               having to remember today's academic year. -->
+          <div>
+            <label class="ifl">Academic Year</label>
+            <select v-model.number="formAyId" class="ifse">
+              <option :value="null">No restriction</option>
+              <option v-for="a in ayOptions" :key="a.id" :value="a.id">{{ a.start_year }}-{{ a.start_year + 1 }}{{ a.is_current ? ' (Current)' : '' }}</option>
+            </select>
+          </div>
+          <div><label class="ifl">Date <span style="color:var(--red)">*</span></label><input v-model="form.entry_date" type="date" class="ifi" :min="formDateMin" :max="formDateMax" /></div>
           <div><label class="ifl">Name <span style="color:var(--red)">*</span></label><input v-model="form.name" class="ifi" maxlength="120" placeholder="e.g. All Saints' Day" /></div>
           <div>
             <label class="ifl">Type <span style="color:var(--red)">*</span></label>
@@ -125,12 +144,16 @@
 </template>
 
 <script setup>
-import { ref, computed, inject, onMounted } from 'vue';
+import { ref, computed, inject, onMounted, watch } from 'vue';
 import axios from 'axios';
 import ReasonDialog from './ReasonDialog.vue';
 import { MANAGEMENT_DELETE_REASONS, MANAGEMENT_STATUS_REASONS } from '../constants/accountReasons';
 
-defineProps({ canManage: { type: Boolean, default: false } });
+// B547: academicYears can be supplied by the parent (School Calendar tab, which
+// already keeps its own copy live) so "Set as Current" there updates this list's
+// filtering and the Add form's default in real time, with no refetch here and no
+// page refresh. Used standalone (prop omitted), it falls back to loading its own.
+const props = defineProps({ canManage: { type: Boolean, default: false }, academicYears: { type: Array, default: null } });
 const toast = inject('toast', null);
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -146,11 +169,26 @@ const search = ref('');
 const typeFilter = ref('all');
 const statusFilter = ref('all');
 
-const rows = computed(() => entries.value.filter(e =>
-  (typeFilter.value === 'all' || e.type === typeFilter.value) &&
-  (statusFilter.value === 'all' || e.status === statusFilter.value) &&
-  (!search.value.trim() || e.name.toLowerCase().includes(search.value.trim().toLowerCase()))
-));
+// B547: "current" scopes to the active academic year when one is set (falls
+// through to no date restriction if none is marked current yet); "all" lifts
+// the scope; any other value is a specific academic year's id to view instead.
+const ayFilter = ref('current');
+function ayRangeFor(id) {
+  return effectiveAcademicYears.value.find(a => a.id === id) || null;
+}
+const rows = computed(() => entries.value.filter(e => {
+  if (typeFilter.value !== 'all' && e.type !== typeFilter.value) return false;
+  if (statusFilter.value !== 'all' && e.status !== statusFilter.value) return false;
+  if (search.value.trim() && !e.name.toLowerCase().includes(search.value.trim().toLowerCase())) return false;
+  if (ayFilter.value !== 'all') {
+    const ay = ayFilter.value === 'current' ? currentAy.value : ayRangeFor(Number(ayFilter.value));
+    if (ay) {
+      const d = String(e.entry_date).slice(0, 10);
+      if (d < String(ay.year_start).slice(0, 10) || d > String(ay.year_end).slice(0, 10)) return false;
+    }
+  }
+  return true;
+}));
 
 const fmt = (d) => d ? new Date(String(d).slice(0, 10) + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-';
 const describe = (e) => `<strong>"${esc(e.name)}"</strong> (${e.type_label} · ${fmt(e.entry_date)})`;
@@ -166,24 +204,52 @@ async function load() {
 // B533: each entry's Academic Year is computed from its date against the Academic
 // Years list, not stored or typed in by hand, so it is always correct and moves on
 // its own whenever the admin adds/edits academic years or changes which one is current.
-const academicYears = ref([]);
+const internalAcademicYears = ref([]);
+// B547: when the parent (School Calendar tab) hands down its own live list, use
+// that - it's the same reactive array the parent updates after "Set as Current",
+// so this component's filtering and Add-form default follow along automatically.
+const effectiveAcademicYears = computed(() => props.academicYears !== null ? props.academicYears : internalAcademicYears.value);
 async function loadAcademicYears() {
-  try { academicYears.value = (await axios.get(`${API_BASE}/management/academic-years`, headers())).data; }
+  if (props.academicYears !== null) return;
+  try { internalAcademicYears.value = (await axios.get(`${API_BASE}/management/academic-years`, headers())).data; }
   catch (e) { /* non-critical: the Academic Year column just shows "-" */ }
 }
 function ayLabel(dateStr) {
   const d = String(dateStr).slice(0, 10);
-  const ay = academicYears.value.find(a => a.year_start && a.year_end && d >= String(a.year_start).slice(0, 10) && d <= String(a.year_end).slice(0, 10));
+  const ay = effectiveAcademicYears.value.find(a => a.year_start && a.year_end && d >= String(a.year_start).slice(0, 10) && d <= String(a.year_end).slice(0, 10));
   return ay ? `${ay.start_year}-${ay.start_year + 1}${ay.is_current ? ' (Current)' : ''}` : '-';
 }
+const currentAy = computed(() => effectiveAcademicYears.value.find(a => a.is_current) || null);
+const ayOptions = computed(() => [...effectiveAcademicYears.value].sort((a, b) => b.start_year - a.start_year));
 
 // ---- Add / Edit ----
 const form = ref(null);
 const formError = ref('');
 const formValid = computed(() => form.value && form.value.entry_date && form.value.name.trim() && form.value.type);
+// B547: which Academic Year the date picker is bounded to. Defaults to the
+// entry's own academic year when editing, or the Current term when adding -
+// "No restriction" is always available by picking it from the dropdown.
+const formAyId = ref(null);
+const formAy = computed(() => formAyId.value ? effectiveAcademicYears.value.find(a => a.id === formAyId.value) || null : null);
+const formDateMin = computed(() => formAy.value ? String(formAy.value.year_start).slice(0, 10) : null);
+const formDateMax = computed(() => formAy.value ? String(formAy.value.year_end).slice(0, 10) : null);
+watch(formAyId, () => {
+  if (!form.value || !form.value.entry_date) return;
+  if ((formDateMin.value && form.value.entry_date < formDateMin.value) || (formDateMax.value && form.value.entry_date > formDateMax.value)) {
+    form.value.entry_date = '';
+  }
+});
 function openForm(e = null) {
   formError.value = '';
-  form.value = e ? { id: e.id, entry_date: String(e.entry_date).slice(0, 10), name: e.name, type: e.type } : { entry_date: '', name: '', type: '' };
+  if (e) {
+    form.value = { id: e.id, entry_date: String(e.entry_date).slice(0, 10), name: e.name, type: e.type };
+    const match = effectiveAcademicYears.value.find(a => a.year_start && a.year_end &&
+      form.value.entry_date >= String(a.year_start).slice(0, 10) && form.value.entry_date <= String(a.year_end).slice(0, 10));
+    formAyId.value = match ? match.id : null;
+  } else {
+    form.value = { entry_date: '', name: '', type: '' };
+    formAyId.value = currentAy.value ? currentAy.value.id : null;
+  }
 }
 function closeForm() { form.value = null; }
 async function saveForm() {
@@ -263,10 +329,24 @@ const dlg = computed(() => {
       : '';
     return { title: 'Reactivate this entry?', message: `${describe(e)} will block its date in the appointment calendar again.${original}`, reasons: MANAGEMENT_STATUS_REASONS[TAB].active, reasonLabel: 'Reason for reactivating', confirm: 'Reactivate', blocked: '' };
   }
-  const blocked = (e.is_past || e.linked_total > 0)
-    ? `"${e.name}" is linked to ${e.linked.appointments} appointment${e.linked.appointments === 1 ? '' : 's'} and ${e.linked.notifications} notification${e.linked.notifications === 1 ? '' : 's'}, or its date has already passed. Deleting it would remove the reason shown in those records. Archive it instead.`
-    : '';
-  return { title: blocked ? "This entry can't be deleted" : 'Delete this entry?', message: blocked ? '' : `Delete ${describe(e)}? This cannot be undone. No appointments, reschedules or notifications are linked to it.`, reasons: MANAGEMENT_DELETE_REASONS[TAB], reasonLabel: 'Reason for deletion', confirm: 'Delete', blocked };
+  if (e.is_past || e.linked_total > 0) {
+    // B550: check for a genuine duplicate - another entry on the same date and
+    // type - before enforcing the usual block. The backend makes the final,
+    // authoritative call (it also checks nothing of its own is tied to this
+    // specific record), but surfacing it here means a confirmed duplicate
+    // isn't stuck behind "Archive Instead" with no way to actually remove it.
+    const dup = entries.value.find(x => x.id !== e.id && x.type === e.type && String(x.entry_date).slice(0, 10) === String(e.entry_date).slice(0, 10));
+    if (dup) {
+      return {
+        title: 'Delete this entry?',
+        message: `${describe(e)} shares its date with another ${TYPES[e.type]} entry ("${esc(dup.name)}", ${dup.status === 'active' ? 'active' : 'archived'}). If this is a mistaken duplicate with nothing of its own tied to it, choose "Duplicate Entry" below - the system will double-check before removing it.`,
+        reasons: MANAGEMENT_DELETE_REASONS[TAB], reasonLabel: 'Reason for deletion', confirm: 'Delete', blocked: '',
+      };
+    }
+    const blocked = `"${e.name}" is linked to ${e.linked.appointments} appointment${e.linked.appointments === 1 ? '' : 's'} and ${e.linked.notifications} notification${e.linked.notifications === 1 ? '' : 's'}, or its date has already passed. Deleting it would remove the reason shown in those records. Archive it instead.`;
+    return { title: "This entry can't be deleted", message: '', reasons: MANAGEMENT_DELETE_REASONS[TAB], reasonLabel: 'Reason for deletion', confirm: 'Delete', blocked };
+  }
+  return { title: 'Delete this entry?', message: `Delete ${describe(e)}? This cannot be undone. No appointments, reschedules or notifications are linked to it.`, reasons: MANAGEMENT_DELETE_REASONS[TAB], reasonLabel: 'Reason for deletion', confirm: 'Delete', blocked: '' };
 });
 
 function openAsk(mode, e) { askError.value = ''; ack.value = false; ask.value = { mode, e }; }

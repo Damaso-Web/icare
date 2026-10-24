@@ -365,7 +365,11 @@
       </div>
     </div>
 
-    <HolidaysSuspensions v-if="activeTab === 'calendar'" :can-manage="isAdmin" style="margin-top:16px" />
+    <!-- B547: sharing this tab's own academicYears list (instead of letting the
+         child fetch its own) means "Set as Current" below updates the Holidays
+         and Suspensions filtering/defaults immediately - no second fetch, no
+         manual refresh. -->
+    <HolidaysSuspensions v-if="activeTab === 'calendar'" :can-manage="isAdmin" :academic-years="academicYears" style="margin-top:16px" />
 
     <!-- ============ DOCUMENT HEADERS ============ -->
     <div v-if="activeTab === 'documents'" style="display:flex;flex-direction:column;gap:16px">

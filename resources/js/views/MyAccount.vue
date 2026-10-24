@@ -17,6 +17,14 @@
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
         <div style="min-width:0;align-self:center">
           <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</div>
+          <!-- B566: department/college/employee ID weren't shown anywhere on
+               this page even though they were already being read into auth.user
+               - accountDetails already existed below but was never rendered. -->
+          <div v-if="accountDetails.length" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px">
+            <span v-for="d in accountDetails" :key="d.label" style="font-size:12.5px;color:var(--stone)">
+              <strong style="color:var(--slate)">{{ d.label }}:</strong> {{ d.value }}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -121,6 +129,35 @@
         </div>
       </div>
 
+      <!-- B569: Active Sessions / Linked Devices - every device currently
+           signed in to this account, with the ability to sign any of them
+           out individually or all at once. -->
+      <div v-show="tab === 'sessions'" class="icard">
+        <div class="icard-header">
+          <span class="icard-title">Active Sessions</span>
+          <button v-if="sessions.length > 1" class="ibtn ibtn-o ibtn-sm" :disabled="revokingOthers" @click="revokeOtherSessions">
+            {{ revokingOthers ? 'Signing out...' : 'Sign out all other devices' }}
+          </button>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div v-if="sessionsError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ sessionsError }}</div>
+          <div style="font-size:12px;color:var(--stone);line-height:1.5">Devices and browsers currently signed in to your account. If you don't recognize one, sign it out.</div>
+          <div v-if="sessionsLoading" style="text-align:center;padding:24px"><div style="width:20px;height:20px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div></div>
+          <div v-for="s in sessions" :key="s.id" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">
+                {{ s.device || 'Unknown device' }}
+                <span v-if="s.is_current" class="ibadge" style="background:var(--mist);color:var(--moss);margin-left:6px">This device</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--stone);margin-top:2px">Last active {{ formatSessionDate(s.last_used_at || s.created_at) }}</div>
+            </div>
+            <button v-if="!s.is_current" class="ibtn ibtn-o ibtn-sm" :disabled="revokingId === s.id" @click="revokeSession(s)">
+              {{ revokingId === s.id ? 'Signing out...' : 'Sign out' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Password change confirmation -->
@@ -187,6 +224,7 @@ const router = useRouter();
 const TABS = [
   { value: 'profile',  label: 'Profile' },
   { value: 'password', label: 'Password' },
+  { value: 'sessions', label: 'Sessions' },
 ];
 // An account still on a temporary password lands on the Password tab.
 const tab = ref(auth.user?.must_change_password ? 'password' : 'profile');
@@ -256,7 +294,63 @@ watch(tab, (now, before) => {
     pwError.value = '';
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
   }
+  // B569: the list is only ever fetched when the tab is actually opened,
+  // not on every page load, since most visits never touch it.
+  if (now === 'sessions' && !sessionsLoaded.value) {
+    fetchSessions();
+  }
 });
+
+// ---- B569: Active Sessions / Linked Devices ----
+const sessions        = ref([]);
+const sessionsLoading  = ref(false);
+const sessionsLoaded  = ref(false);
+const sessionsError   = ref('');
+const revokingId       = ref(null);
+const revokingOthers    = ref(false);
+
+async function fetchSessions() {
+  sessionsLoading.value = true;
+  sessionsError.value = '';
+  try {
+    const res = await api.get('/me/sessions');
+    sessions.value = res.data;
+    sessionsLoaded.value = true;
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to load active sessions.';
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+async function revokeSession(s) {
+  revokingId.value = s.id;
+  try {
+    await api.delete(`/me/sessions/${s.id}`);
+    sessions.value = sessions.value.filter(x => x.id !== s.id);
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to sign out that device.';
+  } finally {
+    revokingId.value = null;
+  }
+}
+
+async function revokeOtherSessions() {
+  revokingOthers.value = true;
+  try {
+    await api.post('/me/sessions/revoke-others');
+    sessions.value = sessions.value.filter(s => s.is_current);
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to sign out other devices.';
+  } finally {
+    revokingOthers.value = false;
+  }
+}
+
+function formatSessionDate(date) {
+  if (!date) return 'just now';
+  return new Date(date).toLocaleString();
+}
 const isDirty      = computed(() => JSON.stringify(profileForm.value) !== snapshot.value);
 const emailChanged = computed(() =>
   profileForm.value.email.trim().toLowerCase() !== (auth.user?.email || '').toLowerCase()

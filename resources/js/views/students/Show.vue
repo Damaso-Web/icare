@@ -48,6 +48,7 @@
         <span v-if="primaryCase" style="font-size:12px;color:var(--stone)">
           Assigned to: <strong style="color:var(--ink)">{{ primaryCase.counselor?.name || 'Unassigned' }}</strong>
         </span>
+        <span v-if="isReassignedAway" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Reassigned · Read-only</span>
         <div class="case-actions" style="margin-left:auto;display:flex;gap:8px">
           <!-- Update Case Status - moved here from Referral Details (B242),
                since this is the actual Case Details view for the SIF. -->
@@ -891,7 +892,16 @@ const primaryCase = computed(() => history.value.cases?.[0] || null);
 // Archived file: the case is closed or the student's account is deactivated. View only.
 const sifArchived = computed(() => primaryCase.value?.status === 'closed' || student.value?.is_active === false);
 const isRecurringStudent = computed(() => visibleReferrals.value.length > 1);
-const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
+// B562: this case was reassigned away from the signed-in counselor - they
+// keep read-only visibility of the SIF, but the case-management actions
+// below (Update Case Status, Notify to Fill Out Forms) are hidden; admin's
+// own Reassign control is unaffected (an admin always has it).
+const isReassignedAway = computed(() =>
+  !!primaryCase.value?.previous_counselor_id
+  && primaryCase.value.previous_counselor_id === auth.user?.id
+  && primaryCase.value.primary_counselor_id !== auth.user?.id
+);
+const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role) && !isReassignedAway.value);
 
 // Reassign Counselor - moved here from Referral Details
 const COUNSELING_ROLES = { GCU: ['admin', 'gcu_staff'], SDU: ['admin', 'sdu_head'], TMDU: ['admin', 'tmdu_staff', 'tmdu_head'] };

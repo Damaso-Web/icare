@@ -26,28 +26,39 @@ export const EMPLOYEE_REACTIVATE_REASONS = rows({
   other:             ['Other', ''],
 });
 
-// Most relevant reactivation reason for each original deactivation reason label.
-const PRIORITY = {
-  'Leave of Absence (LOA)': 'returned_loa',
-  'End of Contract / Term': 'rehired',
-  'Resigned': 'rehired',
-  'Retired': 'rehired',
-  'Transferred to Another Office or Campus': 'rehired',
-  'Administrative Action': 'action_lifted',
-  'Security Concern': 'security_verified',
-  'Inactive Account': 'security_verified',
+// B591: which reactivation reasons make sense for an account deactivated
+// under a given original label - e.g. an account deactivated for "End of
+// Contract / Term" can only be reactivated as "Rehired / Contract Renewed"
+// (or the two escape hatches below), never "Security Verified".
+// app/Support/EmployeeAccountReasons.php::RELATED is the same rule on the
+// server, which is what actually enforces it.
+const RELATED = {
+  'Leave of Absence (LOA)': ['returned_loa'],
+  'End of Contract / Term': ['rehired'],
+  'Resigned': ['rehired'],
+  'Retired': ['rehired'],
+  'Transferred to Another Office or Campus': ['rehired'],
+  'Administrative Action': ['action_lifted'],
+  'Security Concern': ['security_verified'],
+  'Inactive Account': ['security_verified'],
+  'Duplicate Account / Created in Error': [],
 };
+// Always offered: a mistaken deactivation, or a reason that doesn't fit any
+// of the specific ones above.
+const ALWAYS_OFFERED = ['error', 'other'];
 
-/** Reactivation reasons with the one matching the original deactivation first; "Other" stays last. */
+/**
+ * Reactivation reasons allowed for an account deactivated under
+ * originalLabel - unrelated reasons (e.g. "Security Verified" for an
+ * "End of Contract / Term" deactivation) aren't offered at all. An
+ * unrecognized or "Other" original reason can't be narrowed down, so every
+ * reason stays available.
+ */
 export function reactivationReasonsFor(originalLabel) {
-  const first = PRIORITY[originalLabel];
-  const list = [...EMPLOYEE_REACTIVATE_REASONS];
-  const other = list.pop();
-  list.sort((a, b) => (b.key === first) - (a.key === first));
-  // "Deactivated in Error" is always offered right after the most relevant reason.
-  const err = list.findIndex(r => r.key === 'error');
-  if (err > 1) list.splice(1, 0, list.splice(err, 1)[0]);
-  return [...list, other];
+  const related = RELATED[originalLabel];
+  if (!related) return EMPLOYEE_REACTIVATE_REASONS;
+  const allowedKeys = new Set([...related, ...ALWAYS_OFFERED]);
+  return EMPLOYEE_REACTIVATE_REASONS.filter(r => allowedKeys.has(r.key));
 }
 
 const created = ['created_error', 'Created in Error', 'The entry was added by mistake.'];

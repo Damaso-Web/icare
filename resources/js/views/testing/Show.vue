@@ -42,11 +42,22 @@
           <h1>{{ record.referral?.referral_code ? record.referral.referral_code : `Testing Record #${record.id}` }}</h1>
           <p>{{ record.student?.last_name }}, {{ record.student?.first_name }} {{ record.student?.middle_name }} · {{ record.student?.student_id }}</p>
         </div>
+        <span v-if="reassignedAwayFromMe" class="ibadge" style="margin-left:auto;background:var(--amber-lt);color:var(--amber);flex-shrink:0">Reassigned</span>
         <div v-if="canManage" style="margin-left:auto;display:flex;gap:8px">
           <button class="ibtn ibtn-o ibtn-sm" @click="openAssignModal">
             <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             Reassign
           </button>
+        </div>
+      </div>
+
+      <!-- B559: this record was taken off the signed-in tester and given to
+           someone else - everything below (status, referral slip, student
+           details, appointment history) stays viewable, but every action is
+           hidden (canManage is false) and the backend refuses them too. -->
+      <div v-if="reassignedAwayFromMe" class="icard" style="margin-bottom:16px;background:var(--amber-lt);border:1px solid var(--amber)">
+        <div class="icard-body" style="font-size:12.5px;color:var(--amber)">
+          This record has been reassigned to <strong>{{ record.tester?.name || 'another tester' }}</strong>. You can still view its full history below, but you can no longer make changes to it.
         </div>
       </div>
 
@@ -135,14 +146,69 @@
             </div>
           </div>
 
+          <!-- B555: moved here, directly below the Case Referral Slip / Reason
+               for Testing section, instead of sitting under Student Profile
+               Details in the right-hand column - available once the referral
+               is acknowledged. Acknowledging no longer changes the
+               TestingRecord's own status (it stays "pending" both before
+               and after - see TestingRecordController::acknowledge()), so
+               for a record linked to a real Referral this also requires
+               referral.acknowledged_at to be set; a legacy record with no
+               referral_id falls back to status alone. No fee-form/OR step -
+               TMDU decides the date/time directly. -->
+          <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
+            <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
+            <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
+            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+              <div style="font-size:11px;color:var(--stone)">
+                <div><strong>Document Code:</strong> QF-TMDU-02</div>
+                <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--stone);text-align:right">
+                <div><strong>Effectivity:</strong> {{ formatDocDate(slipDoc.effectivity_date || '2022-09-02') }}</div>
+                <div><strong>Ctrl No.:</strong> {{ slipDoc.ctrl_no || '-' }}</div>
+              </div>
+            </div>
+            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+              <!-- B556: shown up front, before a date/time is even picked, so
+                   the restriction is known going in instead of discovered
+                   from an error after the fact. -->
+              <div style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--slate)">
+                Appointments must be scheduled between 8:00 AM and 4:00 PM.
+              </div>
+              <div>
+                <!-- B557: :min stops the native picker from offering a past date;
+                     testingDateError (below) still catches one typed in manually. -->
+                <input v-model="testingForm.appointment_date" type="date" class="ifi" style="width:100%" :min="todayStr" />
+                <div v-if="testingDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingDateError }}</div>
+              </div>
+              <div>
+                <div style="display:flex;gap:8px">
+                  <input v-model="testingForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                  <input v-model="testingForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
+                </div>
+                <div v-if="testingTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingTimeError }}</div>
+              </div>
+              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || testingFormInvalid">
+                {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Psychological Tests Administered - the action that moves the
                bar from Scheduled for Testing to Test Administered. -->
           <div class="icard" v-if="canManage && stage === 'scheduled_for_testing'">
             <div class="icard-header"><span class="icard-title">Psychological Tests Administered</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+              <!-- B558: same weekday-only rule as the scheduling sections,
+                   surfaced up front here too. -->
+              <div style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--slate)">
+                TMDU is closed on weekends - please choose a weekday (Monday-Friday).
+              </div>
               <div>
                 <label class="ifl">Testing Date</label>
                 <input v-model="administerForm.testing_date" type="date" class="ifi" />
+                <div v-if="administerDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ administerDateError }}</div>
               </div>
               <div>
                 <label class="ifl">Tests Administered</label>
@@ -162,7 +228,7 @@
                   </span>
                 </div>
               </div>
-              <button class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" @click="saveTestsAdministered" :disabled="saving">
+              <button class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" @click="saveTestsAdministered" :disabled="saving || !!administerDateError">
                 {{ saving ? 'Saving...' : 'Save Tests Administered' }}
               </button>
             </div>
@@ -190,8 +256,13 @@
               <div v-if="!testTakingAttended" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--amber)">
                 The student must be marked as attended on the test-taking appointment (Manage Queue) before PAR release can be scheduled.
               </div>
+              <!-- B560: both restrictions up front, before a date/time is picked. -->
+              <div style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:8px 12px;font-size:12px;color:var(--slate);display:flex;flex-direction:column;gap:2px">
+                <span>TMDU is closed on weekends - please choose a weekday (Monday-Friday).</span>
+                <span>Appointments must be scheduled between 8:00 AM and 4:00 PM.</span>
+              </div>
               <div>
-                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" />
+                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" :min="todayStr" />
                 <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
               </div>
               <div>
@@ -230,6 +301,9 @@
               </div>
               <div>
                 <label class="ifl">PAR / Result File</label>
+                <!-- B561: stated up front, matching the input's own accept
+                     list and the backend's max:10240 (10MB) on report_file. -->
+                <div style="font-size:11px;color:var(--fog);margin-bottom:4px">Accepted formats: PDF, DOC, DOCX, JPG, PNG. Maximum size: 10MB.</div>
                 <input type="file" class="ifi" accept=".pdf,.doc,.docx,.jpg,.png" :disabled="!parReleased" @change="handleFileUpload" />
                 <div v-if="selectedFile" style="font-size:12px;color:var(--moss);margin-top:4px">✓ {{ selectedFile.name }}</div>
               </div>
@@ -351,45 +425,6 @@
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Email</div>
                 <div style="font-size:13px;color:var(--ink)">{{ record.student?.email || '-' }}</div>
               </div>
-            </div>
-          </div>
-
-          <!-- Schedule Test Taking - available once the referral is
-               acknowledged. Acknowledging no longer changes the
-               TestingRecord's own status (it stays "pending" both before
-               and after - see TestingRecordController::acknowledge()), so
-               for a record linked to a real Referral this also requires
-               referral.acknowledged_at to be set; a legacy record with no
-               referral_id falls back to status alone. No fee-form/OR step -
-               TMDU decides the date/time directly. -->
-          <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
-            <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
-            <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
-              <div style="font-size:11px;color:var(--stone)">
-                <div><strong>Document Code:</strong> QF-TMDU-02</div>
-                <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
-              </div>
-              <div style="font-size:11px;color:var(--stone);text-align:right">
-                <div><strong>Effectivity:</strong> {{ formatDocDate(slipDoc.effectivity_date || '2022-09-02') }}</div>
-                <div><strong>Ctrl No.:</strong> {{ slipDoc.ctrl_no || '-' }}</div>
-              </div>
-            </div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
-              <div>
-                <input v-model="testingForm.appointment_date" type="date" class="ifi" style="width:100%" />
-                <div v-if="testingDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingDateError }}</div>
-              </div>
-              <div>
-                <div style="display:flex;gap:8px">
-                  <input v-model="testingForm.start_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
-                  <input v-model="testingForm.end_time" type="time" min="08:00" max="16:00" class="ifi" style="flex:1" />
-                </div>
-                <div v-if="testingTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingTimeError }}</div>
-              </div>
-              <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || testingFormInvalid">
-                {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
-              </button>
             </div>
           </div>
 
@@ -592,7 +627,17 @@ const availableTests = [
   'Sentence Completion Test',
 ];
 
-const canManage = computed(() => ['tmdu_staff', 'tmdu_head'].includes(auth.user?.role));
+// B559: once this record has been reassigned to someone else, the tester it
+// was taken FROM keeps read-only visibility instead of losing the record
+// outright - action buttons below are hidden for them (canManage is false),
+// but nothing about record/history visibility depends on canManage, so all
+// of that stays viewable.
+const reassignedAwayFromMe = computed(() =>
+  !!record.value?.previous_tester_user_id &&
+  record.value.previous_tester_user_id === auth.user?.id &&
+  record.value.assigned_tester_user_id !== auth.user?.id
+);
+const canManage = computed(() => ['tmdu_staff', 'tmdu_head'].includes(auth.user?.role) && !reassignedAwayFromMe.value);
 
 // Maps the DB-level testing_records.status values onto the 5 bar stages.
 // The current flow is a straight 1:1 mapping; the old collapsed values
@@ -693,11 +738,20 @@ function isWeekend(dateStr) {
   return day === 0 || day === 6;
 }
 
+// B557: local Y-M-D (not toISOString, which is UTC and can read as "tomorrow"
+// or "yesterday" near midnight depending on the browser's timezone).
+const today0 = new Date();
+const todayStr = `${today0.getFullYear()}-${String(today0.getMonth() + 1).padStart(2, '0')}-${String(today0.getDate()).padStart(2, '0')}`;
+
 const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
 onMounted(loadBlockedDates);
 
-function dateErrorFor(dateStr) {
+function dateErrorFor(dateStr, { disallowPast = false } = {}) {
   if (!dateStr) return '';
+  // B557: only Schedule Test Taking asks for this explicitly; a manually
+  // typed-in past date is caught here even though :min already discourages
+  // picking one from the calendar.
+  if (disallowPast && dateStr < todayStr) return 'Test appointments cannot be scheduled for past dates.';
   if (isWeekend(dateStr)) return 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).';
   return blockedMessageFor(dateStr);
 }
@@ -709,9 +763,16 @@ function timeErrorFor(startTime, endTime) {
   return '';
 }
 
-const testingDateError = computed(() => dateErrorFor(testingForm.value.appointment_date));
+const testingDateError = computed(() => dateErrorFor(testingForm.value.appointment_date, { disallowPast: true }));
 const testingTimeError = computed(() => timeErrorFor(testingForm.value.start_time, testingForm.value.end_time));
 const testingFormInvalid = computed(() => !!testingDateError.value || !!testingTimeError.value);
+
+// B558: the one validation this field was missing - weekday-only, matching
+// the two scheduling sections above and below it.
+const administerDateError = computed(() => {
+  if (!administerForm.value.testing_date) return '';
+  return isWeekend(administerForm.value.testing_date) ? 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).' : '';
+});
 
 const parDateError = computed(() => dateErrorFor(parScheduleForm.value.appointment_date));
 const parTimeError = computed(() => timeErrorFor(parScheduleForm.value.start_time, parScheduleForm.value.end_time));
@@ -743,6 +804,10 @@ async function confirmScheduleTesting() {
 async function saveTestsAdministered() {
   if (!administerForm.value.testing_date) {
     toast?.error('Please set the testing date.');
+    return;
+  }
+  if (administerDateError.value) {
+    toast?.error(administerDateError.value);
     return;
   }
   if (!administerForm.value.tests_administered.length) {
@@ -1001,4 +1066,4 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-</script>
+</script>d

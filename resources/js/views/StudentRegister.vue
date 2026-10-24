@@ -27,7 +27,7 @@
               <input v-model="consent" type="checkbox" />
               <span>
                 I agree to the
-                <button type="button" class="cons-link" @click.prevent="showPrivacy = true">Data Privacy Notice and Consent Authorization of the Office of Student Services</button>.
+                <button type="button" class="cons-link" @click.prevent="showPrivacy = true">Data Privacy Notice and Consent Authorization of the Office of Student Services.</button>
               </span>
             </label>
 

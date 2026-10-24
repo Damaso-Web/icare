@@ -178,10 +178,23 @@
           </div>
         </div>
 
-        <!-- B532: the calendar's own red dot/background on a blocked date is
-             enough; the extra notice, "Unavailable this month" list and
-             filter-indicator bar were cut as clutter. "Reset" in the filter
-             bar above still clears a date picked here. -->
+        <!-- B546: brought back from the B532 cut, now conditional - it's useful
+             context while browsing the month with nothing picked yet, but once a
+             date is selected (blocked or not) the calendar's own red dot/background
+             already says enough, so the list steps aside instead of piling on. It
+             recomputes off blockedMap/currentMonth/currentYear, so switching months
+             updates it with no extra wiring. -->
+        <div v-if="!previewDate && blockedThisMonth.length" class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Unavailable this month</span>
+          </div>
+          <div style="padding:10px 14px;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto">
+            <div v-for="b in blockedThisMonth" :key="b.date" style="display:flex;justify-content:space-between;gap:10px;font-size:12px">
+              <span style="color:var(--slate);font-weight:600">{{ b.day }}</span>
+              <span style="color:var(--stone);text-align:right">{{ b.label }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -885,6 +898,32 @@ async function fetchBlockedDates() {
     blockedMap.value = res.data?.blocked || {};
   } catch (e) { blockedMap.value = {}; }
 }
+
+// B548: default the calendar's view to the active academic year, not just
+// "today" - today only lands somewhere sensible while it still falls inside
+// the Current term. Right after an admin marks a new term Current (or when
+// looking at a term whose dates don't include today), open on that term's
+// first month instead of leaving the calendar pinned to a stale year. Skipped
+// when arriving with an explicit ?date= (the Dashboard's "Appointments Today"
+// card already picked the month that matters).
+async function alignCalendarToAcademicYear() {
+  const qd = typeof route.query.date === 'string' ? route.query.date : '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(qd)) return;
+  try {
+    const base = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+    const res = await axios.get(`${base}/management/academic-years`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    });
+    const current = (res.data || []).find(a => a.is_current);
+    if (!current || !current.year_start || !current.year_end) return;
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    const inRange = todayStr >= String(current.year_start).slice(0, 10) && todayStr <= String(current.year_end).slice(0, 10);
+    if (inRange) return;
+    const start = new Date(String(current.year_start).slice(0, 10) + 'T00:00:00');
+    currentMonth.value = start.getMonth();
+    currentYear.value = start.getFullYear();
+  } catch (e) { /* non-critical: the calendar just keeps defaulting to today */ }
+}
 // What kind of School Calendar entry it is (the calendar stores holiday / suspension types).
 function blockedTypeLabel(t) {
   const m = { holiday: 'Holiday', regular_holiday: 'Holiday', special_holiday: 'Holiday', suspension: 'Class suspension', class_suspension: 'Class suspension', office_closure: 'Office closure', closure: 'Office closure' };
@@ -959,6 +998,7 @@ onMounted(() => {
   fetchAppointments();
   fetchAllAppointments();
   fetchBlockedDates();
+  alignCalendarToAcademicYear();
   fetchStaff();
   // Pick up schedules students set or change without a manual refresh.
   refreshTimer = setInterval(() => {

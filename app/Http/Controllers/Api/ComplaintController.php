@@ -126,13 +126,15 @@ class ComplaintController extends Controller
         // affidavit are required and limited to document or image files.
         $fileRule = 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240';
         $request->validate([
-            'description'  => 'required|string|min:10|max:1000',
+            'description'  => ['required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'evidence'     => 'required|array|min:1',
             'evidence.*'   => $fileRule,
             'affidavit'    => 'required|array|min:1',
             'affidavit.*'  => $fileRule,
         ], [
             'description.min'    => 'Please describe the facts in at least 10 characters.',
+            // B584: Narration of Facts must not be numbers-only.
+            'description.regex'  => 'Please provide a valid narration of facts. Numbers alone are not allowed.',
             'evidence.required'  => 'Please attach at least one evidence file.',
             'evidence.min'       => 'Please attach at least one evidence file.',
             'affidavit.required' => 'Please attach at least one Affidavit of Witness file.',
@@ -186,7 +188,7 @@ class ComplaintController extends Controller
         $validated = $request->validate([
             ...$proofRules,
             'complainant_name'       => ['required', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
-            'complainant_address'    => 'required|string|max:255',
+            'complainant_address'    => ['required', 'string', 'max:255', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'complainee_student_id'  => 'required|exists:students,id',
             'complainee_position'    => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainee_college'     => 'nullable|string|max:255',
@@ -195,20 +197,32 @@ class ComplaintController extends Controller
             'complainee_address'     => 'nullable|string|max:255',
             'violation_type'         => 'required|string|max:255',
             'incident_date'          => 'required|date|before_or_equal:today',
-            'description'            => 'required|string|max:2000',
+            'description'            => ['required', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'certification_agreed'   => 'required|accepted',
             'evidence.*'             => 'nullable|file|max:10240',
             'affidavit.*'            => 'nullable|file|max:10240',
         ], [
-            'evidence.required'  => 'Please attach at least one evidence file.',
-            'evidence.min'       => 'Please attach at least one evidence file.',
-            'affidavit.required' => 'Please attach at least one Affidavit of Witness file.',
-            'affidavit.min'      => 'Please attach at least one Affidavit of Witness file.',
+            'evidence.required'      => 'Please attach at least one evidence file.',
+            'evidence.min'           => 'Please attach at least one evidence file.',
+            'affidavit.required'     => 'Please attach at least one Affidavit of Witness file.',
+            'affidavit.min'          => 'Please attach at least one Affidavit of Witness file.',
+            // B584: Address and Narration of Facts must not be numbers-only.
+            'complainant_address.regex' => 'Please provide a valid address. Numbers alone are not allowed.',
+            'description.regex'         => 'Please provide a valid narration of facts. Numbers alone are not allowed.',
+            'incident_date.before_or_equal' => 'The date of incident cannot be in the future.',
         ]);
 
         $student = Student::findOrFail($validated['complainee_student_id']);
         if (! $student->is_active) {
             return response()->json(['message' => 'This student record is inactive.'], 422);
+        }
+
+        // B590: a Dean files complaints for their own college - enforced
+        // here too, not only by what the search box returns.
+        $actor = $request->user();
+        if ($actor && method_exists($actor, 'isDean') && $actor->isDean()
+            && !in_array($student->college, \App\Support\CollegeName::equivalents($actor->college), true)) {
+            return response()->json(['message' => 'You can only file complaints against students enrolled in your own college.'], 403);
         }
 
         $complaint = Complaint::create([

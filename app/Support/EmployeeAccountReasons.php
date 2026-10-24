@@ -43,6 +43,39 @@ class EmployeeAccountReasons
         'inactive'       => 'security_verified',
     ];
 
+    // B591: which reactivation reasons make sense for an account deactivated
+    // under a given label - e.g. an account deactivated for "End of Contract
+    // / Term" can only be reactivated as "Rehired / Contract Renewed" (or the
+    // two escape hatches below), never "Security Verified". Keyed by the
+    // deactivation LABEL because that's what's stored on the user record
+    // (deactivation_reason). resources/js/constants/accountReasons.js's
+    // reactivationReasonsFor() is the same rule on the frontend.
+    public const RELATED = [
+        'Leave of Absence (LOA)'                   => ['returned_loa'],
+        'End of Contract / Term'                    => ['rehired'],
+        'Resigned'                                   => ['rehired'],
+        'Retired'                                     => ['rehired'],
+        'Transferred to Another Office or Campus'    => ['rehired'],
+        'Administrative Action'                       => ['action_lifted'],
+        'Security Concern'                            => ['security_verified'],
+        'Inactive Account'                            => ['security_verified'],
+        'Duplicate Account / Created in Error'        => [],
+    ];
+
+    /**
+     * Reactivation reason keys allowed for an account deactivated under
+     * $deactivationLabel. "Deactivated in Error" and "Other" are always
+     * allowed as an escape hatch; an unrecognized or "Other" original
+     * reason can't be narrowed, so every reactivation reason stays open.
+     */
+    public static function allowedReactivationKeys(?string $deactivationLabel): array
+    {
+        if ($deactivationLabel === null || !array_key_exists($deactivationLabel, self::RELATED)) {
+            return array_keys(self::REACTIVATE);
+        }
+        return array_merge(self::RELATED[$deactivationLabel], ['error', 'other']);
+    }
+
     public static function label(string $kind, string $key): string
     {
         $list = $kind === 'reactivate' ? self::REACTIVATE : self::DEACTIVATE;

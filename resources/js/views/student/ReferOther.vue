@@ -21,8 +21,10 @@
         </div>
         <div>
           <label class="ifl">Reason for referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(at least 10 characters, max 1000)</span></label>
-          <textarea v-model="form.nature_of_concern" class="ifta" style="min-height:130px" maxlength="1000"></textarea>
+          <textarea v-model="form.nature_of_concern" class="ifta" style="min-height:130px" maxlength="1000" :style="reasonNumbersOnly ? 'border-color:var(--red);border-width:1.5px' : ''"></textarea>
           <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ form.nature_of_concern.length }}/1000</div>
+          <!-- B582: live, as the user types - not just discovered on submit. -->
+          <div v-if="reasonNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid referral reason. Numbers alone are not allowed.</div>
         </div>
         <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
         <div style="display:flex;gap:8px">
@@ -35,10 +37,11 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue';
+import { ref, inject, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { studentApi } from '../../api/index';
 import StudentIdLookup from '../../components/StudentIdLookup.vue';
+import { hasLetter } from '../../utils/validators';
 
 const router = useRouter();
 const toast = inject('toast', null);
@@ -62,12 +65,17 @@ const target = ref(null);
 const form = ref({ referral_type: '', nature_of_concern: '' });
 const sending = ref(false);
 const error = ref('');
+// B582: "12345" has 10+ characters but isn't a real reason.
+const reasonNumbersOnly = computed(() =>
+  !!form.value.nature_of_concern.trim() && !hasLetter(form.value.nature_of_concern)
+);
 
 async function submit() {
   error.value = '';
   if (!target.value) { error.value = "Find the student by their ID Number or full name first."; return; }
   if (!form.value.referral_type) { error.value = 'Please choose a service.'; return; }
   if (form.value.nature_of_concern.trim().length < 10) { error.value = 'Please describe the reason in at least 10 characters.'; return; }
+  if (!hasLetter(form.value.nature_of_concern)) { error.value = 'Please provide a valid referral reason. Numbers alone are not allowed.'; return; }
   sending.value = true;
   try {
     await studentApi.post('/student/outreach/referrals', {

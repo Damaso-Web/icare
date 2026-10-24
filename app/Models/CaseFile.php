@@ -16,6 +16,7 @@ class CaseFile extends Model
         'case_number',
         'student_id',
         'primary_counselor_id',
+        'previous_counselor_id',
         'current_unit',
         'case_type',
         'status',
@@ -97,6 +98,9 @@ class CaseFile extends Model
     public function referrals()     { return $this->hasMany(Referral::class, 'case_id')->orderBy('created_at'); }
     public function latestReferral(){ return $this->hasOne(Referral::class, 'case_id')->latestOfMany(); }
     public function counselor()     { return $this->belongsTo(User::class, 'primary_counselor_id'); }
+    // B562: the counselor this case was reassigned away from - kept so they
+    // can still see it (read-only) under "Reassigned/History".
+    public function previousCounselor() { return $this->belongsTo(User::class, 'previous_counselor_id'); }
     public function flaggedBy()     { return $this->belongsTo(User::class, 'unreachable_flagged_by'); }
     public function followUpFlaggedBy() { return $this->belongsTo(User::class, 'follow_up_flagged_by'); }
     public function interventions()  { return $this->hasMany(CaseIntervention::class, 'case_id')->latest(); }

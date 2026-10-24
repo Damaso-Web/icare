@@ -93,7 +93,7 @@ class AuthController extends Controller
             return $this->sendOtp($user);
         }
 
-        return $this->issueToken($user);
+        return $this->issueToken($user, $request);
     }
 
     private function sendOtp(User $user)
@@ -158,13 +158,15 @@ class AuthController extends Controller
             return response()->json(['message' => self::BAD_LOGIN], 401);
         }
 
-        return $this->issueToken($user);
+        return $this->issueToken($user, $request);
     }
 
-    private function issueToken(User $user)
+    private function issueToken(User $user, Request $request)
     {
         $user->update(['last_login_at' => now()]);
-        $token = $user->createToken('icare-token')->plainTextToken;
+        // B569: label the token with the device/browser it was issued to,
+        // so "Active Sessions" (see sessions()) shows something recognizable.
+        $token = $user->createToken(\App\Support\DeviceLabel::fromRequest($request))->plainTextToken;
 
         // Still on a temporary / one-time password: remind them in the bell (once, until read).
         if ($user->must_change_password && !$user->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->exists()) {
@@ -257,6 +259,44 @@ class AuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user());
+    }
+
+    // B569: "Active Sessions / Linked Devices" - lets an account see every
+    // device currently signed in and sign any of them out individually,
+    // without forcing a destructive single-session-only policy on everyone.
+    public function sessions(Request $request)
+    {
+        $current = $request->user()->currentAccessToken();
+        return response()->json(
+            $request->user()->tokens()
+                ->orderByDesc('last_used_at')
+                ->get(['id', 'name', 'created_at', 'last_used_at'])
+                ->map(fn($t) => [
+                    'id'           => $t->id,
+                    'device'       => $t->name,
+                    'created_at'   => $t->created_at,
+                    'last_used_at' => $t->last_used_at,
+                    'is_current'   => $current && (int) $t->id === (int) $current->id,
+                ])
+        );
+    }
+
+    public function revokeSession(Request $request, $tokenId)
+    {
+        $token = $request->user()->tokens()->whereKey($tokenId)->first();
+        abort_unless($token, 404, 'Session not found.');
+        $wasCurrent = $request->user()->currentAccessToken() && (int) $token->id === (int) $request->user()->currentAccessToken()->id;
+        $token->delete();
+        AuditLog::record('logout', "User {$request->user()->name} signed out a linked device ({$token->name}).");
+        return response()->json(['message' => 'Session signed out.', 'was_current' => $wasCurrent]);
+    }
+
+    public function revokeOtherSessions(Request $request)
+    {
+        $current = $request->user()->currentAccessToken();
+        $request->user()->tokens()->when($current, fn($q) => $q->whereKeyNot($current->id))->delete();
+        AuditLog::record('logout', "User {$request->user()->name} signed out all other devices.");
+        return response()->json(['message' => 'Signed out of all other devices.']);
     }
 
     public function changePassword(Request $request)

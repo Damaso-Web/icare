@@ -279,7 +279,13 @@ function isActive(name) {
   return route.name === name;
 }
 
-function logout() {
+// B570: this used to just drop the token client-side without telling the
+// server - so a token that reached an idle timeout (SessionGuard) or an
+// explicit logout stayed valid and reusable server-side. Revoking it
+// first (same as the staff side's auth.logout()) actually ends the
+// session, not just this tab's memory of it.
+async function logout() {
+  try { await axios.post(`${API_BASE}/student/logout`, {}, authHeaders()); } catch (e) { /* revoke best-effort - still clear locally below */ }
   localStorage.removeItem('student_token');
   localStorage.removeItem('student');
   router.push({ name: 'login-choice' });

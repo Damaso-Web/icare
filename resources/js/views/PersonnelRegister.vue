@@ -5,7 +5,7 @@
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
-      <AuthBrand subtitle="BSU Personnel · Register" />
+      <AuthBrand subtitle="Faculty · Register" />
 
       <div class="icard" style="padding:22px">
         <template v-if="!sent">
@@ -22,7 +22,9 @@
 
             <label class="cons">
               <input v-model="consent" type="checkbox" />
-              <span>I have read and agree to the Confidentiality Agreement.</span>
+              <span>I have read and agree to the
+                <a href="#" class="cons-link" @click.stop.prevent="showAgreement = true">Confidentiality Agreement</a>.
+              </span>
             </label>
 
             <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center;margin-top:16px" :disabled="loading || !consent || !form.employee_id || !form.email.trim()">
@@ -40,6 +42,34 @@
         </template>
       </div>
     </div>
+
+    <!-- B600: the Confidentiality Agreement text is clickable and opens a
+         read-only modal of its full content, so a user can review it before
+         ticking the checkbox without losing anything they've already typed
+         into the form (the form stays mounted underneath). -->
+    <div v-if="showAgreement" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showAgreement = false">
+      <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:28px 26px;box-shadow:var(--sh-lg)">
+        <div class="cg-text" style="max-height:60vh;overflow-y:auto;padding:16px 18px;margin-bottom:16px;border:1px solid #e1ebe5;border-radius:12px;background:#fbfdfc;font-size:12.5px;line-height:1.7;color:var(--slate)">
+          <h3 style="font-size:14.5px;font-weight:700;color:var(--forest);margin:0 0 8px">Personnel Confidentiality and Data Handling Agreement</h3>
+          <p>
+            Pursuant to the Data Privacy Act of 2012 and the BSU Data Privacy Policy, authorized personnel are legally obligated to maintain the absolute confidentiality of all student records, referrals, and case files accessed through the iCARE system.
+          </p>
+          <p>
+            As an authorized user (Admin, GCU, SDU, TMDU, Faculty, or Dean's Secretary), you acknowledge that the information within this system is highly sensitive.
+          </p>
+          <p>By proceeding, you formally agree to the following terms:</p>
+          <ol style="margin:0 0 10px;padding-left:18px">
+            <li style="margin-bottom:8px"><strong>Authorized Access Only:</strong> You will access, process, and disclose student information strictly on a "need to know" basis to facilitate official student support, academic, or disciplinary functions.</li>
+            <li style="margin-bottom:8px"><strong>Strict Non-Disclosure:</strong> You will not share, download, verbally communicate, or transmit confidential student profiles, session notes, or disciplinary records to any unauthorized individuals within or outside the University.</li>
+            <li style="margin-bottom:8px"><strong>System Security:</strong> You will secure your account credentials, ensure you log out of shared devices, and only access the iCARE platform using authorized institutional or secured personal hardware.</li>
+          </ol>
+          <p style="margin-bottom:0">
+            Violations of this confidentiality agreement may result in the revocation of system access and subject the user to university disciplinary action.
+          </p>
+        </div>
+        <button type="button" class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="showAgreement = false">Close</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -55,6 +85,7 @@ const router = useRouter();
 
 const form = ref({ employee_id: '', email: '' });
 const consent = ref(false);
+const showAgreement = ref(false);
 const loading = ref(false);
 const sent = ref(false);
 const error = ref('');
@@ -94,4 +125,5 @@ async function submit() {
 <style scoped>
 .cons { display: flex; gap: 9px; align-items: flex-start; margin-top: 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink); cursor: pointer; }
 .cons input { margin-top: 2px; accent-color: var(--moss); }
+.cons-link { color: var(--moss); text-decoration: underline; cursor: pointer; }
 </style>

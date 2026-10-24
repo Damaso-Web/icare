@@ -79,9 +79,25 @@
               <input :value="student.student_id || ''" class="ifi" disabled />
             </div>
             <div>
-              <label class="ifl">Course and Year</label>
-              <input :value="[student.program, student.year_level].filter(Boolean).join(' - ')" class="ifi" disabled />
+              <!-- B552 (partial): Program and Year Level were already separate
+                   fields on the student record - only the display combined
+                   them into one "Course and Year" string. Splitting them out
+                   here is as far as this fix goes: an academic-year-transition
+                   prompt (or an admin batch-advancement workflow) that updates
+                   year_level itself is a separate product decision - whether
+                   it runs automatically, needs the student's confirmation, or
+                   is a manual admin action, and how an irregular/graduating
+                   student is excluded - and shouldn't be guessed at here. -->
+              <label class="ifl">Course</label>
+              <input :value="student.program || ''" class="ifi" disabled />
             </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <label class="ifl">Year Level</label>
+              <input :value="student.year_level || ''" class="ifi" disabled />
+            </div>
+            <div></div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
             <div>
@@ -243,7 +259,7 @@
           </div>
 
           <div style="font-size:11.5px;font-weight:600;color:var(--slate);margin-top:4px">Legal Guardian</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 90px;gap:12px">
             <div>
               <label class="ifl">Last Name</label>
               <input v-model="backgroundForm.guardian_last_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_last_name = capFirst(String(backgroundForm.guardian_last_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
@@ -255,6 +271,13 @@
             <div>
               <label class="ifl">Middle Name</label>
               <input v-model="backgroundForm.guardian_middle_name" class="ifi" maxlength="50" @input="backgroundForm.guardian_middle_name = capFirst(String(backgroundForm.guardian_middle_name ?? '').normalize('NFC').replace(/[^\p{L}\p{M}'.\- ]/gu, ''))" />
+            </div>
+            <div>
+              <label class="ifl">Suffix</label>
+              <select v-model="backgroundForm.guardian_suffix" class="ifse">
+                <option value="">None</option>
+                <option v-for="s in SUFFIXES" :key="s" :value="s">{{ s }}</option>
+              </select>
             </div>
           </div>
           <div style="display:grid;grid-template-columns:80px 1fr;gap:12px">
@@ -467,6 +490,35 @@
         </div>
       </div>
 
+      <!-- B569: Active Sessions / Linked Devices - every device currently
+           signed in to this account, with the ability to sign any of them
+           out individually or all at once. -->
+      <div v-show="tab === 'sessions'" class="icard">
+        <div class="icard-header">
+          <span class="icard-title">Active Sessions</span>
+          <button v-if="sessions.length > 1" class="ibtn ibtn-o ibtn-sm" :disabled="revokingOthers" @click="revokeOtherSessions">
+            {{ revokingOthers ? 'Signing out...' : 'Sign out all other devices' }}
+          </button>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:10px">
+          <div v-if="sessionsError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ sessionsError }}</div>
+          <div style="font-size:12px;color:var(--stone);line-height:1.5">Devices and browsers currently signed in to your account. If you don't recognize one, sign it out.</div>
+          <div v-if="sessionsLoading" style="text-align:center;padding:24px"><div style="width:20px;height:20px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div></div>
+          <div v-for="s in sessions" :key="s.id" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+            <div style="min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">
+                {{ s.device || 'Unknown device' }}
+                <span v-if="s.is_current" class="ibadge" style="background:var(--mist);color:var(--moss);margin-left:6px">This device</span>
+              </div>
+              <div style="font-size:11.5px;color:var(--stone);margin-top:2px">Last active {{ formatSessionDate(s.last_used_at || s.created_at) }}</div>
+            </div>
+            <button v-if="!s.is_current" class="ibtn ibtn-o ibtn-sm" :disabled="revokingId === s.id" @click="revokeSession(s)">
+              {{ revokingId === s.id ? 'Signing out...' : 'Sign out' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- Password change confirmation -->
@@ -601,6 +653,7 @@ const TABS = [
   { value: 'family',    label: 'Family' },
   { value: 'education', label: 'Education' },
   { value: 'password',  label: 'Password' },
+  { value: 'sessions',  label: 'Sessions' },
 ];
 // A student still on a temporary password lands on the Password tab.
 const tab = ref(student.value.must_change_password ? 'password' : 'personal');
@@ -715,7 +768,63 @@ watch(tab, (now, before) => {
     pwSuccess.value = '';
     showCurrentPw.value = showNewPw.value = showConfirmPw.value = false;
   }
+  // B569: the list is only ever fetched when the tab is actually opened,
+  // not on every page load, since most visits never touch it.
+  if (now === 'sessions' && !sessionsLoaded.value) {
+    fetchSessions();
+  }
 });
+
+// ---- B569: Active Sessions / Linked Devices ----
+const sessions        = ref([]);
+const sessionsLoading  = ref(false);
+const sessionsLoaded  = ref(false);
+const sessionsError   = ref('');
+const revokingId       = ref(null);
+const revokingOthers    = ref(false);
+
+async function fetchSessions() {
+  sessionsLoading.value = true;
+  sessionsError.value = '';
+  try {
+    const res = await axios.get(`${API_BASE}/student/sessions`, authHeaders());
+    sessions.value = res.data;
+    sessionsLoaded.value = true;
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to load active sessions.';
+  } finally {
+    sessionsLoading.value = false;
+  }
+}
+
+async function revokeSession(s) {
+  revokingId.value = s.id;
+  try {
+    await axios.delete(`${API_BASE}/student/sessions/${s.id}`, authHeaders());
+    sessions.value = sessions.value.filter(x => x.id !== s.id);
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to sign out that device.';
+  } finally {
+    revokingId.value = null;
+  }
+}
+
+async function revokeOtherSessions() {
+  revokingOthers.value = true;
+  try {
+    await axios.post(`${API_BASE}/student/sessions/revoke-others`, {}, authHeaders());
+    sessions.value = sessions.value.filter(s => s.is_current);
+  } catch (e) {
+    sessionsError.value = e.response?.data?.message || 'Failed to sign out other devices.';
+  } finally {
+    revokingOthers.value = false;
+  }
+}
+
+function formatSessionDate(date) {
+  if (!date) return 'just now';
+  return new Date(date).toLocaleString();
+}
 const pwMismatch = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password !== pwForm.value.password_confirmation);
 const pwMatch    = computed(() => !!pwForm.value.password_confirmation && pwForm.value.password === pwForm.value.password_confirmation);
 const pwSuccess = ref('');
@@ -746,7 +855,7 @@ function emptyBackgroundForm() {
     father_age: '', father_educational_attainment: '',
     mother_first_name: '', mother_middle_name: '', mother_last_name: '', mother_suffix: '', mother_occupation: '', mother_contact_number: '',
     mother_age: '', mother_educational_attainment: '',
-    guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '', guardian_age: '',
+    guardian_first_name: '', guardian_middle_name: '', guardian_last_name: '', guardian_suffix: '', guardian_age: '',
     guardian_occupation: '', guardian_educational_attainment: '', guardian_contact: '',
     siblings: [],
     senior_high_school: '', senior_high_year_graduated: '', senior_high_achievements: '',
@@ -762,7 +871,7 @@ const FAMILY_KEYS = [
   'father_first_name', 'father_middle_name', 'father_last_name', 'father_suffix', 'father_occupation', 'father_contact_number',
   'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_suffix', 'mother_occupation', 'mother_contact_number',
   'father_age', 'father_educational_attainment', 'mother_age', 'mother_educational_attainment',
-  'guardian_first_name', 'guardian_middle_name', 'guardian_last_name', 'guardian_age',
+  'guardian_first_name', 'guardian_middle_name', 'guardian_last_name', 'guardian_suffix', 'guardian_age',
   'guardian_occupation', 'guardian_educational_attainment', 'guardian_contact',
 ];
 const pickFamily = (src) => Object.fromEntries(FAMILY_KEYS.map(k => [k, src?.[k] ?? '']));
@@ -820,6 +929,7 @@ const FIELD_LABELS = {
   mother_occupation: "Mother's Occupation", mother_contact_number: "Mother's Contact Number", mother_age: "Mother's Age",
   mother_educational_attainment: "Mother's Educational Attainment",
   guardian_first_name: "Guardian's First Name", guardian_middle_name: "Guardian's Middle Name", guardian_last_name: "Guardian's Last Name",
+  guardian_suffix: "Guardian's Suffix",
   guardian_age: "Guardian's Age", guardian_occupation: "Guardian's Occupation", guardian_educational_attainment: "Guardian's Educational Attainment",
   guardian_contact: "Guardian's Contact Number",
   elementary_school: 'Elementary School', elementary_year_graduated: 'Elementary Year Graduated', elementary_achievements: 'Elementary Achievements',
@@ -1172,7 +1282,7 @@ onMounted(async () => {
       father_age: d.father_age || '', father_educational_attainment: d.father_educational_attainment || '',
       mother_age: d.mother_age || '', mother_educational_attainment: d.mother_educational_attainment || '',
       guardian_first_name: d.guardian_first_name || '', guardian_middle_name: d.guardian_middle_name || '',
-      guardian_last_name: d.guardian_last_name || '', guardian_age: d.guardian_age || '',
+      guardian_last_name: d.guardian_last_name || '', guardian_suffix: d.guardian_suffix || '', guardian_age: d.guardian_age || '',
       guardian_occupation: d.guardian_occupation || '', guardian_educational_attainment: d.guardian_educational_attainment || '',
       guardian_contact: d.guardian_contact || '',
       siblings,

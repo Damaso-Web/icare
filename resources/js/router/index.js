@@ -233,7 +233,9 @@ const routes = [
                 path: 'referrals',
                 name: 'referrals',
                 component: Referrals,
-                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'] },
+                // B596/B605: a Dean or Dept Chair uses Sent Referrals instead -
+                // the Referral Queue nav item (and this page) is no longer theirs.
+                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'] },
             },
             {
                 path: 'referrals/create',

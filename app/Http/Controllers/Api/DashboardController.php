@@ -25,7 +25,7 @@ class DashboardController extends Controller
         }
 
         if ($user->isTMDUStaff()) {
-            return response()->json($this->tmduDashboard());
+            return response()->json($this->tmduDashboard($user));
         }
 
         if ($user->isDeanSecretary()) {
@@ -121,18 +121,36 @@ class DashboardController extends Controller
         ];
     }
 
-    private function tmduDashboard(): array
+    // B554: the Testing Records page (TestingRecordController::index()) only
+    // shows a TMDU staff/head member their own assigned records plus unclaimed
+    // records whose referral TMDU has already acknowledged - the dashboard's
+    // counts were ignoring that scope entirely and counting every TestingRecord
+    // system-wide, so "Pending Testing" could show a higher number than the
+    // Testing Records page actually lists. Reusing the exact same scope here
+    // keeps the two in sync.
+    private function tmduVisibleTesting($user)
+    {
+        return TestingRecord::where(function ($qq) use ($user) {
+            $qq->where('assigned_tester_user_id', $user->id)
+               ->orWhere(function ($un) {
+                   $un->whereNull('assigned_tester_user_id')
+                      ->whereHas('referral', fn($r) => $r->whereNotNull('acknowledged_at'));
+               });
+        });
+    }
+
+    private function tmduDashboard($user): array
     {
         return [
             'stats' => [
-                'pending_testing'   => TestingRecord::where('status', 'pending')->count(),
-                'in_progress'       => TestingRecord::where('status', 'in_progress')->count(),
-                'completed'         => TestingRecord::where('status', 'completed')->count(),
+                'pending_testing'   => $this->tmduVisibleTesting($user)->where('status', 'pending')->count(),
+                'in_progress'       => $this->tmduVisibleTesting($user)->where('status', 'in_progress')->count(),
+                'completed'         => $this->tmduVisibleTesting($user)->where('status', 'completed')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'TMDU')
                                         ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
             ],
-            'testing_queue' => TestingRecord::with(['student', 'referredBy'])
+            'testing_queue' => $this->tmduVisibleTesting($user)->with(['student', 'referredBy'])
                 ->whereIn('status', ['pending', 'scheduled'])
                 ->latest()
                 ->take(5)
@@ -148,29 +166,62 @@ class DashboardController extends Controller
         ];
     }
 
+    // B564: the Referral Queue (ReferralController::index()) that "Total"
+    // etc. link to excludes archived referrals, Complaint-originated ones,
+    // and anything already escalated to TMDU by default - this was counting
+    // every referral the faculty member ever sent, with none of those
+    // exclusions, so the dashboard number could run ahead of the list.
+    private function facultyVisibleReferrals($user)
+    {
+        return Referral::where('referred_by_user_id', $user->id)
+            ->where('is_archived', false)
+            ->whereNull('complaint_id')
+            ->notTmduOwned();
+    }
+
     private function facultyDashboard($user): array
     {
         return [
             'stats' => [
-                'my_referrals'      => Referral::where('referred_by_user_id', $user->id)->count(),
-                'pending'           => Referral::where('referred_by_user_id', $user->id)
-                                        ->where('status', 'submitted')->count(),
-                'acknowledged'      => Referral::where('referred_by_user_id', $user->id)
-                                        ->where('status', 'acknowledged')->count(),
-                'completed'         => Referral::where('referred_by_user_id', $user->id)
-                                        ->whereIn('status', ['completed', 'closed'])->count(),
+                'my_referrals'      => $this->facultyVisibleReferrals($user)->count(),
+                'pending'           => $this->facultyVisibleReferrals($user)->where('status', 'submitted')->count(),
+                'acknowledged'      => $this->facultyVisibleReferrals($user)->where('status', 'acknowledged')->count(),
+                'completed'         => $this->facultyVisibleReferrals($user)->whereIn('status', ['completed', 'closed'])->count(),
             ],
-            'recent_referrals' => Referral::with('student')
-                ->where('referred_by_user_id', $user->id)
+            'recent_referrals' => $this->facultyVisibleReferrals($user)
+                ->with('student')
+                ->latest()
+                ->take(5)
+                ->get(),
+            // B608: a Dept Chair's "My Submitted Complaints" dashboard card
+            // (Faculty and Deans don't file complaints directly, so this is
+            // effectively Dept-Chair-only data, but harmless for any faculty
+            // account that happens to have filed one too).
+            'recent_complaints' => Complaint::where('filed_by_user_id', $user->id)
+                ->with('complainee')
                 ->latest()
                 ->take(5)
                 ->get(),
         ];
     }
 
+    // B567: same mismatch as B554/B564 - the Referral Queue
+    // (ReferralController::index()) that the Dean's cards link to excludes
+    // archived referrals, Complaint-originated ones, and anything already
+    // escalated to TMDU by default - this query had none of those
+    // exclusions, so e.g. "Total" could count referrals the list itself
+    // never shows (Total showed 21 while the list behind it had 13).
+    private function deanSecretaryVisibleReferrals($user)
+    {
+        return Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)))
+            ->where('is_archived', false)
+            ->whereNull('complaint_id')
+            ->notTmduOwned();
+    }
+
     private function deanSecretaryDashboard($user): array
     {
-        $collegeReferrals = Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
+        $collegeReferrals = $this->deanSecretaryVisibleReferrals($user);
 
         return [
             'stats' => [

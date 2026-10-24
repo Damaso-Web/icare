@@ -181,7 +181,7 @@ class Referral extends Model
 
         $rules = [
             'referral_type'     => 'sometimes|required|in:' . implode(',', $this->sameUnitTypes()),
-            'nature_of_concern' => 'sometimes|required|string|min:10|max:1000',
+            'nature_of_concern' => ['sometimes', 'required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
         ];
         if ($this->referral_type === 'disciplinary') {
             $rules += [
@@ -191,7 +191,9 @@ class Referral extends Model
             ];
         }
         $old = $this->toArray();
-        $data = $request->validate($rules);
+        $data = $request->validate($rules, [
+            'nature_of_concern.regex' => 'Please provide a valid referral reason. Numbers alone are not allowed.',
+        ]);
         $this->update($data);
         // A Case Referral Slip (to TMDU) keeps the same reason on its Testing Record.
         if (isset($data['nature_of_concern']) && $this->testingRecord) {

@@ -13,11 +13,14 @@
           <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
         </button>
         <div class="ph" style="margin:0">
-          <h1>{{ caseFile.case_number }}</h1>
+          <h1>
+            {{ caseFile.case_number }}
+            <span v-if="isReassignedAway" class="ibadge" style="background:var(--amber-lt);color:var(--amber);font-size:11px;vertical-align:middle;margin-left:6px">Reassigned</span>
+          </h1>
           <p>{{ caseFile.student?.last_name }}, {{ caseFile.student?.first_name }} {{ caseFile.student?.middle_name }} · {{ caseFile.student?.student_id }}</p>
         </div>
         <div style="margin-left:auto;display:flex;gap:8px">
-          <button class="ibtn ibtn-o ibtn-sm" @click="showStatusModal = true">
+          <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="showStatusModal = true">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Status
           </button>
@@ -40,6 +43,10 @@
             Close Case
           </button>
         </div>
+      </div>
+
+      <div v-if="isReassignedAway" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 14px;color:var(--amber);font-size:12.5px;margin-bottom:16px">
+        This case was reassigned to {{ caseFile.counselor?.name || 'another counselor' }}. You can still view its full history, but can no longer edit it or take action on it.
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 320px;gap:16px">
@@ -926,7 +933,16 @@ const route  = useRoute();
 const toast  = inject('toast');
 const auth   = useAuthStore();
 
-const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role));
+// B562: this case was reassigned away from the signed-in counselor - they
+// keep read-only visibility (the page itself still loads and renders
+// normally; the backend's authorizeCaseWriter() also blocks the write
+// endpoints directly), but every action control on this page is hidden.
+const isReassignedAway = computed(() =>
+  !!caseFile.value.previous_counselor_id
+  && caseFile.value.previous_counselor_id === auth.user?.id
+  && caseFile.value.primary_counselor_id !== auth.user?.id
+);
+const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role) && !isReassignedAway.value);
 
 const loading              = ref(true);
 const showSessionModal     = ref(false);

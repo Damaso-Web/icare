@@ -90,9 +90,10 @@ class StudentOutreachController extends Controller
         $validated = $request->validate([
             'student_id'        => 'required|exists:students,id',
             'referral_type'     => 'required|in:' . implode(',', self::TYPES),
-            'nature_of_concern' => 'required|string|min:10|max:1000',
+            'nature_of_concern' => ['required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
         ], [
-            'nature_of_concern.min' => 'Please describe the concern in at least 10 characters.',
+            'nature_of_concern.min'   => 'Please describe the concern in at least 10 characters.',
+            'nature_of_concern.regex' => 'Please provide a valid referral reason. Numbers alone are not allowed.',
         ]);
 
         // Choosing yourself is allowed: it is recorded as a self-referral.

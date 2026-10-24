@@ -228,10 +228,41 @@ class ManagementCalendarEntryController extends Controller
     public function destroy(Request $request, CalendarEntry $entry)
     {
         $this->authorizeManage($request);
+        $rawReason = $request->input('reason');
         [$reason, $note] = ManagementGuard::requireDeleteReason($request, 'holidays and suspensions');
 
         $links = self::links($entry);
         if ($this->isPast($entry) || array_sum($links) > 0) {
+            // B550: before enforcing the usual "Archive Instead" block, check whether
+            // this is a genuine duplicate - another entry for the exact same date and
+            // type. links() above counts every appointment that falls on the date,
+            // which, when two entries share a date, blocks deleting EITHER of them
+            // even though only one is actually tied to any of those appointments.
+            // ownLinks checks that directly via holiday_conflict_entry_id, so a true
+            // "nothing of its own" duplicate can be told apart from a record that
+            // really does carry history.
+            $duplicate = CalendarEntry::where('id', '!=', $entry->id)
+                ->whereDate('entry_date', $entry->entry_date->format('Y-m-d'))
+                ->where('type', $entry->type)
+                ->first();
+            $ownLinks = Appointment::where('holiday_conflict_entry_id', $entry->id)->count();
+
+            if ($duplicate && $ownLinks === 0) {
+                if ($rawReason === 'duplicate') {
+                    // Confirmed duplicate, nothing specifically tied to this record:
+                    // safe to hard-delete without leaving anything orphaned.
+                    $name = $entry->describe();
+                    $old = $this->snap($entry);
+                    $entry->delete();
+                    ManagementGuard::audit('holidays and suspensions', 'deleted',
+                        $name . " [confirmed duplicate of \"{$duplicate->name}\" ({$duplicate->status}); nothing specifically linked to this record]",
+                        $entry, $old, [], $reason, $note);
+                    return response()->json(['message' => 'Duplicate entry deleted.']);
+                }
+                $otherStatus = $duplicate->status === 'active' ? 'active' : 'archived';
+                abort(422, "\"{$entry->name}\" shares its date with another {$entry->type_label} entry (\"{$duplicate->name}\", {$otherStatus}), and nothing is specifically tied to this record. If this is a mistaken duplicate, choose \"Duplicate Entry\" as the delete reason to remove it directly. Otherwise, archive it instead.");
+            }
+
             abort(422, "\"{$entry->name}\" is linked to {$links['appointments']} appointments and {$links['notifications']} notifications, or its date has already passed. Deleting it would remove the reason shown in those records. Archive it instead.");
         }
 

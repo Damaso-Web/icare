@@ -171,7 +171,13 @@ class ReferralController extends Controller
             'statuses'     => collect($allStatuses)->merge($usedStatuses)->unique()->filter()->values()->all(),
         ];
         $q = $base->with('student:id,student_id,first_name,last_name,college');
-        if ($request->filled('status'))        $q->where('status', $request->status);
+        // B597: the Dean dashboard's metric cards link here with a status
+        // group (e.g. every "in progress" status after acknowledgement), not
+        // just one value, so a comma list is accepted alongside a single status.
+        if ($request->filled('status')) {
+            $statuses = array_values(array_filter(array_map('trim', explode(',', (string) $request->status))));
+            count($statuses) > 1 ? $q->whereIn('status', $statuses) : $q->where('status', $statuses[0] ?? $request->status);
+        }
         if ($request->filled('referral_type')) $q->where('referral_type', $request->referral_type);
         if ($request->filled('search')) {
             $search = $request->search;
@@ -201,12 +207,15 @@ class ReferralController extends Controller
         $validated = $request->validate([
             'student_id'          => 'required|exists:students,id',
             'referral_type'       => 'required|in:class_attendance,counseling,academic_deficiency,leave_of_absence,withdrawal,readmission,shifting,psychological_testing,disciplinary',
-            'nature_of_concern'   => 'required|string|min:10|max:1000',
+            'nature_of_concern'   => ['required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'is_self_referred'    => 'boolean',
             'referrer_source'     => 'nullable|string|max:255',
             'violation_type'      => 'nullable|string|max:255',
             'incident_description'=> 'nullable|string|max:2000',
             'incident_date'       => 'nullable|date',
+        ], [
+            // B581: "Numbers alone" covers both pure digits and digits-plus-punctuation.
+            'nature_of_concern.regex' => 'Please provide a valid referral reason. Numbers alone are not allowed.',
         ]);
 
         $user = $request->user();
@@ -214,6 +223,13 @@ class ReferralController extends Controller
 
         if (!$student->is_active) {
             return response()->json(['message' => 'This student account is deactivated and cannot be referred. Please reactivate the student first.'], 422);
+        }
+
+        // B590: a Dean refers for their own college - enforced here too, not
+        // only by what the search box returns, in case a student_id from
+        // outside their college reaches this endpoint some other way.
+        if ($user->isDean() && !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)) {
+            return response()->json(['message' => 'You can only refer students enrolled in your own college.'], 403);
         }
 
         // A student has exactly one case file for life. New referral -> new
@@ -353,9 +369,11 @@ class ReferralController extends Controller
             abort_if($referral->acknowledged_at, 422, 'GCU already acknowledged this referral, so it can no longer be edited.');
 
             $data = $request->validate([
-                'nature_of_concern'    => 'sometimes|required|string|min:10|max:1000',
+                'nature_of_concern'    => ['sometimes', 'required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
                 'incident_description' => 'sometimes|nullable|string|max:2000',
                 'incident_date'        => 'sometimes|nullable|date',
+            ], [
+                'nature_of_concern.regex' => 'Please provide a valid referral reason. Numbers alone are not allowed.',
             ]);
             $referral->update($data);
             AuditLog::record('updated', "Referrer edited referral {$referral->referral_code} before acknowledgement.", $referral, $old, $referral->toArray());

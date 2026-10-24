@@ -10,8 +10,10 @@
         <h1>College Report</h1>
         <p>Referrals of {{ data.college || auth.user?.college }} compared with the other colleges.</p>
       </div>
+      <!-- B592: the options come from the Admin's School Calendar (Academic
+           Years) instead of a hardcoded list of calendar years. -->
       <select v-model="year" class="fsm" @change="load">
-        <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+        <option v-for="ay in academicYears" :key="ay.id" :value="ay.start_year">{{ ay.start_year }}-{{ ay.start_year + 1 }}</option>
       </select>
     </div>
 
@@ -31,7 +33,8 @@
         <div class="icard cr-tile">
           <div class="cr-k">Rank among colleges</div>
           <div class="cr-v">{{ data.rank ? '#' + data.rank : '-' }}<span v-if="data.rank" class="cr-of"> of {{ data.colleges }}</span></div>
-          <div class="cr-s">1 = most referrals</div>
+          <!-- B593 -->
+          <div class="cr-s">With Most Referrals</div>
         </div>
         <div class="icard cr-tile">
           <div class="cr-k">Busiest month</div>
@@ -95,12 +98,22 @@ import { toTitleCase } from '../../utils/validators';
 
 const auth = useAuthStore();
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const thisYear = new Date().getFullYear();
-const years = [thisYear, thisYear - 1, thisYear - 2];
-const year = ref(thisYear);
+// B592: academic years come from the Admin's School Calendar instead of a
+// hardcoded list; the dropdown defaults to whichever one is marked current.
+const academicYears = ref([]);
+const year = ref(new Date().getFullYear());
 const data = ref({});
 const loading = ref(true);
 const error = ref('');
+
+async function fetchAcademicYears() {
+  try {
+    const res = await api.get('/management/academic-years');
+    academicYears.value = (res.data || []).sort((a, b) => b.start_year - a.start_year);
+    const current = academicYears.value.find(ay => ay.is_current);
+    year.value = current ? current.start_year : (academicYears.value[0]?.start_year ?? year.value);
+  } catch (e) { /* the dropdown falls back to the current calendar year */ }
+}
 
 const pct = (n, max) => (max ? Math.max(2, Math.round((n / max) * 100)) : 0) + '%';
 
@@ -129,7 +142,10 @@ async function load() {
     loading.value = false;
   }
 }
-onMounted(load);
+onMounted(async () => {
+  await fetchAcademicYears();
+  load();
+});
 </script>
 
 <style scoped>

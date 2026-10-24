@@ -97,6 +97,9 @@ class UserController extends Controller
             ->when($request->role, fn($q) => $q->where('role', $request->role))
             ->when($request->unit, fn($q) => $q->where('unit', $request->unit))
             ->when($request->college, fn($q) => $q->where('college', $request->college))
+            // B589: "All Departments" filter on User Management (mainly for a Dean,
+            // whose own college filter is hidden since it's already fixed to theirs).
+            ->when($request->department, fn($q) => $q->where('department', $request->department))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', $request->is_active));
 
         $sortBy  = in_array($request->sort_by, ['created_at', 'employee_id', 'last_name']) ? $request->sort_by : 'created_at';
@@ -258,12 +261,20 @@ class UserController extends Controller
 
         abort_if($user->id === $request->user()->id && $deactivating, 422, 'You cannot deactivate your own account.');
 
+        // B591: a reactivation reason must relate to how the account was
+        // actually deactivated - e.g. it was deactivated for "End of
+        // Contract / Term" can't then be reactivated as "Security Verified".
+        $allowedReasonKeys = $deactivating
+            ? array_keys($list)
+            : \App\Support\EmployeeAccountReasons::allowedReactivationKeys($user->deactivation_reason);
+
         $validated = $request->validate([
-            'reason'      => ['required', \Illuminate\Validation\Rule::in(array_keys($list))],
+            'reason'      => ['required', \Illuminate\Validation\Rule::in($allowedReasonKeys)],
             'note'        => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
             'reassign_to' => ['nullable', 'integer', 'exists:users,id'],
         ], [
             'reason.required' => 'Please select a reason.',
+            'reason.in'       => 'That reactivation reason does not match how this account was deactivated.',
             'note.required_if' => 'Please describe the reason when "Other" is selected.',
             'note.regex'      => 'Please explain in words, not numbers only.',
         ]);
@@ -629,6 +640,18 @@ class UserController extends Controller
             }
             if ($existing && $existing->role !== 'tmdu_staff') {
                 $reasons[] = 'This email belongs to another account that the TMDU Head cannot change.';
+            }
+            return [$row, $reasons];
+        }
+        // B589: a Dean's masterlist upload is scoped to their own college,
+        // the same way the single "+ Add Employee" form is (see store()/
+        // update() above) - role itself is already limited to faculty/
+        // dept_chair by assignableRoles() via validateImportRow().
+        if (request()->user()?->isDean()) {
+            $reasons = [];
+            $row['college'] = request()->user()->college;
+            if ($existing && $existing->college !== $row['college']) {
+                $reasons[] = 'This email belongs to an account in another college that this Dean cannot change.';
             }
             return [$row, $reasons];
         }

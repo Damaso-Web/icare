@@ -16,7 +16,12 @@
         <option value="">All Types</option>
         <option v-for="t in typeOptions" :key="t" :value="t">{{ toTitleCase(t) }}</option>
       </select>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div class="date-range-filter" style="display:flex;align-items:center;gap:6px">
+        <!-- B574: on mobile the two date inputs had only an aria-label (not
+             visible), so the filter's purpose wasn't clear until you tapped
+             into it - this label is shown only below the 860px breakpoint
+             (see <style> below), leaving the desktop layout untouched. -->
+        <span class="date-range-filter-label">Date Range</span>
         <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" :max="filters.date_to || undefined" aria-label="From date" />
         <span style="color:var(--stone);font-size:13px">-</span>
         <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" :min="filters.date_from || undefined" aria-label="To date" />
@@ -54,6 +59,7 @@
 
 <script setup>
 import { SELF_REFERRAL_ENABLED } from '../../utils/features';
+import { REFERRAL_TYPES } from '../../constants/referralTypes';
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 
@@ -62,9 +68,12 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 const loading = ref(true);
 const referrals = ref([]);
 
-// B543: Status and Type options are built from the referrals actually on file
-// (rather than a fixed, possibly-incomplete list), so every referral a student
-// might have is always filterable.
+// B543: Status options are built from the referrals actually on file, so
+// every stage a student's own referrals might be in is always filterable.
+// B551: Type options are NOT built that way - limiting "All Types" to
+// whatever types happen to already be on file meant a student with, say,
+// only Counseling referrals never saw the other types as filter options at
+// all. See REFERRAL_TYPES below.
 const filters = ref({ status: '', type: '', date_from: '', date_to: '' });
 
 function authHeaders() {
@@ -102,9 +111,16 @@ const statusOptions = computed(() => {
   return order.filter(s => present.has(s));
 });
 
+// B551: start from every referral type the system can produce, not just the
+// ones that happen to be on this student's record already, so "All Types"
+// genuinely covers every category, and a type added to REFERRAL_TYPES later
+// shows up here with no further change needed. Anything present on a
+// referral but missing from that list (an older/legacy value) is appended
+// too, so nothing a student actually has drops off the filter either.
 const typeOptions = computed(() => {
   const present = [...new Set(referrals.value.map(r => r.referral_type).filter(Boolean))];
-  return present.sort();
+  const extra = present.filter(t => !REFERRAL_TYPES.includes(t)).sort();
+  return [...REFERRAL_TYPES, ...extra];
 });
 
 const filteredReferrals = computed(() => {
@@ -135,3 +151,14 @@ async function fetchData() {
 
 onMounted(() => fetchData());
 </script>
+
+<style scoped>
+/* B574: visible only on mobile - the desktop layout already reads fine
+   without it, since "-" between two date boxes beside Status/Type filters
+   is clear in that wider context. */
+.date-range-filter-label { display: none; }
+@media (max-width: 860px) {
+  .date-range-filter { flex-wrap: wrap; }
+  .date-range-filter-label { display: block; width: 100%; font-size: 11.5px; font-weight: 600; color: var(--stone); text-transform: uppercase; letter-spacing: .3px; margin-bottom: 2px; }
+}
+</style>

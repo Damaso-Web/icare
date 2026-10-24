@@ -40,7 +40,10 @@
     <section id="top" class="lp-hero">
       <div class="lp-wrap lp-hero-in">
         <div class="lp-hero-text">
-          <div class="lp-eyebrow">Benguet State University · Office of Student Services</div>
+          <!-- B578: abbreviation added after the full name so it's introduced
+               right where the unit first appears on the page (not in the
+               nav bar or footer, per the ticket). -->
+          <div class="lp-eyebrow">Benguet State University · Office of Student Services (OSS)</div>
           <h1>Student care, <em>in one connected place.</em></h1>
           <p>
             iCARE brings referrals, appointments and case records of the Office of Student Services
@@ -57,18 +60,24 @@
         <!-- A small picture of the flow, no made-up numbers -->
         <div class="lp-flow" aria-hidden="true">
           <div class="lp-flow-card">
-            <span class="lp-dot lp-dot-a"></span>
-            <div><strong>Referral sent</strong><small>Faculty, dean or the student</small></div>
+            <span class="lp-dot lp-dot-a">
+              <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </span>
+            <div class="lp-flow-text"><strong>Referral sent</strong><small>Faculty, dean or the student</small></div>
           </div>
           <div class="lp-flow-line"></div>
           <div class="lp-flow-card">
-            <span class="lp-dot lp-dot-b"></span>
-            <div><strong>Appointment scheduled</strong><small>The student picks a date and time</small></div>
+            <span class="lp-dot lp-dot-b">
+              <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            </span>
+            <div class="lp-flow-text"><strong>Appointment scheduled</strong><small>The student picks a date and time</small></div>
           </div>
           <div class="lp-flow-line"></div>
           <div class="lp-flow-card">
-            <span class="lp-dot lp-dot-c"></span>
-            <div><strong>Case followed through</strong><small>Sessions, notes and feedback</small></div>
+            <span class="lp-dot lp-dot-c">
+              <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </span>
+            <div class="lp-flow-text"><strong>Case followed through</strong><small>Sessions, notes and feedback</small></div>
           </div>
         </div>
       </div>
@@ -87,21 +96,21 @@
             <div class="lp-ico lp-ico-g">
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
-            <h3>Guidance and Counseling Unit</h3>
+            <h3>Guidance and Counseling Unit (GCU)</h3>
             <p>Counseling and other student services, from the first referral to the final session notes.</p>
           </article>
           <article class="lp-card reveal">
             <div class="lp-ico lp-ico-b">
               <svg viewBox="0 0 24 24"><path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/></svg>
             </div>
-            <h3>Testing and Materials Development Unit</h3>
+            <h3>Testing and Materials Development Unit (TMDU)</h3>
             <p>Psychological testing schedules and records, kept together with the student's referral.</p>
           </article>
           <article class="lp-card reveal">
             <div class="lp-ico lp-ico-a">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
             </div>
-            <h3>Student Discipline Unit</h3>
+            <h3>Student Discipline Unit (SDU)</h3>
             <p>Incident reports and complaints, filed and tracked with a clear status at every step.</p>
           </article>
         </div>
@@ -143,7 +152,7 @@
     <section id="contact" class="lp-sec">
       <div class="lp-wrap">
         <div class="lp-kicker reveal">Contact us</div>
-        <h2 class="reveal">Office of Student Services</h2>
+        <h2 class="reveal">Office of Student Services (OSS)</h2>
         <div class="lp-grid2">
           <article v-for="c in contacts" :key="c.name" class="lp-contact reveal">
             <h3>{{ c.name }}</h3>
@@ -414,7 +423,12 @@ function go(id) {
 .lp h1, .lp h2, .lp h3, .lp p { margin: 0; }
 
 /* Nav */
-.lp-nav { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--cloud); transition: box-shadow .25s var(--ease), border-color .25s; }
+/* B573: position:sticky + backdrop-filter is a known Chrome-for-Android
+   rendering bug - the element's compositing layer can end up tied to the
+   page's own scroll instead of the viewport, so it scrolls away instead of
+   sticking. Forcing its own compositing layer (will-change/transform)
+   works around it without changing how it looks or behaves anywhere else. */
+.lp-nav { position: sticky; top: 0; z-index: 20; background: rgba(255,255,255,.92); -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px); border-bottom: 1px solid var(--cloud); transition: box-shadow .25s var(--ease), border-color .25s; will-change: transform; transform: translateZ(0); }
 .lp-nav.is-scrolled { box-shadow: 0 6px 24px rgba(20,48,30,.08); border-bottom-color: transparent; }
 .lp-hero, .lp-sec { scroll-margin-top: 72px; }
 .lp-nav-in { display: flex; align-items: center; gap: 20px; min-height: 66px; padding-top: 8px; padding-bottom: 8px; }
@@ -462,10 +476,16 @@ function go(id) {
 .lp-flow { display: flex; flex-direction: column; align-items: stretch; }
 .lp-flow-card { display: flex; align-items: center; gap: 14px; padding: 16px 18px; border-radius: var(--r-lg); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.16); backdrop-filter: blur(6px); transition: background .2s var(--ease), transform .2s var(--ease); }
 .lp-flow-card:hover { background: rgba(255,255,255,.14); transform: translateX(3px); }
+/* B571: this text block had no min-width, so flexbox's default
+   min-width:auto let it push past the card's edge on a narrow phone
+   instead of wrapping - the hero section's own overflow:hidden then
+   silently clipped whatever stuck out (the end of "...and feedback"). */
+.lp-flow-text { flex: 1; min-width: 0; }
 .lp-flow-card strong { display: block; font-size: 15px; }
-.lp-flow-card small { display: block; font-size: 12.5px; color: rgba(255,255,255,.65); }
+.lp-flow-card small { display: block; font-size: 12.5px; color: rgba(255,255,255,.65); overflow-wrap: break-word; }
 .lp-flow-line { width: 2px; height: 22px; margin-left: 27px; background: linear-gradient(var(--mint), transparent); }
-.lp-dot { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+.lp-dot { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.lp-dot svg { width: 16px; height: 16px; stroke: #16331f; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .lp-dot-a { background: var(--gold); }
 .lp-dot-b { background: var(--sage); }
 .lp-dot-c { background: var(--fern); box-shadow: 0 0 0 4px rgba(143,224,176,.25); }
@@ -572,7 +592,10 @@ function go(id) {
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2, .lp-foot-in { grid-template-columns: 1fr; }
   .lp-links, .lp-nav-cta { display: none; }
   .lp-totop-float { bottom: 20px; right: 20px; }
-  .lp-brand-text small { display: none; }
+  /* B572: the subtitle was hidden outright on mobile instead of just
+     shrinking to fit - shown here at a smaller size, wrapping onto its
+     own line(s) below "iCARE" rather than pushing the nav bar wider. */
+  .lp-brand-text small { display: block; font-size: 9px; line-height: 1.25; max-width: 190px; white-space: normal; }
   .lp-nav-in { gap: 10px; min-height: 58px; }
   .lp-burger { display: inline-flex; }
   .lp-hero, .lp-sec { scroll-margin-top: 62px; }
@@ -590,6 +613,9 @@ function go(id) {
   .lp-hero h1 { font-size: 34px; }
   .lp-hero p { font-size: 15.5px; }
   .lp-wrap { padding: 0 16px; }
+  /* B572: on the narrowest phones, the logos + "iCARE" + burger button
+     alone are already tight, so the subtitle gets a bit less room still. */
+  .lp-brand-text small { max-width: 140px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .lp-btn, .lp-card, .lp-contact, .lp-flow-card { transition: none; }

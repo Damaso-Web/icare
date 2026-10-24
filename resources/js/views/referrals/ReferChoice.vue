@@ -5,7 +5,11 @@
       <p>Choose what you'd like to do.</p>
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:760px">
+    <!-- B576: a plain "1fr 1fr" grid already stretches both cards to the
+         same row height by default, but had no mobile breakpoint at all
+         (always 2 columns, however narrow the screen) and was capped at
+         760px instead of filling the available width. -->
+    <div class="choice-grid">
       <button type="button" class="icard choice-card" @click="goTo('referral-create-form')">
         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--moss)" stroke-width="2">
           <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -23,7 +27,9 @@
         </svg>
         <h3 style="margin:12px 0 6px">File a Complaint</h3>
         <p style="font-size:13px;color:var(--slate);margin:0">
-          Report an act of misconduct against a student. Reviewed by the SDU Head.
+          <!-- B577: "SDU Head" is an internal role name, not the unit a
+               referring faculty/dean/staff member would recognize. -->
+          Report an act of misconduct against a student. Reviewed by the Student Discipline Unit.
         </p>
       </button>
     </div>
@@ -40,16 +46,31 @@ function goTo(name) {
 </script>
 
 <style scoped>
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  max-width: 760px;
+  align-items: stretch;
+}
 .choice-card {
+  width: 100%;
+  height: 100%;
   text-align: left;
   cursor: pointer;
   border: 1.5px solid var(--cloud);
   background: #fff;
   padding: 24px;
+  display: flex;
+  flex-direction: column;
   transition: border-color .15s, transform .15s;
 }
 .choice-card:hover {
   border-color: var(--moss);
   transform: translateY(-2px);
+}
+@media (max-width: 640px) {
+  .choice-grid { grid-template-columns: 1fr; max-width: none; }
 }
 </style>

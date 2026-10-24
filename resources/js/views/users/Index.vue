@@ -34,6 +34,13 @@
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>
+      <!-- B589: a Dean's own college filter is hidden (it's already fixed to
+           theirs), so this lets them narrow the list to one department
+           within it instead. -->
+      <select v-if="isDeanActor" v-model="filters.department" class="fsm" @change="fetchUsers">
+        <option value="">All Departments</option>
+        <option v-for="d in availableDepartments" :key="d" :value="d">{{ d }}</option>
+      </select>
       <select v-model="sortOption" class="fsm" @change="applySort">
         <option value="created_at:desc">Newest First</option>
         <option value="created_at:asc">Oldest First</option>
@@ -43,7 +50,8 @@
         <option value="last_name:desc">Name: Z-A</option>
       </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <button v-if="auth.isAdmin || auth.isTMDUHead" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
+      <!-- B589: Deans now get the same bulk-upload entry point as GCU Head / TMDU Head. -->
+      <button v-if="auth.isAdmin || auth.isTMDUHead || auth.isDean" class="ibtn ibtn-o ibtn-sm" @click="openImportModal">
         <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Upload Masterlist
       </button>
@@ -684,7 +692,7 @@ const statusHistory = ref([]);
 const isEditing  = ref(false);
 const users      = ref([]);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' });
+const filters    = ref({ search: '', status: '', role: '', college: '', department: '', sort_by: 'created_at', sort_dir: 'desc' });
 const sortOption = ref('created_at:desc');
 
 const showClearConfirm = ref(false);
@@ -804,9 +812,13 @@ const departmentsByCollege = ref({});
 
 async function fetchManagementData() {
   try {
+    // B589: this picks the account's Department ("Department of Information
+    // Sciences") - the Department list (Management > Departments), not the
+    // Program list (Management > Programs, "Bachelor of..."), which is what
+    // students major in and is a different list entirely.
     const [collegeRes, departmentRes] = await Promise.all([
       axios.get(`${API_BASE}/management/colleges`, authHeaders()),
-      axios.get(`${API_BASE}/management/programs`, authHeaders()),   // the choices are the college's programs (the leader's list), named Department
+      axios.get(`${API_BASE}/management/departments`, authHeaders()),
     ]);
     colleges.value = collegeRes.data.map(c => c.name);
 
@@ -1200,7 +1212,7 @@ async function confirmImport(globalChoice) {
 function changePage(page) { fetchUsers(page); }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  filters.value = { search: '', status: '', role: '', college: '', department: '', sort_by: 'created_at', sort_dir: 'desc' };
   sortOption.value = 'created_at:desc';
   fetchUsers();
 }
@@ -1240,7 +1252,7 @@ onMounted(() => {
 });
 
 watch(() => route.name, () => {
-  filters.value = { search: '', status: '', role: '', college: '', sort_by: 'created_at', sort_dir: 'desc' };
+  filters.value = { search: '', status: '', role: '', college: '', department: '', sort_by: 'created_at', sort_dir: 'desc' };
   sortOption.value = 'created_at:desc';
   fetchUsers();
 });

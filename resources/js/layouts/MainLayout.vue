@@ -309,7 +309,11 @@ const menuItems = computed(() => {
       name:    'faculty-directory',
       label:   'Faculty',
       icon:    '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
-      roles:   ['dean', 'dept_chair'],
+      // B589: a Dean already has User Management, which does the same
+      // account-management job for their college's faculty and chairs -
+      // this standalone item stays only for Dept Chairs, who have no
+      // User Management access of their own.
+      roles:   ['dept_chair'],
       section: null,
     },
     {
@@ -337,7 +341,11 @@ const menuItems = computed(() => {
       name:    'referrals',
       label:   roleIn(role, ['tmdu_staff']) ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
-      roles:   ['admin', 'gcu_staff', 'faculty', 'dean', 'dept_chair', 'tmdu_staff'],
+      // B596: a Dean is a referring source, not a processing unit - a queue
+      // (even read-only) duplicates Sent Referrals and causes role confusion.
+      // B605: same reasoning for a Dept Chair - they refer out, they don't
+      // process an incoming queue, so Sent Referrals is their only status view.
+      roles:   ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'],
       section: null,
     },
     {

@@ -38,12 +38,22 @@ class CaseController extends Controller
     /**
      * Only the GCU Head (admin) and gcu_staff may write to a SIF (CaseFile).
      * SDU and TMDU are read-only on cases.
+     *
+     * B562: a counselor the case was just reassigned away from keeps
+     * read-only visibility (see index()/show()) but is blocked here
+     * specifically - every other GCU staff member's access is unchanged.
      */
-    private function authorizeCaseWriter(): void
+    private function authorizeCaseWriter(?CaseFile $case = null): void
     {
-        $role = request()->user()?->role;
-        if (!in_array($role, ['admin', 'gcu_staff'], true)) {
+        $user = request()->user();
+        if (!in_array($user?->role, ['admin', 'gcu_staff'], true)) {
             abort(403, 'Unauthorized. Only GCU staff may modify case files.');
+        }
+        if ($case
+            && $case->previous_counselor_id
+            && (int) $case->previous_counselor_id === (int) $user->id
+            && (int) $case->primary_counselor_id !== (int) $user->id) {
+            abort(403, 'This case has been reassigned to another counselor. You have read-only access.');
         }
     }
 
@@ -68,7 +78,7 @@ class CaseController extends Controller
         // closed. Those are kept out of the working list and shown, read-only,
         // under "View Archived".
         $archived = $request->boolean('archived');
-        $query = CaseFile::with(['student', 'counselor', 'latestReferral'])
+        $query = CaseFile::with(['student', 'counselor', 'previousCounselor', 'latestReferral'])
             ->when($archived,
                 fn($q) => $q->where(fn($a) => $a->where('status', 'closed')->orWhereHas('student', fn($s) => $s->where('is_active', false))),
                 fn($q) => $q->where('status', '!=', 'closed')->whereHas('student', fn($s) => $s->where('is_active', true)))
@@ -129,6 +139,7 @@ class CaseController extends Controller
             ...$case->load([
                 'student',
                 'counselor',
+                'previousCounselor',
                 'referrals.referredBy',
                 'sessionNotes.recordedBy',
                 'appointments.staff',
@@ -147,7 +158,7 @@ class CaseController extends Controller
     public function update(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
         $this->authorizeUnitAccess($case);
 
         // Reassigning a case to another counselor is for the GCU Head only.
@@ -159,7 +170,7 @@ class CaseController extends Controller
 
         $old = $case->toArray();
         $previousCounselor = $case->primary_counselor_id;
-        $case->update($request->only([
+        $updates = $request->only([
             'primary_counselor_id',
             'target_resolution_date',
             'presenting_concern',
@@ -167,14 +178,40 @@ class CaseController extends Controller
             'outcomes',
             'recommendations',
             'intake_notes',
-        ]));
+        ]);
+        $isReassignment = array_key_exists('primary_counselor_id', $updates)
+            && (int) $updates['primary_counselor_id'] !== (int) $case->primary_counselor_id;
+        // B562: remember who the case is being taken away from, so the
+        // outgoing counselor keeps read-only visibility (index()/show() load
+        // previousCounselor) but loses write access (authorizeCaseWriter()).
+        // Only set when a reassignment is actually happening here - an
+        // ordinary edit that doesn't touch primary_counselor_id leaves
+        // whatever reassignment history the case already has untouched.
+        if ($isReassignment) {
+            $updates['previous_counselor_id'] = $previousCounselor;
+        }
+        $case->update($updates);
         AuditLog::record('updated', "Updated case {$case->case_number}.", $case, $old, $case->toArray());
 
-        // Reassigned to another staff member: tell the new counselor and the student in the app.
-        if ($case->primary_counselor_id && (int) $case->primary_counselor_id !== (int) $previousCounselor) {
+        // Reassigned to another staff member: tell the new counselor, the
+        // outgoing counselor, and the student in the app.
+        if ($isReassignment && $case->primary_counselor_id) {
             $new = \App\Models\User::find($case->primary_counselor_id);
+            $outgoing = $previousCounselor ? \App\Models\User::find($previousCounselor) : null;
+
+            // B563: reassigning a case is the GCU Head (admin) only action
+            // (enforced above), so these are always "reassigned by the
+            // admin" notices, worded exactly as the ticket specifies, with
+            // the case number swapped in dynamically.
             if ($new && $new->id !== $request->user()->id) {
-                $new->notify(new \App\Notifications\CaseUpdateNotification("Case {$case->case_number} for {$case->student->first_name} {$case->student->last_name} has been assigned to you.", null, $case->id));
+                $new->notify(new \App\Notifications\CaseUpdateNotification(
+                    "The case {$case->case_number} was reassigned to you by the admin.", null, $case->id
+                ));
+            }
+            if ($outgoing && $outgoing->id !== $request->user()->id) {
+                $outgoing->notify(new \App\Notifications\CaseUpdateNotification(
+                    'Your case was reassigned to another counselor.', null, $case->id
+                ));
             }
             $case->student?->notify(new \App\Notifications\CaseUpdateNotification(
                 "Your case {$case->case_number} has been assigned to " . ($new?->name ?? 'another staff member') . '.',
@@ -182,13 +219,13 @@ class CaseController extends Controller
             ));
         }
 
-        return response()->json($case->load('counselor'));
+        return response()->json($case->load(['counselor', 'previousCounselor']));
     }
 
     public function updateStatus(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $request->validate([
             'status' => 'required|in:open,on_observation,in_progress,awaiting_testing,awaiting_external,on_hold,resolved,closed'
@@ -207,7 +244,7 @@ class CaseController extends Controller
     public function close(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $request->validate([
             'interventions_applied' => 'required|string|max:3000',
@@ -259,7 +296,7 @@ class CaseController extends Controller
     public function referToTmdu(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         // referral_id is the GCU-side referral the staff member actually
         // clicked "Refer to TMDU" from (referrals/Show.vue sends
@@ -395,7 +432,7 @@ class CaseController extends Controller
     public function referExternal(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $request->validate([
             'destination' => 'required|string|max:255',
@@ -415,7 +452,7 @@ class CaseController extends Controller
     public function handoff(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $request->validate([
             'to_user_id'  => 'required|exists:users,id',
@@ -454,7 +491,7 @@ class CaseController extends Controller
     public function acknowledgeHandoff(Request $request, CaseFile $case, CaseHandoff $handoff)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         if ($handoff->case_id !== $case->id) {
             abort(422, 'This handoff does not belong to this case.');
@@ -482,7 +519,7 @@ class CaseController extends Controller
     public function flagUnreachable(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $validated = $request->validate([
             'notes' => 'nullable|string|max:1000',
@@ -518,7 +555,7 @@ class CaseController extends Controller
     public function flagFollowUp(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $request->validate([
             'notes' => 'nullable|string|max:1000',
@@ -540,7 +577,7 @@ class CaseController extends Controller
     public function resolveFollowUp(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $old = $case->toArray();
         $case->update(['requires_follow_up' => false]);
@@ -560,7 +597,7 @@ class CaseController extends Controller
     public function issueParentConferenceSlip(Request $request, CaseFile $case)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($case);
 
         $validated = $request->validate([
             'conference_date' => 'required|date|after_or_equal:today',
@@ -605,7 +642,7 @@ class CaseController extends Controller
     public function saveParentConferenceNotes(Request $request, \App\Models\ParentConferenceSlip $slip)
     {
         $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter();
+        $this->authorizeCaseWriter($slip->caseFile);
 
         $validated = $request->validate([
             'notes' => 'required|string|max:3000',

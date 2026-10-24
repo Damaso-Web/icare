@@ -59,6 +59,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::get('/me',          [AuthController::class, 'me']);
     Route::put('/me/password', [AuthController::class, 'changePassword']);
     Route::put('/me/profile',  [AuthController::class, 'updateProfile']);
+    // B569: "Active Sessions / Linked Devices".
+    Route::get('/me/sessions',                      [AuthController::class, 'sessions']);
+    Route::delete('/me/sessions/{tokenId}',          [AuthController::class, 'revokeSession']);
+    Route::post('/me/sessions/revoke-others',        [AuthController::class, 'revokeOtherSessions']);
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
@@ -281,9 +285,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         Route::get('users/{user}/temp-password',   [UserController::class, 'viewTempPassword']);
     });
 
-    // Masterlist upload: GCU Head (any account) and TMDU Head (TMDU Staff only -
-    // UserController::scopeImportRow keeps the rows to that).
-    Route::middleware('role:admin,tmdu_head')->group(function () {
+    // Masterlist upload: GCU Head (any account), TMDU Head (TMDU Staff only),
+    // and Dean (their own college's faculty/dept chairs only) -
+    // UserController::scopeImportRow keeps each role's rows to that.
+    Route::middleware('role:admin,tmdu_head,dean,dean_secretary')->group(function () {
         Route::post('users/import-preview', [UserController::class, 'importPreview']);
         Route::post('users/import-confirm', [UserController::class, 'importConfirm']);
     });
@@ -394,6 +399,10 @@ Route::middleware(['auth:student', 'actor:student', 'password.fresh'])->group(fu
     Route::post('student/appointments/{appointment}/request-reschedule', [AppointmentController::class, 'requestRescheduleByStudent']);
     Route::post('student/logout', [StudentAuthController::class, 'logout']);
     Route::get('student/me', [StudentAuthController::class, 'me']);
+    // B569: "Active Sessions / Linked Devices".
+    Route::get('student/sessions',                     [StudentAuthController::class, 'sessions']);
+    Route::delete('student/sessions/{tokenId}',         [StudentAuthController::class, 'revokeSession']);
+    Route::post('student/sessions/revoke-others',       [StudentAuthController::class, 'revokeOtherSessions']);
     Route::get('student/dashboard', [StudentAuthController::class, 'dashboard']);
     Route::put('student/password', [StudentAuthController::class, 'changePassword']);
     Route::put('student/profile', [StudentAuthController::class, 'updateProfile']);

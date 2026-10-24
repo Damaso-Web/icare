@@ -1085,7 +1085,15 @@ class ReportController extends Controller
     {
         $user = $request->user();
         abort_unless($user->isDean(), 403, 'Only the Dean can open the College Report.');
-        $year = (int) ($request->year ?: now()->year);
+        // B592: the year filter is bound to the Admin's School Calendar
+        // (Academic Years) instead of a hardcoded list - defaults to
+        // whichever one is marked current there. "Year" here stays the
+        // academic year's calendar start_year, the same number
+        // whereYear() below already filtered on, so the month grid and
+        // its labels keep their existing calendar-year meaning.
+        $year = $request->filled('year')
+            ? (int) $request->year
+            : (\App\Models\AcademicYear::where('is_current', true)->first()->start_year ?? now()->year);
         $mine = (string) $user->college;
         $mineNames = \App\Support\CollegeName::equivalents($mine);
 

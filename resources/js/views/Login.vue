@@ -163,6 +163,10 @@ const auth   = useAuthStore();
 // Both still hit the same /login endpoint - this only changes the subtitle
 // and whether the faculty/dean self-register link is shown.
 const audience = computed(() => route.query.audience || '');
+// B598: "Remember me" must not leak between the OSS Personnel and Faculty
+// portals, even though both sign in through this same form - each gets its
+// own remembered-email slot (resources/js/utils/session.js).
+const rememberKind = computed(() => audience.value === 'faculty' ? 'faculty' : 'oss');
 const subtitle = computed(() => {
   if (audience.value === 'faculty') return 'Faculty Sign In';
   if (audience.value === 'oss') return 'OSS Personnel Sign In';
@@ -209,8 +213,8 @@ function onSignInClick() {
 }
 
 // An email remembered on this browser is filled in, with the box already ticked.
-const form = ref({ email: rememberedId('staff'), password: '' });
-const rememberMe = ref(!!rememberedId('staff'));
+const form = ref({ email: rememberedId(rememberKind.value), password: '' });
+const rememberMe = ref(!!rememberedId(rememberKind.value));
 const error       = ref('');
 const loading     = ref(false);
 const showPassword = ref(false);
@@ -232,7 +236,7 @@ async function handleLogin() {
       otpToken.value  = r.otpToken;
       emailHint.value = r.emailHint;
     } else {
-      applyRememberMe('staff', rememberMe.value, form.value.email);
+      applyRememberMe(rememberKind.value, rememberMe.value, form.value.email);
       router.push({ name: 'dashboard' });
     }
   } catch (e) {
@@ -250,7 +254,7 @@ async function handleVerify() {
   loading.value = true;
   try {
     await auth.verifyOtp(otpToken.value, otp.value);
-    applyRememberMe('staff', rememberMe.value, form.value.email);
+    applyRememberMe(rememberKind.value, rememberMe.value, form.value.email);
     router.push({ name: 'dashboard' });
   } catch (e) {
     error.value = e.response?.status === 429

@@ -23,6 +23,14 @@ class FacultyController extends UserController
     // A Philippine mobile number: 09 followed by 9 digits.
     private const PHONE_REGEX = '/^09\d{9}$/';
     private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
+    // B612/B613: the Add/Edit Faculty form's own Employee ID field is
+    // numbers-only, with the same 15-character limit as the other Employee
+    // ID field in the system (User Management's Add Employee).
+    private const FACULTY_ID_REGEX = '/^[0-9]+$/';
+    private const FACULTY_ID_MESSAGES = [
+        'employee_id.regex' => 'Employee ID must contain numbers only.',
+        'employee_id.max'   => 'Employee ID must not be longer than 15 digits.',
+    ];
 
     // Roles that live on the Faculty page.
     private const FACULTY_ROLES = ['faculty', 'dept_chair'];
@@ -95,13 +103,13 @@ class FacultyController extends UserController
             'last_name'      => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => ['required', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail()],
-            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique()],
+            'employee_id'    => ['nullable', 'string', 'max:15', 'regex:' . self::FACULTY_ID_REGEX, self::employeeIdUnique()],
             'department'     => 'nullable|string|max:255',
             'college'        => 'nullable|string|max:255',
             'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
             // Added as Faculty (default) or straight away as the Department Chair.
             'role'           => 'nullable|in:faculty,dept_chair',
-        ]);
+        ], self::FACULTY_ID_MESSAGES);
         $role = $validated['role'] ?? 'faculty';
         unset($validated['role']);
         abort_if($role === 'dept_chair' && !($request->user()->isDean() || $request->user()->isAdmin()), 403, 'Only the Dean can add a Department Chair.');
@@ -142,10 +150,10 @@ class FacultyController extends UserController
             'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => ['sometimes', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail('staff', $user->id)],
-            'employee_id'    => ['nullable', 'string', 'max:50', 'regex:' . self::ID_REGEX, self::employeeIdUnique($user->id)],
+            'employee_id'    => ['nullable', 'string', 'max:15', 'regex:' . self::FACULTY_ID_REGEX, self::employeeIdUnique($user->id)],
             'department'     => 'nullable|string|max:255',
             'contact_number' => ['nullable', 'string', 'max:11', 'regex:' . self::PHONE_REGEX],
-        ]);
+        ], self::FACULTY_ID_MESSAGES);
 
         // A Dept Chair can't move people to another department.
         if ($request->user()->isDeptChair()) {

@@ -75,7 +75,9 @@ class StudentAuthController extends Controller
             'last_login_at'         => now(),
             'consent_accepted_at'   => now(),
         ]);
-        $token = $student->createToken('student-token', ['student'])->plainTextToken;
+        // B569: label the token with the device/browser it was issued to,
+        // so "Active Sessions" (see sessions()) shows something recognizable.
+        $token = $student->createToken(\App\Support\DeviceLabel::fromRequest($request), ['student'])->plainTextToken;
 
         // Still on a temporary / one-time password: remind them in the bell
         // (once, until they have read it).
@@ -162,6 +164,46 @@ class StudentAuthController extends Controller
     public function me(Request $request)
     {
         return response()->json($request->user('student'));
+    }
+
+    // B569: same "Active Sessions / Linked Devices" capability as the staff
+    // side (AuthController::sessions()), for the student's own My Account.
+    public function sessions(Request $request)
+    {
+        $student = $request->user('student');
+        $current = $student->currentAccessToken();
+        return response()->json(
+            $student->tokens()
+                ->orderByDesc('last_used_at')
+                ->get(['id', 'name', 'created_at', 'last_used_at'])
+                ->map(fn($t) => [
+                    'id'           => $t->id,
+                    'device'       => $t->name,
+                    'created_at'   => $t->created_at,
+                    'last_used_at' => $t->last_used_at,
+                    'is_current'   => $current && (int) $t->id === (int) $current->id,
+                ])
+        );
+    }
+
+    public function revokeSession(Request $request, $tokenId)
+    {
+        $student = $request->user('student');
+        $token = $student->tokens()->whereKey($tokenId)->first();
+        abort_unless($token, 404, 'Session not found.');
+        $wasCurrent = $student->currentAccessToken() && (int) $token->id === (int) $student->currentAccessToken()->id;
+        $token->delete();
+        AuditLog::record('logout', "Student {$student->student_id} signed out a linked device ({$token->name}).", $student);
+        return response()->json(['message' => 'Session signed out.', 'was_current' => $wasCurrent]);
+    }
+
+    public function revokeOtherSessions(Request $request)
+    {
+        $student = $request->user('student');
+        $current = $student->currentAccessToken();
+        $student->tokens()->when($current, fn($q) => $q->whereKeyNot($current->id))->delete();
+        AuditLog::record('logout', "Student {$student->student_id} signed out all other devices.", $student);
+        return response()->json(['message' => 'Signed out of all other devices.']);
     }
 
     public function changePassword(Request $request)
@@ -297,6 +339,7 @@ public function updateProfile(Request $request)
         'guardian_first_name'             => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'guardian_middle_name'            => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
         'guardian_last_name'              => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+        'guardian_suffix'                 => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
         // B528: a guardian must be at least 25.
         'guardian_age'                    => ['nullable', 'string', 'max:3', 'regex:' . self::AGE_REGEX, function ($attr, $value, $fail) {
             if ($value !== null && $value !== '' && (int) $value < 25) $fail('Guardian must be at least 25 years old.');

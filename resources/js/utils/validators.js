@@ -21,6 +21,15 @@ export function onlyLettersStrict(value) {
   return value.replace(/[^a-zA-Z]/g, '');
 }
 
+// B614: capitalizes just the first character, leaving the rest of the name
+// exactly as typed - so compound names ("dela Cruz") and hyphenated ones
+// ("anne-marie") aren't mangled by also forcing a capital after every
+// space or hyphen.
+export function capitalizeFirst(value) {
+  const v = String(value ?? '');
+  return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+}
+
 export function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -92,6 +101,16 @@ export function formatDateShort(date) {
 // typed. app/Support/PlainText.php is the same rule on the server.
 export function plainText(value) {
   return String(value ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F\s.,'\-()&:;?!/]/g, '');
+}
+
+// B581/B584: a free-text field (referral reason; a complaint's address or
+// narration of facts) can satisfy plainText()'s character set while still
+// being "12345" - digits and punctuation only, no actual answer. This checks
+// that at least one letter (plain or accented) is present anywhere in the
+// value. app/Support/PlainText.php's REQUIRES_LETTER_REGEX is the same rule
+// on the server.
+export function hasLetter(value) {
+  return /[a-zA-Z\u00C0-\u024F]/.test(String(value ?? ''));
 }
 
 // The referral source that goes with an account's role - the office it files

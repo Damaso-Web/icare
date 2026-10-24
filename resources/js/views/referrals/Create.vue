@@ -249,6 +249,8 @@
               maxlength="1000"
               required
             ></textarea>
+            <!-- B581: shown live as the user types, not just on submit. -->
+            <div v-if="referralReasonNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid referral reason. Numbers alone are not allowed.</div>
           </div>
 
           <div class="form-actions" style="display:flex;gap:9px;margin-top:8px">
@@ -352,7 +354,7 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { referralAPI, studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase, referralSourceFor } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, safeSearchInput, blockSpecialKeypress, toTitleCase, referralSourceFor, hasLetter } from '../../utils/validators';
 
 const router   = useRouter();
 const toast    = inject('toast');
@@ -458,9 +460,16 @@ function lockedStyle(field) {
     : 'background:var(--snow);color:var(--stone)';
 }
 
+// B581: the Concern / Reason for Referral field must say something, not
+// just contain digits. Real-time (as typed) + on blur, same as the other
+// required-field checks here.
+const referralReasonNumbersOnly = computed(() =>
+  !!form.value.nature_of_concern && !hasLetter(form.value.nature_of_concern)
+);
+
 function validateField(field) {
   const isEmpty = {
-    nature_of_concern: () => !form.value.nature_of_concern,
+    nature_of_concern: () => !form.value.nature_of_concern || !hasLetter(form.value.nature_of_concern),
   }[field]?.();
 
   fieldErrors.value = { ...fieldErrors.value, [field]: !!isEmpty };
@@ -636,6 +645,13 @@ function handleSubmit() {
     return;
   }
 
+  // B581: non-empty but numbers-only is a different error than "missing".
+  if (!hasLetter(form.value.nature_of_concern)) {
+    fieldErrors.value = { ...fieldErrors.value, nature_of_concern: true };
+    error.value = 'Please provide a valid referral reason. Numbers alone are not allowed.';
+    return;
+  }
+
   showPreview.value = true;
 }
 
@@ -670,7 +686,10 @@ async function confirmSubmit() {
       if (backTo) {
         router.push(backTo);
       } else if (isFacultyOrDean.value) {
-        router.push({ name: 'dashboard' });
+        // B603: land on Sent Referrals (where the just-submitted referral is
+        // visible) instead of the Dashboard, so the user doesn't have to
+        // navigate there manually to confirm it went through.
+        router.push({ name: 'sent-referrals' });
       } else {
         router.push({ name: 'referrals' });
       }

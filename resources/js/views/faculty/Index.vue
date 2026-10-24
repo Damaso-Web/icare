@@ -65,6 +65,9 @@
           <thead>
             <tr>
               <th>Employee ID</th>
+              <!-- B610: the Employee ID alone didn't say who it belonged to
+                   without opening the profile - Full Name sits right beside it. -->
+              <th>Full Name</th>
               <th>Status</th>
               <th></th>
             </tr>
@@ -72,6 +75,7 @@
           <tbody>
             <tr v-for="u in items" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
+              <td style="cursor:pointer" @click="openView(u)">{{ u.last_name }}, {{ u.first_name }}{{ u.middle_name ? ' ' + u.middle_name : '' }}</td>
               <td>
                 <span class="ibadge" :style="u.is_active ? 'background:var(--mist);color:var(--moss)' : 'background:var(--cloud);color:var(--ink);border:1px solid var(--fog)'">
                   {{ u.is_active ? 'Active' : 'Inactive' }}
@@ -167,14 +171,16 @@
     <!-- Add / Edit modal -->
     <div v-if="formOpen" class="fmodal" @click.self="formOpen = false">
       <div class="fbox">
-        <div class="fhead"><span>{{ editing ? 'Edit Faculty' : 'Add Faculty' }}</span><button class="ibtn ibtn-g ibtn-sm" @click="formOpen = false">✕</button></div>
+        <div class="fhead"><span>{{ editing ? 'Edit Faculty' : 'Add Faculty' }}</span></div>
         <div class="fbody">
           <div class="grid2">
-            <!-- Same labels, order and examples as User Management's Add Employee. -->
-            <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" placeholder="e.g. 12345" /></div>
-            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" maxlength="50" @input="form.last_name = onlyLetters(form.last_name)" /></div>
-            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" maxlength="50" @input="form.first_name = onlyLetters(form.first_name)" /></div>
-            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = onlyLetters(form.middle_name)" /></div>
+            <!-- Same labels, order and examples as User Management's Add Employee;
+                 B612/B613: Employee ID is numeric-only with the same 15-character
+                 limit used there too. -->
+            <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" maxlength="15" placeholder="e.g. 12345" inputmode="numeric" @input="form.employee_id = onlyDigits(form.employee_id)" /></div>
+            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" maxlength="50" @input="form.last_name = capitalizeFirst(onlyLetters(form.last_name))" /></div>
+            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" maxlength="50" @input="form.first_name = capitalizeFirst(onlyLetters(form.first_name))" /></div>
+            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = capitalizeFirst(onlyLetters(form.middle_name))" /></div>
             <div><label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse">
                 <option value="">None</option>
@@ -369,7 +375,7 @@ import ReasonDialog from '../../components/ReasonDialog.vue';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { EMPLOYEE_DEACTIVATE_REASONS, EMPLOYEE_REACTIVATE_REASONS } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
-import { safeSearchInput, blockSpecialKeypress, onlyLetters, isValidPHContact } from '../../utils/validators';
+import { safeSearchInput, blockSpecialKeypress, onlyLetters, onlyDigits, capitalizeFirst, isValidPHContact } from '../../utils/validators';
 import { matchCollege } from '../../utils/colleges';
 
 const auth  = useAuthStore();

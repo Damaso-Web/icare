@@ -32,6 +32,7 @@ class Student extends Authenticatable
         'guardian_first_name',
         'guardian_middle_name',
         'guardian_last_name',
+        'guardian_suffix',
         'guardian_contact',
         'guardian_relationship',
         'medical_notes',

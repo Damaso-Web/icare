@@ -14,9 +14,15 @@
 
 const ALIVE_COOKIE = 'icare_browser_session';
 
-// kind -> where that sign-in and its remembered id are kept
+// kind -> where that sign-in and its remembered id are kept.
+// B598: "Remember me" is scoped per sign-in PORTAL, not just per account
+// type - OSS Personnel and Faculty both sign in as staff (same 'token'/
+// 'user' storage, since only one of them is ever signed in at a time on
+// this browser) but must not pre-fill each other's remembered email, so
+// each portal gets its own 'remembered' key and "session only" flag.
 const KINDS = {
-  staff:   { keys: ['token', 'user'],            flag: 'staff_session_only',   remembered: 'remembered_email' },
+  oss:     { keys: ['token', 'user'],            flag: 'oss_session_only',     remembered: 'remembered_email_oss' },
+  faculty: { keys: ['token', 'user'],            flag: 'faculty_session_only', remembered: 'remembered_email_faculty' },
   student: { keys: ['student_token', 'student'], flag: 'student_session_only', remembered: 'remembered_student_id' },
 };
 

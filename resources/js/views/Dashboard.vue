@@ -7,7 +7,9 @@
           <!-- The unit, with the office it belongs to right beside it -->
           <div class="hero-kicker-row">
             <div class="hero-kicker">{{ roleTitle }}</div>
-            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Office of Student Services</span>
+            <!-- B587: on a phone, "OSS" (full name as a tooltip) keeps this
+                 beside the role kicker instead of wrapping underneath it. -->
+            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="oss-full">Office of Student Services</span><abbr class="oss-short" title="Office of Student Services" style="text-decoration:none">OSS</abbr></span>
           </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>
@@ -18,7 +20,7 @@
                 <span class="hero-stat-icon"><svg viewBox="0 0 24 24" v-html="stat.icon"></svg></span>
                 <span class="hero-stat-period">{{ stat.period }}</span>
               </span>
-              <span class="hero-stat-num">{{ stat.value }}</span>
+              <span class="hero-stat-num" :class="{ 'stat-pulse': justRefreshed }">{{ stat.value }}</span>
               <span class="hero-stat-label">{{ stat.label }}</span>
             </button>
           </div>
@@ -48,7 +50,11 @@
         <div class="icard" v-if="dashboard.recent_referrals?.length">
           <div class="icard-header">
             <span class="icard-title">Recent Referrals</span>
-            <router-link :to="{ name: 'referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+            <!-- B596/B609: a Dean or Dept Chair no longer has the Referral
+                 Queue page this linked to - the list itself still updates
+                 and each row still opens its referral, just with no
+                 "View all" link. -->
+            <router-link v-if="!auth.isDean && !auth.isDeptChair" :to="{ name: 'referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
           </div>
           <div>
             <div
@@ -169,7 +175,11 @@
         <div class="icard" v-if="dashboard.recent_referrals?.length && !dashboard.my_cases?.length && !dashboard.testing_queue?.length" style="grid-column:1/-1">
           <div class="icard-header">
             <span class="icard-title">My Submitted Referrals</span>
-            <router-link :to="{ name: 'referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+            <!-- B568: this card lists referrals the signed-in faculty/dean member
+                 originated themselves, not an incoming queue to process - "View
+                 all" was pointed at the Referral Queue instead of their own
+                 Sent Referrals history. -->
+            <router-link :to="{ name: 'sent-referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
           </div>
           <div class="ts">
             <table class="itable">
@@ -189,6 +199,36 @@
                   <td>{{ toTitleCase(r.referral_type) }}</td>
                   <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                   <td style="font-size:12px">{{ formatDate(r.created_at) }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- B608: My Submitted Complaints - a Dept Chair's own filed
+             complaints, same table layout and "View all" pattern as the
+             Sent Referrals card above, pointed at Sent Complaints instead. -->
+        <div class="icard" v-if="dashboard.recent_complaints?.length" style="grid-column:1/-1">
+          <div class="icard-header">
+            <span class="icard-title">My Submitted Complaints</span>
+            <router-link :to="{ name: 'sent-complaints' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+          </div>
+          <div class="ts">
+            <table class="itable">
+              <thead>
+                <tr>
+                  <th>Student</th>
+                  <th>Violation</th>
+                  <th>Status</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="c in dashboard.recent_complaints" :key="c.id">
+                  <td>{{ c.complainee?.first_name }} {{ c.complainee?.last_name }}</td>
+                  <td>{{ c.violation_type }}</td>
+                  <td><span class="ibadge" :class="'ibadge-' + c.status">{{ toTitleCase(c.status) }}</span></td>
+                  <td style="font-size:12px">{{ formatDate(c.created_at) }}</td>
                 </tr>
               </tbody>
             </table>
@@ -274,7 +314,46 @@ const ROLE_TITLES = {
   tmdu_staff: 'Testing and Measurement Development Unit', faculty: 'Faculty', dean: 'Dean',
   dept_chair: 'Department Chair', dean_secretary: 'Dean', tmdu_head: 'TMDU Head', system_admin: 'System Administrator',
 };
-const roleTitle = computed(() => ROLE_TITLES[auth.user?.role] || 'iCARE');
+// B565: a faculty member's banner just said "Faculty" with no indication of
+// which department/college they belong to. Department is stored as a bare
+// name ("Information Technology"), while College (Management > Colleges)
+// is stored with its short code baked in ("College of Information Sciences
+// (CIS)") - stripping that suffix here matches resources/js/utils/colleges.js's
+// own bare() pattern so we don't double up on "College of College of...".
+function bareCollegeName(name) {
+  return String(name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+}
+const facultyAffiliation = computed(() => {
+  const dept = (auth.user?.department || '').trim();
+  const college = bareCollegeName(auth.user?.college);
+  if (dept && college) return `Faculty of Department of ${dept} under ${college}`;
+  if (dept) return `Faculty of Department of ${dept}`;
+  if (college) return `Faculty of ${college}`;
+  return 'Faculty';
+});
+// B594: same idea as facultyAffiliation above - "Dean" alone doesn't say
+// which college. "Dean of the College of Information Sciences" instead.
+const deanAffiliation = computed(() => {
+  const college = bareCollegeName(auth.user?.college);
+  if (!college) return 'Dean';
+  // "Dean of the College of Information Sciences" reads better than
+  // dropping the "the" - but only when the name actually starts with
+  // "College of...", so an oddly-named college doesn't get a stray "the".
+  return /^College of /i.test(college) ? `Dean of the ${college}` : `Dean of ${college}`;
+});
+// B604: "Department Chair" alone doesn't say which department they oversee -
+// "Department Chair of the Department of Information Sciences" instead.
+const deptChairAffiliation = computed(() => {
+  const dept = (auth.user?.department || '').trim();
+  if (!dept) return 'Department Chair';
+  return /^Department of /i.test(dept) ? `Department Chair of the ${dept}` : `Department Chair of the Department of ${dept}`;
+});
+const roleTitle = computed(() => {
+  if (auth.user?.role === 'faculty') return facultyAffiliation.value;
+  if (auth.user?.role === 'dean' || auth.user?.role === 'dean_secretary') return deanAffiliation.value;
+  if (auth.user?.role === 'dept_chair') return deptChairAffiliation.value;
+  return ROLE_TITLES[auth.user?.role] || 'iCARE';
+});
 
 // The two or three places each role goes most, one tap from the banner.
 // Named exactly as in the menu, so a shortcut and its menu item read the same.
@@ -297,8 +376,11 @@ const quickActions = computed(() => {
     case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'TMDU Appointments', icon: ICONS.calendar }];
     case 'dean':
     case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'faculty-directory', label: 'Faculty', icon: ICONS.users || ICONS.file }, refer];
-    case 'faculty':
-    case 'dept_chair':     return [refer, { name: 'referrals', label: 'Referral Queue', icon: ICONS.pulse }];
+    case 'faculty':        return [refer, { name: 'referrals', label: 'Referral Queue', icon: ICONS.pulse }];
+    // B605/B606: a Dept Chair is a referring authority, not processing
+    // staff - no Referral Queue button; "Complaint a Student" sits beside
+    // "Refer Student" instead, so both forms are one tap from the banner.
+    case 'dept_chair':     return [refer, { name: 'complaint-create', label: 'Complaint a Student', icon: ICONS.alert }];
     default:               return [];
   }
 });
@@ -331,6 +413,7 @@ async function fetchSduPanels() {
 const isEmpty = computed(() => {
   const d = dashboard.value;
   return !d.recent_referrals?.length &&
+         !d.recent_complaints?.length &&
          !d.upcoming_appointments?.length &&
          !d.my_cases?.length &&
          !d.testing_queue?.length;
@@ -360,6 +443,27 @@ const stats = computed(() => {
       { label: 'Appointments Today', value: s.appointments_today ?? 0, period: 'Today',   iconBg: 'var(--purple-lt)', iconColor: 'var(--purple)', icon: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', route: 'testing-appointments' },
     ];
   }
+  // B597: a Dean manages outbound cases, not an incoming queue - these cards
+  // go to their own Sent Referrals (with the matching status group), not
+  // the Referral Queue page they no longer have.
+  if (auth.isDean) {
+    return [
+      { label: 'My Referrals',  value: s.my_referrals ?? 0, period: 'Total',    iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'sent-referrals', query: {} },
+      { label: 'Pending',       value: s.pending      ?? 0, period: 'Awaiting', iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },
+      { label: 'Acknowledged',  value: s.acknowledged ?? 0, period: 'Received', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'sent-referrals', query: { status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' } },
+      { label: 'Completed',     value: s.completed    ?? 0, period: 'Resolved', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'sent-referrals', query: { status: 'completed,closed' } },
+    ];
+  }
+  // B607: a Dept Chair manages outbound cases too (no Referral Queue of
+  // their own - B605) - same Sent Referrals status-group routing as a Dean.
+  if (auth.isDeptChair) {
+    return [
+      { label: 'Total',     value: s.my_referrals ?? 0, period: 'My Referrals', iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'sent-referrals', query: {} },
+      { label: 'Awaiting',  value: s.pending      ?? 0, period: 'Pending',      iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },
+      { label: 'Received',  value: s.acknowledged ?? 0, period: 'Acknowledged', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'sent-referrals', query: { status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' } },
+      { label: 'Resolved',  value: s.completed    ?? 0, period: 'Completed',   iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'sent-referrals', query: { status: 'completed,closed' } },
+    ];
+  }
   return [
     { label: 'My Referrals',  value: s.my_referrals ?? 0, period: 'Total',    iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'referrals' },
     { label: 'Pending',       value: s.pending      ?? 0, period: 'Awaiting', iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'referrals' },
@@ -386,11 +490,22 @@ function formatDate(date) {
 // is only touched on the very first load, so refreshes don't flash the
 // spinner over the whole page.
 let refreshTimer = null;
+// B553: a quiet pulse on the stat numbers after a background refresh changes
+// anything, so it's visible at a glance that fresh data just came in without
+// needing to compare the figures by eye.
+const justRefreshed = ref(false);
+let pulseTimer = null;
 
 async function fetchDashboard(isInitial = false) {
   try {
     const res = await api.get('/dashboard');
+    const before = JSON.stringify(dashboard.value.stats || {});
     dashboard.value = res.data;
+    if (!isInitial && before !== JSON.stringify(dashboard.value.stats || {})) {
+      justRefreshed.value = true;
+      clearTimeout(pulseTimer);
+      pulseTimer = setTimeout(() => { justRefreshed.value = false; }, 600);
+    }
   } catch (e) {
     console.error(e);
   } finally {
@@ -406,6 +521,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer);
+  clearTimeout(pulseTimer);
 });
 </script>
 
@@ -419,4 +535,10 @@ onUnmounted(() => {
 .sdu-meta { font-size: 11.5px; color: var(--stone); overflow: hidden; text-overflow: ellipsis; }
 .sdu-link { font-size: 12px; color: var(--moss); text-decoration: underline; }
 @media (max-width: 860px) { .sdu-panels { grid-template-columns: 1fr; } }
+
+/* B553: brief pulse on a stat card's number after a background refresh
+   actually changes it, so the auto-update is noticeable without having to
+   compare figures by eye. */
+@keyframes stat-pulse { 0% { transform: scale(1); } 35% { transform: scale(1.14); } 100% { transform: scale(1); } }
+.stat-pulse { animation: stat-pulse .5s ease; display: inline-block; }
 </style>

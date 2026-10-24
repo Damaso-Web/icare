@@ -41,7 +41,16 @@
           </div>
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--ink)">OSS Personnel</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">Admin, GCU, SDU, TMDU</div>
+            <!-- B579: the subtitle itself stays short so the card doesn't
+                 overflow, but each acronym now carries its full name as a
+                 native tooltip - shown on hover, and on keyboard focus too
+                 since each one is its own tab stop. -->
+            <div style="font-size:12px;color:var(--stone);margin-top:2px">
+              Admin,
+              <abbr title="Guidance and Counseling Unit" tabindex="0" style="text-decoration:underline dotted;cursor:help">GCU</abbr>,
+              <abbr title="Student Discipline Unit" tabindex="0" style="text-decoration:underline dotted;cursor:help">SDU</abbr>,
+              <abbr title="Testing and Materials Development Unit" tabindex="0" style="text-decoration:underline dotted;cursor:help">TMDU</abbr>
+            </div>
           </div>
         </button>
 

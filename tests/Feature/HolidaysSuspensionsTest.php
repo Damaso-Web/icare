@@ -77,6 +77,39 @@ class HolidaysSuspensionsTest extends TestCase
         $this->assertNotNull(CalendarEntry::find($past->id));
     }
 
+    // B550: a genuine duplicate - another entry for the same date and type - that
+    // has nothing of its own tied to it (no appointment's holiday_conflict_entry_id
+    // points at it) can be removed directly with the "Duplicate Entry" reason, even
+    // though the date itself still shows appointments flagged against the other entry.
+    public function test_duplicate_entry_can_be_deleted_with_override_reason(): void
+    {
+        $this->admin();
+        $d = now()->addDays(9)->toDateString();
+        $primary = $this->make($d, 'holiday', 'active');
+        $duplicate = $this->make($d, 'holiday', 'archived');
+
+        $student = \App\Models\Student::factory()->create();
+        \Illuminate\Support\Facades\DB::table('appointments')->insert([
+            'student_id' => $student->id,
+            'appointment_code' => 'APT-DUP1', 'unit' => 'GCU', 'appointment_type' => 'counseling_session',
+            'appointment_date' => $d, 'start_time' => '09:00:00', 'end_time' => '10:00:00',
+            'status' => 'cancelled', 'holiday_conflict_entry_id' => $primary->id,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Without the override reason, the duplicate is still blocked (and told why).
+        $blocked = $this->deleteJson("/api/management/calendar-entries/{$duplicate->id}", ['reason' => 'created_error']);
+        $blocked->assertStatus(422);
+        $this->assertStringContainsString('shares its date', $blocked->json('message'));
+        $this->assertNotNull(CalendarEntry::find($duplicate->id));
+
+        // With "Duplicate Entry" chosen, and nothing of its own tied to it, it goes through.
+        $this->deleteJson("/api/management/calendar-entries/{$duplicate->id}", ['reason' => 'duplicate'])->assertOk();
+        $this->assertNull(CalendarEntry::find($duplicate->id));
+        // The primary entry (which the flagged appointment actually points to) is untouched.
+        $this->assertNotNull(CalendarEntry::find($primary->id));
+    }
+
     public function test_upcoming_date_with_appointments_needs_acknowledgement(): void
     {
         $this->admin();

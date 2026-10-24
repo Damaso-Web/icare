@@ -14,11 +14,22 @@ class SessionNoteController extends Controller
     /**
      * Only counselors (admin + gcu_staff) may write or modify session notes.
      * Mirrors User::canCounsel().
+     *
+     * B562: a counselor the case's $case was just reassigned away from
+     * keeps read-only visibility to the case and its notes, but can't log
+     * a new one for it - same block as CaseController::authorizeCaseWriter().
      */
-    private function authorizeCounselor(): void
+    private function authorizeCounselor(?CaseFile $case = null): void
     {
-        if (!request()->user()?->canCounsel()) {
+        $user = request()->user();
+        if (!$user?->canCounsel()) {
             abort(403, 'Access denied. Only counselors may modify session notes.');
+        }
+        if ($case
+            && $case->previous_counselor_id
+            && (int) $case->previous_counselor_id === (int) $user->id
+            && (int) $case->primary_counselor_id !== (int) $user->id) {
+            abort(403, 'This case has been reassigned to another counselor. You have read-only access.');
         }
     }
 
@@ -109,7 +120,7 @@ class SessionNoteController extends Controller
 
     public function store(Request $request, CaseFile $case)
     {
-        $this->authorizeCounselor();
+        $this->authorizeCounselor($case);
 
         $validated = $request->validate([
             'session_date'       => 'required|date',

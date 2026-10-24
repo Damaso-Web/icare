@@ -46,7 +46,15 @@ class StudentController extends Controller
                     }
                 });
             })
-            ->when($request->college, fn($q) => $q->where('college', $request->college))
+            // B590: a Dean's student lookup (Refer Student, File a Complaint)
+            // is scoped to their own college - they act for their college,
+            // not the whole university, so any ?college= they pass is
+            // ignored in favor of their own. (A real cross-college referral/
+            // complaint still needs its own approval workflow - that's a
+            // separate feature and isn't built here; this only closes the
+            // "search any student" gap.)
+            ->when($request->user()?->isDean(), fn($q) => $q->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college)))
+            ->when(!$request->user()?->isDean() && $request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
@@ -351,7 +359,7 @@ class StudentController extends Controller
         }
 
         return response()->json([
-            'cases'           => $student->cases()->with('counselor')->latest()->get(),
+            'cases'           => $student->cases()->with(['counselor', 'previousCounselor'])->latest()->get(),
             'referrals'       => $student->referrals()->notTmduOwned()->with('case:id,status')->latest()->get(),
             'appointments'    => $student->appointments()->where('unit', '!=', 'TMDU')->with('staff')->latest()->get(),
             'testing_records' => [],

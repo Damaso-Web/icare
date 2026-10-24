@@ -200,6 +200,10 @@ export const authAPI = {
     logout:         ()     => api.post('/logout'),
     me:             ()     => api.get('/me'),
     changePassword: (data) => api.put('/me/password', data),
+    // B569: Active Sessions / Linked Devices.
+    sessions:       ()     => api.get('/me/sessions'),
+    revokeSession:  (id)   => api.delete(`/me/sessions/${id}`),
+    revokeOthers:   ()     => api.post('/me/sessions/revoke-others'),
 };
 
 export const studentAPI = {

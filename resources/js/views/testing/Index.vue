@@ -59,6 +59,7 @@
               <div class="qtags">
                 <span class="ibadge" :class="statusBadge(t.status)">{{ statusLabel(t.status) }}</span>
                 <span class="ibadge unit-tmdu">TMDU</span>
+                <span v-if="reassignedAwayFromMe(t)" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Reassigned</span>
               </div>
             </div>
             <div class="qacts">
@@ -92,8 +93,16 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
 
 const route        = useRoute();
+const auth         = useAuthStore();
+// B559: this record was taken off the signed-in tester and given to someone
+// else - still shown here (see TestingRecordController::index()'s scoping)
+// but flagged so it reads as read-only history, not an active item to work.
+function reassignedAwayFromMe(t) {
+  return !!t.previous_tester_user_id && t.previous_tester_user_id === auth.user?.id && t.assigned_tester_user_id !== auth.user?.id;
+}
 const filterStatus = ref('');
 const loading      = ref(true);
 const records      = ref([]);

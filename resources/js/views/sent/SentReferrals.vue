@@ -177,7 +177,10 @@ async function save() {
   }
 }
 
-const filters = reactive({ search: '', sort: 'newest', status: '', referral_type: '' });
+// B597: a dashboard metric card can link here with ?status=... (a single
+// value, or several joined by commas for a group like "in progress") to
+// land already filtered.
+const filters = reactive({ search: '', sort: 'newest', status: route.query.status || '', referral_type: '' });
 const options = ref({ types: [], statuses: [], type_labels: {} });
 const filtered = computed(() => !!(filters.search || filters.status || filters.referral_type || filters.sort !== 'newest'));
 const filterSelects = computed(() => [

@@ -54,10 +54,17 @@ class TestingRecordController extends Controller
             ->where(fn($q) => $q->where('referral_id', $record->referral_id)->orWhereNull('referral_id'));
     }
 
-    private function ensureTesterAssigned(TestingRecord $testingRecord): void
+    private function ensureTesterAssigned(TestingRecord $testingRecord, ?Request $request = null): void
     {
         if (!$testingRecord->assigned_tester_user_id) {
             abort(422, 'Assign a tester to this record before making any changes.');
+        }
+        // B559: once reassigned away, the previous tester keeps read-only
+        // visibility (see index()'s scoping above) but can no longer act on
+        // it - re-claiming it back through assign() is still open to them.
+        if ($request && $testingRecord->previous_tester_user_id === $request->user()->id
+            && $testingRecord->assigned_tester_user_id !== $request->user()->id) {
+            abort(403, 'This record was reassigned to someone else. You can still view it, but changes are no longer allowed.');
         }
     }
 
@@ -91,7 +98,18 @@ class TestingRecordController extends Controller
         );
 
         $old = ['assigned_tester_user_id' => $testingRecord->assigned_tester_user_id];
-        $testingRecord->update(['assigned_tester_user_id' => $tester->id]);
+
+        // B559: when this hands the record to someone else, keep the
+        // outgoing tester findable (read-only) instead of them losing the
+        // record from their queue entirely the moment it's reassigned.
+        $reassignedFrom = ($testingRecord->assigned_tester_user_id && $testingRecord->assigned_tester_user_id !== $tester->id)
+            ? $testingRecord->assigned_tester_user_id
+            : $testingRecord->previous_tester_user_id;
+
+        $testingRecord->update([
+            'assigned_tester_user_id' => $tester->id,
+            'previous_tester_user_id' => $reassignedFrom,
+        ]);
 
         AuditLog::record(
             'tester_assigned',
@@ -116,7 +134,7 @@ class TestingRecordController extends Controller
      */
     public function acknowledge(Request $request, TestingRecord $testingRecord)
     {
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $testingRecord->update(['status' => 'pending']);
 
@@ -135,14 +153,20 @@ class TestingRecordController extends Controller
     {
         $user = $request->user();
 
-        $query = TestingRecord::with(['student', 'referredBy', 'tester', 'case'])
+        $query = TestingRecord::with(['student', 'referredBy', 'tester', 'previousTester', 'case'])
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->when($request->student_id, fn($q) => $q->where('student_id', $request->student_id))
             // TMDU's Testing Records is where an acknowledged GCU referral
             // lands: records assigned to this tester, plus unclaimed records
             // whose referral TMDU has already acknowledged.
+            // B559: also keeps a record visible to the tester it was most
+            // recently reassigned AWAY from - the frontend treats it as
+            // read-only and labels it "Reassigned" by comparing
+            // previous_tester_user_id to the signed-in user - instead of it
+            // just disappearing from their queue.
             ->when($user->isTMDUStaff(), fn($q) => $q->where(function ($qq) use ($user) {
                 $qq->where('assigned_tester_user_id', $user->id)
+                   ->orWhere('previous_tester_user_id', $user->id)
                    ->orWhere(function ($un) {
                        $un->whereNull('assigned_tester_user_id')
                           ->whereHas('referral', fn($r) => $r->whereNotNull('acknowledged_at'));
@@ -164,6 +188,7 @@ class TestingRecordController extends Controller
             'student',
             'referredBy',
             'tester',
+            'previousTester',
             'case',
             'documents',
             'referral.complaint.complainee',
@@ -206,7 +231,7 @@ class TestingRecordController extends Controller
         if ($testingRecord->status === 'test_results_issued') {
             abort(422, 'This testing record has already been issued to GCU and can no longer be edited.');
         }
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $validated = $request->validate([
             'assigned_tester_user_id' => 'nullable|exists:users,id',
@@ -243,7 +268,7 @@ class TestingRecordController extends Controller
         if ($testingRecord->status === 'test_results_issued') {
             abort(422, 'This testing record has already been issued to GCU and can no longer be edited.');
         }
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $request->validate([
             // Only the early, precondition-free stages are settable here.
@@ -310,7 +335,7 @@ class TestingRecordController extends Controller
      */
     public function scheduleTesting(Request $request, TestingRecord $testingRecord)
     {
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $validated = $request->validate([
             'appointment_date' => 'required|date',
@@ -378,7 +403,7 @@ class TestingRecordController extends Controller
      */
     public function administerTests(Request $request, TestingRecord $testingRecord)
     {
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $validated = $request->validate([
             'tests_administered' => 'required|array|min:1',
@@ -416,7 +441,7 @@ class TestingRecordController extends Controller
      */
     public function schedulePar(Request $request, TestingRecord $testingRecord)
     {
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         $testAppointment = $this->recordAppointments($testingRecord, 'psychological_testing')
             ->whereNotIn('status', ['cancelled'])
@@ -580,7 +605,7 @@ class TestingRecordController extends Controller
         if ($testingRecord->status === 'test_results_issued') {
             abort(422, 'Test results have already been issued to GCU for this record.');
         }
-        $this->ensureTesterAssigned($testingRecord);
+        $this->ensureTesterAssigned($testingRecord, $request);
 
         // The PAR can only be attached once the scheduled PAR release
         // appointment has been marked "Results Released".

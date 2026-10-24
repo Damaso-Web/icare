@@ -6,7 +6,8 @@
       </button>
       <div class="ph" style="margin:0">
         <h1>File a Complaint</h1>
-        <p>Report an act of misconduct against a student. This is reviewed by the SDU Head.</p>
+        <!-- B577: "SDU Head" is an internal role name, not the unit name. -->
+        <p>Report an act of misconduct against a student. This is reviewed by the Student Discipline Unit.</p>
       </div>
     </div>
 
@@ -45,6 +46,8 @@
             @blur="validateField('complainant_address')"
             required
           />
+          <!-- B584: live, as the user types. -->
+          <div v-if="addressNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid address. Numbers alone are not allowed.</div>
         </div>
 
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
@@ -173,18 +176,23 @@
             @blur="validateField('description')"
             required
           ></textarea>
+          <!-- B584: live, as the user types. -->
+          <div v-if="descriptionNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid narration of facts. Numbers alone are not allowed.</div>
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Evidence <span style="color:var(--red)">*</span></label>
-          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="ifi" :style="errorStyle('evidence')" @change="onFilesSelected($event, 'evidence')" />
+          <!-- B586: extensions alone make some Android/Chrome versions fall
+               back to a camera/gallery-only picker with no "Files" option.
+               Pairing each extension with its real MIME type fixes it. -->
+          <input type="file" multiple :accept="FILE_ACCEPT" class="ifi" :style="errorStyle('evidence')" @change="onFilesSelected($event, 'evidence')" />
           <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
           <div v-if="evidenceFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidenceFiles.length }} file(s) selected</div>
         </div>
 
         <div style="margin-bottom:14px">
           <label class="ifl">Affidavit of Witness <span style="color:var(--red)">*</span></label>
-          <input type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="ifi" :style="errorStyle('affidavit')" @change="onFilesSelected($event, 'affidavit')" />
+          <input type="file" multiple :accept="FILE_ACCEPT" class="ifi" :style="errorStyle('affidavit')" @change="onFilesSelected($event, 'affidavit')" />
           <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
           <div v-if="affidavitFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavitFiles.length }} file(s) selected</div>
         </div>
@@ -275,12 +283,12 @@
 </template>
 
 <script setup>
-import { ref, inject } from 'vue';
+import { ref, inject, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
-import { onlyLetters } from '../../utils/validators';
+import { onlyLetters, hasLetter } from '../../utils/validators';
 import ComplaintDetail from '../../components/ComplaintDetail.vue';
 
 // Student search here is by name only (the API call below passes
@@ -394,14 +402,19 @@ function clearFieldError(field) {
   }
 }
 
+// B584: Address and Narration of Facts must say something, not just contain
+// digits. Shown live as the user types (not only on submit).
+const addressNumbersOnly     = computed(() => !!form.value.complainant_address && !hasLetter(form.value.complainant_address));
+const descriptionNumbersOnly = computed(() => !!form.value.description && !hasLetter(form.value.description));
+
 function validateField(field) {
   const isEmpty = {
     complainant_name:      () => !form.value.complainant_name,
-    complainant_address:   () => !form.value.complainant_address,
+    complainant_address:   () => !form.value.complainant_address || !hasLetter(form.value.complainant_address),
     complainee_student_id: () => !form.value.complainee_student_id,
     violation_type:        () => !form.value.violation_type,
     incident_date:         () => !form.value.incident_date,
-    description:           () => !form.value.description,
+    description:           () => !form.value.description || !hasLetter(form.value.description),
   }[field]?.();
 
   fieldErrors.value = { ...fieldErrors.value, [field]: !!isEmpty };
@@ -442,6 +455,10 @@ const form = ref({
 // Date of Incident cannot be in the future (local date, not UTC).
 const _now = new Date();
 const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+
+// B586: extensions + explicit MIME types, so Android/Chrome's file chooser
+// offers "Files" alongside Camera/Gallery instead of defaulting to the latter.
+const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
 const evidenceFiles  = ref([]);
 const affidavitFiles = ref([]);
@@ -548,6 +565,18 @@ function openCertificationModal() {
   fieldErrors.value = errs;
   if (missing.length) {
     error.value = `Please fill in: ${missing.join(', ')}.`;
+    return;
+  }
+
+  // B584: non-empty but numbers-only is a different error than "missing".
+  if (!hasLetter(form.value.complainant_address)) {
+    fieldErrors.value = { ...fieldErrors.value, complainant_address: true };
+    error.value = 'Please provide a valid address. Numbers alone are not allowed.';
+    return;
+  }
+  if (!hasLetter(form.value.description)) {
+    fieldErrors.value = { ...fieldErrors.value, description: true };
+    error.value = 'Please provide a valid narration of facts. Numbers alone are not allowed.';
     return;
   }
 

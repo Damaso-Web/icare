@@ -18,6 +18,7 @@ class TestingRecord extends Model
         'referred_by_user_id',
         'reason',
         'assigned_tester_user_id',
+        'previous_tester_user_id',
         'status',
         'tests_administered',
         'testing_date',
@@ -61,6 +62,9 @@ class TestingRecord extends Model
     public function student()     { return $this->belongsTo(Student::class); }
     public function referredBy()  { return $this->belongsTo(User::class, 'referred_by_user_id'); }
     public function tester()      { return $this->belongsTo(User::class, 'assigned_tester_user_id'); }
+    // B559: who this record was assigned to right before the most recent
+    // reassignment - kept so they can still find and view it (read-only).
+    public function previousTester() { return $this->belongsTo(User::class, 'previous_tester_user_id'); }
     public function orStampedBy() { return $this->belongsTo(User::class, 'or_stamped_by_user_id'); }
     public function documents()   { return $this->morphMany(Document::class, 'documentable'); }
 

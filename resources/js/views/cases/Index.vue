@@ -76,6 +76,7 @@
                   <div :style="'font-weight:600;color:' + (filters.archived ? 'var(--stone)' : 'var(--ink)')">{{ c.student?.last_name }}, {{ c.student?.first_name }} {{ c.student?.middle_name }}</div>
                   <span v-if="filters.archived && c.student?.is_active === false" class="ibadge" style="background:var(--cloud);color:var(--stone)">Deactivated</span>
                   <span v-else-if="filters.archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+                  <span v-if="reassignedAwayFromMe(c)" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Reassigned</span>
                 </div>
               </td>
               <!-- opened_date is stamped with today() at the moment the founding
@@ -109,8 +110,17 @@ import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { caseAPI, studentAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { useAuthStore } from '../../stores/auth';
 
 const route = useRoute();
+const auth  = useAuthStore();
+
+// B562: this case was taken off the signed-in counselor and given to
+// someone else - still shown here (index() loads every case regardless of
+// counselor) but flagged so it reads as read-only history, not active work.
+function reassignedAwayFromMe(c) {
+  return !!c.previous_counselor_id && c.previous_counselor_id === auth.user?.id && c.primary_counselor_id !== auth.user?.id;
+}
 
 const cases      = ref([]);
 
