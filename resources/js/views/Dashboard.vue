@@ -7,9 +7,13 @@
           <!-- The unit, with the office it belongs to right beside it -->
           <div class="hero-kicker-row">
             <div class="hero-kicker">{{ roleTitle }}</div>
-            <!-- B587: on a phone, "OSS" (full name as a tooltip) keeps this
-                 beside the role kicker instead of wrapping underneath it. -->
-            <span class="hero-chip"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="oss-full">Office of Student Services</span><abbr class="oss-short" title="Office of Student Services" style="text-decoration:none">OSS</abbr></span>
+            <!-- Bug (10/24/2026, B637): always shown as "OSS", as plain text
+                 beside the role title rather than inside a boxed pill - the
+                 full name is still there as a tooltip. Was previously the
+                 full name in a pill on a computer, shrinking to a boxed "OSS"
+                 on a phone (B587); now it's always just the abbreviation,
+                 with no box, at every width. -->
+            <abbr class="hero-oss" title="Office of Student Services" style="text-decoration:none">OSS</abbr>
           </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>

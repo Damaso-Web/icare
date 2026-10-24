@@ -32,20 +32,22 @@ class StudentController extends Controller
         // Create, etc.) is unaffected and still searches by ID too.
         $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
 
+        $applySearch = function ($q) use ($request, $nameOnly) {
+            $terms = preg_split('/\s+/', trim((string) $request->search), -1, PREG_SPLIT_NO_EMPTY);
+            $q->where(function ($outer) use ($terms, $nameOnly) {
+                foreach ($terms as $term) {
+                    $outer->where(function ($t) use ($term, $nameOnly) {
+                        $t->where('first_name', 'like', "%{$term}%")
+                          ->orWhere('middle_name', 'like', "%{$term}%")
+                          ->orWhere('last_name', 'like', "%{$term}%")
+                          ->when(!$nameOnly, fn($iq) => $iq->orWhere('student_id', 'like', "%{$term}%"));
+                    });
+                }
+            });
+        };
+
         $query = Student::query()
-            ->when($request->search, function ($q) use ($request, $nameOnly) {
-                $terms = preg_split('/\s+/', trim($request->search), -1, PREG_SPLIT_NO_EMPTY);
-                $q->where(function ($outer) use ($terms, $nameOnly) {
-                    foreach ($terms as $term) {
-                        $outer->where(function ($t) use ($term, $nameOnly) {
-                            $t->where('first_name', 'like', "%{$term}%")
-                              ->orWhere('middle_name', 'like', "%{$term}%")
-                              ->orWhere('last_name', 'like', "%{$term}%")
-                              ->when(!$nameOnly, fn($iq) => $iq->orWhere('student_id', 'like', "%{$term}%"));
-                        });
-                    }
-                });
-            })
+            ->when($request->search, $applySearch)
             // B590: a Dean's student lookup (Refer Student, File a Complaint)
             // is scoped to their own college - they act for their college,
             // not the whole university, so any ?college= they pass is
@@ -87,7 +89,23 @@ class StudentController extends Controller
             $results->getCollection()->transform(fn($s) => collect($s->toArray())->except('student_id')->all());
         }
 
-        return response()->json($results);
+        // B636: a Dean/Dept Chair/Faculty search is scoped to their own
+        // college/department (B590/B618/B626 above), so a student outside
+        // that scope simply never matches the query and looks identical to
+        // one that doesn't exist at all - the generic "no matching student"
+        // message was then wrongly implying the student doesn't exist in the
+        // portal. When the scoped search comes back empty, re-run the same
+        // search term with the scope removed (existence only, no student
+        // data is returned) so the frontend can tell the two cases apart.
+        $isScoped = $request->user()?->isDean()
+            || $request->user()?->isDeptChair()
+            || $request->user()?->role === 'faculty';
+        $outOfScope = false;
+        if ($isScoped && $request->search && $results->isEmpty()) {
+            $outOfScope = Student::query()->when($request->search, $applySearch)->exists();
+        }
+
+        return response()->json(array_merge($results->toArray(), ['out_of_scope' => $outOfScope]));
     }
 
     public function store(Request $request)

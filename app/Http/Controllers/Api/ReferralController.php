@@ -150,10 +150,26 @@ class ReferralController extends Controller
     // Referrals the signed-in account has sent (Sent Referrals page).
     public function mine(Request $request)
     {
-        return self::sentList(
-            Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id'),
-            $request
-        );
+        $user = $request->user();
+
+        // Bug (10/24/2026, B634): a Dean's dashboard cards count referrals
+        // across their whole college (deanSecretaryVisibleReferrals in
+        // DashboardController), not just ones they personally submitted -
+        // but this endpoint, which those cards link to, only ever looked up
+        // referred_by_user_id = the Dean's own id, so the counts on the
+        // dashboard and the (empty) list behind them never matched. Scoped
+        // the same way the Referral Queue (index()/archived() above) already
+        // scopes a Dean: by the student's college, with the same
+        // is_archived/complaint/TMDU exclusions the dashboard's count uses,
+        // so the aggregate and the row count stay in sync.
+        $base = $user->isDeanSecretary()
+            ? Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)))
+                ->where('is_archived', false)
+                ->whereNull('complaint_id')
+                ->notTmduOwned()
+            : Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
+
+        return self::sentList($base, $request);
     }
 
     // Search / Type / Status / Sort for a "Sent Referrals" list (staff and student).

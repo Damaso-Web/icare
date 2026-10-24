@@ -333,9 +333,9 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 .hero-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:20px;font-size:11.5px;font-weight:600;color:#fff;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.15)}
 .hero-chip.hero-date{display:none}   /* computer: the date is in the top bar */
 .hero-chip svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-/* B587: on a computer there's room for the full name; the abbreviation only
-   shows on the narrow layout below. */
-.hero-chip .oss-short{display:none}
+/* B637: the office abbreviation beside the role title - plain text, no pill
+   box, at every width (the full name is still there as a tooltip). */
+.hero-oss{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.55);flex-shrink:0}
 .hero-actions{display:flex;gap:8px;flex-wrap:wrap}
 /* The shortcuts are one set: the same look and the same size as each other. */
 .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:158px;padding:11px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,border-color .13s,transform .1s}
@@ -498,15 +498,12 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   /* ---------- Refreshed shell on a phone ---------- */
   .tb-date,.tb-user-txt,.tb-user{display:none}
   .hero-chip.hero-date{display:inline-flex}   /* phone: the top bar has no date, so the banner shows it */
-  /* B587: "Admin · GCU Head" and the office chip stay side by side instead
-     of the chip wrapping underneath and looking cluttered - the full name
-     shrinks to "OSS" (title text gives the full name) so both fit on one
-     row at any phone width. */
+  /* B587: "Admin · GCU Head" and the OSS label stay side by side instead of
+     wrapping underneath and looking cluttered, at any phone width. B637:
+     the label is now always just "OSS" with no box, on a computer too, so
+     there's nothing left to shrink here. */
   .hero-kicker-row{flex-wrap:nowrap}
   .hero-kicker-row .hero-kicker{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hero-kicker-row .hero-chip{flex:none;padding:5px 9px}
-  .hero-kicker-row .hero-chip .oss-full{display:none}
-  .hero-kicker-row .hero-chip .oss-short{display:inline}
   .tb-seals{display:flex}
   .hero{padding:18px 18px 20px;border-radius:16px}
   .hero h1{font-size:26px}

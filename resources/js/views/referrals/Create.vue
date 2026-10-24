@@ -79,6 +79,13 @@
             <div v-if="studentFound" style="font-size:11px;color:var(--moss);margin-top:4px">
               ✓ Existing student found
             </div>
+            <!-- B636: a Dean/Dept Chair/Faculty account acts only for their own
+                 college/department - if the student exists but sits outside
+                 that scope, say so specifically instead of implying they
+                 don't exist in the portal at all. -->
+            <div v-else-if="studentSearchQuery.length >= 2 && studentSuggestions.length === 0 && !studentSearchLoading && studentOutOfScope" style="font-size:11px;color:var(--red);margin-top:4px">
+              No matching student found under your college or department. Only students currently enrolled under your college can be selected for referrals or complaints.
+            </div>
             <div v-else-if="studentSearchQuery.length >= 2 && studentSuggestions.length === 0 && !studentSearchLoading" style="font-size:11px;color:var(--red);margin-top:4px">
               No matching student found. Double-check the Student ID or name. Only existing students can be referred - fields below are filled in automatically once a student is found.
             </div>
@@ -499,6 +506,9 @@ const studentSearchQuery   = ref('');
 const studentSuggestions   = ref([]);
 const showStudentDropdown  = ref(false);
 const studentSearchLoading = ref(false);
+// B636: true when the search matched a real student outside the account's
+// own college/department scope, not when nothing matches at all.
+const studentOutOfScope    = ref(false);
 let studentSearchTimeout = null;
 
 const isFacultyOrDean = computed(() =>
@@ -549,6 +559,7 @@ function onStudentSearch() {
   studentSearchQuery.value = safeSearchInput(studentSearchQuery.value);
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
+  studentOutOfScope.value = false;
   if (!studentSearchQuery.value) {
     clearStudentFields();
     studentSuggestions.value = [];
@@ -561,11 +572,15 @@ function onStudentSearch() {
     return;
   }
   studentSearchLoading.value = true;
+  studentOutOfScope.value = false;
   studentSearchTimeout = setTimeout(async () => {
     try {
       const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1 });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
+      // B636: distinguishes "doesn't exist" from "exists, but outside your
+      // college/department" so the message below can say which one it is.
+      studentOutOfScope.value = !!res.data.out_of_scope;
     } catch (e) {
       studentSuggestions.value = [];
     } finally {

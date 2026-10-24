@@ -241,6 +241,16 @@ class DashboardController extends Controller
                 ->latest()
                 ->take(5)
                 ->get(),
+            // Bug (10/24/2026, B633): a Dean had no "My Submitted Complaints"
+            // section at all - this reuses the same card and query shape
+            // already built for Dept Chair (B608), kept personal (what the
+            // Dean themself filed) to match what its "View all" link (Sent
+            // Complaints) actually shows.
+            'recent_complaints' => Complaint::where('filed_by_user_id', $user->id)
+                ->with('complainee')
+                ->latest()
+                ->take(5)
+                ->get(),
         ];
     }
 }

@@ -38,7 +38,13 @@ class SentReferralsComplaintsTest extends TestCase
             $this->postJson('/api/referrals', [
                 'student_id' => $target->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',
             ])->assertCreated();
-            $this->getJson('/api/my/referrals')->assertOk()->assertJsonCount(1, 'data');
+            // Bug (10/24/2026, B634): a Dean's Sent Referrals is scoped to
+            // their whole college (same as the Referral Queue already was),
+            // not just what they personally submitted - so by the time this
+            // loop reaches 'dean', the earlier 'faculty' referral to the same
+            // CIT student is visible too. Every other role here still only
+            // ever sees its own.
+            $this->getJson('/api/my/referrals')->assertOk()->assertJsonCount($role === 'dean' ? 2 : 1, 'data');
         }
     }
 
