@@ -178,13 +178,19 @@ class FacultyController extends UserController
         // not just in the dropdown), a status event, and a forced password change on reactivation.
         $deactivating = (bool) $user->is_active;
         abort_if($user->id === $request->user()->id && $deactivating, 422, 'You cannot deactivate your own account.');
-        $list = $deactivating ? \App\Support\EmployeeAccountReasons::DEACTIVATE : \App\Support\EmployeeAccountReasons::REACTIVATE;
+        // Bug (10/14/2026): a reactivation reason must relate to how the
+        // account was actually deactivated - e.g. "Resigned" can't then be
+        // reactivated as "Security Verified". Same rule and same escape
+        // hatches (error/other) as User Management's UserController::toggleActive().
+        $allowedReasonKeys = $deactivating
+            ? array_keys(\App\Support\EmployeeAccountReasons::DEACTIVATE)
+            : \App\Support\EmployeeAccountReasons::allowedReactivationKeys($user->deactivation_reason);
         $validated = $request->validate([
-            'reason' => ['required', \Illuminate\Validation\Rule::in(array_keys($list))],
+            'reason' => ['required', \Illuminate\Validation\Rule::in($allowedReasonKeys)],
             'note'   => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
         ], [
             'reason.required'  => 'Please select a reason.',
-            'reason.in'        => 'That reason is not allowed for this action.',
+            'reason.in'        => 'That reactivation reason does not match how this account was deactivated.',
             'note.required_if' => 'Please describe the reason when "Other" is selected.',
             'note.regex'       => 'Please explain in words, not numbers only.',
         ]);

@@ -588,7 +588,11 @@ function go(id) {
 
 /* Phones and small tablets */
 @media (max-width: 860px) {
-  .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 56px; gap: 32px; }
+  /* The bottom wave (.lp-hero-wave, 44px tall, absolutely positioned at the
+     hero's bottom edge) was covering "Case followed through"'s second line
+     on phones - 56px of padding-bottom left barely any clearance once the
+     flow cards stack into a single column and grow taller. */
+  .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 88px; gap: 32px; }
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2, .lp-foot-in { grid-template-columns: 1fr; }
   .lp-links, .lp-nav-cta { display: none; }
   .lp-totop-float { bottom: 20px; right: 20px; }

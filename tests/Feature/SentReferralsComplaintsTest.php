@@ -29,7 +29,11 @@ class SentReferralsComplaintsTest extends TestCase
         Notification::fake();
         $target = $this->student('2300001', 'Target');
         foreach (['faculty', 'dean', 'dept_chair', 'gcu_staff', 'sdu_head', 'tmdu_staff', 'tmdu_head', 'admin', 'system_admin'] as $role) {
-            $u = User::factory()->create(['role' => $role, 'college' => 'CIT', 'is_active' => true]);
+            // A Dept Chair is scoped to their own department too (see
+            // DeptChairDepartmentScopeTest) - give them one that matches
+            // $target's program so this generic "every role can refer"
+            // check isn't itself testing that narrower rule.
+            $u = User::factory()->create(['role' => $role, 'college' => 'CIT', 'department' => 'BSIT', 'is_active' => true]);
             Sanctum::actingAs($u);
             $this->postJson('/api/referrals', [
                 'student_id' => $target->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',

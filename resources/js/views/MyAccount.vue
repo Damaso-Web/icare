@@ -274,7 +274,9 @@ const showEmailPw   = ref(false);
 const emailProblem = computed(() => {
   const v = String(profileForm.value.email || '').trim();
   if (!v) return 'Email address is required.';
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v) ? '' : 'Enter a complete email address, like name@bsu.edu.ph.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'Enter a complete email address, like name@bsu.edu.ph.';
+  if (!v.toLowerCase().endsWith('@bsu.edu.ph')) return 'Please use your BSU email address (it must end in @bsu.edu.ph).';
+  return '';
 });
 const contactProblem = computed(() => {
   const v = String(profileForm.value.contact_number || '');
