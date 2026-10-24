@@ -81,8 +81,21 @@
           </div>
         </div>
       </div>
-      <div class="lp-hero-wave" aria-hidden="true">
+      <!-- Bug (10/25/2026): the curve rises up to ~52px into the hero on
+           wide screens (see the path's control points), which is fine
+           against the two-column desktop layout but clipped into "Case
+           followed through"'s second line on phones no matter how much
+           padding-bottom the single-column stack was given below - the
+           curve itself needed to go, not just more room under it. Two
+           separate wave graphics (swapped by the same max-width:860px
+           breakpoint already used throughout this page), rather than one
+           SVG reshaped in CSS, since not every phone browser supports
+           restyling a <path>'s d via CSS. -->
+      <div class="lp-hero-wave lp-hero-wave-curve" aria-hidden="true">
         <svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,24 C360,52 1080,-4 1440,24 L1440,48 L0,48 Z" fill="var(--snow)"/></svg>
+      </div>
+      <div class="lp-hero-wave lp-hero-wave-flat" aria-hidden="true">
+        <svg viewBox="0 0 1440 48" preserveAspectRatio="none"><path d="M0,48 L1440,48 L1440,48 L0,48 Z" fill="var(--snow)"/></svg>
       </div>
     </section>
 
@@ -492,6 +505,7 @@ function go(id) {
 
 .lp-hero-wave { position: absolute; left: 0; right: 0; bottom: -1px; line-height: 0; pointer-events: none; z-index: 2; }
 .lp-hero-wave svg { display: block; width: 100%; height: 44px; }
+.lp-hero-wave-flat { display: none; }
 
 /* Sections */
 .lp-sec { padding: 84px 0; }
@@ -590,8 +604,12 @@ function go(id) {
 @media (max-width: 860px) {
   /* The bottom wave (.lp-hero-wave, 44px tall, absolutely positioned at the
      hero's bottom edge) was covering "Case followed through"'s second line
-     on phones - 56px of padding-bottom left barely any clearance once the
-     flow cards stack into a single column and grow taller. */
+     on phones - padding-bottom alone couldn't fix it reliably, since the
+     curve itself (not just its height) reaches up into the hero on wide
+     screens. Bug (10/25/2026): swapped for a flat straight-edge version
+     here instead, so the boundary never rises into the text above it. */
+  .lp-hero-wave-curve { display: none; }
+  .lp-hero-wave-flat { display: block; }
   .lp-hero-in { grid-template-columns: 1fr; padding-top: 48px; padding-bottom: 88px; gap: 32px; }
   .lp-grid3, .lp-steps, .lp-who, .lp-grid2, .lp-foot-in { grid-template-columns: 1fr; }
   .lp-links, .lp-nav-cta { display: none; }
