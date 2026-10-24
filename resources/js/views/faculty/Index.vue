@@ -177,9 +177,27 @@
             <!-- Same labels, order and examples as User Management's Add Employee;
                  B612/B613: Employee ID is numeric-only with the same 15-character
                  limit used there too. -->
-            <div><label class="ifl">Employee ID</label><input v-model="form.employee_id" class="ifi" maxlength="15" placeholder="e.g. 12345" inputmode="numeric" @input="form.employee_id = onlyDigits(form.employee_id)" /></div>
-            <div><label class="ifl">Last Name <span style="color:var(--red)">*</span></label><input v-model="form.last_name" class="ifi" placeholder="Reyes" maxlength="50" @input="form.last_name = capitalizeFirst(onlyLetters(form.last_name))" /></div>
-            <div><label class="ifl">First Name <span style="color:var(--red)">*</span></label><input v-model="form.first_name" class="ifi" placeholder="Maria" maxlength="50" @input="form.first_name = capitalizeFirst(onlyLetters(form.first_name))" /></div>
+            <div>
+              <label class="ifl">Employee ID</label>
+              <input v-model="form.employee_id" class="ifi" maxlength="15" placeholder="e.g. 12345" inputmode="numeric"
+                :style="employeeIdDuplicate ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="form.employee_id = onlyDigits(form.employee_id); queueDuplicateCheck()" />
+              <!-- B638: checked live as the Dean/Dept Chair types, not just at submit. -->
+              <div v-if="employeeIdDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">Employee ID already exists. Please enter a unique Employee ID.</div>
+            </div>
+            <div>
+              <label class="ifl">Last Name <span style="color:var(--red)">*</span></label>
+              <input v-model="form.last_name" class="ifi" placeholder="Reyes" maxlength="50"
+                :style="nameDuplicate ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="form.last_name = capitalizeFirst(onlyLetters(form.last_name)); queueDuplicateCheck()" />
+              <div v-if="nameDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">A faculty member with this name already exists.</div>
+            </div>
+            <div>
+              <label class="ifl">First Name <span style="color:var(--red)">*</span></label>
+              <input v-model="form.first_name" class="ifi" placeholder="Maria" maxlength="50"
+                :style="nameDuplicate ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="form.first_name = capitalizeFirst(onlyLetters(form.first_name)); queueDuplicateCheck()" />
+            </div>
             <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = capitalizeFirst(onlyLetters(form.middle_name))" /></div>
             <div><label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse">
@@ -230,7 +248,7 @@
         </div>
         <div class="ffoot">
           <button class="ibtn ibtn-o" @click="formOpen = false">Cancel</button>
-          <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
+          <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem || employeeIdDuplicate || nameDuplicate" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
         </div>
       </div>
     </div>
@@ -509,6 +527,8 @@ const tempInfo = ref(null);
 function openForm(u) {
   editing.value = u;
   formError.value = '';
+  employeeIdDuplicate.value = false;
+  nameDuplicate.value = false;
   form.value = u ? { ...blank(), ...u } : blank();
   formOpen.value = true;
 }
@@ -518,6 +538,36 @@ const contactProblem = computed(() => !!form.value?.contact_number && !isValidPH
 // B: live email format check, as the user types - same rule as submit, just shown earlier.
 const emailProblem = computed(() => !!form.value?.email && !isValidEmail(form.value.email));
 
+// Bug (10/24/2026, B638): Employee ID and name were only checked for a
+// duplicate at submit time - checked live instead, as the Dean/Dept Chair
+// types, the same way the email format is checked above. Debounced so it
+// doesn't fire an API call on every keystroke.
+const employeeIdDuplicate = ref(false);
+const nameDuplicate       = ref(false);
+let duplicateCheckTimeout = null;
+
+function queueDuplicateCheck() {
+  clearTimeout(duplicateCheckTimeout);
+  duplicateCheckTimeout = setTimeout(async () => {
+    const f = form.value;
+    const params = { ignore_id: editing.value?.id || undefined };
+    if (f.employee_id) params.employee_id = f.employee_id;
+    if (f.first_name && f.last_name) { params.first_name = f.first_name; params.last_name = f.last_name; }
+    if (!params.employee_id && !params.first_name) {
+      employeeIdDuplicate.value = false;
+      nameDuplicate.value = false;
+      return;
+    }
+    try {
+      const res = await facultyAPI.checkDuplicate(params);
+      employeeIdDuplicate.value = params.employee_id ? !!res.data.employee_id_exists : false;
+      nameDuplicate.value       = params.first_name  ? !!res.data.name_exists        : false;
+    } catch (e) {
+      // A failed check never blocks typing - submit still re-checks for real.
+    }
+  }, 350);
+}
+
 async function saveForm() {
   if (saving.value) return;
   formError.value = '';
@@ -525,6 +575,8 @@ async function saveForm() {
   if (contactProblem.value) { formError.value = 'Contact number must start with 09 and be 11 digits long.'; return; }
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
   if (emailProblem.value) { formError.value = 'Please enter a valid email address.'; return; }
+  if (employeeIdDuplicate.value) { formError.value = 'Employee ID already exists. Please enter a unique Employee ID.'; return; }
+  if (nameDuplicate.value) { formError.value = 'A faculty member with this name already exists.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
   if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }
   saving.value = true;

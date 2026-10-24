@@ -358,6 +358,8 @@ export const facultyAPI = {
     removeChair:    (id)       => api.post(`/faculty/${id}/remove-chair`),
     importPreview:  (formData) => api.post('/faculty/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importConfirm:  (data)     => api.post('/faculty/import-confirm', data),
+    // B638: live Employee ID / name duplicate check for the Add/Edit Faculty form.
+    checkDuplicate: (params)   => api.get('/faculty/check-duplicate', { params }),
 };
 
 export const userAPI = {

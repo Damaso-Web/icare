@@ -61,6 +61,58 @@ class FacultyController extends UserController
         abort_unless($this->scoped($request)->whereKey($user->id)->exists(), 403, 'That person is outside your college/department.');
     }
 
+    // Bug (10/24/2026, B638): a same first+last name already on this
+    // Dean/Dept Chair's own faculty list (the same scope their Add Faculty
+    // list already shows) is flagged as a duplicate, same as Employee ID
+    // already is. Scoped rather than university-wide, since two different
+    // people sharing a name elsewhere in the university isn't this account's
+    // concern or something they could even see.
+    private function facultyNameUnique(Request $request, ?User $ignoreUser = null): \Closure
+    {
+        return function ($attribute, $value, $fail) use ($request, $ignoreUser) {
+            $firstName = trim((string) $request->input('first_name', $ignoreUser?->first_name));
+            $lastName  = trim((string) $request->input('last_name', $ignoreUser?->last_name));
+            if ($firstName === '' || $lastName === '') {
+                return;
+            }
+            $exists = $this->scoped($request)
+                ->whereRaw('LOWER(first_name) = LOWER(?)', [$firstName])
+                ->whereRaw('LOWER(last_name) = LOWER(?)', [$lastName])
+                ->when($ignoreUser, fn($q) => $q->where('id', '!=', $ignoreUser->id))
+                ->exists();
+            if ($exists) {
+                $fail('A faculty member with this name already exists.');
+            }
+        };
+    }
+
+    // B638: lets the Add/Edit Faculty form check Employee ID and name for a
+    // duplicate as the Dean/Dept Chair types, before they submit - the same
+    // checks store()/update() enforce below, just reachable without a save
+    // attempt.
+    public function checkDuplicate(Request $request)
+    {
+        $employeeId = trim((string) $request->query('employee_id', ''));
+        $firstName  = trim((string) $request->query('first_name', ''));
+        $lastName   = trim((string) $request->query('last_name', ''));
+        $ignoreId   = $request->query('ignore_id');
+
+        $employeeIdExists = $employeeId !== '' && User::where('employee_id', $employeeId)
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        $nameExists = $firstName !== '' && $lastName !== '' && $this->scoped($request)
+            ->whereRaw('LOWER(first_name) = LOWER(?)', [$firstName])
+            ->whereRaw('LOWER(last_name) = LOWER(?)', [$lastName])
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        return response()->json([
+            'employee_id_exists' => $employeeIdExists,
+            'name_exists'        => $nameExists,
+        ]);
+    }
+
     /** The college/department every NEW faculty record must carry. */
     private function forcedPlacement(Request $request, ?string $requestedDepartment): array
     {
@@ -100,7 +152,7 @@ class FacultyController extends UserController
         $validated = $request->validate([
             'first_name'     => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
-            'last_name'      => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+            'last_name'      => ['required', 'string', 'max:255', 'regex:' . self::NAME_REGEX, $this->facultyNameUnique($request)],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => ['required', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail()],
             'employee_id'    => ['nullable', 'string', 'max:15', 'regex:' . self::FACULTY_ID_REGEX, self::employeeIdUnique()],
@@ -147,7 +199,7 @@ class FacultyController extends UserController
         $validated = $request->validate([
             'first_name'     => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
             'middle_name'    => ['nullable', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
-            'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX],
+            'last_name'      => ['sometimes', 'string', 'max:255', 'regex:' . self::NAME_REGEX, $this->facultyNameUnique($request, $user)],
             'suffix'         => ['nullable', 'string', 'max:20', 'regex:' . self::NAME_REGEX],
             'email'          => ['sometimes', 'email', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/', new \App\Rules\UniqueAccountEmail('staff', $user->id)],
             'employee_id'    => ['nullable', 'string', 'max:15', 'regex:' . self::FACULTY_ID_REGEX, self::employeeIdUnique($user->id)],

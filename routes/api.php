@@ -261,6 +261,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::middleware('role:dean,dean_secretary,dept_chair')->prefix('faculty')->group(function () {
         Route::get('/',                             [FacultyController::class, 'index']);
         Route::post('/',                            [FacultyController::class, 'store']);
+        // B638: live Employee ID / name duplicate check for the Add/Edit
+        // Faculty form - a static path, so it's listed ahead of the
+        // '{user}' routes below for clarity even though no clash exists.
+        Route::get('check-duplicate',               [FacultyController::class, 'checkDuplicate']);
         Route::post('import-preview',               [FacultyController::class, 'importPreview']);
         Route::post('import-confirm',               [FacultyController::class, 'importConfirm']);
         Route::put('{user}',                        [FacultyController::class, 'update']);
