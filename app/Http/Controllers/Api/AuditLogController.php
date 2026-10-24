@@ -89,7 +89,10 @@ class AuditLogController extends Controller
             'records_viewed'   => $count('viewed'),
             'exports'          => $count('exported'),
             // Distinct accounts that signed in - staff and students are logged under different ids.
-            'active_accounts'  => $query->clone()->where('action', 'login')->distinct()->count(DB::raw("CONCAT(COALESCE(user_role, ''), ':', COALESCE(user_name, ''))")),
+            // Counted via two columns rather than CONCAT (unsupported on the
+            // sqlite connection used in tests); same uniqueness, portable.
+            'active_accounts'  => $query->clone()->where('action', 'login')
+                ->select('user_role', 'user_name')->distinct()->get()->count(),
             // Accounts with repeated failed sign-ins, most first.
             'failed_by_account' => $query->clone()->where('action', 'login_failed')
                 ->select('description', DB::raw('count(*) as count'), DB::raw('MAX(created_at) as last_at'))

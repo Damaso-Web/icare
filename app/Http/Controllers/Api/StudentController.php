@@ -512,9 +512,16 @@ class StudentController extends Controller
         // row (ignoring case), so a re-typed ID can't quietly create a twin (B410).
         $nameKey = fn($first, $last) => strtolower(trim((string) $first)) . '|' . strtolower(trim((string) $last));
         $fileNames = collect($rows)->map(fn($r) => $nameKey($r['first_name'] ?? '', $r['last_name'] ?? ''))->filter(fn($k) => $k !== '|')->unique()->values();
-        $byName = $fileNames->isEmpty() ? collect() : Student::whereIn(DB::raw("LOWER(CONCAT(TRIM(first_name), '|', TRIM(last_name)))"), $fileNames->all())
+        // Narrowed with LOWER/TRIM (supported by both MySQL and the sqlite
+        // connection used in tests) instead of CONCAT, which sqlite lacks;
+        // the exact pairing is then matched in PHP via nameKey/only().
+        $firstNamesLower = collect($rows)->map(fn($r) => strtolower(trim((string) ($r['first_name'] ?? ''))))->filter()->unique()->values();
+        $lastNamesLower  = collect($rows)->map(fn($r) => strtolower(trim((string) ($r['last_name'] ?? ''))))->filter()->unique()->values();
+        $byName = $fileNames->isEmpty() ? collect() : Student::whereIn(DB::raw('LOWER(TRIM(first_name))'), $firstNamesLower->all())
+            ->whereIn(DB::raw('LOWER(TRIM(last_name))'), $lastNamesLower->all())
             ->get(['student_id', 'first_name', 'last_name'])
-            ->groupBy(fn($st) => $nameKey($st->first_name, $st->last_name));
+            ->groupBy(fn($st) => $nameKey($st->first_name, $st->last_name))
+            ->only($fileNames->all());
 
         $preview = [];
         $seenEmails = [];

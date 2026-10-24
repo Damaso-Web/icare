@@ -78,18 +78,26 @@ class Referral extends Model
             // the basis for a case's case_number. Falls back to the old
             // REF-{year}-#### scheme if no active document header is set up
             // yet, so creation never breaks on a fresh install.
-            $ctrlNo = DocumentSetting::where('document_code', 'QF-OSS-01')
+            // Built in PHP rather than with CONCAT/SUBSTRING-AS-UNSIGNED SQL,
+            // which MySQL supports but the sqlite connection used in tests
+            // does not.
+            $ctrlSetting = DocumentSetting::where('document_code', 'QF-OSS-01')
                 ->where('is_active', true)
-                ->value(\Illuminate\Support\Facades\DB::raw("CONCAT(ctrl_no_year, '-', ctrl_no_term)"));
+                ->first(['ctrl_no_year', 'ctrl_no_term']);
+
+            $ctrlNo = ($ctrlSetting && $ctrlSetting->ctrl_no_year && $ctrlSetting->ctrl_no_term)
+                ? "{$ctrlSetting->ctrl_no_year}-{$ctrlSetting->ctrl_no_term}"
+                : null;
 
             $prefix = $ctrlNo ?: 'REF-' . now()->year;
 
-            $lastCode = static::withTrashed()
+            $lastNumber = static::withTrashed()
                 ->where('referral_code', 'like', "{$prefix}-%")
-                ->orderByRaw('CAST(SUBSTRING(referral_code, -4) AS UNSIGNED) DESC')
-                ->value('referral_code');
+                ->pluck('referral_code')
+                ->map(fn ($code) => (int) substr($code, -4))
+                ->max();
 
-            $nextNumber = $lastCode ? ((int) substr($lastCode, -4)) + 1 : 1;
+            $nextNumber = ($lastNumber ?? 0) + 1;
             $referral->referral_code = $prefix . '-' . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
         });
     }
