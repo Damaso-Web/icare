@@ -339,7 +339,9 @@ const menuItems = computed(() => {
     },
     {
       name:    'referrals',
-      label:   roleIn(role, ['tmdu_staff']) ? 'GCU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
+      // B#: this item was labeled "GCU Referrals" for TMDU - wrong unit name,
+      // and inconsistent with the "Referral Queue" page header above it.
+      label:   roleIn(role, ['tmdu_staff']) ? 'TMDU Referrals' : (role === 'gcu_staff' || role === 'admin') ? 'Referrals' : 'Referral Queue',
       icon:    '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
       // B596: a Dean is a referring source, not a processing unit - a queue
       // (even read-only) duplicates Sent Referrals and causes role confusion.

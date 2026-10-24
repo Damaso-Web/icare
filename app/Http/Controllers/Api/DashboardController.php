@@ -139,13 +139,20 @@ class DashboardController extends Controller
         });
     }
 
+    // B554 follow-up: TestingRecord has no 'in_progress' or 'completed' status
+    // (its real values are pending/scheduled/test_administered/awaiting_results/
+    // test_results_issued - see TestingRecordController), so those two cards
+    // always counted zero. Grouped the same way the Testing Records page's own
+    // stat tiles group them (testing/Index.vue), so the two stay in sync.
+    private const IN_PROGRESS_STATUSES = ['scheduled', 'test_administered', 'awaiting_results'];
+
     private function tmduDashboard($user): array
     {
         return [
             'stats' => [
                 'pending_testing'   => $this->tmduVisibleTesting($user)->where('status', 'pending')->count(),
-                'in_progress'       => $this->tmduVisibleTesting($user)->where('status', 'in_progress')->count(),
-                'completed'         => $this->tmduVisibleTesting($user)->where('status', 'completed')->count(),
+                'in_progress'       => $this->tmduVisibleTesting($user)->whereIn('status', self::IN_PROGRESS_STATUSES)->count(),
+                'completed'         => $this->tmduVisibleTesting($user)->where('status', 'test_results_issued')->count(),
                 'appointments_today'=> Appointment::where('appointment_date', today())
                                         ->where('unit', 'TMDU')
                                         ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),

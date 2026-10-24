@@ -225,6 +225,16 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'You can only file complaints against students enrolled in your own college.'], 403);
         }
 
+        // Bug (10/14/2026): same reasoning as the Dean check above, scoped
+        // one level further - a Dept Chair files complaints for their own
+        // department only.
+        if ($actor && method_exists($actor, 'isDeptChair') && $actor->isDeptChair() && (
+            !in_array($student->college, \App\Support\CollegeName::equivalents($actor->college), true)
+            || strcasecmp((string) $student->program, (string) $actor->department) !== 0
+        )) {
+            return response()->json(['message' => 'You can only file complaints against students enrolled in your own department.'], 403);
+        }
+
         $complaint = Complaint::create([
             ...$validated,
             'certification_agreed' => true,

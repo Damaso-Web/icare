@@ -164,7 +164,14 @@ class TestingRecordController extends Controller
             // read-only and labels it "Reassigned" by comparing
             // previous_tester_user_id to the signed-in user - instead of it
             // just disappearing from their queue.
-            ->when($user->isTMDUStaff(), fn($q) => $q->where(function ($qq) use ($user) {
+            //
+            // Bug (10/24/2026): the TMDU Head is the unit's master historical
+            // database, not a tester with their own personal queue - this
+            // per-tester narrowing must only apply to tmdu_staff. Without
+            // this isTMDUHead() carve-out, assigning/reassigning a record to
+            // someone other than the Head made it vanish from the Head's own
+            // list the moment it no longer matched their own id above.
+            ->when($user->isTMDUStaff() && !$user->isTMDUHead(), fn($q) => $q->where(function ($qq) use ($user) {
                 $qq->where('assigned_tester_user_id', $user->id)
                    ->orWhere('previous_tester_user_id', $user->id)
                    ->orWhere(function ($un) {

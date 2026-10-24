@@ -349,6 +349,14 @@ class AuthController extends Controller
             'middle_name.regex'    => 'Names may only contain letters, spaces, apostrophes, periods and hyphens.',
             'contact_number.regex' => 'Contact number must be 11 digits starting with 09 (e.g. 09171234567).',
         ]);
+        // My Account's email is a staff account's login, so it must stay on the
+        // institutional domain - checked case-insensitively since "@BSU.EDU.PH"
+        // is just as valid as "@bsu.edu.ph" (B#: email format alone wasn't enough).
+        if (!str_ends_with(strtolower($validated['email']), '@bsu.edu.ph')) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'email' => 'Please use your BSU email address (it must end in @bsu.edu.ph).',
+            ]);
+        }
 
         // The email is the login username, so changing it needs the current password.
         $emailChanged = strcasecmp($validated['email'], $user->email) !== 0;

@@ -232,6 +232,17 @@ class ReferralController extends Controller
             return response()->json(['message' => 'You can only refer students enrolled in your own college.'], 403);
         }
 
+        // Bug (10/14/2026): a Dept Chair acts for their own department only -
+        // same reasoning as the Dean check above, scoped one level further
+        // (college AND program/department), and enforced here too in case a
+        // student_id from outside it reaches this endpoint some other way.
+        if ($user->isDeptChair() && (
+            !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
+            || strcasecmp((string) $student->program, (string) $user->department) !== 0
+        )) {
+            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
+        }
+
         // A student has exactly one case file for life. New referral -> new
         // case if they've never had one; existing referral -> attach to the
         // case they already have (and reopen it if it had been resolved).

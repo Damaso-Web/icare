@@ -54,7 +54,14 @@ class StudentController extends Controller
             // separate feature and isn't built here; this only closes the
             // "search any student" gap.)
             ->when($request->user()?->isDean(), fn($q) => $q->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college)))
-            ->when(!$request->user()?->isDean() && $request->college, fn($q) => $q->where('college', $request->college))
+            // Bug (10/14/2026): same reasoning as the Dean's college scope
+            // above, one level further - a Dept Chair's lookup (Refer a
+            // Student, File a Complaint) is scoped to their own department,
+            // so any ?college=/?program= they pass is ignored in favor of it.
+            ->when($request->user()?->isDeptChair(), fn($q) => $q
+                ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
+                ->whereRaw('LOWER(program) = LOWER(?)', [(string) $request->user()->department]))
+            ->when(!$request->user()?->isDean() && !$request->user()?->isDeptChair() && $request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
