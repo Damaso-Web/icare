@@ -150,7 +150,11 @@ class SentReferralsComplaintsTest extends TestCase
         Notification::fake();
         $admin = User::factory()->create(['role' => 'admin', 'is_active' => true]);
         $staff = User::factory()->create(['role' => 'gcu_staff', 'is_active' => true]);
-        $faculty = User::factory()->create(['role' => 'faculty', 'college' => 'CIT', 'is_active' => true]);
+        // B626: a plain Faculty member is now scoped to their own department
+        // (college AND program) just like a Dept Chair - give them one that
+        // matches $s's program so this reassignment-notification test isn't
+        // itself testing that narrower rule.
+        $faculty = User::factory()->create(['role' => 'faculty', 'college' => 'CIT', 'department' => 'BSIT', 'is_active' => true]);
         $s = $this->student('2300007', 'Ref');
         Sanctum::actingAs($faculty);
         $id = $this->postJson('/api/referrals', [

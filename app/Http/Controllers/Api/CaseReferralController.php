@@ -13,6 +13,23 @@ use Illuminate\Http\Request;
 // TMDU owns the slip itself - nothing here can change it.
 class CaseReferralController extends Controller
 {
+    // Bug (10/24/2026, B624): a gcu_staff counselor could see every
+    // student's TMDU testing results, not just their own caseload - only
+    // the GCU Head (admin) is meant to have unit-wide visibility here,
+    // mirroring the same scoping CaseController now applies to Student
+    // Information Files (B623). Scoped by the underlying case's assigned
+    // counselor, same as everywhere else a case is scoped.
+    private function authorizeOwnCaseload(?Referral $referral): void
+    {
+        $user = request()->user();
+        if ($user->role !== 'gcu_staff' || !$referral) {
+            return;
+        }
+        if ((int) ($referral->case?->primary_counselor_id) !== (int) $user->id) {
+            abort(403, 'Unauthorized. This student is not in your assigned caseload.');
+        }
+    }
+
     private function payload(Referral $referral): array
     {
         $record = $referral->testingRecord;
@@ -51,8 +68,10 @@ class CaseReferralController extends Controller
 
     public function index(Request $request)
     {
+        $user = $request->user();
         $query = Referral::tmduOwned()
             ->with(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral'])
+            ->when($user->role === 'gcu_staff', fn($q) => $q->whereHas('case', fn($c) => $c->where('primary_counselor_id', $user->id)))
             ->when($request->status, fn($q) => $q->whereHas('testingRecord', fn($t) => $t->where('status', $request->status)))
             ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
                 $s = $request->search;
@@ -73,6 +92,7 @@ class CaseReferralController extends Controller
     public function show(Referral $referral)
     {
         abort_unless($referral->isTmduOwned(), 404);
+        $this->authorizeOwnCaseload($referral->loadMissing('case'));
 
         $referral->load(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral']);
         AuditLog::record('viewed', "Viewed Case Referral {$referral->referral_code}.", $referral);
@@ -84,6 +104,8 @@ class CaseReferralController extends Controller
     // referral hasn't been referred to TMDU) - used by the SIF's View button.
     public function forSource(Referral $referral)
     {
+        $this->authorizeOwnCaseload($referral->loadMissing('case'));
+
         $slip = Referral::tmduOwned()
             ->whereHas('testingRecord', fn($t) => $t->where('source_referral_id', $referral->id))
             ->with(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral'])

@@ -235,7 +235,10 @@ const routes = [
                 component: Referrals,
                 // B596/B605: a Dean or Dept Chair uses Sent Referrals instead -
                 // the Referral Queue nav item (and this page) is no longer theirs.
-                meta: { roles: ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'] },
+                // Bug (10/25/2026, B626): same reasoning for plain Faculty - they
+                // refer out, they don't process an incoming queue, so Sent
+                // Referrals is their only status view too.
+                meta: { roles: ['admin', 'gcu_staff', 'tmdu_staff'] },
             },
             {
                 path: 'referrals/create',

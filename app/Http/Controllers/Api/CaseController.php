@@ -55,6 +55,18 @@ class CaseController extends Controller
             && (int) $case->primary_counselor_id !== (int) $user->id) {
             abort(403, 'This case has been reassigned to another counselor. You have read-only access.');
         }
+        // Bug (10/24/2026): gcu_staff used to be able to act on ANY case,
+        // assigned to them or not ("team model") - B623 asks for strict
+        // separation instead, matching the read-side scoping in index()/
+        // show()/authorizeCaseReader(): a gcu_staff counselor may only
+        // write to a case that's actually primary_counselor_id = them (the
+        // GCU Head/admin keeps unit-wide write access, same as before).
+        if ($case
+            && $user->role === 'gcu_staff'
+            && $case->primary_counselor_id
+            && (int) $case->primary_counselor_id !== (int) $user->id) {
+            abort(403, 'Unauthorized. This case is not assigned to you.');
+        }
     }
 
     private function authorizeUnitAccess(CaseFile $case): void
@@ -65,6 +77,25 @@ class CaseController extends Controller
         }
         if ($user->isSDUHead() && $case->current_unit !== 'SDU') {
             abort(403, 'Unauthorized. This case belongs to a different unit.');
+        }
+    }
+
+    // Bug (10/24/2026): a gcu_staff counselor could open ANY Student
+    // Information File by id, not just their own caseload - only the GCU
+    // Head (admin) is meant to have unit-wide visibility. Mirrors the
+    // read-only exception already established for a case's previous
+    // counselor (B562) so a just-reassigned-away counselor doesn't lose
+    // access to a file they were still looking at.
+    private function authorizeCaseReader(CaseFile $case): void
+    {
+        $user = request()->user();
+        if ($user->role !== 'gcu_staff') {
+            return;
+        }
+        $isCurrent  = (int) $case->primary_counselor_id === (int) $user->id;
+        $isPrevious = $case->previous_counselor_id && (int) $case->previous_counselor_id === (int) $user->id;
+        if (!$isCurrent && !$isPrevious) {
+            abort(403, 'Unauthorized. This case is not assigned to you.');
         }
     }
 
@@ -119,6 +150,15 @@ class CaseController extends Controller
             $query->where('current_unit', 'SDU');
         }
 
+        // Bug (10/24/2026): a gcu_staff counselor's search/listing must be
+        // scoped to their own caseload - only the GCU Head (admin) gets
+        // unit-wide visibility. Includes a case they were just reassigned
+        // away from (read-only elsewhere), matching authorizeCaseReader().
+        if ($user->role === 'gcu_staff') {
+            $query->where(fn($q) => $q->where('primary_counselor_id', $user->id)
+                ->orWhere('previous_counselor_id', $user->id));
+        }
+
         return response()->json(
             $query->orderByRaw("CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END ASC")
                 ->orderBy('created_at', 'desc')
@@ -130,6 +170,7 @@ class CaseController extends Controller
     {
         $this->authorizeStaffAccess();
         $this->authorizeUnitAccess($case);
+        $this->authorizeCaseReader($case);
 
         AuditLog::record('viewed', "Viewed case {$case->case_number}.", $case);
 
@@ -273,6 +314,7 @@ class CaseController extends Controller
     public function summary(CaseFile $case)
     {
         $this->authorizeStaffAccess();
+        $this->authorizeCaseReader($case);
 
         AuditLog::record('exported', "Exported summary for case {$case->case_number}.", $case);
         return response()->json($case->load([

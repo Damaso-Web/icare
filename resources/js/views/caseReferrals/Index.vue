@@ -1,7 +1,7 @@
 <template>
   <div class="fade-up">
     <div class="ph" style="margin-bottom:20px">
-      <h1>Case Referral (TMDU)</h1>
+      <h1>TMDU Testing Results</h1>
       <p>The Refer to TMDU forms GCU has sent, with their status and released results (PAR).</p>
     </div>
 

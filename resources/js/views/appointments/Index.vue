@@ -15,14 +15,13 @@
       </div>
     </div>
 
-    <!-- Filter Bar: above both columns, so the list and the calendar start level -->
+    <!-- Filter Bar: above both columns, so the list and the calendar start level.
+         Bug (10/25/2026, B625): the Unit filter (All Units/GCU/SDU/TMDU) was
+         removed - this page only ever shows GCU appointments (the backend
+         excludes SDU and TMDU for this role no matter what's picked here),
+         so the options other than GCU were dead ends that looked like they
+         should work. -->
     <div class="filter-bar">
-      <select v-model="filters.unit" class="fsm" @change="fetchAppointments">
-        <option value="">All Units</option>
-        <option value="GCU">GCU</option>
-        <option value="SDU">SDU</option>
-        <option value="TMDU">TMDU</option>
-      </select>
       <select v-model="filters.status" class="fsm" @change="fetchAppointments">
         <option value="">All</option>
         <option value="pending">Pending</option>
@@ -520,7 +519,7 @@ const pagination = ref({});
 // (confirmed, completed, etc.) until staff manually cleared the filter.
 // '' matches the "All" option below, so the calendar shows everything by
 // default.
-const filters = ref({ unit: '', status: '', date: '' });
+const filters = ref({ status: '', date: '' });
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
@@ -874,7 +873,7 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { unit: '', status: '', date: '' };
+  filters.value = { status: '', date: '' };
   previewDate.value = null;
   fetchAppointments();
 }

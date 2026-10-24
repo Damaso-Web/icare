@@ -243,6 +243,19 @@ class ReferralController extends Controller
             return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
         }
 
+        // Bug (10/25/2026, B626): a plain Faculty member's "+ Refer Student"
+        // search could return (and this endpoint accept) any student
+        // university-wide - same reasoning as the Dept Chair check above,
+        // enforced here too in case a student_id from outside their
+        // department reaches this endpoint some other way. (isDeptChair()
+        // is excluded since that role is already covered above.)
+        if ($user->role === 'faculty' && (
+            !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
+            || strcasecmp((string) $student->program, (string) $user->department) !== 0
+        )) {
+            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
+        }
+
         // A student has exactly one case file for life. New referral -> new
         // case if they've never had one; existing referral -> attach to the
         // case they already have (and reopen it if it had been resolved).

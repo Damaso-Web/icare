@@ -86,15 +86,42 @@ class CaseReassignmentTest extends TestCase
         $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertOk();
     }
 
-    public function test_counselor_with_no_history_on_the_case_still_blocked_as_usual(): void
+    // Bug (10/24/2026, B623): "team model" access (any gcu_staff could act
+    // on any case) was replaced with strict per-counselor separation - an
+    // uninvolved staff member can no longer see or act on a case that isn't
+    // theirs, only the GCU Head (admin) keeps unit-wide access.
+    public function test_counselor_with_no_history_on_the_case_cannot_see_or_act_on_it(): void
     {
         $uninvolved = $this->gcu();
         $case = $this->caseWithCounselor($this->gcu());
 
         Sanctum::actingAs($uninvolved);
-        // Not the assigned counselor and never was - the ordinary write guard still applies via admin-only reassignment,
-        // but a non-owner gcu_staff is otherwise allowed to act (team model) - previous_counselor_id is simply null here.
         $this->assertNull($case->previous_counselor_id);
+        $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertStatus(403);
+        $this->getJson("/api/cases/{$case->id}")->assertStatus(403);
+
+        $list = $this->getJson('/api/cases')->assertOk()->json('data');
+        $this->assertFalse(collect($list)->contains('id', $case->id));
+    }
+
+    public function test_an_unassigned_case_can_be_acted_on_by_any_gcu_staff(): void
+    {
+        $staff = $this->gcu();
+        $case = $this->caseWithCounselor(null);
+
+        Sanctum::actingAs($staff);
+        $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertOk();
+    }
+
+    public function test_admin_keeps_unit_wide_visibility_and_write_access(): void
+    {
+        $admin = $this->admin();
+        $case = $this->caseWithCounselor($this->gcu());
+
+        Sanctum::actingAs($admin);
+        $this->getJson("/api/cases/{$case->id}")->assertOk();
+        $list = $this->getJson('/api/cases')->assertOk()->json('data');
+        $this->assertTrue(collect($list)->contains('id', $case->id));
         $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertOk();
     }
 

@@ -53,8 +53,8 @@
             <!-- B596/B609: a Dean or Dept Chair no longer has the Referral
                  Queue page this linked to - the list itself still updates
                  and each row still opens its referral, just with no
-                 "View all" link. -->
-            <router-link v-if="!auth.isDean && !auth.isDeptChair" :to="{ name: 'referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+                 "View all" link. B627: same for plain Faculty (B626). -->
+            <router-link v-if="!auth.isDean && !auth.isDeptChair && auth.user?.role !== 'faculty'" :to="{ name: 'referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
           </div>
           <div>
             <div
@@ -178,8 +178,12 @@
             <!-- B568: this card lists referrals the signed-in faculty/dean member
                  originated themselves, not an incoming queue to process - "View
                  all" was pointed at the Referral Queue instead of their own
-                 Sent Referrals history. -->
-            <router-link :to="{ name: 'sent-referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+                 Sent Referrals history.
+                 Bug (10/25/2026, B628): for plain Faculty this card is just a
+                 glance at what's most recent, not a second place to browse
+                 the full list (Sent Referrals already does that) - no "View
+                 all" button, and only the latest 3 rows. -->
+            <router-link v-if="auth.user?.role !== 'faculty'" :to="{ name: 'sent-referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
           </div>
           <div class="ts">
             <table class="itable">
@@ -193,7 +197,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in dashboard.recent_referrals" :key="r.id">
+                <tr v-for="r in facultyRecentReferrals" :key="r.id">
                   <td style="font-family:var(--mono);font-size:11px">{{ r.referral_code }}</td>
                   <td>{{ r.student?.first_name }} {{ r.student?.last_name }}</td>
                   <td>{{ toTitleCase(r.referral_type) }}</td>
@@ -323,13 +327,14 @@ const ROLE_TITLES = {
 function bareCollegeName(name) {
   return String(name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
 }
+// Bug (10/25/2026, B629): "Faculty of Department of X under College of Y"
+// ran too long for the badge (and for a phone, where it's one line with an
+// ellipsis) - "Faculty · Department Name" says the same thing the badge
+// needs to say. Still a computed off auth.user?.department, so it stays in
+// sync whenever that changes (e.g. after an admin edits the account).
 const facultyAffiliation = computed(() => {
   const dept = (auth.user?.department || '').trim();
-  const college = bareCollegeName(auth.user?.college);
-  if (dept && college) return `Faculty of Department of ${dept} under ${college}`;
-  if (dept) return `Faculty of Department of ${dept}`;
-  if (college) return `Faculty of ${college}`;
-  return 'Faculty';
+  return dept ? `Faculty · ${dept}` : 'Faculty';
 });
 // B594: same idea as facultyAffiliation above - "Dean" alone doesn't say
 // which college. "Dean of the College of Information Sciences" instead.
@@ -376,7 +381,10 @@ const quickActions = computed(() => {
     case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'TMDU Appointments', icon: ICONS.calendar }];
     case 'dean':
     case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'faculty-directory', label: 'Faculty', icon: ICONS.users || ICONS.file }, refer];
-    case 'faculty':        return [refer, { name: 'referrals', label: 'Referral Queue', icon: ICONS.pulse }];
+    // Bug (10/25/2026, B627): Faculty no longer has the Referral Queue page
+    // (B626) - "File a Complaint" sits beside "Refer Student" instead, same
+    // pairing the Dept Chair banner already uses below.
+    case 'faculty':        return [refer, { name: 'complaint-create', label: 'File a Complaint', icon: ICONS.alert }];
     // B605/B606: a Dept Chair is a referring authority, not processing
     // staff - no Referral Queue button; "Complaint a Student" sits beside
     // "Refer Student" instead, so both forms are one tap from the banner.
@@ -409,6 +417,14 @@ async function fetchSduPanels() {
     /* the tiles above still show */
   }
 }
+
+// B628: Faculty's "My Submitted Referrals" card shows only the latest 3
+// (the backend still sends up to 5, shared with the Dept Chair card above,
+// which keeps all of them).
+const facultyRecentReferrals = computed(() => {
+  const list = dashboard.value.recent_referrals || [];
+  return auth.user?.role === 'faculty' ? list.slice(0, 3) : list;
+});
 
 const isEmpty = computed(() => {
   const d = dashboard.value;
@@ -457,6 +473,18 @@ const stats = computed(() => {
   // B607: a Dept Chair manages outbound cases too (no Referral Queue of
   // their own - B605) - same Sent Referrals status-group routing as a Dean.
   if (auth.isDeptChair) {
+    return [
+      { label: 'Total',     value: s.my_referrals ?? 0, period: 'My Referrals', iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'sent-referrals', query: {} },
+      { label: 'Awaiting',  value: s.pending      ?? 0, period: 'Pending',      iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },
+      { label: 'Received',  value: s.acknowledged ?? 0, period: 'Acknowledged', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'sent-referrals', query: { status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' } },
+      { label: 'Resolved',  value: s.completed    ?? 0, period: 'Completed',   iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'sent-referrals', query: { status: 'completed,closed' } },
+    ];
+  }
+  // Bug (10/25/2026, B627): these cards pointed at the deprecated Referral
+  // Queue ('referrals') page, which Faculty no longer has (B626) - same
+  // Sent Referrals status-group routing the Dean/Dept Chair cards above
+  // already use.
+  if (auth.user?.role === 'faculty') {
     return [
       { label: 'Total',     value: s.my_referrals ?? 0, period: 'My Referrals', iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', route: 'sent-referrals', query: {} },
       { label: 'Awaiting',  value: s.pending      ?? 0, period: 'Pending',      iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },

@@ -271,9 +271,9 @@ const pageTitle = computed(() => {
     'incident-report-show': 'Student Incident Report',
     'referral-show':     'Referral Details',
     cases:               'Student Information Files',
-    'case-referrals':    'Case Referral (TMDU)',
+    'case-referrals':    'TMDU Testing Results',
     'case-referral-show': 'Case Referral',
-    appointments:        'GCU Appointments',
+    appointments:        'Appointments',
     testing:             'Testing Records',
     'testing-appointments': 'TMDU Appointments',
     reports:             'Reports & Analytics',
@@ -347,7 +347,9 @@ const menuItems = computed(() => {
       // (even read-only) duplicates Sent Referrals and causes role confusion.
       // B605: same reasoning for a Dept Chair - they refer out, they don't
       // process an incoming queue, so Sent Referrals is their only status view.
-      roles:   ['admin', 'gcu_staff', 'faculty', 'tmdu_staff'],
+      // Bug (10/25/2026, B626): same reasoning for plain Faculty - removed
+      // from their sidebar too.
+      roles:   ['admin', 'gcu_staff', 'tmdu_staff'],
       section: null,
     },
     {
@@ -366,7 +368,10 @@ const menuItems = computed(() => {
     },
     {
       name:    'appointments',
-      label:   'GCU Appointments',
+      // Bug (10/25/2026, B625): renamed from "GCU Appointments" - redundant
+      // with the GCU section it already lives in, and inconsistent with
+      // every other item here, which drops the unit prefix.
+      label:   'Appointments',
       icon:    '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
       roles:   ['admin', 'gcu_staff'],
       section: null,
@@ -380,7 +385,11 @@ const menuItems = computed(() => {
     },
     {
       name:    'case-referrals',
-      label:   'Case Referral (TMDU)',
+      // Bug (10/24/2026, B624): renamed from "Case Referral (TMDU)" - this
+      // page is a repository of returned TMDU psychological-testing results
+      // (PARs), not general outbound referrals, and the old name was
+      // confusable with Sent Referrals.
+      label:   'TMDU Testing Results',
       icon:    '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
       roles:   ['admin', 'gcu_staff'],
       section: null,
