@@ -166,7 +166,11 @@ class AuthController extends Controller
         $user->update(['last_login_at' => now()]);
         // B569: label the token with the device/browser it was issued to,
         // so "Active Sessions" (see sessions()) shows something recognizable.
-        $token = $user->createToken(\App\Support\DeviceLabel::fromRequest($request))->plainTextToken;
+        $deviceLabel = \App\Support\DeviceLabel::fromRequest($request);
+        // B630: checked against the account's EXISTING sessions, so this has
+        // to run before createToken() below adds the one for this login.
+        \App\Support\NewDeviceLoginAlert::maybeNotify($user, $request, $deviceLabel);
+        $token = $user->createToken($deviceLabel)->plainTextToken;
 
         // Still on a temporary / one-time password: remind them in the bell (once, until read).
         if ($user->must_change_password && !$user->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->exists()) {

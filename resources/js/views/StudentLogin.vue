@@ -1,11 +1,14 @@
 <template>
   <div class="auth-page" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--snow);padding:20px">
     <div class="auth-panel" style="background:#fff;border-radius:var(--r-lg);box-shadow:var(--sh-lg);padding:36px 32px;width:100%" :style="{ maxWidth: '440px' }">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px">
-        <button @click="goBack" aria-label="Back" style="background:none;border:none;color:var(--stone);font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer;padding:0">
-          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        </button>
-        <router-link :to="{ name: 'login-choice' }" style="font-size:12px;color:var(--moss)">Change sign-in type</router-link>
+      <!-- Bug (10/25/2026, B632): the back arrow and "Change sign-in type"
+           were two separate controls that did the exact same thing (both
+           went to login-choice) - one left-aligned link instead. -->
+      <div style="margin-bottom:16px">
+        <router-link :to="{ name: 'login-choice' }" style="font-size:13px;color:var(--stone);display:inline-flex;align-items:center;gap:6px;text-decoration:none">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+          Change sign-in type
+        </router-link>
       </div>
 
       <AuthBrand subtitle="Student Portal" />
@@ -150,10 +153,6 @@ const capsLockOn = ref(false);
 const consentGiven = ref(consumeConsentSkip('student'));
 const showConsent  = ref(false);
 const pendingLogin = ref(false);
-
-function goBack() {
-  router.push({ name: 'login-choice' });
-}
 
 function openConsent(gatingLogin) {
   pendingLogin.value = gatingLogin;

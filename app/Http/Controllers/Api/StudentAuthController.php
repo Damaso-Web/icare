@@ -77,7 +77,11 @@ class StudentAuthController extends Controller
         ]);
         // B569: label the token with the device/browser it was issued to,
         // so "Active Sessions" (see sessions()) shows something recognizable.
-        $token = $student->createToken(\App\Support\DeviceLabel::fromRequest($request), ['student'])->plainTextToken;
+        $deviceLabel = \App\Support\DeviceLabel::fromRequest($request);
+        // B630: checked against the account's EXISTING sessions, so this has
+        // to run before createToken() below adds the one for this login.
+        \App\Support\NewDeviceLoginAlert::maybeNotify($student, $request, $deviceLabel);
+        $token = $student->createToken($deviceLabel, ['student'])->plainTextToken;
 
         // Still on a temporary / one-time password: remind them in the bell
         // (once, until they have read it).

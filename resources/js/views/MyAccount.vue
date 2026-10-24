@@ -16,14 +16,24 @@
       <div class="icard" style="padding:18px 20px;display:flex;align-items:center;gap:14px">
         <div style="width:48px;height:48px;border-radius:50%;background:var(--forest);color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;flex-shrink:0">{{ headerInitials }}</div>
         <div style="min-width:0;align-self:center">
-          <div style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</div>
+          <!-- Bug (10/25/2026, B631): the role sat down in the plain metadata
+               line with everything else - pulled up beside the name as a
+               badge instead, so it reads at a glance. -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ auth.user?.name }}</span>
+            <span v-if="roleLabel && roleLabel !== '-'" class="ibadge" style="background:var(--mist);color:var(--moss);text-transform:uppercase;letter-spacing:.4px;font-size:10.5px;font-weight:700">{{ roleLabel }}</span>
+          </div>
           <!-- B566: department/college/employee ID weren't shown anywhere on
                this page even though they were already being read into auth.user
-               - accountDetails already existed below but was never rendered. -->
-          <div v-if="accountDetails.length" style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px">
-            <span v-for="d in accountDetails" :key="d.label" style="font-size:12.5px;color:var(--stone)">
-              <strong style="color:var(--slate)">{{ d.label }}:</strong> {{ d.value }}
-            </span>
+               - accountDetails already existed below but was never rendered.
+               B631: restyled as dot-separated micro-metadata - Employee ID in
+               monospace (it's an identifier, not a word) and the rest in a
+               muted gray so the row scans as context, not a second heading. -->
+          <div v-if="accountDetails.length" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;font-size:12px;color:var(--fog)">
+            <template v-for="(d, i) in accountDetails" :key="d.label">
+              <span v-if="i > 0" aria-hidden="true" style="color:var(--silver)">&bull;</span>
+              <span :style="d.label === 'Employee ID' ? 'font-family:var(--mono);color:var(--stone)' : ''">{{ d.value }}</span>
+            </template>
           </div>
         </div>
       </div>
@@ -232,15 +242,16 @@ const tab = ref(auth.user?.must_change_password ? 'password' : 'profile');
 const headerInitials = computed(() =>
   (auth.user?.name || '').split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || '?'
 );
-// Read-only account details, shown in the header. Only the ones that are set.
+// Read-only account details, shown in the header's dot-separated metadata
+// line. Only the ones that are set - Role moved up beside the name as its
+// own badge (B631), so it's left out of this list now.
 const accountDetails = computed(() => {
   const u = auth.user || {};
   return [
-    { label: 'Employee ID', value: u.employee_id || '-' },
-    { label: 'Role',        value: roleLabel.value },
+    { label: 'Employee ID', value: u.employee_id },
     { label: 'Unit',        value: u.unit },
-    { label: 'College',     value: u.college },
     { label: 'Department',  value: u.department },
+    { label: 'College',     value: u.college },
   ].filter(d => d.value);
 });
 
