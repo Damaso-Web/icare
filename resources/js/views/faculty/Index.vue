@@ -187,7 +187,11 @@
                 <option v-if="form.suffix && !SUFFIX_OPTIONS.includes(form.suffix)" :value="form.suffix">{{ form.suffix }}</option>
                 <option v-for="x in SUFFIX_OPTIONS" :key="x" :value="x">{{ x }}</option>
               </select></div>
-            <div><label class="ifl">Email Address <span style="color:var(--red)">*</span></label><input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" /></div>
+            <div>
+              <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
+              <input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" :style="emailProblem ? 'border-color:var(--red);border-width:1.5px' : ''" />
+              <div v-if="emailProblem" style="font-size:11px;color:var(--red);margin-top:4px">Please enter a valid email address.</div>
+            </div>
             <div v-if="needsCollegePick && !editing">
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
               <select v-model="form.college" class="ifse" @change="form.department = ''">
@@ -226,7 +230,7 @@
         </div>
         <div class="ffoot">
           <button class="ibtn ibtn-o" @click="formOpen = false">Cancel</button>
-          <button class="ibtn ibtn-p" :disabled="saving" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
+          <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
         </div>
       </div>
     </div>
@@ -254,8 +258,8 @@
     <ReasonDialog
       :open="!!statusAsk"
       :title="statusAsk?.deactivating ? 'Deactivate account?' : 'Reactivate account?'"
-      :message="statusAsk ? (statusAsk.deactivating ? `Deactivate <strong>${statusAsk.name}</strong>? They will no longer be able to sign in.` : `Reactivate <strong>${statusAsk.name}</strong>? They will be required to change their password at their next login.`) : ''"
-      :reasons="statusAsk?.deactivating ? EMPLOYEE_DEACTIVATE_REASONS : EMPLOYEE_REACTIVATE_REASONS"
+      :message="statusAsk ? (statusAsk.deactivating ? `Deactivate <strong>${statusAsk.name}</strong>? They will no longer be able to sign in.` : `Reactivate <strong>${statusAsk.name}</strong>? They will be required to change their password at their next login.${statusAsk.deactivation_reason ? `<br><span style=\\'color:var(--stone)\\'>Deactivated: ${statusAsk.deactivation_reason}${statusAsk.deactivated_at ? ' on ' + new Date(statusAsk.deactivated_at).toLocaleDateString() : ''}.</span>` : ''}`) : ''"
+      :reasons="statusAsk?.deactivating ? EMPLOYEE_DEACTIVATE_REASONS : reactivationReasonsFor(statusAsk?.deactivation_reason)"
       :confirm-text="statusAsk?.deactivating ? 'Yes, Deactivate' : 'Yes, Reactivate'"
       :danger="!!statusAsk?.deactivating"
       :busy="saving"
@@ -300,67 +304,90 @@
       </div>
     </div>
 
-    <!-- Upload modal -->
-    <div v-if="uploadOpen" class="fmodal" @click.self="closeUpload">
-      <div class="fbox" style="max-width:760px">
-        <div class="fhead"><span>Upload Faculty</span></div>
-        <div class="fbody">
+    <!-- Upload modal - same look as Upload Student Masterlist (sticky header
+         with a close ✕, instruction box, labeled file input, bordered
+         scrollable preview table, status badges, spinner on the primary
+         button) while keeping the faculty-specific per-row decision and
+         validation this upload already had. -->
+    <div v-if="uploadOpen" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeUpload">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:760px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Faculty</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="closeUpload">✕</button>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <template v-if="!result">
-            <p style="font-size:12px;color:var(--stone);margin-bottom:10px">
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
               CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Department</span>.
-              Everyone is added as <strong>Faculty</strong> of {{ isChair ? auth.user?.department : auth.user?.college }}.
-            </p>
-            <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o ibtn-sm" style="margin-bottom:10px">
+              Everyone is added as <strong>Faculty</strong> of {{ isChair ? auth.user?.department : auth.user?.college }}. Download the template below, fill it in, then upload it here.
+            </div>
+            <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download Template
             </a>
-            <div><input type="file" accept=".csv,.xlsx,.xls,.txt" @change="onFile" /></div>
-            <div v-if="uploadError" style="color:var(--red);font-size:12px;margin-top:10px">{{ uploadError }}</div>
-            <div v-if="preview.length" style="margin-top:14px;max-height:300px;overflow:auto">
-              <table class="itable">
-                <thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Result</th><th>Action</th></tr></thead>
-                <tbody>
-                  <tr v-for="(r, i) in preview" :key="i">
-                    <td>{{ r.row }}</td>
-                    <td>{{ r.name }}</td>
-                    <td style="font-size:12px">{{ r.email }}</td>
-                    <td style="font-size:12px">
-                      <span v-if="!r.valid" style="color:var(--red)">{{ r.reasons.join(' ') }}</span>
-                      <span v-else-if="r.is_duplicate">Already exists</span>
-                      <span v-else>New</span>
-                    </td>
-                    <td>
-                      <select v-if="r.valid" v-model="decisions[i]" class="fsm">
-                        <option value="create" v-if="!r.is_duplicate">Add</option>
-                        <option value="update" v-if="r.is_duplicate">Update</option>
-                        <option value="skip">Skip</option>
-                      </select>
-                      <span v-else style="color:var(--fog);font-size:12px">Skipped</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div>
+              <label class="ifl">File <span style="font-weight:400;color:var(--stone)">(Accepted file formats: .csv, .xlsx, .xls)</span></label>
+              <input type="file" accept=".csv,.xlsx,.xls,.txt" class="ifi" @change="onFile" />
             </div>
-          </template>
-          <template v-else>
-            <p style="font-size:13px"><strong>{{ result.created }}</strong> added, <strong>{{ result.updated }}</strong> updated, <strong>{{ result.skipped }}</strong> skipped.</p>
-            <div v-if="result.errors?.length" style="color:var(--red);font-size:12px;margin-top:8px">
-              <div v-for="e in result.errors" :key="e">{{ e }}</div>
+            <div v-if="uploadError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+              {{ uploadError }}
             </div>
-            <div v-if="result.passwords?.length" style="margin-top:12px">
-              <p style="font-size:12px;color:var(--stone);margin-bottom:6px">Temporary passwords (shown once - copy them now):</p>
-              <div style="max-height:220px;overflow:auto">
+
+            <template v-if="preview.length">
+              <div style="font-size:13px;color:var(--stone)">{{ preview.length }} record(s) found</div>
+              <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
                 <table class="itable">
-                  <thead><tr><th>Name</th><th>Email</th><th>Temp Password</th></tr></thead>
-                  <tbody><tr v-for="p in result.passwords" :key="p.email"><td>{{ p.name }}</td><td style="font-size:12px">{{ p.email }}</td><td style="font-family:var(--mono)">{{ p.temp_password }}</td></tr></tbody>
+                  <thead>
+                    <tr><th style="width:46px">Row</th><th>Name</th><th>Email</th><th style="width:90px">Status</th><th style="width:150px">Action</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(r, i) in preview" :key="i">
+                      <td style="font-size:12px">{{ r.row }}</td>
+                      <td style="font-size:12px">{{ r.name }}</td>
+                      <td style="font-family:var(--mono);font-size:12px">{{ r.email }}</td>
+                      <td>
+                        <span v-if="!r.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
+                        <span v-else-if="r.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
+                        <span v-else class="ibadge" style="background:var(--mist);color:var(--moss)">New</span>
+                      </td>
+                      <td>
+                        <select v-if="r.valid" v-model="decisions[i]" class="fsm">
+                          <option value="create" v-if="!r.is_duplicate">Add</option>
+                          <option value="update" v-if="r.is_duplicate">Update</option>
+                          <option value="skip">Skip</option>
+                        </select>
+                        <span v-else style="color:var(--red);font-size:11px;line-height:1.5">{{ r.reasons.join(' ') }}</span>
+                      </td>
+                    </tr>
+                  </tbody>
                 </table>
               </div>
+            </template>
+          </template>
+          <template v-else>
+            <div style="background:var(--snow);border-radius:var(--r-sm);padding:14px;font-size:13px">
+              <strong>{{ result.created }}</strong> added, <strong>{{ result.updated }}</strong> updated, <strong>{{ result.skipped }}</strong> skipped.
             </div>
+            <div v-if="result.errors?.length" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
+              <div v-for="e in result.errors" :key="e">{{ e }}</div>
+            </div>
+            <template v-if="result.passwords?.length">
+              <div style="font-size:12px;color:var(--stone)">Temporary passwords (shown once - copy them now):</div>
+              <div style="max-height:220px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+                <table class="itable">
+                  <thead><tr><th>Name</th><th>Email</th><th>Temp Password</th></tr></thead>
+                  <tbody><tr v-for="p in result.passwords" :key="p.email"><td style="font-size:12px">{{ p.name }}</td><td style="font-size:12px">{{ p.email }}</td><td style="font-family:var(--mono)">{{ p.temp_password }}</td></tr></tbody>
+                </table>
+              </div>
+            </template>
           </template>
         </div>
-        <div class="ffoot">
+        <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
           <button class="ibtn ibtn-o" @click="closeUpload">{{ result ? 'Close' : 'Cancel' }}</button>
-          <button v-if="!result && preview.length" class="ibtn ibtn-p" :disabled="saving" @click="confirmUpload">{{ saving ? 'Saving...' : 'Confirm Upload' }}</button>
+          <button v-if="!result && preview.length" class="ibtn ibtn-p" :disabled="saving" @click="confirmUpload">
+            <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
+            {{ saving ? 'Uploading...' : 'Confirm Upload' }}
+          </button>
         </div>
       </div>
     </div>
@@ -373,9 +400,9 @@ import axios from 'axios';
 import { facultyAPI } from '../../api/index';
 import ReasonDialog from '../../components/ReasonDialog.vue';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
-import { EMPLOYEE_DEACTIVATE_REASONS, EMPLOYEE_REACTIVATE_REASONS } from '../../constants/accountReasons';
+import { EMPLOYEE_DEACTIVATE_REASONS, reactivationReasonsFor } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
-import { safeSearchInput, blockSpecialKeypress, onlyLetters, onlyDigits, capitalizeFirst, isValidPHContact } from '../../utils/validators';
+import { safeSearchInput, blockSpecialKeypress, onlyLetters, onlyDigits, capitalizeFirst, isValidPHContact, isValidEmail } from '../../utils/validators';
 import { matchCollege } from '../../utils/colleges';
 
 const auth  = useAuthStore();
@@ -488,6 +515,8 @@ function openForm(u) {
 
 // Contact number is optional, but when given it must be 09 + 9 digits.
 const contactProblem = computed(() => !!form.value?.contact_number && !isValidPHContact(form.value.contact_number));
+// B: live email format check, as the user types - same rule as submit, just shown earlier.
+const emailProblem = computed(() => !!form.value?.email && !isValidEmail(form.value.email));
 
 async function saveForm() {
   if (saving.value) return;
@@ -495,6 +524,7 @@ async function saveForm() {
   const f = form.value;
   if (contactProblem.value) { formError.value = 'Contact number must start with 09 and be 11 digits long.'; return; }
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
+  if (emailProblem.value) { formError.value = 'Please enter a valid email address.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
   if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }
   saving.value = true;
@@ -525,7 +555,7 @@ const statusError = ref('');
 const resetAsk = ref(null);
 const resetError = ref('');
 function askAction(kind, u, text) {
-  if (kind === 'toggle') { statusError.value = ''; statusAsk.value = { id: u.id, name: u.name, deactivating: !!u.is_active }; return; }
+  if (kind === 'toggle') { statusError.value = ''; statusAsk.value = { id: u.id, name: u.name, deactivating: !!u.is_active, deactivation_reason: u.deactivation_reason, deactivated_at: u.deactivated_at }; return; }
   if (kind === 'reset')  { resetError.value = ''; resetAsk.value = { id: u.id, name: u.name }; return; }
   confirm.value = { kind, u, text };
 }
