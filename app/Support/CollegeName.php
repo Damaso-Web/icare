@@ -41,4 +41,36 @@ class CollegeName
     {
         return array_values(array_unique(array_filter([trim((string) $name), self::official($name)])));
     }
+
+    /**
+     * The short code for a saved college/department name (e.g. "CIS" for
+     * "College of Information Sciences"), or null if none can be resolved.
+     * Tries, in order: the official college's own `abbrev` column, a
+     * "(CODE)" suffix on the official name, then a "(CODE)" suffix on the
+     * raw saved value itself.
+     */
+    public static function abbrev(?string $name): ?string
+    {
+        $raw = trim((string) $name);
+        if ($raw === '') {
+            return null;
+        }
+
+        $official = self::official($raw);
+        if ($official !== null) {
+            $stored = College::where('name', $official)->value('abbrev');
+            if (is_string($stored) && trim($stored) !== '') {
+                return trim($stored);
+            }
+            if (preg_match('/\(([A-Za-z]{2,8})\)\s*$/', $official, $m)) {
+                return strtoupper($m[1]);
+            }
+        }
+
+        if (preg_match('/\(([A-Za-z]{2,8})\)\s*$/', $raw, $m)) {
+            return strtoupper($m[1]);
+        }
+
+        return null;
+    }
 }

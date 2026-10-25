@@ -7,13 +7,17 @@
           <!-- The unit, with the office it belongs to right beside it -->
           <div class="hero-kicker-row">
             <div class="hero-kicker">{{ roleTitle }}</div>
-            <!-- Bug (10/24/2026, B637): always shown as "OSS", as plain text
-                 beside the role title rather than inside a boxed pill - the
-                 full name is still there as a tooltip. Was previously the
-                 full name in a pill on a computer, shrinking to a boxed "OSS"
-                 on a phone (B587); now it's always just the abbreviation,
-                 with no box, at every width. -->
-            <abbr class="hero-oss" title="Office of Student Services" style="text-decoration:none">OSS</abbr>
+            <!-- Bug (10/24/2026, B637 original): always shown as "OSS", as
+                 plain text beside the role title rather than inside a boxed
+                 pill - the full name is still there as a tooltip. Was
+                 previously the full name in a pill on a computer, shrinking
+                 to a boxed "OSS" on a phone (B587); now it's always just
+                 the abbreviation, with no box, at every width.
+                 Bug (10/25/2026, B637 revised + B639): for Dean/Dean
+                 Secretary/Dept Chair accounts, this now shows the account's
+                 own college abbreviation (e.g. "CIS") instead of the fixed
+                 "OSS" - everyone else is unchanged. -->
+            <abbr class="hero-oss" :title="affiliationFullName" style="text-decoration:none">{{ affiliationAbbrev }}</abbr>
           </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>
@@ -362,6 +366,23 @@ const roleTitle = computed(() => {
   if (auth.user?.role === 'dean' || auth.user?.role === 'dean_secretary') return deanAffiliation.value;
   if (auth.user?.role === 'dept_chair') return deptChairAffiliation.value;
   return ROLE_TITLES[auth.user?.role] || 'iCARE';
+});
+// Bug (10/25/2026, B637 revised + B639): for a Dean or Dept Chair, the chip
+// beside the role title shows their own college's abbreviation (e.g. "CIS")
+// instead of the generic "OSS" - every other role is unaffected and keeps
+// plain "OSS", since neither bug mentioned them. affiliation_abbrev comes
+// from the dashboard API (App\Support\CollegeName::abbrev on the account's
+// college); if it couldn't be resolved, this falls back to "OSS" rather
+// than showing something blank or wrong.
+const showsCollegeAbbrev = computed(() => ['dean', 'dean_secretary', 'dept_chair'].includes(auth.user?.role));
+const affiliationAbbrev = computed(() => {
+  if (!showsCollegeAbbrev.value) return 'OSS';
+  return dashboard.value.affiliation_abbrev || 'OSS';
+});
+const affiliationFullName = computed(() => {
+  if (!showsCollegeAbbrev.value) return 'Office of Student Services';
+  const college = bareCollegeName(auth.user?.college);
+  return college || 'Office of Student Services';
 });
 
 // The two or three places each role goes most, one tap from the banner.

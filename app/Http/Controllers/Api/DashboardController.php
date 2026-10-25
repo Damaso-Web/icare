@@ -209,6 +209,11 @@ class DashboardController extends Controller
                 ->latest()
                 ->take(5)
                 ->get(),
+            // B639: the Dept Chair dashboard header shows this in place of
+            // "OSS", so it needs the chair's own college abbreviation (e.g.
+            // "CIS"). Null when none can be resolved - the frontend falls
+            // back to "OSS" in that case.
+            'affiliation_abbrev' => \App\Support\CollegeName::abbrev($user->college),
         ];
     }
 
@@ -251,6 +256,11 @@ class DashboardController extends Controller
                 ->latest()
                 ->take(5)
                 ->get(),
+            // B637 (revised, 10/25/2026): the Dean dashboard header shows
+            // this in place of "OSS", so it needs the Dean's own college
+            // abbreviation (e.g. "CIS"). Null when none can be resolved -
+            // the frontend falls back to "OSS" in that case.
+            'affiliation_abbrev' => \App\Support\CollegeName::abbrev($user->college),
         ];
     }
 }
