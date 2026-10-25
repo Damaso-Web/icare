@@ -108,7 +108,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);
     Route::post('referrals/{referral}/assign',      [ReferralController::class, 'assign'])->middleware('role:admin'); // reassigning: GCU Head only
     Route::patch('referrals/{referral}/status',     [ReferralController::class, 'updateStatus']);
-    Route::post('referrals/{referral}/override-status', [ReferralController::class, 'overrideStatus'])->middleware('role:admin');
+    Route::post('referrals/{referral}/override-status', [ReferralController::class, 'overrideStatus'])->middleware('role:admin,gcu_staff');
     Route::get('referrals/{referral}/tracking',     [ReferralController::class, 'tracking']);
     Route::post('referrals/{referral}/feedback',        [ReferralController::class, 'sendFeedback']);
     Route::post('referrals/{referral}/request-feedback', [ReferralController::class, 'requestFeedback']);

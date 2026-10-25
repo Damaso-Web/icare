@@ -58,9 +58,9 @@
         </div>
         <!-- "Endorse to Unit" button removed (B285/B293). -->
         <span v-if="referral.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:auto">Archived · view only</span>
-        <!-- GCU Head: set this referral's status by hand -->
+        <!-- Admin / GCU Staff: set this referral's status by hand -->
         <button
-          v-if="auth.user?.role === 'admin' && !referral.is_archived && !isIncidentReport"
+          v-if="['admin', 'gcu_staff'].includes(auth.user?.role) && !referral.is_archived && !isIncidentReport"
           class="ibtn ibtn-o ibtn-sm"
           :style="referral.is_archived ? '' : 'margin-left:auto'"
           @click="openRefOverride"
@@ -82,6 +82,18 @@
                 <option v-for="o in REF_OVERRIDE_OPTIONS.filter(o => o.value !== referral.status)" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
+            <!-- Bug: overriding straight to "Scheduled" only flipped the
+                 status label with no actual date/time set. Asking for them
+                 here applies them to the student's waiting appointment,
+                 same as "Schedule Now". -->
+            <div v-if="refOverride.status === 'scheduled'" style="display:flex;flex-direction:column;gap:8px;background:var(--foam);border-radius:var(--r-sm);padding:10px 12px">
+              <label class="ifl">Appointment Date &amp; Time <span style="color:var(--red)">*</span></label>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <input v-model="refOverride.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" />
+                <input v-model="refOverride.start_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+                <input v-model="refOverride.end_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+              </div>
+            </div>
             <div>
               <label class="ifl">Reason <span style="color:var(--red)">*</span></label>
               <input v-model="refOverride.reason" class="ifi" maxlength="255" placeholder="Why is the status being changed?" />
@@ -89,7 +101,12 @@
             </div>
             <div v-if="refOverride.error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ refOverride.error }}</div>
             <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="refOverride.saving || !refOverride.status || refOverride.reason.trim().length < 5 || !/\p{L}/u.test(refOverride.reason)" @click="applyRefOverride">{{ refOverride.saving ? 'Saving...' : 'Save Status' }}</button>
+              <button
+                class="ibtn ibtn-p"
+                style="flex:1;justify-content:center"
+                :disabled="refOverride.saving || !refOverride.status || refOverride.reason.trim().length < 5 || !/\p{L}/u.test(refOverride.reason) || (refOverride.status === 'scheduled' && (!refOverride.appointment_date || !refOverride.start_time || !refOverride.end_time))"
+                @click="applyRefOverride"
+              >{{ refOverride.saving ? 'Saving...' : 'Save Status' }}</button>
               <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="refOverride.open = false">Cancel</button>
             </div>
             <div style="font-size:11px;color:var(--fog)">The change and its reason are recorded in the Audit Logs.</div>
@@ -2694,19 +2711,28 @@ const REF_OVERRIDE_OPTIONS = [
   { value: 'completed',    label: 'Resolved' },
   { value: 'closed',       label: 'Closed' },
 ];
-const refOverride = ref({ open: false, status: '', reason: '', saving: false, error: '' });
+const refOverride = ref({ open: false, status: '', reason: '', appointment_date: '', start_time: '', end_time: '', saving: false, error: '' });
 function openRefOverride() {
-  refOverride.value = { open: true, status: '', reason: '', saving: false, error: '' };
+  refOverride.value = { open: true, status: '', reason: '', appointment_date: '', start_time: '', end_time: '', saving: false, error: '' };
 }
 async function applyRefOverride() {
   const o = refOverride.value;
   o.saving = true; o.error = '';
   try {
-    const res = await referralAPI.overrideStatus(referral.value.id, { status: o.status, reason: o.reason.trim() });
+    const payload = { status: o.status, reason: o.reason.trim() };
+    if (o.status === 'scheduled') {
+      payload.appointment_date = o.appointment_date;
+      payload.start_time = o.start_time;
+      payload.end_time = o.end_time;
+    }
+    const res = await referralAPI.overrideStatus(referral.value.id, payload);
     referral.value.status = res.data.referral.status;
     referral.value.acknowledged_at = res.data.referral.acknowledged_at;
     o.open = false;
     toast?.success('Referral status updated.');
+    if (o.status === 'scheduled') {
+      await refreshReferralAfterApptChange();
+    }
   } catch (e) {
     o.error = e.response?.data?.message || 'Could not change the status.';
   } finally {

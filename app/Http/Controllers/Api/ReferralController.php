@@ -828,6 +828,36 @@ class ReferralController extends Controller
             abort(422, 'The referral already has this status.');
         }
 
+        // Bug: overriding a referral straight to "Scheduled" only flipped the
+        // status label - no actual appointment date/time was ever set, so
+        // the referral would say "Scheduled" with nothing really scheduled.
+        // Reuses the same appointment the student would otherwise pick a
+        // time for themselves (AppointmentController::scheduleForStudent),
+        // so the date/time validation, conflict checks and the resulting
+        // appointment are identical to using "Schedule Now".
+        if ($data['status'] === 'scheduled') {
+            $request->validate([
+                'appointment_date' => 'required|date',
+                'start_time'       => 'required|date_format:H:i',
+                'end_time'         => 'required|date_format:H:i|after:start_time',
+            ]);
+
+            $appointment = $referral->case?->appointments()
+                ->where('request_status', 'awaiting_student')
+                ->whereNotIn('status', ['cancelled', 'completed'])
+                ->latest()
+                ->first();
+            if (!$appointment) {
+                abort(422, 'No appointment is waiting for this student to pick a schedule, so there is nothing to set a date and time for.');
+            }
+
+            app(AppointmentController::class)->scheduleForStudent($request, $appointment);
+
+            AuditLog::record('status_overridden', "GCU Head changed referral {$referral->referral_code} from {$referral->status} to scheduled, setting the appointment date and time. Reason: {$data['reason']}", $referral, ['status' => $referral->status], ['status' => 'scheduled']);
+
+            return response()->json(['message' => 'Referral status updated and appointment scheduled.', 'referral' => $referral->fresh()]);
+        }
+
         $old = ['status' => $referral->status];
         $changes = ['status' => $data['status']];
         // Moving it back before "acknowledged" also clears the acknowledgement.
