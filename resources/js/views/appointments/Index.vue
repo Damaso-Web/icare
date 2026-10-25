@@ -264,6 +264,27 @@
             </div>
           </div>
 
+          <!-- Bug (10/25/2026): schedule a date/time directly for the student,
+               instead of waiting on them to use their own scheduling link, used
+               to only be reachable by first opening "Override Status" - an
+               admin-correction tool, not where staff would think to look for an
+               everyday action. It's now its own clearly-labeled section, shown
+               to Admin/GCU Staff any time the student hasn't picked a schedule
+               yet - the student's own scheduling link still works exactly as
+               before if staff leave this alone. -->
+          <div v-if="canOverride && detailTarget.request_status === 'awaiting_student' && detailTarget.status !== 'cancelled'" class="ad-override" style="background:var(--moss-lt,var(--foam));border-color:var(--moss)">
+            <div class="ad-label" style="margin-bottom:2px;color:var(--moss)">Schedule Now</div>
+            <div style="font-size:11.5px;color:var(--stone);margin-bottom:8px">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
+            <div class="ad-override-row">
+              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" />
+              <input v-model="scheduleForm.start_time" type="time" class="ifi" />
+              <input v-model="scheduleForm.end_time" type="time" class="ifi" />
+              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent" @click="applyScheduleStudent">
+                {{ schedulingStudent ? 'Scheduling...' : 'Schedule Now' }}
+              </button>
+            </div>
+          </div>
+
           <!-- Admin / GCU Staff only: manually override the appointment's status -->
           <div v-if="overrideOpen && canOverride && detailTarget.unit !== 'TMDU'" class="ad-override">
             <div class="ad-label" style="margin-bottom:6px">Override Status</div>
@@ -281,21 +302,6 @@
               <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!overrideForm.target || overrideForm.reason.trim().length < 5 || overridingStatus" @click="applyOverride">
                 {{ overridingStatus ? 'Updating...' : 'Apply' }}
               </button>
-            </div>
-
-            <!-- Schedule a date/time directly for the student, instead of waiting
-                 on them to use their own scheduling link - only makes sense while
-                 the appointment is still waiting for one to be picked. -->
-            <div v-if="detailTarget.request_status === 'awaiting_student'" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--cloud)">
-              <div class="ad-label" style="margin-bottom:6px">Schedule Student</div>
-              <div class="ad-override-row">
-                <input v-model="scheduleForm.appointment_date" type="date" class="ifi" />
-                <input v-model="scheduleForm.start_time" type="time" class="ifi" />
-                <input v-model="scheduleForm.end_time" type="time" class="ifi" />
-                <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent" @click="applyScheduleStudent">
-                  {{ schedulingStudent ? 'Scheduling...' : 'Schedule' }}
-                </button>
-              </div>
             </div>
           </div>
         </div>
