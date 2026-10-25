@@ -948,7 +948,8 @@
 
                     <!-- Family Information -->
                     <template v-if="group.key === 'family'">
-                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                      <div v-if="!group.count" style="font-size:12.5px;color:var(--fog)">No family information provided.</div>
+                      <div v-else style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                         <div>
                           <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
                           <div style="font-size:13px;color:var(--ink)">{{ fullName(referral.student?.father_last_name, referral.student?.father_first_name, referral.student?.father_middle_name) }}</div>
@@ -1000,7 +1001,8 @@
 
                     <!-- Educational Attainment -->
                     <template v-else-if="group.key === 'education'">
-                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                      <div v-if="!group.count" style="font-size:12.5px;color:var(--fog)">No educational attainment information provided.</div>
+                      <div v-else style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                         <div>
                           <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
                           <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_school || '-' }}</div>

@@ -366,17 +366,48 @@ public function updateProfile(Request $request)
 
         // Educational Attainment (school history)
         'elementary_school'               => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
-        'elementary_year_graduated'       => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'elementary_year_graduated'       => ['nullable', 'string', 'regex:' . self::YEAR_REGEX, 'integer', 'min:1950', 'max:' . date('Y')],
         'high_school'                     => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
-        'high_school_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'high_school_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX, 'integer', 'min:1950', 'max:' . date('Y')],
         'college_school'                  => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
-        'college_year_graduated'          => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'college_year_graduated'          => ['nullable', 'string', 'regex:' . self::YEAR_REGEX, 'integer', 'min:1950', 'max:' . date('Y')],
         'senior_high_school'              => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX, 'regex:/\pL/u'],
-        'senior_high_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX],
+        'senior_high_year_graduated'      => ['nullable', 'string', 'regex:' . self::YEAR_REGEX, 'integer', 'min:1950', 'max:' . date('Y')],
         'senior_high_achievements'        => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
         'high_school_achievements'        => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
         'elementary_achievements'         => ['nullable', 'string', 'max:1000', 'regex:/\pL/u'],
     ]);
+
+    // Bug: Elementary, Junior High, Senior High and College year graduated
+    // were each validated on their own (any 1950-to-present year), so a
+    // student could save the exact same year for every level, or an
+    // earlier level finishing after a later one, with no warning. Each
+    // level now has to be no earlier than the one before it - checked
+    // against whichever value (submitted this request, or already on the
+    // account) is current for that level, since the Educational Background
+    // tab can save with any subset of these fields present.
+    $educationLevels = [
+        'elementary_year_graduated'  => 'Elementary',
+        'high_school_year_graduated' => 'Junior High School',
+        'senior_high_year_graduated' => 'Senior High School',
+        'college_year_graduated'     => 'College',
+    ];
+    $prevKey = null;
+    $prevLabel = null;
+    foreach ($educationLevels as $key => $label) {
+        $value = array_key_exists($key, $validated) ? $validated[$key] : $student->$key;
+        if ($prevKey !== null && $value) {
+            $prevValue = array_key_exists($prevKey, $validated) ? $validated[$prevKey] : $student->$prevKey;
+            if ($prevValue && (int) $value <= (int) $prevValue) {
+                return response()->json([
+                    'message' => "{$label} year graduated must be after {$prevLabel}'s.",
+                    'errors'  => [$key => ["{$label} year graduated must be after {$prevLabel}'s."]],
+                ], 422);
+            }
+        }
+        $prevKey = $key;
+        $prevLabel = $label;
+    }
 
     // The father's and mother's contact numbers cannot be the same number.
     $fatherNo = $validated['father_contact_number'] ?? $student->father_contact_number;

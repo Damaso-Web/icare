@@ -149,7 +149,7 @@
             placeholder="09XXXXXXXXX"
             maxlength="11"
             :style="profileError || contactProblem ? 'border-color:var(--red);border-width:1.5px' : ''"
-            @input="profileForm.contact_number = profileForm.contact_number.replace(/[^0-9]/g, '').slice(0, 11); profileError = ''"
+            @input="profileForm.contact_number = contactNumberInput(profileForm.contact_number); profileError = ''"
           />
               <div v-if="contactProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ contactProblem }}</div>
           </div>
@@ -405,8 +405,8 @@
               </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" :style="yearIssue(backgroundForm.high_school_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
-              <div v-if="yearIssue(backgroundForm.high_school_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.high_school_year_graduated) }}</div>
+              <input v-model="backgroundForm.high_school_year_graduated" class="ifi" placeholder="e.g. 2020" maxlength="4" :style="yearIssue(backgroundForm.high_school_year_graduated, minYearForLevel('high_school_year_graduated')) ? ERR_BORDER : ''" @input="backgroundForm.high_school_year_graduated = String(backgroundForm.high_school_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.high_school_year_graduated, minYearForLevel('high_school_year_graduated'))" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.high_school_year_graduated, minYearForLevel('high_school_year_graduated')) }}</div>
             </div>
           </div>
           <div v-if="'high_school_achievements'">
@@ -423,8 +423,8 @@
               </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" :style="yearIssue(backgroundForm.senior_high_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
-              <div v-if="yearIssue(backgroundForm.senior_high_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.senior_high_year_graduated) }}</div>
+              <input v-model="backgroundForm.senior_high_year_graduated" class="ifi" placeholder="e.g. 2022" maxlength="4" :style="yearIssue(backgroundForm.senior_high_year_graduated, minYearForLevel('senior_high_year_graduated')) ? ERR_BORDER : ''" @input="backgroundForm.senior_high_year_graduated = String(backgroundForm.senior_high_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.senior_high_year_graduated, minYearForLevel('senior_high_year_graduated'))" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.senior_high_year_graduated, minYearForLevel('senior_high_year_graduated')) }}</div>
             </div>
           </div>
           <div v-if="'senior_high_achievements'">
@@ -441,8 +441,8 @@
               </div>
             <div>
               <label class="ifl">Year Graduated</label>
-              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" :style="yearIssue(backgroundForm.college_year_graduated) ? ERR_BORDER : ''" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
-              <div v-if="yearIssue(backgroundForm.college_year_graduated)" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.college_year_graduated) }}</div>
+              <input v-model="backgroundForm.college_year_graduated" class="ifi" placeholder="Leave blank if ongoing" maxlength="4" :style="yearIssue(backgroundForm.college_year_graduated, minYearForLevel('college_year_graduated')) ? ERR_BORDER : ''" @input="backgroundForm.college_year_graduated = String(backgroundForm.college_year_graduated ?? '').replace(/[^0-9]/g, '')" />
+              <div v-if="yearIssue(backgroundForm.college_year_graduated, minYearForLevel('college_year_graduated'))" style="font-size:11px;color:var(--red);margin-top:4px">{{ yearIssue(backgroundForm.college_year_graduated, minYearForLevel('college_year_graduated')) }}</div>
             </div>
           </div>
 
@@ -606,6 +606,7 @@ import { ref, computed, watch, onMounted, inject } from 'vue';
 import PasswordChecklist from '../../components/PasswordChecklist.vue';
 import axios from 'axios';
 import { emailProblem as checkEmail } from '../../utils/emailCheck';
+import { contactNumberInput } from '../../utils/validators';
 
 const toast = inject('toast', null);
 const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
@@ -635,12 +636,29 @@ function contactIssue(key) {
   if (key !== 'guardian_contact' && f.father_contact_number === f.mother_contact_number) return "Same as the other parent's number.";
   return '';
 }
-function yearIssue(v) {
+function yearIssue(v, min) {
   v = String(v ?? '');
   if (!v) return '';
   if (!/^\d{4}$/.test(v)) return 'Enter a 4-digit year.';
-  if (Number(v) < 1950 || Number(v) > new Date().getFullYear()) return 'Enter a year from 1950 up to this year.';
+  const floor = min || 1950;
+  if (Number(v) < floor || Number(v) > new Date().getFullYear()) return `Enter a year from ${floor} up to this year.`;
   return '';
+}
+
+// Bug: Elementary, Junior High, Senior High and College all showed a plain
+// 1950-to-present range independently, so a student could save the exact
+// same "Year Graduated" for every level (or an earlier level finishing
+// after a later one) with no warning. Each level now has to be no earlier
+// than the one before it that's actually filled in.
+const EDUCATION_YEAR_SEQUENCE = ['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'];
+function minYearForLevel(key) {
+  const idx = EDUCATION_YEAR_SEQUENCE.indexOf(key);
+  if (idx <= 0) return 1950;
+  for (let i = idx - 1; i >= 0; i--) {
+    const prev = String(backgroundForm.value[EDUCATION_YEAR_SEQUENCE[i]] ?? '');
+    if (/^\d{4}$/.test(prev)) return Number(prev) + 1;
+  }
+  return 1950;
 }
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -740,7 +758,7 @@ const ACHIEVE_KEYS = ['elementary_achievements', 'high_school_achievements', 'se
 const educationProblem = computed(() => {
   const f = backgroundForm.value;
   return SCHOOL_KEYS.some(k => wordsIssue(f[k], 'a school name')) || ACHIEVE_KEYS.some(k => wordsIssue(f[k], 'your achievements'))
-    || ['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'].some(k => yearIssue(f[k]));
+    || EDUCATION_YEAR_SEQUENCE.some(k => yearIssue(f[k], minYearForLevel(k)));
 });
 
 // B506: leaving a tab drops anything typed there but not saved; the saved data comes back.
@@ -1009,7 +1027,7 @@ function requestSave(kind) {
       backgroundError.value = 'Please correct the school names and achievements marked in red.';
       return;
     }
-    if (['elementary_year_graduated', 'high_school_year_graduated', 'senior_high_year_graduated', 'college_year_graduated'].some(k => yearIssue(f[k]))) {
+    if (EDUCATION_YEAR_SEQUENCE.some(k => yearIssue(f[k], minYearForLevel(k)))) {
       backgroundError.value = 'Please correct the year graduated marked in red.';
       return;
     }

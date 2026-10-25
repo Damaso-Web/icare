@@ -50,7 +50,13 @@ export function contactNumberInput(value) {
   
   // Cap at 11 digits
   v = v.slice(0, 11);
-  
+
+  // A PH mobile number always starts with 09 - build up only the digits
+  // that keep that prefix valid instead of letting a wrong leading digit
+  // through and only catching it later with a validation message.
+  if (v.length >= 1 && v[0] !== '0') return '';
+  if (v.length >= 2 && v[1] !== '9') return v.slice(0, 1);
+
   return v;
 }
 

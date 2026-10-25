@@ -310,7 +310,8 @@
 
                   <!-- Family Information -->
                   <template v-if="group.key === 'family'">
-                    <div style="display:flex;flex-direction:column;gap:10px">
+                    <div v-if="!group.count" style="font-size:12.5px;color:var(--fog)">No family information provided.</div>
+                    <div v-else style="display:flex;flex-direction:column;gap:10px">
                       <div>
                         <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Father's Name</div>
                         <div style="font-size:13px;color:var(--ink)">{{ fullName(student.father_last_name, student.father_first_name, student.father_middle_name) }}</div>
@@ -362,7 +363,8 @@
 
                   <!-- Educational Attainment -->
                   <template v-else-if="group.key === 'education'">
-                    <div style="display:flex;flex-direction:column;gap:10px">
+                    <div v-if="!group.count" style="font-size:12.5px;color:var(--fog)">No educational attainment information provided.</div>
+                    <div v-else style="display:flex;flex-direction:column;gap:10px">
                       <div>
                         <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
                         <div style="font-size:13px;color:var(--ink)">{{ student.elementary_school || '-' }} <span v-if="student.elementary_year_graduated" style="color:var(--stone)">({{ student.elementary_year_graduated }})</span></div>

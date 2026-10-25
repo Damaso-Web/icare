@@ -96,7 +96,7 @@
               <label class="ifl">Contact Number</label>
               <input v-model="profileForm.contact_number" class="ifi" placeholder="09XXXXXXXXX" maxlength="11"
          :style="contactProblem ? 'border-color:var(--red)' : ''"
-         @input="profileForm.contact_number = profileForm.contact_number.replace(/\D/g, '')" />
+         @input="profileForm.contact_number = contactNumberInput(profileForm.contact_number)" />
               <div v-if="contactProblem" style="font-size:11.5px;color:var(--red);margin-top:4px">{{ contactProblem }}</div>
             </div>
             <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="!isDirty || saving || !!emailProblem || !!contactProblem" @click="saveProfile">
@@ -227,6 +227,7 @@ import { useRouter } from 'vue-router';
 import PasswordChecklist from '../components/PasswordChecklist.vue';
 import { useAuthStore } from '../stores/auth';
 import api from '../api/index';
+import { contactNumberInput } from '../utils/validators';
 
 const toast  = inject('toast');
 const auth   = useAuthStore();

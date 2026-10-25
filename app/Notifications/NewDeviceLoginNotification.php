@@ -27,10 +27,13 @@ class NewDeviceLoginNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
-        $where = $this->ip ? " (IP {$this->ip})" : '';
+        // Bug (10/26/2026): the IP address shown here meant nothing to a
+        // student/staff reading their own notification and just looked like
+        // noise (or a privacy concern) - the device label is already the
+        // meaningful signal, per the class-level note on NewDeviceLoginAlert.
         return [
             'type'    => 'new_device_login',
-            'message' => "New sign-in detected from {$this->device}{$where} at " . now()->format('M j, Y \a\t g:i A')
+            'message' => "New sign-in detected from {$this->device} at " . now()->format('M j, Y \a\t g:i A')
                 . '. If this was not you, change your password and sign out that device from Active Sessions.',
         ];
     }
