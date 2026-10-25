@@ -61,11 +61,13 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
+import { usePageSubtitleStore } from '../../stores/pageSubtitle';
 
 const route = useRoute();
+const pageSubtitle = usePageSubtitleStore();
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const loading = ref(true);
@@ -90,10 +92,16 @@ onMounted(async () => {
   try {
     const res = await axios.get(`${API_BASE}/student/referrals/${route.params.id}`, authHeaders());
     referral.value = res.data;
+    // Bug (10/25/2026): same breadcrumb gap as Appointment Details - this
+    // page's real title (its referral code) only exists once the record
+    // has loaded, so it's handed to the layout through the shared store.
+    pageSubtitle.set(referral.value.referral_code);
   } catch (e) {
     console.error(e);
   } finally {
     loading.value = false;
   }
 });
+
+onBeforeUnmount(() => pageSubtitle.clear());
 </script>

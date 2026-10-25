@@ -128,9 +128,11 @@ import { studentNotificationTarget } from '../utils/notificationTarget';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import SessionGuard from '../components/SessionGuard.vue';
+import { usePageSubtitleStore } from '../stores/pageSubtitle';
 
 const route  = useRoute();
 const router = useRouter();
+const pageSubtitle = usePageSubtitleStore();
 
 // Phone menu: closed by default, and closes again after choosing a page.
 const menuOpen = ref(false);
@@ -252,6 +254,17 @@ const pageTitle = computed(() => {
     'student-testing':      'My Testing',
     'student-account':      'My Account',
   };
+  // Bug (10/25/2026): Appointment Details and Referral Details had no entry
+  // here (their real title is a record code that only exists once it has
+  // loaded) and fell back to the generic "iCARE", showing "iCARE / iCARE".
+  // Each page publishes its code to pageSubtitle once it loads; this reads
+  // it back as the breadcrumb's extra segment.
+  if (route.name === 'student-appointment-show') {
+    return pageSubtitle.subtitle ? `Appointments / ${pageSubtitle.subtitle}` : 'Appointments';
+  }
+  if (route.name === 'student-referral-show') {
+    return pageSubtitle.subtitle ? `My Referrals / ${pageSubtitle.subtitle}` : 'My Referrals';
+  }
   return titles[route.name] || 'iCARE';
 });
 

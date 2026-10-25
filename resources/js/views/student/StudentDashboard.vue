@@ -29,12 +29,15 @@
         <div style="font-size:14px;font-weight:600;color:var(--ink)">📅 You have {{ pendingAppointments.length }} pending appointment request{{ pendingAppointments.length > 1 ? 's' : '' }}</div>
         <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time{{ pendingAppointments.length > 1 ? ' - one at a time' : '' }}.</div>
       </div>
-          <router-link
-  :to="scheduleAppointmentId
-    ? { name: 'student-appointment-show', params: { id: scheduleAppointmentId } }
-    : { name: 'student-schedule-new' }"
-  class="ibtn ibtn-p"
->Schedule Now</router-link>
+          <!-- Bug (10/25/2026): this used to jump straight into the FIRST
+               pending appointment's own scheduling page, which was
+               confusing/wrong whenever there was more than one pending
+               request (e.g. 5 here) - there was no way to tell which
+               referral it would open, and no way to reach the others from
+               here. My Appointments already lists every pending request
+               with its own "Schedule Now" button (one at a time, as this
+               banner's own text says), so this now goes there instead. -->
+          <router-link :to="{ name: 'student-appointments' }" class="ibtn ibtn-p">Schedule Now</router-link>
     </div>
   </div>
 
@@ -115,8 +118,6 @@ const infoChips = computed(() => {
   return [s.student_id, s.college, s.program, s.year_level, s.section].map(v => String(v ?? '').trim()).filter(Boolean);
 });
 const termLabel = computed(() => (term.value?.academic_year ? ['AY ' + term.value.academic_year, term.value.semester].filter(Boolean).join(' · ') : ''));
-
-const scheduleAppointmentId = computed(() => pendingAppointments.value[0]?.id || null);
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };

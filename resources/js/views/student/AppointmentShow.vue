@@ -248,13 +248,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
+import { usePageSubtitleStore } from '../../stores/pageSubtitle';
 
 const route = useRoute();
 const router = useRouter();
+const pageSubtitle = usePageSubtitleStore();
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 const loading = ref(true);
@@ -575,6 +577,11 @@ onMounted(async () => {
   try {
     const res = await axios.get(`${API_BASE}/student/appointments/${route.params.id}`, authHeaders());
     appointment.value = res.data;
+    // Bug (10/25/2026): the breadcrumb showed "iCARE / iCARE" here - the
+    // appointment's own code only exists once it's loaded, so it's handed
+    // to the layout through this shared store instead of a static per-route
+    // title map.
+    pageSubtitle.set(appointment.value.appointment_code);
     if (needsScheduling.value) {
       fetchMonthAvailability();
     }
@@ -584,4 +591,6 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+onBeforeUnmount(() => pageSubtitle.clear());
 </script>
