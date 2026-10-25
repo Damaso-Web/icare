@@ -75,6 +75,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
 import { formatTime12, formatDateShort } from '../../utils/validators';
 
@@ -103,18 +104,20 @@ function goToSchedule(appt) {
   router.push({ name: 'student-appointment-show', params: { id: appt.id } });
 }
 
-async function fetchData() {
-  loading.value = true;
+async function fetchData(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
 onMounted(() => fetchData());
+// Keep appointments current without a manual reload.
+useAutoRefresh(() => fetchData(true), 25000);
 </script>

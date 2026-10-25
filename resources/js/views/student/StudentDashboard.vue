@@ -92,6 +92,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
 import { formatTime12, formatDateShort } from '../../utils/validators';
 
@@ -132,8 +133,8 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-async function fetchData() {
-  loading.value = true;
+async function fetchData(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
@@ -149,13 +150,15 @@ async function fetchData() {
     // array, this banner shouldn't just silently disappear.
     pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
 onMounted(() => fetchData());
+// Keep the dashboard current without a manual reload.
+useAutoRefresh(() => fetchData(true), 25000);
 </script>
 
 <style scoped>
