@@ -40,21 +40,48 @@ class DashboardController extends Controller
     }
 
     /** GCU's open SIFs: same rules as the Student Information Files list. */
-    private function gcuOpenCases()
+    private function gcuOpenCases($user)
     {
         return CaseFile::where('current_unit', 'GCU')
             ->whereIn('status', ['open', 'in_progress'])
             ->whereHas('student', fn($s) => $s->where('is_active', true))
-            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'));
+            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'))
+            // Bug (10/25/2026): the Open Cases card counted every GCU case,
+            // even for a gcu_staff counselor whose Student Information Files
+            // list (CaseController::index(), B623) only shows their own
+            // caseload - so a counselor with nothing assigned to them yet
+            // still saw a dashboard full of other counselors' numbers. Only
+            // the GCU Head (admin) keeps unit-wide visibility, same carve-out
+            // already applied to the list itself.
+            ->when($user->role === 'gcu_staff', fn($q) => $q->where(fn($w) => $w
+                ->where('primary_counselor_id', $user->id)
+                ->orWhere('previous_counselor_id', $user->id)));
     }
 
-    /** GCU's referral inbox: same rules as the Referral Queue (no TMDU slips, complaints or archived). */
+    /** GCU's referral inbox: same rules as the Referral Queue (no TMDU slips, complaints or archived).
+     *  Deliberately NOT scoped to one counselor - a 'submitted' referral has no counselor assigned
+     *  yet (that only happens on acknowledge/assign), so this is a shared inbox everyone in GCU can
+     *  see and pick up, same as ReferralController::index() leaves it unscoped for gcu_staff too. */
     private function gcuPendingReferrals()
     {
         return Referral::where('status', 'submitted')
             ->where('is_archived', false)
             ->whereNull('complaint_id')
             ->notTmduOwned();
+    }
+
+    /** GCU appointments: same caseload scoping as AppointmentController::index() (B625) -
+     *  a gcu_staff counselor only sees appointments for a case assigned to them (or with no
+     *  case/counselor yet); only the GCU Head (admin) keeps unit-wide visibility. */
+    private function gcuAppointments($user)
+    {
+        return Appointment::where('unit', 'GCU')
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
+            ->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
+            ->when($user->role === 'gcu_staff', fn($q) => $q->where(fn($w) => $w
+                ->whereNull('case_id')
+                ->orWhereHas('case', fn($c) => $c->where('primary_counselor_id', $user->id))
+                ->orWhereHas('case', fn($c) => $c->whereNull('primary_counselor_id'))));
     }
 
     private function gcuDashboard($user): array
@@ -65,21 +92,25 @@ class DashboardController extends Controller
                 // Counted per unit and with the same filters as the pages the
                 // cards link to (Student Information Files / Referral Queue), so
                 // the number on the card always matches the list behind it.
-                'open_cases'        => $this->gcuOpenCases()->count(),
+                // Bug (10/25/2026): open_cases and appointments_today used to
+                // count the whole GCU unit regardless of who was logged in, so
+                // a gcu_staff counselor with nothing assigned to them yet still
+                // saw a dashboard full of numbers - clicking through to the
+                // actual Student Information Files / Appointments lists (which
+                // already scope to their own caseload) showed none of it. Now
+                // scoped the same way those lists are.
+                'open_cases'        => $this->gcuOpenCases($user)->count(),
                 'pending_referrals' => $this->gcuPendingReferrals()->count(),
-                'appointments_today'=> Appointment::where('appointment_date', today())
-                                        ->where('unit', 'GCU')
-                                        ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))->count(),
+                'appointments_today'=> $this->gcuAppointments($user)->where('appointment_date', today())->count(),
             ],
             'recent_referrals' => $this->gcuPendingReferrals()
                 ->with(['student', 'referredBy'])
                 ->latest()
                 ->take(5)
                 ->get(),
-            'upcoming_appointments' => Appointment::with(['student', 'staff'])
+            'upcoming_appointments' => $this->gcuAppointments($user)
+                ->with(['student', 'staff'])
                 ->where('appointment_date', '>=', today())
-                ->where('unit', 'GCU')
-                ->whereNotIn('status', ['cancelled', 'rescheduled'])->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
                 ->orderBy('appointment_date')
                 ->orderBy('start_time')
                 ->take(5)

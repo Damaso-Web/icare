@@ -1688,6 +1688,29 @@
               <div style="font-size:13px;color:var(--ink)">{{ apptDetailTarget.notes }}</div>
             </div>
 
+            <!-- Bug (10/25/2026): schedule a date/time directly for the
+                 student right from here, instead of only being able to from
+                 the separate Appointments page - this is where "Waiting for
+                 Student to Pick a Schedule" is actually seen first. Same
+                 action as appointments/Index.vue's "Schedule Now": the
+                 referral moves to "scheduled" and this becomes the
+                 student's real appointment. -->
+            <div v-if="isGCU && !isResolved && apptDetailTarget.request_status === 'awaiting_student' && !['cancelled','completed'].includes(apptDetailTarget.status)" style="border-top:1px solid var(--cloud);padding-top:14px;display:flex;flex-direction:column;gap:8px;background:var(--foam);margin:0 -22px;padding-left:22px;padding-right:22px;padding-bottom:14px">
+              <div style="font-size:12.5px;font-weight:600;color:var(--moss)">Schedule Now</div>
+              <div style="font-size:11.5px;color:var(--stone)">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
+              <div style="display:flex;flex-wrap:wrap;gap:8px">
+                <input v-model="apptScheduleForm.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" />
+                <input v-model="apptScheduleForm.start_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+                <input v-model="apptScheduleForm.end_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+              </div>
+              <button
+                class="ibtn ibtn-p ibtn-sm"
+                style="justify-content:center"
+                :disabled="!apptScheduleForm.appointment_date || !apptScheduleForm.start_time || !apptScheduleForm.end_time || apptScheduling"
+                @click="confirmApptSchedule"
+              >{{ apptScheduling ? 'Scheduling...' : 'Schedule Now' }}</button>
+            </div>
+
             <!-- Cancel reason, shown only once "Cancel Appointment" is
                  pressed below, instead of a separate modal on top of this
                  one. -->
@@ -2855,6 +2878,16 @@ const apptConfirming = ref(false);
 const apptConfirmStaffId = ref('');
 const apptRescheduling = ref(false);
 const apptRescheduleReason = ref('');
+// Bug (10/25/2026): staff could only schedule a date/time directly for a
+// student (instead of waiting on their own scheduling link) from the
+// separate Appointments page - not from here, where the referral's
+// appointment and its "Waiting for Student to Pick a Schedule" state is
+// actually seen first. Same backend action as appointments/Index.vue's
+// "Schedule Now" (appointmentAPI.scheduleForStudent) - the referral's
+// status moves to "scheduled" and this becomes the student's real
+// appointment, same as if they'd picked it themselves.
+const apptScheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+const apptScheduling = ref(false);
 
 function openApptDetail(a) {
   apptDetailTarget.value = a;
@@ -2863,6 +2896,7 @@ function openApptDetail(a) {
   apptConfirming.value = false;
   apptRescheduling.value = false;
   apptRescheduleReason.value = '';
+  apptScheduleForm.value = { appointment_date: '', start_time: '', end_time: '' };
 }
 
 // Re-fetches the whole referral (same pattern as sendFeedback above) so the
@@ -2930,6 +2964,25 @@ async function confirmApptReschedule() {
     await refreshReferralAfterApptChange();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to request reschedule.');
+  }
+}
+
+async function confirmApptSchedule() {
+  if (!apptDetailTarget.value || apptScheduling.value) return;
+  apptScheduling.value = true;
+  try {
+    await appointmentAPI.scheduleForStudent(apptDetailTarget.value.id, {
+      appointment_date: apptScheduleForm.value.appointment_date,
+      start_time: apptScheduleForm.value.start_time,
+      end_time: apptScheduleForm.value.end_time,
+    });
+    toast?.success('Appointment scheduled for the student.');
+    apptDetailTarget.value = null;
+    await refreshReferralAfterApptChange();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to schedule the appointment.');
+  } finally {
+    apptScheduling.value = false;
   }
 }
 
