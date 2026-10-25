@@ -114,6 +114,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { referralAPI } from '../../api/index';
@@ -192,16 +193,16 @@ function onSearchInput() {
   fetchReferrals();
 }
 
-async function fetchReferrals(page = 1) {
-  loading.value = true;
+async function fetchReferrals(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await referralAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
     referrals.value  = res.data.data;
     pagination.value = res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -229,4 +230,7 @@ onMounted(() => {
   fetchFilterOptions();
   fetchDeanOptions();
 });
+
+// Keep the queue current so new referrals appear without a manual reload.
+useAutoRefresh(() => fetchReferrals(pagination.value?.current_page || 1, true), 25000);
 </script>

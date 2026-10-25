@@ -101,6 +101,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import { useRoute } from 'vue-router';
 import { caseAPI, studentAPI } from '../../api/index';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
@@ -128,16 +129,16 @@ const loading    = ref(true);
 const pagination = ref({});
 const filters    = ref({ search: '', status: '', archived: false });
 
-async function fetchCases(page = 1) {
-  loading.value = true;
+async function fetchCases(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await caseAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
     cases.value      = res.data.data;
     pagination.value = res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -171,4 +172,7 @@ onMounted(() => {
   }
   fetchCases();
 });
+
+// Keep the list current without a manual reload.
+useAutoRefresh(() => fetchCases(pagination.value?.current_page || 1, true), 25000);
 </script>

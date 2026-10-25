@@ -61,6 +61,7 @@
 import { SELF_REFERRAL_ENABLED } from '../../utils/features';
 import { REFERRAL_TYPES } from '../../constants/referralTypes';
 import { ref, computed, onMounted } from 'vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
@@ -137,19 +138,21 @@ function resetFilters() {
   filters.value = { status: '', type: '', date_from: '', date_to: '' };
 }
 
-async function fetchData() {
-  loading.value = true;
+async function fetchData(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     referrals.value = res.data.referrals || [];
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
 onMounted(() => fetchData());
+// Keep the list current so a newly filed referral shows without a manual reload.
+useAutoRefresh(() => fetchData(true), 25000);
 </script>
 
 <style scoped>
