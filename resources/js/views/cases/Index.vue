@@ -27,12 +27,6 @@
         <option value="on_observation">On Observation</option>
         <option value="resolved">Resolved</option>
       </select>
-      <select v-model="filters.unit" class="fsm" @change="fetchCases">
-        <option value="">All Units</option>
-        <option value="GCU">GCU</option>
-        <option value="SDU">SDU</option>
-        <option value="TMDU">TMDU</option>
-      </select>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; filters.status = ''; fetchCases()">
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
@@ -132,7 +126,7 @@ function ctrlNo(c) {
 }
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', unit: '', archived: false });
+const filters    = ref({ search: '', status: '', archived: false });
 
 async function fetchCases(page = 1) {
   loading.value = true;
@@ -153,7 +147,7 @@ function onSearchInput() {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', archived: filters.value.archived };
+  filters.value = { search: '', status: '', archived: filters.value.archived };
   fetchCases();
 }
 
@@ -174,9 +168,6 @@ onMounted(() => {
   // unfiltered "All Status" view.
   if (route.query.status && typeof route.query.status === 'string') {
     filters.value.status = route.query.status;
-  }
-  if (typeof route.query.unit === 'string' && ['GCU', 'SDU', 'TMDU'].includes(route.query.unit)) {
-    filters.value.unit = route.query.unit;
   }
   fetchCases();
 });

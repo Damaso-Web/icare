@@ -10,7 +10,7 @@
         <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
       <div>
-        <h1>Appointment Calendar</h1>
+        <h1>GCU Appointments</h1>
         <p>Confirm, reschedule, or manage student-requested appointments.</p>
       </div>
     </div>

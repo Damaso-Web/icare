@@ -36,18 +36,12 @@
         <option value="closed">Closed</option>
       </select>
       <select v-model="filters.unit" class="fsm" @change="onUnitChange">
-        <option value="">All Units</option>
         <option value="GCU">GCU</option>
-        <option value="SDU">SDU</option>
         <option value="TMDU">TMDU</option>
       </select>
-      <select v-if="filters.unit === 'GCU' || filters.unit === 'TMDU'" v-model="filters.type" class="fsm" @change="fetchReferrals">
+      <select v-model="filters.type" class="fsm" @change="fetchReferrals">
         <option value="">All Services</option>
         <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
-      </select>
-      <select v-else-if="filters.unit === 'SDU'" v-model="filters.violation_type" class="fsm" @change="fetchReferrals">
-        <option value="">All Acts of Misconduct</option>
-        <option v-for="v in disciplinaryOptions" :key="v.value" :value="v.label">{{ v.label }}</option>
       </select>
       <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
         <option value="desc">Date: Newest First</option>
@@ -135,7 +129,10 @@ const route = useRoute();
 const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
-const filters = ref({ search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
+// Bug (10/25/2026): the "All Units" option (and SDU) were removed from this
+// filter - this page now always shows GCU or TMDU referrals, never a mixed
+// unfiltered list, and never SDU's (disciplinary referrals live elsewhere).
+const filters = ref({ search: '', status: '', unit: 'GCU', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
 
 // Dean: the programs of their own college (Management > Programs).
 const auth = useAuthStore();
@@ -209,7 +206,7 @@ async function fetchReferrals(page = 1) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
+  filters.value = { search: '', status: '', unit: 'GCU', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
   fetchReferrals();
 }
 

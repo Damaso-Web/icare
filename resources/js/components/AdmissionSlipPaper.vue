@@ -8,7 +8,7 @@
 -->
 <template>
   <div class="asp" :class="{ ro: readonly }">
-    <div v-if="showDoc" class="asp-doc">
+    <div v-if="showDoc" class="asp-doc doc-header-hidden">
       <div><strong>Document Code:</strong> QF-OSS-GCU-09<br><strong>Revision No.:</strong> {{ doc.revision_no || '01' }}</div>
       <div style="text-align:right"><strong>Effectivity:</strong> {{ doc.effectivity || '07/04/23' }}<br><strong>Ctrl No.:</strong> {{ doc.ctrl_no || '-' }}</div>
     </div>

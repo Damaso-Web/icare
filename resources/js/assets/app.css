@@ -572,3 +572,9 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 /* Menu locked until the temporary password is changed (B495, B499) */
 .nb-locked{opacity:.38;cursor:not-allowed !important;pointer-events:auto}
 .mg-head-filter{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* Bug (10/25/2026): the Document Code / Revision No. / Effectivity / Ctrl
+   No. header strip, shown at the top of several forms and detail pages, is
+   hidden from view for now - the markup and its data binding stay in place
+   (still editable from Management) so it can be switched back on by
+   removing this rule, instead of re-adding the removed code later. */
+.doc-header-hidden{display:none !important}

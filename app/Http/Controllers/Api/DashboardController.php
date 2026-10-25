@@ -45,17 +45,9 @@ class DashboardController extends Controller
         return CaseFile::where('current_unit', 'GCU')
             ->whereIn('status', ['open', 'in_progress'])
             ->whereHas('student', fn($s) => $s->where('is_active', true))
-            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'))
-            // Bug (10/25/2026): the Open Cases card counted every GCU case,
-            // even for a gcu_staff counselor whose Student Information Files
-            // list (CaseController::index(), B623) only shows their own
-            // caseload - so a counselor with nothing assigned to them yet
-            // still saw a dashboard full of other counselors' numbers. Only
-            // the GCU Head (admin) keeps unit-wide visibility, same carve-out
-            // already applied to the list itself.
-            ->when($user->role === 'gcu_staff', fn($q) => $q->where(fn($w) => $w
-                ->where('primary_counselor_id', $user->id)
-                ->orWhere('previous_counselor_id', $user->id)));
+            ->whereHas('referrals', fn($r) => $r->whereNotNull('acknowledged_at'));
+            // B623 reverted (10/25/2026): Open Cases is unit-wide again for
+            // gcu_staff, matching the Student Information Files list.
     }
 
     /** GCU's referral inbox: same rules as the Referral Queue (no TMDU slips, complaints or archived).
@@ -77,11 +69,9 @@ class DashboardController extends Controller
     {
         return Appointment::where('unit', 'GCU')
             ->whereNotIn('status', ['cancelled', 'rescheduled'])
-            ->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']))
-            ->when($user->role === 'gcu_staff', fn($q) => $q->where(fn($w) => $w
-                ->whereNull('case_id')
-                ->orWhereHas('case', fn($c) => $c->where('primary_counselor_id', $user->id))
-                ->orWhereHas('case', fn($c) => $c->whereNull('primary_counselor_id'))));
+            ->where(fn($q) => $q->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled']));
+            // B625 reverted (10/25/2026): Appointments Today / Upcoming
+            // Appointments are unit-wide again for gcu_staff.
     }
 
     private function gcuDashboard($user): array

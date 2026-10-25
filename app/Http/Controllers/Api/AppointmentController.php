@@ -44,20 +44,8 @@ class AppointmentController extends Controller
             abort(403, 'This appointment belongs to TMDU.');
         }
 
-        // Bug (10/25/2026, B625): a gcu_staff counselor could see/act on ANY
-        // GCU appointment, not just their own caseload - only the GCU Head
-        // (admin) is meant to have unit-wide access, same scoping already
-        // applied to Student Information Files (B623) and TMDU Testing
-        // Results (B624). An appointment with no case yet (a student's own
-        // booking request) or whose case has no assigned counselor stays
-        // open to any gcu_staff, same as an unassigned Student Information
-        // File.
-        if ($role === 'gcu_staff' && $appointment->case_id) {
-            $counselorId = $appointment->case?->primary_counselor_id;
-            if ($counselorId && (int) $counselorId !== (int) $user->id) {
-                abort(403, 'Unauthorized. This appointment is not in your assigned caseload.');
-            }
-        }
+        // B625 reverted (10/25/2026): gcu_staff is back to unit-wide access
+        // on GCU appointments, same as Student Information Files (B623).
     }
 
     public function index(Request $request)
@@ -88,13 +76,8 @@ class AppointmentController extends Controller
                 ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
                 ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
-                // B625: gcu_staff only sees appointments for their own caseload
-                // (plus anything with no case, or no assigned counselor yet) -
-                // the GCU Head (admin) keeps unit-wide visibility.
-                ->when($user->role === 'gcu_staff', fn($q) => $q->where(fn($w) => $w
-                    ->whereNull('case_id')
-                    ->orWhereHas('case', fn($c) => $c->where('primary_counselor_id', $user->id))
-                    ->orWhereHas('case', fn($c) => $c->whereNull('primary_counselor_id'))))
+                // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
+                // visibility on GCU appointments, not just their own caseload.
                 ->orderByDesc('created_at')
                 ->paginate($perPage)
         );

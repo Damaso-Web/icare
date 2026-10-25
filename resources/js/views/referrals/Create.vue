@@ -19,7 +19,7 @@
     <div class="icard" style="max-width:820px;margin:0 auto">
 
       <!-- Document Code Header -->
-      <div style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+      <div class="doc-header-hidden" style="padding:14px 20px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
         <div style="font-size:11px;color:var(--stone)">
           <div><strong>Document Code:</strong> QF-OSS-01</div>
           <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>
@@ -286,7 +286,7 @@
         </div>
 
         <!-- Document Code Header - same as the form above -->
-        <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+        <div class="doc-header-hidden" style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
           <div style="font-size:11px;color:var(--stone)">
             <div><strong>Document Code:</strong> QF-OSS-01</div>
             <div><strong>Revision No.:</strong> {{ docSettings.revision_no || '01' }}</div>

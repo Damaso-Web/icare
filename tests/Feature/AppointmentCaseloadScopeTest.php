@@ -10,10 +10,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-// Bug (10/25/2026, B625): a gcu_staff counselor could see/act on every GCU
-// appointment, not just their own caseload - only the GCU Head (admin)
-// keeps unit-wide access, same scoping already applied to Student
-// Information Files (B623) and TMDU Testing Results (B624).
+// B625 reverted (10/25/2026): a gcu_staff counselor is back to seeing/
+// acting on every GCU appointment, not just their own caseload - matching
+// B623's revert on Student Information Files. TMDU Testing Results (B624)
+// is unaffected and still scoped per-counselor.
 class AppointmentCaseloadScopeTest extends TestCase
 {
     use RefreshDatabase;
@@ -39,7 +39,7 @@ class AppointmentCaseloadScopeTest extends TestCase
         ]);
     }
 
-    public function test_gcu_staff_only_sees_and_opens_appointments_for_their_own_caseload(): void
+    public function test_gcu_staff_sees_and_opens_appointments_outside_their_own_caseload(): void
     {
         $counselor = User::factory()->create(['role' => 'gcu_staff']);
         $mine = $this->appointment($counselor);
@@ -49,10 +49,10 @@ class AppointmentCaseloadScopeTest extends TestCase
         $list = $this->getJson('/api/appointments')->assertOk()->json('data');
         $ids = collect($list)->pluck('id')->all();
         $this->assertContains($mine->id, $ids);
-        $this->assertNotContains($other->id, $ids);
+        $this->assertContains($other->id, $ids);
 
         $this->getJson("/api/appointments/{$mine->id}")->assertOk();
-        $this->getJson("/api/appointments/{$other->id}")->assertStatus(403);
+        $this->getJson("/api/appointments/{$other->id}")->assertOk();
     }
 
     public function test_gcu_staff_can_still_see_an_unassigned_cases_appointment(): void

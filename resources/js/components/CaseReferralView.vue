@@ -1,7 +1,7 @@
 <template>
   <div>
     <!-- Document Code Header - read only (QF-OSS-01, same as Refer a Student) -->
-    <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+    <div class="doc-header-hidden" style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
       <div style="font-size:11px;color:var(--stone)">
         <div><strong>Document Code:</strong> QF-OSS-01</div>
         <div><strong>Revision No.:</strong> {{ doc.revision_no || '01' }}</div>

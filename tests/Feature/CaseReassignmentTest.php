@@ -86,22 +86,21 @@ class CaseReassignmentTest extends TestCase
         $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertOk();
     }
 
-    // Bug (10/24/2026, B623): "team model" access (any gcu_staff could act
-    // on any case) was replaced with strict per-counselor separation - an
-    // uninvolved staff member can no longer see or act on a case that isn't
-    // theirs, only the GCU Head (admin) keeps unit-wide access.
-    public function test_counselor_with_no_history_on_the_case_cannot_see_or_act_on_it(): void
+    // B623 reverted (10/25/2026): back to "team model" access - any
+    // gcu_staff member may see and act on a case even with no history on
+    // it, same as before B623 introduced strict per-counselor separation.
+    public function test_counselor_with_no_history_on_the_case_can_still_see_and_act_on_it(): void
     {
         $uninvolved = $this->gcu();
         $case = $this->caseWithCounselor($this->gcu());
 
         Sanctum::actingAs($uninvolved);
         $this->assertNull($case->previous_counselor_id);
-        $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertStatus(403);
-        $this->getJson("/api/cases/{$case->id}")->assertStatus(403);
+        $this->patchJson("/api/cases/{$case->id}/status", ['status' => 'in_progress'])->assertOk();
+        $this->getJson("/api/cases/{$case->id}")->assertOk();
 
         $list = $this->getJson('/api/cases')->assertOk()->json('data');
-        $this->assertFalse(collect($list)->contains('id', $case->id));
+        $this->assertTrue(collect($list)->contains('id', $case->id));
     }
 
     public function test_an_unassigned_case_can_be_acted_on_by_any_gcu_staff(): void

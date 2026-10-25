@@ -198,7 +198,7 @@
                  Effectivity / Year-Term come from Management (QF-OSS-GCU-01).
                  The client no. at the end of the Ctrl No. is per student and
                  editable here by GCU. -->
-            <div v-if="fromCases" style="padding:10px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);font-size:11px;color:var(--stone);display:grid;grid-template-columns:1fr 1fr;gap:2px 10px">
+            <div v-if="fromCases" class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);font-size:11px;color:var(--stone);display:grid;grid-template-columns:1fr 1fr;gap:2px 10px">
               <div><strong>Document Code:</strong> QF-OSS-GCU-01</div>
               <div style="text-align:right"><strong>Effectivity:</strong> {{ formatDocDate(sifDoc.effectivity_date) }}</div>
               <div><strong>Revision No.:</strong> {{ sifDoc.revision_no || '01' }}</div>

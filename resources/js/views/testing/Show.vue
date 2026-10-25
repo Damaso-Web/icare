@@ -96,7 +96,7 @@
             <div class="icard-header"><span class="icard-title">Case Referral Slip</span></div>
 
             <!-- Same OSS-wide referral header as Refer a Student (QF-OSS-01) - read only (edited in Management). -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-01</div>
                 <div><strong>Revision No.:</strong> {{ tmduDoc.revision_no || '01' }}</div>
@@ -159,7 +159,7 @@
           <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
             <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
             <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-TMDU-02</div>
                 <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
@@ -242,7 +242,7 @@
           <div class="icard" v-if="canManage && (stage === 'test_administered' || needsParRerelease)">
             <div class="icard-header"><span class="icard-title">{{ needsParRerelease ? 'Schedule Re-release of PAR' : 'Schedule PAR Release' }}</span></div>
             <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-TMDU-02</div>
                 <div><strong>Revision No.:</strong> {{ slipDoc.revision_no || '00' }}</div>
@@ -1066,4 +1066,4 @@ onMounted(async () => {
     loading.value = false;
   }
 });
-</script>d
+</script>

@@ -20,7 +20,7 @@
         <h1 style="margin:6px 0 2px;font-size:20px;color:var(--forest)">Call Slip Form</h1>
       </div>
 
-      <div style="padding:10px 14px;border:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow);margin-bottom:20px;font-size:11px;color:var(--stone)">
+      <div class="doc-header-hidden" style="padding:10px 14px;border:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow);margin-bottom:20px;font-size:11px;color:var(--stone)">
         <div>
           <div><strong>Document Code:</strong> QF-OSS-02</div>
           <div><strong>Revision No.:</strong> 01</div>

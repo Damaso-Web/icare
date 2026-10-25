@@ -236,7 +236,7 @@
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
                  Ctrl No. are edited in Management by admin, not here. -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-01</div>
                 <div><strong>Revision No.:</strong> {{ headerDoc.revision_no || '01' }}</div>
@@ -432,7 +432,7 @@
           <div class="icard" v-if="isClassAttendance && referral.case && fromCases && !isIncidentReport">
             <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
 
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-GCU-09</div>
                 <div><strong>Revision No.:</strong> {{ admissionDoc.revision_no || '01' }}</div>
@@ -567,7 +567,7 @@
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
                  Ctrl No. are edited in Management by admin. -->
-            <div style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+            <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-03</div>
                 <div><strong>Revision No.:</strong> {{ feedbackDoc.revision_no || '01' }}</div>
@@ -1509,7 +1509,7 @@
           </div>
 
           <!-- Document Code Header - read only; edited in Management by admin -->
-          <div style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
+          <div class="doc-header-hidden" style="padding:10px 22px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
             <div style="font-size:11px;color:var(--stone)">
               <div><strong>Document Code:</strong> QF-OSS-01</div>
               <div><strong>Revision No.:</strong> {{ referralDoc.revision_no || '01' }}</div>
