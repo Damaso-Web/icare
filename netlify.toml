@@ -2,6 +2,10 @@
   command = "npm run build"
   publish = "public/build"
 
+# Serverless functions (includes the scheduled keep-alive that pings the backend)
+[functions]
+  directory = "netlify/functions"
+
 [[redirects]]
   from = "/templates/*"
   to = "/templates/:splat"
