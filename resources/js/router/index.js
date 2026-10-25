@@ -386,7 +386,7 @@ const routes = [
                 path: 'call-slips',
                 name: 'call-slips',
                 component: CallSlips,
-                meta: { roles: ['dean_secretary'] },
+                meta: { roles: ['dean_secretary', 'dept_chair'] },
             },
             {
                 path: 'backup',
@@ -412,7 +412,7 @@ const routes = [
         path: '/call-slips/:id/print',
         name: 'call-slip-print',
         component: () => import('../views/callslips/CallSlipForm.vue'),
-        meta: { requiresAuth: true, roles: ['dean_secretary', 'admin'] },
+        meta: { requiresAuth: true, roles: ['dean_secretary', 'dept_chair', 'admin'] },
     },
     {
         path: '/unauthorized',

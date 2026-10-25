@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Appointment;
 use App\Models\AuditLog;
+use App\Models\User;
+use App\Notifications\CallSlipEscalatedNotification;
 use Illuminate\Http\Request;
 
 class CallSlipController extends Controller
@@ -17,6 +19,13 @@ class CallSlipController extends Controller
         $appointments = Appointment::where(function ($q) {
                 $q->where('no_show_escalated', true)
                   ->orWhere('reschedule_count', '>=', 3);
+            })
+            // A Department Chair only ever follows up on what the Dean's
+            // Secretary has already escalated to them - the Dean's
+            // Secretary's own unworked/contacted call slips aren't theirs
+            // to see.
+            ->when($user->isDeptChair(), function ($q) {
+                $q->where('call_slip_stage', 'dept_chair');
             })
             ->whereHas('student', function ($q) use ($user) {
                 $q->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
@@ -31,6 +40,17 @@ class CallSlipController extends Controller
     public function markContacted(Request $request, Appointment $appointment)
     {
         $request->validate(['notes' => 'nullable|string']);
+
+        // Bug: nothing stopped "Mark Contacted" from being clicked again
+        // after a student was already marked contacted (or after the slip
+        // moved further along - rescheduled/escalated) - each click just
+        // overwrote the notes and re-logged the same action.
+        if (in_array($appointment->call_slip_stage, ['contacted', 'rescheduled', 'dept_chair'], true)) {
+            return response()->json([
+                'message' => 'This student has already been marked contacted.',
+                'errors'  => ['call_slip_stage' => ['This student has already been marked contacted.']],
+            ], 422);
+        }
 
         $appointment->update([
             'call_slip_stage' => 'contacted',
@@ -63,6 +83,13 @@ class CallSlipController extends Controller
     {
         $request->validate(['notes' => 'nullable|string']);
 
+        if ($appointment->call_slip_stage === 'dept_chair') {
+            return response()->json([
+                'message' => 'This student has already been escalated to the Department Chair.',
+                'errors'  => ['call_slip_stage' => ['This student has already been escalated to the Department Chair.']],
+            ], 422);
+        }
+
         $appointment->update([
             'call_slip_stage' => 'dept_chair',
             'call_slip_notes' => $request->notes,
@@ -70,6 +97,29 @@ class CallSlipController extends Controller
 
         AuditLog::record('call_slip_escalated', "Escalated to Department Chair for appointment {$appointment->appointment_code}.", $appointment);
 
+        // Bug: escalating only ever updated the record - no Department
+        // Chair was actually told about it until now.
+        $this->notifyDeptChairs($appointment->loadMissing('student'));
+
         return response()->json($appointment);
+    }
+
+    private function notifyDeptChairs(Appointment $appointment): void
+    {
+        $deptChairs = User::where('role', 'dept_chair')
+            ->where('college', $appointment->student->college)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($deptChairs as $chair) {
+            // The escalation itself has already been saved by this point,
+            // so a mail/SMTP failure must not turn the whole request into a
+            // 500 - same guard as AppointmentController::notifyDeanSecretaries().
+            try {
+                $chair->notify(new CallSlipEscalatedNotification($appointment));
+            } catch (\Throwable $e) {
+                report($e);
+            }
+        }
     }
 }
