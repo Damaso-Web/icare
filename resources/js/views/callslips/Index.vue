@@ -86,7 +86,8 @@ import { useAuthStore } from '../../stores/auth';
 
 const toast = inject('toast');
 const auth  = useAuthStore();
-const isDeanSecretary = computed(() => auth.user?.role === 'dean_secretary');
+// 'dean' and the older 'dean_secretary' are the same role now (see utils/roles.js).
+const isDeanSecretary = computed(() => ['dean', 'dean_secretary'].includes(auth.user?.role));
 
 // Call Slip sent for a student who never picked a schedule (not a real no-show).
 const isUnscheduled = a => a.no_show_escalated && a.status !== 'no_show' && a.call_slip_stage !== 'rescheduled';

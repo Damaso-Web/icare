@@ -62,7 +62,7 @@ class StudentController extends Controller
             // so any ?college=/?program= they pass is ignored in favor of it.
             ->when($request->user()?->isDeptChair(), fn($q) => $q
                 ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
-                ->whereRaw('LOWER(program) = LOWER(?)', [(string) $request->user()->department]))
+                ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
             // Bug (10/25/2026, B626): a plain Faculty member's student lookup
             // (the "+ Refer Student" search) could search and select ANY
             // student university-wide - same reasoning as the Dean (B590)
@@ -70,7 +70,7 @@ class StudentController extends Controller
             // is scoped to their own department within their own college.
             ->when($request->user()?->role === 'faculty', fn($q) => $q
                 ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
-                ->whereRaw('LOWER(program) = LOWER(?)', [(string) $request->user()->department]))
+                ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
             ->when(!$request->user()?->isDean() && !$request->user()?->isDeptChair() && $request->user()?->role !== 'faculty' && $request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));

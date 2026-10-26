@@ -29,6 +29,12 @@ class CallSlipController extends Controller
             })
             ->whereHas('student', function ($q) use ($user) {
                 $q->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
+
+                // A Department Chair only follows up on students of their own
+                // department, not every student in the college.
+                if ($user->isDeptChair()) {
+                    \App\Support\DepartmentScope::whereProgramMatches($q, $user->department);
+                }
             })
             ->with(['student', 'case'])
             ->orderByDesc('no_show_escalated_at')
@@ -90,6 +96,14 @@ class CallSlipController extends Controller
             ], 422);
         }
 
+        // Don't mark it escalated if no Department Chair would ever receive it.
+        if ($this->deptChairsFor($appointment->loadMissing('student'))->isEmpty()) {
+            return response()->json([
+                'message' => "There is no active Department Chair for this student's department yet.",
+                'errors'  => ['call_slip_stage' => ["There is no active Department Chair for this student's department yet."]],
+            ], 422);
+        }
+
         $appointment->update([
             'call_slip_stage' => 'dept_chair',
             'call_slip_notes' => $request->notes,
@@ -104,14 +118,22 @@ class CallSlipController extends Controller
         return response()->json($appointment);
     }
 
+    // Active Department Chairs of the student's own college AND department.
+    private function deptChairsFor(Appointment $appointment)
+    {
+        $student = $appointment->student;
+
+        return User::where('role', 'dept_chair')
+            ->whereIn('college', \App\Support\CollegeName::equivalents($student->college))
+            ->where('is_active', true)
+            ->get()
+            ->filter(fn ($chair) => \App\Support\DepartmentScope::matches($student->program, $chair->department))
+            ->values();
+    }
+
     private function notifyDeptChairs(Appointment $appointment): void
     {
-        $deptChairs = User::where('role', 'dept_chair')
-            ->where('college', $appointment->student->college)
-            ->where('is_active', true)
-            ->get();
-
-        foreach ($deptChairs as $chair) {
+        foreach ($this->deptChairsFor($appointment) as $chair) {
             // The escalation itself has already been saved by this point,
             // so a mail/SMTP failure must not turn the whole request into a
             // 500 - same guard as AppointmentController::notifyDeanSecretaries().

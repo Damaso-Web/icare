@@ -230,7 +230,7 @@ class ComplaintController extends Controller
         // department only.
         if ($actor && method_exists($actor, 'isDeptChair') && $actor->isDeptChair() && (
             !in_array($student->college, \App\Support\CollegeName::equivalents($actor->college), true)
-            || strcasecmp((string) $student->program, (string) $actor->department) !== 0
+            || !\App\Support\DepartmentScope::matches($student->program, $actor->department)
         )) {
             return response()->json(['message' => 'You can only file complaints against students enrolled in your own department.'], 403);
         }

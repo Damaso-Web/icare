@@ -254,7 +254,7 @@ class ReferralController extends Controller
         // student_id from outside it reaches this endpoint some other way.
         if ($user->isDeptChair() && (
             !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
-            || strcasecmp((string) $student->program, (string) $user->department) !== 0
+            || !\App\Support\DepartmentScope::matches($student->program, $user->department)
         )) {
             return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
         }
@@ -267,7 +267,7 @@ class ReferralController extends Controller
         // is excluded since that role is already covered above.)
         if ($user->role === 'faculty' && (
             !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
-            || strcasecmp((string) $student->program, (string) $user->department) !== 0
+            || !\App\Support\DepartmentScope::matches($student->program, $user->department)
         )) {
             return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
         }
