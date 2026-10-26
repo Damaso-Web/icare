@@ -1,7 +1,4 @@
 // Checks that a personal email looks complete, not just "has a dot".
-// Well-known providers must end exactly as the provider does, so
-// "name@gmail.co" or "name@gmail" is caught as unfinished.
-// Keep in step with app/Support/EmailCheck.php.
 const PROVIDERS = {
   gmail: ['gmail.com'],
   yahoo: ['yahoo.com', 'yahoo.com.ph'],

@@ -156,8 +156,11 @@
                referral.acknowledged_at to be set; a legacy record with no
                referral_id falls back to status alone. No fee-form/OR step -
                TMDU decides the date/time directly. -->
-          <div class="icard" v-if="canManage && record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)">
-            <div class="icard-header"><span class="icard-title">Schedule Test Taking</span></div>
+          <div class="icard" v-if="canManage && ((record.status === 'pending' && (record.referral ? !!record.referral.acknowledged_at : true)) || (stage === 'scheduled_for_testing' && rescheduling))">
+            <div class="icard-header">
+              <span class="icard-title">{{ rescheduling ? 'Reschedule Test Taking' : 'Schedule Test Taking' }}</span>
+              <button v-if="rescheduling" class="ibtn ibtn-g ibtn-sm" @click="rescheduling = false">Cancel</button>
+            </div>
             <!-- TMDU Appointment Slip header - read only (edited in Management > Document Headers > TMDU). -->
             <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
@@ -190,7 +193,7 @@
                 <div v-if="testingTimeError" style="color:var(--red);font-size:11px;margin-top:4px">{{ testingTimeError }}</div>
               </div>
               <button class="ibtn ibtn-p ibtn-sm" @click="confirmScheduleTesting" :disabled="saving || testingFormInvalid">
-                {{ saving ? 'Scheduling...' : 'Confirm Testing Schedule' }}
+                {{ saving ? 'Scheduling...' : (rescheduling ? 'Confirm New Schedule' : 'Confirm Testing Schedule') }}
               </button>
             </div>
           </div>
@@ -198,7 +201,10 @@
           <!-- Psychological Tests Administered - the action that moves the
                bar from Scheduled for Testing to Test Administered. -->
           <div class="icard" v-if="canManage && stage === 'scheduled_for_testing'">
-            <div class="icard-header"><span class="icard-title">Psychological Tests Administered</span></div>
+            <div class="icard-header">
+              <span class="icard-title">Psychological Tests Administered</span>
+              <button v-if="!testTakingAttended && !rescheduling" class="ibtn ibtn-o ibtn-sm" @click="startReschedule">Reschedule</button>
+            </div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <!-- B558: same weekday-only rule as the scheduling sections,
                    surfaced up front here too. -->
@@ -207,7 +213,8 @@
               </div>
               <div>
                 <label class="ifl">Testing Date</label>
-                <input v-model="administerForm.testing_date" type="date" class="ifi" />
+                <input v-model="administerForm.testing_date" type="date" class="ifi" :disabled="!!record.testing_date" />
+                <div v-if="record.testing_date" style="font-size:11px;color:var(--stone);margin-top:4px">Set from the scheduled test-taking appointment. Use Reschedule to change it.</div>
                 <div v-if="administerDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ administerDateError }}</div>
               </div>
               <div>
@@ -262,7 +269,7 @@
                 <span>Appointments must be scheduled between 8:00 AM and 4:00 PM.</span>
               </div>
               <div>
-                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" :min="todayStr" />
+                <input v-model="parScheduleForm.appointment_date" type="date" class="ifi" style="width:100%" :min="parMinDate" />
                 <div v-if="parDateError" style="color:var(--red);font-size:11px;margin-top:4px">{{ parDateError }}</div>
               </div>
               <div>
@@ -336,6 +343,10 @@
               <div style="font-size:11px;color:var(--fog)">
                 Sent to GCU {{ formatDate(record.report_sent_at) }}
               </div>
+              <button v-if="parFileDoc" class="ibtn ibtn-o ibtn-sm" style="margin-top:10px" @click="downloadParFile">
+                <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download {{ parFileDoc.original_filename || 'PAR' }}
+              </button>
             </div>
           </div>
 
@@ -592,7 +603,8 @@ import { ref, computed, onMounted, inject } from 'vue';
 import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import { testingAPI, userAPI, appointmentAPI, referralAPI } from '../../api/index';
+import { testingAPI, userAPI, appointmentAPI, referralAPI, caseReferralAPI } from '../../api/index';
+import { saveBlob } from '../../utils/download';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 import ParCancelDialog from '../../components/ParCancelDialog.vue';
@@ -611,6 +623,7 @@ const record          = ref({});
 const selectedFile    = ref(null);
 
 const testingForm     = ref({ appointment_date: '', start_time: '', end_time: '' });
+const rescheduling    = ref(false);
 const parScheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const administerForm  = ref({ tests_administered: [], testing_date: '' });
 const parForm         = ref({ assessment_summary: '', recommendations: '' });
@@ -774,7 +787,24 @@ const administerDateError = computed(() => {
   return isWeekend(administerForm.value.testing_date) ? 'TMDU is closed on weekends - please choose a weekday (Monday-Friday).' : '';
 });
 
-const parDateError = computed(() => dateErrorFor(parScheduleForm.value.appointment_date));
+// The recorded test-taking date (latest of the scheduled appointment and the
+  // recorded testing date) - PAR release can't be scheduled before it.
+const testTakenOn = computed(() => {
+  const dates = [];
+  if (record.value.testing_date) dates.push(String(record.value.testing_date).slice(0, 10));
+  (record.value.appointments || [])
+    .filter(a => a.unit === 'TMDU' && a.appointment_type === 'psychological_testing' && a.status !== 'cancelled' && a.appointment_date)
+    .forEach(a => dates.push(String(a.appointment_date).slice(0, 10)));
+  return dates.sort().pop() || '';
+});
+const parMinDate = computed(() => (testTakenOn.value && testTakenOn.value > todayStr ? testTakenOn.value : todayStr));
+const parDateError = computed(() => {
+  const d = parScheduleForm.value.appointment_date;
+  if (d && testTakenOn.value && d < testTakenOn.value) {
+    return `PAR release cannot be earlier than the test-taking date (${fmtDay(testTakenOn.value)}).`;
+  }
+  return dateErrorFor(d);
+});
 const parTimeError = computed(() => timeErrorFor(parScheduleForm.value.start_time, parScheduleForm.value.end_time));
 const parFormInvalid = computed(() => !!parDateError.value || !!parTimeError.value);
 
@@ -793,6 +823,7 @@ async function confirmScheduleTesting() {
   try {
     await testingAPI.scheduleTesting(record.value.id, testingForm.value);
     toast?.success('Testing appointment scheduled. Student has been notified to bring 2 pencils and arrive 15 minutes early.');
+    rescheduling.value = false;
     await loadRecord();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to schedule testing appointment.');
@@ -1018,6 +1049,32 @@ function initials(first, last) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+// Reopens Schedule Test Taking with the current date/time filled in.
+function startReschedule() {
+  const current = tmduAppointments.value
+    .filter(a => a.appointment_type === 'psychological_testing' && !['cancelled', 'completed', 'no_show'].includes(a.status))
+    .sort((a, b) => b.id - a.id)[0];
+  testingForm.value = {
+    appointment_date: current?.appointment_date ? String(current.appointment_date).slice(0, 10) : '',
+    start_time: current?.start_time ? String(current.start_time).slice(0, 5) : '',
+    end_time: current?.end_time ? String(current.end_time).slice(0, 5) : '',
+  };
+  rescheduling.value = true;
+}
+
+// The released PAR file, with a real file download (original filename).
+const parFileDoc = computed(() =>
+  (record.value.documents || []).find(d => d.document_type === 'psychological_assessment_report') || null
+);
+async function downloadParFile() {
+  try {
+    const res = await caseReferralAPI.downloadDocument(parFileDoc.value.id);
+    saveBlob(res.data, parFileDoc.value.original_filename || 'PAR');
+  } catch (e) {
+    toast?.error('Unable to download the PAR file.');
+  }
 }
 
 async function loadRecord() {

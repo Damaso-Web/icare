@@ -13,13 +13,7 @@ export function consumeConsentSkip(type) {
 }
 
 // Remembering that the agreement was already accepted on this device, so it
-// isn't asked again on every visit/login - for up to CONSENT_TTL_MS
-// (currently 7 days) per sign-in type ('staff' / 'student'). Kept in
-// localStorage (not sessionStorage), so it survives closing the tab/browser
-// and logging out. It is asked again once that window passes, or
-// immediately if the text of the agreement/notice itself changes (the saved
-// hash of the text no longer matches), since that's a materially different
-// thing to agree to.
+
 const OK_KEY = 'consent_ok_';
 const CONSENT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 

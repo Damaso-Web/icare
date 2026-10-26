@@ -15,7 +15,7 @@ class TestingScheduledNotification extends Notification
 {
     use Queueable, \App\Notifications\Concerns\SendsEmail;
 
-    public function __construct(public TestingRecord $testingRecord, public Appointment $appointment) {}
+    public function __construct(public TestingRecord $testingRecord, public Appointment $appointment, public bool $rescheduled = false) {}
 
 
     public function toArray(object $notifiable): array
@@ -24,11 +24,16 @@ class TestingScheduledNotification extends Notification
             ? $this->appointment->appointment_date->format('F j, Y')
             : $this->appointment->appointment_date;
 
+        $time = $this->appointment->start_time
+            ? \Carbon\Carbon::parse($this->appointment->start_time)->format('g:i A')
+            : '';
+        $verb = $this->rescheduled ? 'rescheduled to' : 'scheduled for';
+
         return [
             'type'               => 'testing_scheduled',
             'testing_record_id'  => $this->testingRecord->id,
             'appointment_id'     => $this->appointment->id,
-            'message'            => "Your psychological testing has been scheduled for {$date} at {$this->appointment->start_time}. Bring your OR and two sharpened pencils with eraser, and arrive at least 15 minutes early.",
+            'message'            => "Your psychological testing has been {$verb} {$date} at {$time}. Bring your OR and two sharpened pencils with eraser, and arrive at least 15 minutes early.",
         ];
     }
 }

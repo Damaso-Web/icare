@@ -11,14 +11,10 @@ use Illuminate\Notifications\Notification;
 // their Psychological Assessment Report (PAR), after the exam is done.
 class ParScheduledNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public TestingRecord $testingRecord, public Appointment $appointment) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {
@@ -26,11 +22,15 @@ class ParScheduledNotification extends Notification
             ? $this->appointment->appointment_date->format('F j, Y')
             : $this->appointment->appointment_date;
 
+        $time = $this->appointment->start_time
+            ? \Carbon\Carbon::parse($this->appointment->start_time)->format('g:i A')
+            : '';
+
         return [
             'type'              => 'par_scheduled',
             'testing_record_id' => $this->testingRecord->id,
             'appointment_id'    => $this->appointment->id,
-            'message'           => "Your Psychological Assessment Report (PAR) will be ready for release on {$date} at {$this->appointment->start_time}.",
+            'message'           => "Your Psychological Assessment Report (PAR) will be ready for release on {$date} at {$time}.",
         ];
     }
 }

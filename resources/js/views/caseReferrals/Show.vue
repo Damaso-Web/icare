@@ -5,7 +5,7 @@
         <h1>Case Referral</h1>
         <p v-if="data.referral_code" style="font-family:var(--mono)">{{ data.referral_code }}</p>
       </div>
-      <button class="ibtn ibtn-o ibtn-sm" @click="$router.push({ name: 'case-referrals' })">Back to Case Referrals</button>
+      <button class="ibtn ibtn-o ibtn-sm" @click="goBack">{{ returnTo ? 'Back to Referral' : 'Back to Case Referrals' }}</button>
     </div>
 
     <div v-if="loading" style="text-align:center;padding:44px">
@@ -20,12 +20,27 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { ref, computed, onMounted } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
 import { caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 
 const route = useRoute();
+const router = useRouter();
+
+// Set when opened from a referral's SIF ("View Case Referral"), so Back goes
+// to that same SIF instead of the Case Referrals list.
+const returnTo = computed(() => (typeof route.query.return_to === 'string' && route.query.return_to.startsWith('/') ? route.query.return_to : ''));
+
+function goBack() {
+  if (returnTo.value) {
+    // back() undoes the single push that got here; push only if there is no history (reloaded URL).
+    if (window.history.state && window.history.state.back) router.back();
+    else router.push(returnTo.value);
+  } else {
+    router.push({ name: 'case-referrals' });
+  }
+}
 const loading = ref(true);
 const error = ref('');
 const data = ref({});

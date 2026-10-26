@@ -1,11 +1,5 @@
 // Finds the official college (Management > Colleges) that an account's
-// college refers to. Older accounts were saved with other spellings, e.g.
-// "College of Nursing" for "College of Nursing (CN)", so an exact match alone
-// left a Dean with no departments to choose from.
-//
-//   matchCollege('College of Nursing', ['College of Nursing (CN)', ...]) -> 'College of Nursing (CN)'
-//
-// Returns '' when nothing matches.
+
 export function matchCollege(name, officialNames) {
   const raw = String(name ?? '').trim();
   if (!raw || !Array.isArray(officialNames)) return '';

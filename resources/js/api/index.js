@@ -428,5 +428,6 @@ export const studentAppointmentAPI = {
 export const studentTestingAPI = {
     index:          ()       => studentApi.get('/student/testing-records'),
     show:           (id)     => studentApi.get(`/student/testing-records/${id}`),
+    downloadPar:    (id)     => studentApi.get(`/student/testing-records/${id}/par`, { responseType: 'blob' }),
     requestTesting: (id, formData) => studentApi.post(`/student/testing-records/${id}/request-testing`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
 };

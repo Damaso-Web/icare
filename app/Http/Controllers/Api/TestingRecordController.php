@@ -344,6 +344,15 @@ class TestingRecordController extends Controller
     {
         $this->ensureTesterAssigned($testingRecord, $request);
 
+        // Scheduling (and Reschedule) only makes sense before the tests are
+        // given; once the student has attended, the date is fixed.
+        if (in_array($testingRecord->status, ['test_administered', 'awaiting_results', 'par_scheduled', 'test_results_issued'], true)) {
+            abort(422, 'Test taking can only be scheduled or rescheduled before the tests are administered.');
+        }
+        if ($this->recordAppointments($testingRecord, 'psychological_testing')->where('checked_in', true)->exists()) {
+            abort(422, 'The student already attended the test-taking appointment, so it can no longer be rescheduled.');
+        }
+
         $validated = $request->validate([
             'appointment_date' => 'required|date',
             'start_time'       => 'required',
@@ -356,6 +365,9 @@ class TestingRecordController extends Controller
             ->whereNotIn('status', ['cancelled', 'completed', 'no_show'])
             ->latest()
             ->first();
+
+        // An open test-taking appointment already exists -> this is a reschedule.
+        $isReschedule = (bool) $appointment;
 
         $attributes = [
             'case_id'             => $testingRecord->case_id,
@@ -392,7 +404,7 @@ class TestingRecordController extends Controller
         AuditLog::record('testing_scheduled', "Scheduled psychological testing for record #{$testingRecord->id}.", $testingRecord);
 
         if ($testingRecord->student) {
-            $this->safeNotify($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment));
+            $this->safeNotify($testingRecord->student, new TestingScheduledNotification($testingRecord, $appointment, $isReschedule));
         }
 
         return response()->json([
@@ -414,14 +426,16 @@ class TestingRecordController extends Controller
 
         $validated = $request->validate([
             'tests_administered' => 'required|array|min:1',
-            'testing_date'       => 'required|date',
+            // The test-taking date is the one already set by Schedule Test
+            // Taking; recording the tests must not move it (use Reschedule).
+            'testing_date'       => [$testingRecord->testing_date ? 'nullable' : 'required', 'date'],
         ]);
 
         $old = $testingRecord->only(['tests_administered', 'testing_date', 'status']);
 
         $testingRecord->update([
             'tests_administered' => $validated['tests_administered'],
-            'testing_date'       => $validated['testing_date'],
+            'testing_date'       => $testingRecord->testing_date ?: $validated['testing_date'],
             'status'             => 'test_administered',
         ]);
 
@@ -464,6 +478,15 @@ class TestingRecordController extends Controller
             'start_time'       => 'required',
             'end_time'         => 'required',
         ]);
+
+        // PAR release can't be set earlier than the recorded test-taking date.
+        $testedOn = collect([$testAppointment->appointment_date, $testingRecord->testing_date])
+            ->filter()
+            ->map(fn ($d) => \Illuminate\Support\Carbon::parse($d)->toDateString())
+            ->max();
+        if ($testedOn && \Illuminate\Support\Carbon::parse($validated['appointment_date'])->toDateString() < $testedOn) {
+            abort(422, 'PAR release cannot be scheduled earlier than the test-taking date (' . \Illuminate\Support\Carbon::parse($testedOn)->format('F j, Y') . ').');
+        }
 
         \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
 
@@ -680,6 +703,12 @@ class TestingRecordController extends Controller
         // Notify the original referring GCU counselor that the PAR is ready.
         if ($testingRecord->referredBy) {
             $this->safeNotify($testingRecord->referredBy, new ParReadyNotification($testingRecord));
+        }
+
+        // The student gets their own notice (in-app + email); their copy of
+        // the PAR is on the My Testing page.
+        if ($testingRecord->student) {
+            $this->safeNotify($testingRecord->student, new \App\Notifications\ParResultNotification($testingRecord));
         }
 
         return response()->json($testingRecord);

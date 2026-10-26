@@ -538,6 +538,14 @@ public function testingRecords(Request $request)
         ->latest()
         ->get();
 
+    // Name of the PAR file TMDU attached (null until results are released),
+    // so My Testing can offer the student their own copy.
+    $records->each(function ($r) {
+        $r->setAttribute('par_filename', $r->documents()
+            ->where('document_type', 'psychological_assessment_report')
+            ->latest('id')->value('original_filename'));
+    });
+
     return response()->json($records);
 }
 
@@ -550,6 +558,30 @@ public function showTestingRecord(Request $request, $id)
         ->findOrFail($id);
 
     return response()->json($record);
+}
+
+// The student's own copy of their released PAR file.
+public function downloadPar(Request $request, $id)
+{
+    $student = $request->user('student');
+
+    $record = TestingRecord::where('student_id', $student->id)
+        ->where('status', 'test_results_issued')
+        ->findOrFail($id);
+
+    $doc = $record->documents()
+        ->where('document_type', 'psychological_assessment_report')
+        ->latest('id')->first();
+
+    if (!$doc || !\Illuminate\Support\Facades\Storage::disk($doc->disk)->exists($doc->path)) {
+        return response()->json(['message' => 'No PAR file is available for this record.'], 404);
+    }
+
+    AuditLog::record('downloaded', "Student downloaded their PAR copy ({$doc->original_filename}).", $doc);
+
+    return \Illuminate\Support\Facades\Storage::disk($doc->disk)->download($doc->path, $doc->original_filename, [
+        'X-Content-Type-Options' => 'nosniff',
+    ]);
 }
 
 }

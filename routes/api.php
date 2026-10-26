@@ -417,5 +417,6 @@ Route::middleware(['auth:student', 'actor:student', 'password.fresh'])->group(fu
     // Testing (TMDU) - student side
     Route::get('student/testing-records',      [StudentAuthController::class, 'testingRecords']);
     Route::get('student/testing-records/{id}', [StudentAuthController::class, 'showTestingRecord']);
+    Route::get('student/testing-records/{id}/par', [StudentAuthController::class, 'downloadPar']);
     Route::post('student/testing-records/{testingRecord}/request-testing', [TestingRecordController::class, 'requestTestingByStudent']);
 });

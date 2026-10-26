@@ -1941,7 +1941,7 @@
         <CaseReferralView v-else-if="tmduSlip" :data="tmduSlip" />
         <div v-else style="padding:30px;text-align:center;color:var(--stone)">Case referral form not available.</div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
-          <button v-if="tmduSlip" class="ibtn ibtn-p" @click="router.push({ name: 'case-referral-show', params: { id: tmduSlip.id } })">View Case Referral</button>
+          <button v-if="tmduSlip" class="ibtn ibtn-p" @click="router.push({ name: 'case-referral-show', params: { id: tmduSlip.id }, query: { return_to: route.fullPath } })">View Case Referral</button>
           <button class="ibtn ibtn-o" @click="slipModal = false">Close</button>
         </div>
       </div>
@@ -1950,6 +1950,7 @@
 </template>
 
 <script setup>
+import { saveBlob } from '../../utils/download';
 import { ref, onMounted, inject, computed, watch } from 'vue';
 import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute, useRouter } from 'vue-router';
@@ -2200,8 +2201,8 @@ watch(() => referral.value?.id, () => loadSlip());
 async function openPar(doc) {
   try {
     const res = await caseReferralAPI.downloadDocument(doc.id);
-    window.open(URL.createObjectURL(res.data), '_blank');
-  } catch { toast?.error('Unable to open the PAR file.'); }
+    saveBlob(res.data, doc.original_filename || 'PAR');
+  } catch { toast?.error('Unable to download the PAR file.'); }
 }
 
 const parDocument = computed(() =>

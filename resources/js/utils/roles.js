@@ -1,8 +1,5 @@
 // Role names shown to people, and which roles count as another one.
-//
-// TMDU Head can do everything TMDU Staff can. "Dean" and the older "Dean's
-// Secretary" accounts are one role now (the college's office), so each counts
-// as the other wherever a page or menu checks access.
+
 const ALSO_COUNTS_AS = {
   tmdu_head:      ['tmdu_staff'],
   dean:           ['dean_secretary'],

@@ -10,14 +10,10 @@ use Illuminate\Notifications\Notification;
 // asked to go to the TMDU office and collect their PAR results.
 class ParOnHoldNotification extends Notification
 {
-    use Queueable;
+    use Queueable, \App\Notifications\Concerns\SendsEmail;
 
     public function __construct(public Appointment $appointment) {}
 
-    public function via(object $notifiable): array
-    {
-        return ['database'];
-    }
 
     public function toArray(object $notifiable): array
     {

@@ -2,9 +2,7 @@ import { ref } from 'vue';
 import axios from 'axios';
 
 // Dates blocked by active Holidays and Suspensions (School Calendar). Every appointment
-// date picker uses this so a blocked date shows its reason and cannot be submitted;
-// the server rejects it too. Entries archived or edited in Management are picked up
-// the next time a picker loads - no page refresh needed beyond reopening the form.
+
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
 /** map = { 'YYYY-MM-DD': { type, name, label } }  */

@@ -1,11 +1,5 @@
 // "Discard your changes?" for a form in a popup.
-//
-//   const cancelEdit = useDiscardGuard(showEditModal, editForm, () => { showEditModal.value = false; });
-//
-// cancelEdit() closes the popup straight away when nothing was changed, and
-// asks first when something was. What counts as "unchanged" is the form as it
-// stood shortly after the popup opened (forms are filled in just after they
-// open, some of them a moment later).
+
 import { inject, watch } from 'vue';
 
 export function useDiscardGuard(isOpen, form, close) {

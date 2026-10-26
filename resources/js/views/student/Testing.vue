@@ -56,8 +56,24 @@
         </div>
 
         <!-- Step: report sent -->
-        <div v-if="r.status === 'report_sent'" style="font-size:12px;color:var(--stone)">
-          Your PAR has been released and a copy sent to the counselor who referred you.
+        <div v-if="r.status === 'awaiting_results'" style="font-size:12px;color:var(--stone)">
+          See <router-link :to="{ name: 'student-appointments' }" style="color:var(--moss);font-weight:600">My Appointments</router-link> for when to pick up your Psychological Assessment Report (PAR).
+        </div>
+
+        <!-- Step: PAR released - the student's own copy -->
+        <div v-if="r.status === 'test_results_issued' || r.status === 'report_sent'" style="border:1px solid var(--mint);background:var(--foam);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:12px;font-weight:600;color:var(--moss)">Your Psychological Assessment Report (PAR)</div>
+          <div v-if="r.assessment_summary">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Assessment Summary</div>
+            <div style="font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap">{{ r.assessment_summary }}</div>
+          </div>
+          <div v-if="r.recommendations">
+            <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Recommended Actions</div>
+            <div style="font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap">{{ r.recommendations }}</div>
+          </div>
+          <button v-if="r.par_filename" class="ibtn ibtn-p ibtn-sm" style="align-self:flex-start" :disabled="downloading === r.id" @click="downloadPar(r)">
+            {{ downloading === r.id ? 'Downloading...' : 'Download PAR (' + r.par_filename + ')' }}
+          </button>
         </div>
       </div>
     </div>
@@ -67,11 +83,13 @@
 <script setup>
 import { ref, onMounted, inject } from 'vue';
 import { studentTestingAPI } from '../../api/index';
+import { saveBlob } from '../../utils/download';
 
 const toast   = inject('toast');
 const loading = ref(true);
 const records = ref([]);
 const submitting = ref(null);
+const downloading = ref(null);
 const selectedFiles = ref({});
 const fileNames = ref({});
 
@@ -85,6 +103,9 @@ function statusLabel(status) {
     completed:        'Completed',
     par_scheduled:    'PAR Scheduled',
     report_sent:      'Report Sent',
+    test_administered:   'Test Taken',
+    awaiting_results:    'Awaiting PAR Release',
+    test_results_issued: 'PAR Released',
   }[status] || status;
 }
 
@@ -98,6 +119,9 @@ function statusBadge(status) {
     completed:         'ibadge-completed',
     par_scheduled:     'ibadge-scheduled',
     report_sent:       'ibadge-closed',
+    test_administered:   'ibadge-completed',
+    awaiting_results:    'ibadge-scheduled',
+    test_results_issued: 'ibadge-closed',
   }[status] || 'ibadge-pending';
 }
 
@@ -111,6 +135,9 @@ function statusMessage(status) {
     completed:        'Your testing has been completed. TMDU will schedule when your PAR (Psychological Assessment Report) will be ready.',
     par_scheduled:    'Your PAR release appointment has been set.',
     report_sent:       'Your PAR has been released and sent to your referring counselor.',
+    test_administered:   'Your psychological tests have been taken. TMDU will schedule when your PAR (Psychological Assessment Report) will be released.',
+    awaiting_results:    'Your PAR release appointment has been set. See My Appointments for the date and time.',
+    test_results_issued: 'Your PAR has been released. You can keep a copy of it below.',
   }[status] || '';
 }
 
@@ -151,6 +178,18 @@ async function submitOrPhoto(recordId) {
     toast?.error(e.response?.data?.message || 'Failed to submit OR photo.');
   } finally {
     submitting.value = null;
+  }
+}
+
+async function downloadPar(r) {
+  downloading.value = r.id;
+  try {
+    const res = await studentTestingAPI.downloadPar(r.id);
+    saveBlob(res.data, r.par_filename || 'PAR');
+  } catch (e) {
+    toast?.error('Unable to download your PAR right now.');
+  } finally {
+    downloading.value = null;
   }
 }
 
