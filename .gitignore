@@ -8,3 +8,5 @@
 .env.backup
 ca.pem
 /public/build/
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

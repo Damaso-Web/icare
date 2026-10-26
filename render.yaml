@@ -18,16 +18,16 @@ services:
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
-        value: mysql-90dc979-anabua70-3857.a.aivencloud.com
+        sync: false
       - key: DB_PORT
-        value: 11220
+        sync: false
       - key: DB_DATABASE
-        value: defaultdb
+        sync: false
       - key: DB_USERNAME
-        value: avnadmin
+        sync: false
       # ---- Forgot password: link inside the email points here ----
       - key: FRONTEND_URL
-        value: https://bsuossicare.netlify.app
+        value: https://iwouldcare.netlify.app
       # ---- Outgoing email: Gmail SMTP (needs a Google App Password) ----
       # NOTE: Render's free web services block outbound ports 25/465/587, so
       # Gmail will time out there. On a paid instance it works as-is. On the
