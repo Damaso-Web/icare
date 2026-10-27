@@ -68,7 +68,7 @@
           <button class="ibtn ibtn-g ibtn-sm" @click="selected = null">✕</button>
         </div>
         <CaseReferralView :data="selected" />
-        <div style="padding:0 22px 22px;display:flex;gap:8px">
+        <div style="padding:0 22px 22px;display:flex;justify-content:flex-end;gap:8px">
           <button class="ibtn ibtn-p" @click="$router.push({ name: 'case-referral-show', params: { id: selected.id } })">View Case Referral</button>
           <button class="ibtn ibtn-o" @click="selected = null">Close</button>
         </div>
