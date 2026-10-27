@@ -50,6 +50,9 @@ class DocumentController extends Controller
             'path'                => $path,
             'mime_type'           => $file->getMimeType(),
             'file_size'           => $file->getSize(),
+            // Keep a copy in the database so the file survives backend redeploys
+            // (Render's free disk is wiped on every deploy).
+            'content'             => base64_encode(file_get_contents($file->getRealPath())),
             'document_type'       => $request->document_type,
             'description'         => $request->description,
             'is_confidential'     => $request->is_confidential ?? false,
@@ -77,14 +80,23 @@ class DocumentController extends Controller
     public function download(Request $request, Document $document)
     {
         $this->authorizeAccess($request, $document);
-        if (!Storage::disk($document->disk)->exists($document->path)) {
-            return response()->json(['message' => 'File not found.'], 404);
-        }
-
         AuditLog::record('downloaded', "Downloaded document {$document->original_filename}.", $document);
-        return Storage::disk($document->disk)->download($document->path, $document->original_filename, [
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
+
+        // Prefer the copy stored in the database (survives redeploys); fall back
+        // to the disk for any older file still present there.
+        if (!empty($document->content)) {
+            $name = str_replace(['"', "\r", "\n"], '', $document->original_filename ?: 'file');
+            return response(base64_decode($document->content))
+                ->header('Content-Type', $document->mime_type ?: 'application/octet-stream')
+                ->header('Content-Disposition', 'attachment; filename="' . $name . '"')
+                ->header('X-Content-Type-Options', 'nosniff');
+        }
+        if (Storage::disk($document->disk)->exists($document->path)) {
+            return Storage::disk($document->disk)->download($document->path, $document->original_filename, [
+                'X-Content-Type-Options' => 'nosniff',
+            ]);
+        }
+        return response()->json(['message' => 'This file is no longer available. Please ask the sender to upload it again.'], 404);
     }
 
     public function destroy(Request $request, Document $document)

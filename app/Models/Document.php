@@ -24,7 +24,11 @@ class Document extends Model
         'document_type',
         'description',
         'is_confidential',
+        'content',
     ];
+
+    // The file bytes (base64) are large and never belong in list/JSON payloads.
+    protected $hidden = ['content'];
 
     protected $casts = [
         'is_confidential' => 'boolean',
