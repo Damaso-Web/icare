@@ -92,12 +92,15 @@ function formatDate(date) {
 
 // Students see a simplified Pending/Closed badge instead of the internal
 // workflow stage (submitted, acknowledged, scheduled, in_progress,
-// completed, closed) - only "closed" reads as Closed, everything else is
-// still in progress from the student's point of view. The Status filter
-// above keeps the real, granular stages so staff-reported stages are still
+// completed, closed). Bug (10/27/2026): only "closed" read as Closed, so a
+// referral GCU had already marked "completed" - resolved, same as "closed"
+// everywhere else in the system (see Referral::isResolved() on the backend)
+// - still showed "Pending" here. Both now read as Closed; everything
+// earlier in the workflow is still "Pending". The Status filter above
+// keeps the real, granular stages so staff-reported stages are still
 // filterable; only the badge text/color is simplified here.
 function simplifiedStatus(status) {
-  return status === 'closed' ? 'closed' : 'pending';
+  return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
 }
 
 function formatDateTime(date) {

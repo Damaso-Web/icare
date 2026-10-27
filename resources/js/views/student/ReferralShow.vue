@@ -56,6 +56,35 @@
           </router-link>
         </div>
       </div>
+
+      <!-- Your own copy of the Admission Slip, once GCU has issued one. -->
+      <div v-if="isClassAttendance && referral.admission_issued_at" class="icard" style="margin-bottom:20px">
+        <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
+        <div class="icard-body">
+          <AdmissionSlipPaper
+            readonly
+            :model-value="issuedAdmissionSlip"
+            :student="referral.student"
+            :personnel="referral.admission_issued_by?.name || ''"
+            :issued-at="referral.admission_issued_at"
+            :show-doc="false"
+          />
+        </div>
+      </div>
+
+      <!-- Your own copy of every Feedback Slip GCU has sent for this referral. -->
+      <div v-if="referral.feedback_slips?.length" class="icard" style="margin-bottom:20px">
+        <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
+        <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
+          <FeedbackSlipPaper
+            v-for="slip in referral.feedback_slips"
+            :key="slip.id"
+            :slip="slip"
+            :student="referral.student"
+            :show-doc="false"
+          />
+        </div>
+      </div>
     </template>
   </div>
 </template>
@@ -65,6 +94,8 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { usePageSubtitleStore } from '../../stores/pageSubtitle';
+import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
+import FeedbackSlipPaper from '../../components/FeedbackSlipPaper.vue';
 
 const route = useRoute();
 const pageSubtitle = usePageSubtitleStore();
@@ -74,6 +105,27 @@ const loading = ref(true);
 const referral = ref({});
 
 const pendingAppointmentId = computed(() => referral.value.pending_appointment?.id || null);
+const isClassAttendance = computed(() => referral.value.referral_type === 'class_attendance');
+
+// The slip as the paper form has it (see components/AdmissionSlipPaper.vue) -
+// same mapping ReferralDetails (staff side) uses to show an issued slip.
+const issuedAdmissionSlip = computed(() => {
+  const r = referral.value;
+  const d = r.admission_details || {};
+  return {
+    admission_date:     r.admission_date ? String(r.admission_date).slice(0, 10) : '',
+    admission_time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
+    admission_time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
+    remarks:            r.admission_remarks || '',
+    days_count:         d.days_count || '',
+    causes:             Array.isArray(d.causes) ? [...d.causes] : [],
+    cause_activity:     d.cause_activity || '',
+    cause_others:       d.cause_others || '',
+    actions:            Array.isArray(d.actions) ? [...d.actions] : [],
+    action_others:      d.action_others || '',
+  };
+});
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };

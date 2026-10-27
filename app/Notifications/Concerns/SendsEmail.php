@@ -39,6 +39,8 @@ trait SendsEmail
             'par_on_hold'               => 'Your PAR release is on hold',
             'par_released'              => 'Your PAR results are ready',
             'fill_out_forms'            => 'Please fill out your forms in iCARE',
+            'admission_slip_issued'     => 'Your admission slip is ready',
+            'feedback_slip_sent'        => 'Your feedback slip is ready',
             'appointment_requested'     => 'Appointment request',
             'appointment_confirmed'     => 'Your appointment is confirmed',
             'appointment_reminder'      => 'Appointment reminder',

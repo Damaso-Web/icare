@@ -499,7 +499,10 @@ public function referSelf(Request $request)
 public function showReferral(Request $request, $id)
 {
     $student = $request->user('student');
-    $referral = $student->referrals()->with('case')->findOrFail($id);
+    // admissionIssuedBy / feedbackSlips.sentBy - so the student's own copy
+    // of an issued Admission Slip or sent Feedback Slip can show who issued
+    // or sent it, same as the staff-side referral page.
+    $referral = $student->referrals()->with(['case', 'student', 'admissionIssuedBy', 'feedbackSlips.sentBy'])->findOrFail($id);
 
     $pendingAppointment = $student->appointments()
         ->where('request_status', 'awaiting_student')

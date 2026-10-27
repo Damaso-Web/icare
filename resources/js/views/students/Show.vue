@@ -294,8 +294,13 @@
 
               <!-- Family Information / Siblings Information / Educational
                    Attainment - collapsible, shown here inside the Student
-                   Information File only (not on Referral Details). -->
-              <template v-if="fromCases">
+                   Information File only (not on Referral Details), and
+                   GCU-only even then - this page is also opened by TMDU
+                   staff (from a psychological-testing referral), who should
+                   not see it just by landing here with ?ctx=cases. The API
+                   already strips these fields for TMDU too (defense in
+                   depth - see StudentController::show()). -->
+              <template v-if="fromCases && isGCU">
               <div style="height:1px;background:var(--cloud);margin:4px 0"></div>
               <div v-for="group in profileDetailGroups" :key="group.key">
                 <div

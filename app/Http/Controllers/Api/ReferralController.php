@@ -960,6 +960,9 @@ class ReferralController extends Controller
 
         AuditLog::record('feedback_sent', "Sent feedback slip for referral {$referral->referral_code} to referrer.", $referral);
 
+        // Lets the student know their copy is ready in the student portal.
+        $referral->student?->notify(new \App\Notifications\FeedbackSlipSentNotification($referral));
+
         return response()->json($slip->load('sentBy'));
     }
 
@@ -1033,6 +1036,9 @@ class ReferralController extends Controller
         ]);
 
         AuditLog::record('admission_slip_issued', "Issued admission slip for referral {$referral->referral_code}.", $referral);
+
+        // Lets the student know their copy is ready in the student portal.
+        $referral->student?->notify(new \App\Notifications\AdmissionSlipIssuedNotification($referral));
 
         return response()->json($referral->load('admissionIssuedBy'));
     }

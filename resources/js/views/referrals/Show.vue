@@ -329,11 +329,12 @@
                 >{{ feedbackRequested ? 'Requested' : (requestingFeedback ? 'Sending...' : 'Request Feedback Slip') }}</button>
               </template>
               <div v-for="slip in referral.feedback_slips || []" :key="slip.id" style="padding-top:6px">
-                <div v-if="slip.feedback_checklist?.length" style="margin-bottom:6px">
-                  <span v-for="key in slip.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin:0 4px 4px 0">{{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}</span>
-                </div>
-                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);white-space:pre-line">{{ slip.feedback_notes }}</div>
-                <div style="font-size:11px;color:var(--fog);margin-top:6px">Sent {{ formatDate(slip.sent_at) }} by {{ slip.sent_by?.name || 'GCU' }}</div>
+                <FeedbackSlipPaper
+                  :slip="slip"
+                  :student="referral.student"
+                  :doc="{ revision_no: feedbackDoc.revision_no, effectivity: feedbackDoc.effectivity_date ? formatDocDate(feedbackDoc.effectivity_date) : '', ctrl_no: feedbackDoc.ctrl_no }"
+                  :show-doc="false"
+                />
               </div>
             </div>
           </div>
@@ -616,15 +617,12 @@
                  the next one. -->
             <div v-if="referral.feedback_slips?.length">
               <div v-for="slip in referral.feedback_slips" :key="slip.id" style="padding:14px 18px;border-top:1px solid var(--cloud)">
-                <div v-if="slip.feedback_checklist?.length" style="font-size:12px;color:var(--stone);margin-bottom:8px">
-                  <span v-for="key in slip.feedback_checklist" :key="key" class="ibadge" style="background:var(--mist);color:var(--moss);margin-right:4px;margin-bottom:4px">
-                    {{ FEEDBACK_CHECKLIST_ITEMS.find(i => i.key === key)?.label }}
-                  </span>
-                </div>
-                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ slip.feedback_notes }}</div>
-                <div style="font-size:11px;color:var(--fog);margin-top:8px">
-                  Sent {{ formatDate(slip.sent_at) }} &middot; Recorded By: {{ slip.sent_by?.name || '-' }} &middot; Sent To: {{ slip.sent_to_name || '-' }}<span v-if="slip.sent_to_role">, {{ slip.sent_to_role }}</span>
-                </div>
+                <FeedbackSlipPaper
+                  :slip="slip"
+                  :student="referral.student"
+                  :doc="{ revision_no: feedbackDoc.revision_no, effectivity: feedbackDoc.effectivity_date ? formatDocDate(feedbackDoc.effectivity_date) : '', ctrl_no: feedbackDoc.ctrl_no }"
+                  :show-doc="false"
+                />
               </div>
             </div>
           </div>
@@ -1951,6 +1949,7 @@ import axios from 'axios';
 import api, { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
+import FeedbackSlipPaper from '../../components/FeedbackSlipPaper.vue';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 import { useDiscardGuard } from '../../utils/discardGuard';
 import { useAuthStore } from '../../stores/auth';

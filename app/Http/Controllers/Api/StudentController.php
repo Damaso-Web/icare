@@ -175,10 +175,36 @@ class StudentController extends Controller
         }
     }
 
+    // Family Information, Siblings Information and Educational Attainment -
+    // the Student Information File content beyond basic identity/contact -
+    // are GCU-only. TMDU can open this endpoint for a student referred to
+    // them (authorizeTmduScope() below), but that's access to the shared
+    // testing referral, not to the rest of the SIF.
+    private const SIF_ONLY_FIELDS = [
+        'father_first_name', 'father_middle_name', 'father_last_name', 'father_suffix',
+        'father_age', 'father_occupation', 'father_contact_number', 'father_educational_attainment',
+        'mother_first_name', 'mother_middle_name', 'mother_last_name', 'mother_suffix',
+        'mother_age', 'mother_occupation', 'mother_contact_number', 'mother_educational_attainment',
+        'guardian_age', 'guardian_occupation', 'guardian_educational_attainment',
+        'siblings',
+        'elementary_school', 'elementary_year_graduated', 'elementary_achievements',
+        'high_school', 'high_school_year_graduated', 'high_school_achievements',
+        'senior_high_school', 'senior_high_year_graduated', 'senior_high_achievements',
+        'college_school', 'college_year_graduated',
+        'civil_status', 'nationality', 'birthplace', 'languages',
+        'medical_notes',
+    ];
+
     public function show(Student $student)
     {
         $this->authorizeTmduScope($student);
-        return response()->json($student);
+
+        $data = $student->toArray();
+        if (request()->user()?->isTMDUStaff()) {
+            $data = \Illuminate\Support\Arr::except($data, self::SIF_ONLY_FIELDS);
+        }
+
+        return response()->json($data);
     }
 
     public function update(Request $request, Student $student)
