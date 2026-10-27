@@ -245,12 +245,15 @@ class ComplaintController extends Controller
 
         foreach (['evidence', 'affidavit'] as $category) {
             foreach ($request->file($category, []) as $file) {
-                $path = $file->store('complaints/' . $complaint->id, 'public');
+                // Keep the file in the database (base64) so it survives backend
+                // redeploys; Render's free disk is wiped each deploy.
                 ComplaintAttachment::create([
                     'complaint_id'       => $complaint->id,
                     'category'           => $category,
-                    'file_path'          => $path,
+                    'file_path'          => '',
                     'original_filename'  => $file->getClientOriginalName(),
+                    'mime_type'          => $file->getMimeType(),
+                    'content'            => base64_encode(file_get_contents($file->getRealPath())),
                 ]);
             }
         }
@@ -340,16 +343,15 @@ class ComplaintController extends Controller
             app(ReferralController::class)->authorizeView($referral, $user);
         }
 
-        $disk = \Illuminate\Support\Facades\Storage::disk('public');
-        if (!$disk->exists($attachment->file_path)) {
-            return response()->json([
-                'message' => 'This file is no longer available on the server. Ask the sender to upload it again.',
-            ], 404);
-        }
+        // The file is stored in the database (base64) so it survives redeploys.
+        abort_if(empty($attachment->content), 404, 'This file is no longer available. Ask the sender to upload it again.');
 
-        return $disk->response($attachment->file_path, $attachment->original_filename, [
-            'X-Content-Type-Options' => 'nosniff',
-        ]);
+        $filename = str_replace(['"', "\r", "\n"], '', $attachment->original_filename ?: 'attachment');
+
+        return response(base64_decode($attachment->content))
+            ->header('Content-Type', $attachment->mime_type ?: 'application/octet-stream')
+            ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
+            ->header('X-Content-Type-Options', 'nosniff');
     }
 
     public function updateStatus(Request $request, Complaint $complaint)

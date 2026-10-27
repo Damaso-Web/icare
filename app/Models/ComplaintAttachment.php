@@ -14,17 +14,22 @@ class ComplaintAttachment extends Model
         'category',
         'file_path',
         'original_filename',
+        'mime_type',
+        'content',
     ];
+
+    // The file bytes (base64) are large and never needed in list payloads.
+    protected $hidden = ['content'];
 
     public function complaint()
     {
         return $this->belongsTo(Complaint::class);
     }
 
-    // Convenience accessor so the frontend gets a ready-to-use download URL
-    // without needing to know the storage disk layout.
+    // The file is served through the authenticated attachment route; the bytes
+    // live in the database (the frontend fetches it with the viewer's token).
     public function getUrlAttribute(): string
     {
-        return asset('storage/' . $this->file_path);
+        return url('api/complaints/' . $this->complaint_id . '/attachments/' . $this->id);
     }
 }
