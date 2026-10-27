@@ -13,9 +13,12 @@ use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 // B633: the Dean dashboard had no "My Submitted Complaints" section at all.
-// B634: the Dean dashboard's referral cards counted college-wide, but the
-// Sent Referrals list behind them only ever showed what the Dean personally
-// submitted - clicking a card landed on an empty list.
+// B634 (superseded 10/27/2026): the Dean dashboard's referral cards counted
+// college-wide while Sent Referrals showed personal-only, so a card's count
+// didn't match its own list. Decision (10/27/2026): Sent Referrals - and the
+// cards that link to it - now both show only what the Dean personally
+// submitted, same as Faculty/Dept Chair/SDU Head. The college-wide view is
+// the Referral Queue, a separate page.
 class DeanDashboardComplaintsAndReferralsTest extends TestCase
 {
     use RefreshDatabase;
@@ -71,7 +74,8 @@ class DeanDashboardComplaintsAndReferralsTest extends TestCase
         $student = $this->student('2700002');
 
         // One referral from the Dean, one from a different faculty member in
-        // the same college - the Dean's dashboard counts both (college-wide).
+        // the same college - the Dean's dashboard card and Sent Referrals
+        // both count only the Dean's own (1), not the faculty member's.
         $this->submitReferral($dean, $student, 'Needs guidance.');
         $this->submitReferral($faculty, $student, 'Needs guidance too.');
 
@@ -80,8 +84,8 @@ class DeanDashboardComplaintsAndReferralsTest extends TestCase
         $cardCount = $dashboard->json('stats.my_referrals');
 
         $sent = $this->getJson('/api/my/referrals')->assertOk();
-        $this->assertSame(2, $cardCount);
-        $sent->assertJsonCount(2, 'data');
+        $this->assertSame(1, $cardCount);
+        $sent->assertJsonCount(1, 'data');
     }
 
     public function test_other_roles_sent_referrals_still_personal_only(): void

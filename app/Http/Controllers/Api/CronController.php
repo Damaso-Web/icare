@@ -77,4 +77,22 @@ class CronController extends Controller
         'output'  => Artisan::output(),
     ]);
 }
+
+    // Retries emails LoggedMailChannel couldn't send. emails:retry-failed was
+    // already scheduled in Kernel.php, but Render's free tier has no process
+    // to run `schedule:run`, so - like the jobs above - it needs its own
+    // outside-timer-triggered endpoint or failed emails are never retried.
+    public function retryFailedEmails(Request $request)
+    {
+        if (!$this->secretOk($request)) {
+            abort(403, 'Unauthorized.');
+        }
+
+        Artisan::call('emails:retry-failed');
+
+        return response()->json([
+            'message' => 'Failed-email retry executed.',
+            'output'  => Artisan::output(),
+        ]);
+    }
 }

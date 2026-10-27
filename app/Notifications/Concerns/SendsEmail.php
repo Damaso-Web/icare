@@ -27,6 +27,7 @@ trait SendsEmail
         $data = $this->toArray($notifiable);
         return match ($data['type'] ?? '') {
             'new_referral'              => 'New referral received',
+            'new_complaint'             => 'New complaint filed',
             'referral_acknowledged'     => 'Your referral was received',
             'referral_assigned'         => 'A referral was assigned to you',
             'referral_status_updated'   => 'Referral status update',

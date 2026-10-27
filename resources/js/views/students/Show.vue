@@ -368,10 +368,17 @@
                       <div>
                         <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary</div>
                         <div style="font-size:13px;color:var(--ink)">{{ student.elementary_school || '-' }} <span v-if="student.elementary_year_graduated" style="color:var(--stone)">({{ student.elementary_year_graduated }})</span></div>
+                        <div v-if="student.elementary_achievements" style="font-size:12px;color:var(--slate);margin-top:3px">Awards/Achievements: {{ student.elementary_achievements }}</div>
                       </div>
                       <div>
-                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Junior High School</div>
                         <div style="font-size:13px;color:var(--ink)">{{ student.high_school || '-' }} <span v-if="student.high_school_year_graduated" style="color:var(--stone)">({{ student.high_school_year_graduated }})</span></div>
+                        <div v-if="student.high_school_achievements" style="font-size:12px;color:var(--slate);margin-top:3px">Awards/Achievements: {{ student.high_school_achievements }}</div>
+                      </div>
+                      <div>
+                        <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Senior High School</div>
+                        <div style="font-size:13px;color:var(--ink)">{{ student.senior_high_school || '-' }} <span v-if="student.senior_high_year_graduated" style="color:var(--stone)">({{ student.senior_high_year_graduated }})</span></div>
+                        <div v-if="student.senior_high_achievements" style="font-size:12px;color:var(--slate);margin-top:3px">Awards/Achievements: {{ student.senior_high_achievements }}</div>
                       </div>
                       <div>
                         <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
@@ -876,7 +883,12 @@ function fullName(last, first, middle) {
 const profileDetailGroups = computed(() => {
   const s = student.value || {};
   const familyCount = [s.father_last_name, s.mother_last_name].filter(Boolean).length;
-  const educationCount = [s.elementary_school, s.high_school, s.college_school].filter(Boolean).length;
+  const educationCount = [
+    s.elementary_school, s.elementary_achievements,
+    s.high_school, s.high_school_achievements,
+    s.senior_high_school, s.senior_high_achievements,
+    s.college_school,
+  ].filter(Boolean).length;
   return [
     { key: 'family', label: 'Family Information', count: familyCount },
     { key: 'siblings', label: 'Siblings Information', count: profileSiblings.value.length },

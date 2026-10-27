@@ -82,6 +82,17 @@ class SessionNoteController extends Controller
             'follow_up_needed'   => 'boolean',
         ]);
 
+        // Interventions only make sense if the student was actually there -
+        // enforced here too, in case something other than this form reaches
+        // this endpoint (the "Add Session Notes" modal already guards this
+        // client-side).
+        if (($validated['student_showed_up'] ?? true) && empty($validated['interventions'])) {
+            return response()->json(['message' => 'Interventions applied is required when the student attended.'], 422);
+        }
+        if (!($validated['student_showed_up'] ?? true)) {
+            $validated['interventions'] = null;
+        }
+
         $sessionNumber = $referral->sessionNotes()->count() + 1;
 
         $duration = null;

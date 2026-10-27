@@ -238,18 +238,15 @@ class DashboardController extends Controller
         ];
     }
 
-    // B567: same mismatch as B554/B564 - the Referral Queue
-    // (ReferralController::index()) that the Dean's cards link to excludes
-    // archived referrals, Complaint-originated ones, and anything already
-    // escalated to TMDU by default - this query had none of those
-    // exclusions, so e.g. "Total" could count referrals the list itself
-    // never shows (Total showed 21 while the list behind it had 13).
+    // Decision (10/27/2026): these cards link to Sent Referrals, which shows
+    // only what the Dean personally submitted (same as Faculty/Dept
+    // Chair/SDU Head - see ReferralController::mine()), not the whole
+    // college - so this counts exactly the same set mine() does (every
+    // referral they sent, including archived or TMDU-escalated ones, minus
+    // Complaint-originated referrals, which Sent Referrals doesn't list).
     private function deanSecretaryVisibleReferrals($user)
     {
-        return Referral::visibleToDean($user)
-            ->where('is_archived', false)
-            ->whereNull('complaint_id')
-            ->notTmduOwned();
+        return Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
     }
 
     private function deanSecretaryDashboard($user): array

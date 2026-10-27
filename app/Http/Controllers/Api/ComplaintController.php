@@ -11,7 +11,7 @@ use App\Models\Referral;
 use App\Models\Student;
 use App\Models\User;
 use App\Notifications\FillOutFormsNotification;
-use App\Notifications\NewReferralNotification;
+use App\Notifications\NewComplaintNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -302,7 +302,7 @@ class ComplaintController extends Controller
         $recipients = User::whereIn('role', ['sdu_head'])->where('is_active', true)->get();
         $collegeRep = User::whereIn('role', ['dean', 'dean_secretary'])->where('college', $student->college)->where('is_active', true)->get();
         $recipients = $recipients->merge($collegeRep)->unique('id');
-        Notification::send($recipients, new NewReferralNotification($referral));
+        Notification::send($recipients, new NewComplaintNotification($complaint));
 
         // The complaint opened this student's Student Information File.
         if ($newCase) {
@@ -324,18 +324,21 @@ class ComplaintController extends Controller
     // Opens one evidence / affidavit file. The old link pointed at
     // /storage/..., which only works when the storage symlink exists (it never
     // did on the deployed server, so every preview failed) and left the file
-    // open to anyone with the URL. This streams it only to the SDU Head or the
-    // staff member who filed the complaint.
+    // open to anyone with the URL. This streams it to the SDU Head, the staff
+    // member who filed the complaint, or whoever is allowed to view the
+    // referral this complaint was filed together with (e.g. the GCU
+    // counselor or Dean it was sent to) - referrals/Show.vue renders the
+    // same attachments inside the referral's Incident Report card.
     public function attachment(Request $request, Complaint $complaint, ComplaintAttachment $attachment)
     {
         abort_unless((int) $attachment->complaint_id === (int) $complaint->id, 404);
 
         $user = $request->user();
-        abort_unless(
-            $user->isSDUHead() || $user->isAdmin() || (int) $complaint->filed_by_user_id === (int) $user->id,
-            403,
-            'Unauthorized.'
-        );
+        if (!$user->isSDUHead() && !$user->isAdmin() && (int) $complaint->filed_by_user_id !== (int) $user->id) {
+            $referral = $complaint->referral;
+            abort_unless($referral, 403, 'Unauthorized.');
+            app(ReferralController::class)->authorizeView($referral, $user);
+        }
 
         $disk = \Illuminate\Support\Facades\Storage::disk('public');
         if (!$disk->exists($attachment->file_path)) {

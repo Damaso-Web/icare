@@ -50,6 +50,7 @@ Route::post('cron/follow-up-reminders', [CronController::class, 'followUpReminde
 Route::post('cron/appointment-reminders', [CronController::class, 'appointmentReminders'])->middleware('throttle:public-form');
 Route::post('cron/detect-no-shows',     [CronController::class, 'detectNoShows'])->middleware('throttle:public-form');
 Route::post('cron/backup',              [CronController::class, 'backup'])->middleware('throttle:public-form');
+Route::post('cron/retry-failed-emails', [CronController::class, 'retryFailedEmails'])->middleware('throttle:public-form');
 
 // Authenticated routes
 Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(function () {

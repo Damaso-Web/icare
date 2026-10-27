@@ -1,40 +1,6 @@
 <!--
   FILE: resources/js/views/referrals/Show.vue
   PAGE: iCARE / Referral Details
-  (Not to be confused with resources/js/views/students/Show.vue,
-   which is the Student Profile page - different file, same filename.)
-
-  Changed in this update, all gated on a new "fromCases" flag (true when
-  this page was opened from Case Files, via ?ctx=cases):
-    1. Header now shows the Case Number when fromCases, the Referral Code
-       otherwise (see the "headerTitle" computed).
-    2. Update Status button removed entirely (see "Resolve Referral" below).
-    3. Edit / Archive buttons on the Referral Info panel hidden.
-    4. Service Slips panel removed entirely.
-    5. Summary strip's first cell now swaps label+value: "Referral Number"
-       / REF-code when fromCases, "Case Number" / CASE-number otherwise.
-    6. Added "On Observation" to the Update Case Status dropdown.
-    7. Session Notes entries now show the session date in the header
-       instead of the session type (e.g. "Session #1 - Sep 24, 2026").
-
-  Resolve Referral (SIF only, renamed from "Complete Referral"):
-    Clicking it now locks the whole SIF to view-only (isResolved) - there is
-    no "reopen" path anymore, since Update Status has been removed. Its
-    confirmation modal (resolveWarnings) flags whichever of Feedback Slip /
-    Session Notes / Follow-ups is still empty at the moment of resolving.
-
-  Follow-up Session (SIF only):
-    "Flag Follow-up" (the case-level purple flag) has been removed entirely.
-    Each scheduled follow-up in the Follow-up Session card is now clickable,
-    opening a detail modal where GCU staff can view, add, and edit that
-    follow-up's notes (saveFollowUpNotes -> appointmentAPI.update), the
-    same way Previous Interventions/Session Notes work as click-to-view
-    entries. "Schedule Follow-up" still opens its own in-page modal (not
-    a link elsewhere) - it books through appointmentAPI.store with
-    appointment_type: 'follow_up_session', so it lands in the student's
-    appointments correctly labeled "Follow Up Session", and the modal now
-    shows the Referral code (referral.referral_code) in its header so
-    staff can see which referral the follow-up is tied to while booking.
 -->
 <template>
   <div class="fade-up">
@@ -225,9 +191,8 @@
                   <a
                     v-for="att in referral.complaint.attachments"
                     :key="att.id"
-                    :href="attachmentUrl(att)"
-                    target="_blank"
-                    rel="noopener"
+                    href="#"
+                    @click.prevent="openAttachment(att)"
                     style="font-size:12.5px;color:var(--blue);text-decoration:underline;display:flex;align-items:center;gap:6px"
                   >
                     <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -1028,13 +993,33 @@
                           <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
                           <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_year_graduated || '-' }}</div>
                         </div>
+                        <div style="grid-column:1 / -1">
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Elementary Awards / Achievements</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.elementary_achievements || '-' }}</div>
+                        </div>
                         <div>
-                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">High School</div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Junior High School</div>
                           <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school || '-' }}</div>
                         </div>
                         <div>
                           <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
                           <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school_year_graduated || '-' }}</div>
+                        </div>
+                        <div style="grid-column:1 / -1">
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Junior High Awards / Achievements</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.high_school_achievements || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Senior High School</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.senior_high_school || '-' }}</div>
+                        </div>
+                        <div>
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Year Graduated</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.senior_high_year_graduated || '-' }}</div>
+                        </div>
+                        <div style="grid-column:1 / -1">
+                          <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Senior High Awards / Achievements</div>
+                          <div style="font-size:13px;color:var(--ink)">{{ referral.student?.senior_high_achievements || '-' }}</div>
                         </div>
                         <div>
                           <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
@@ -1253,20 +1238,28 @@
             <div>
               <label class="ifl">Student Showed Up</label>
               <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                <input v-model="sessionForm.student_showed_up" type="checkbox" id="ref-showed" style="width:15px;height:15px;accent-color:var(--moss)" />
+                <input v-model="sessionForm.student_showed_up" type="checkbox" id="ref-showed" style="width:15px;height:15px;accent-color:var(--moss)" @change="!sessionForm.student_showed_up && (sessionForm.interventions = '')" />
                 <label for="ref-showed" style="font-size:13px;color:var(--slate);cursor:pointer">Yes, student attended</label>
               </div>
             </div>
             <div>
-              <label class="ifl">Interventions Applied</label>
-              <textarea v-model="sessionForm.interventions" class="ifta" style="min-height:60px" maxlength="1000" placeholder="What interventions were applied?" @input="sessionForm.interventions = plainText(sessionForm.interventions)"></textarea>
+              <label class="ifl">Interventions Applied<span v-if="sessionForm.student_showed_up" style="color:var(--red)"> *</span></label>
+              <textarea
+                v-model="sessionForm.interventions"
+                class="ifta"
+                style="min-height:60px"
+                maxlength="1000"
+                :disabled="!sessionForm.student_showed_up"
+                :placeholder="sessionForm.student_showed_up ? 'What interventions were applied?' : 'Not applicable - the student did not attend.'"
+                @input="sessionForm.interventions = plainText(sessionForm.interventions)"
+              ></textarea>
             </div>
             <div>
               <label class="ifl">Remarks</label>
               <textarea v-model="sessionForm.next_steps" class="ifta" style="min-height:60px" maxlength="1000" placeholder="Remarks..." @input="sessionForm.next_steps = plainText(sessionForm.next_steps)"></textarea>
             </div>
             <div style="display:flex;gap:8px;padding-top:8px">
-              <button class="ibtn ibtn-p" @click="logSession">
+              <button class="ibtn ibtn-p" :disabled="sessionForm.student_showed_up && !sessionForm.interventions.trim()" @click="logSession">
                 <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
                 Save Notes
               </button>
@@ -1955,7 +1948,7 @@ import { ref, onMounted, inject, computed, watch } from 'vue';
 import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
+import api, { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
@@ -2080,8 +2073,26 @@ const previousInterventionsForReferral = computed(() =>
   interventionsForReferral.value.filter(i => i.type === 'previous_intervention')
 );
 
-function attachmentUrl(att) {
-  return `${API_BASE.replace(/\/api$/, '')}/storage/${att.file_path}`;
+// Opens through the API (with the login token) so it works without the
+// storage symlink and respects who may see the file. PDFs and images
+// preview in a new tab; other files download. Mirrors ComplaintDetail.vue's
+// openAttachment(), which the SDU Complaints page uses for the same files.
+async function openAttachment(att) {
+  const previewable = /\.(pdf|jpe?g|png)$/i.test(att.original_filename || '');
+  const w = previewable ? window.open('', '_blank') : null; // opened first so the popup isn't blocked
+  try {
+    const res = await api.get(`/complaints/${referral.value.complaint.id}/attachments/${att.id}`, { responseType: 'blob' });
+    if (previewable && w) {
+      w.location = URL.createObjectURL(res.data);
+    } else {
+      saveBlob(res.data, att.original_filename || 'attachment');
+    }
+  } catch (e) {
+    w?.close();
+    toast?.error(e?.response?.status === 404
+      ? 'This file is no longer available. Ask the sender to upload it again.'
+      : 'Unable to open this file.');
+  }
 }
 
 // Parent conference slips belong to the ONE referral they were issued from.
@@ -2423,7 +2434,12 @@ function fullName(last, first, middle) {
 const profileDetailGroups = computed(() => {
   const s = referral.value.student || {};
   const familyCount = [s.father_last_name, s.mother_last_name].filter(Boolean).length;
-  const educationCount = [s.elementary_school, s.high_school, s.college_school].filter(Boolean).length;
+  const educationCount = [
+    s.elementary_school, s.elementary_achievements,
+    s.high_school, s.high_school_achievements,
+    s.senior_high_school, s.senior_high_achievements,
+    s.college_school,
+  ].filter(Boolean).length;
   return [
     { key: 'family', label: 'Family Information', count: familyCount },
     { key: 'siblings', label: 'Siblings Information', count: profileSiblings.value.length },
@@ -2458,15 +2474,19 @@ function formatDocDate(date) {
 }
 
 async function logSession() {
-  if (!sessionForm.value.interventions) {
+  // Interventions only make sense if the student was actually there - a
+  // no-show session has nothing to apply them to.
+  if (sessionForm.value.student_showed_up && !sessionForm.value.interventions) {
     toast?.error('Please fill in the interventions applied.');
     return;
   }
   try {
     const now = new Date();
+    const interventions = sessionForm.value.student_showed_up ? sessionForm.value.interventions : '';
     const payload = {
       ...sessionForm.value,
-      observations: sessionForm.value.interventions,
+      interventions,
+      observations: interventions || 'Student did not attend.',
       session_date: now.toISOString().split('T')[0],
       session_start_time: now.toTimeString().slice(0, 5),
     };

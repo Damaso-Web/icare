@@ -114,13 +114,14 @@
       <div class="ts" v-else>
         <table class="itable">
           <thead>
-            <tr><th>No.</th><th>Name</th><th>College</th><th>Status</th><th></th></tr>
+            <tr><th>No.</th><th>Name</th><th>College</th><th>Department</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="(p, i) in visibleRows(programs, 'name')" :key="p.id">
               <td style="font-family:var(--mono);font-size:12px">{{ i + 1 }}</td>
               <td>{{ p.name }}</td>
               <td>{{ p.college?.name || '-' }}</td>
+              <td>{{ p.department?.name || '-' }}</td>
               <td><span class="ibadge" :style="statusStyle(p.status)">{{ statusLabel(p.status) }}</span></td>
               <td>
                 <div style="display:flex;gap:6px;justify-content:flex-end">
@@ -650,7 +651,7 @@
           <div v-if="programError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ programError }}</div>
           <div>
             <label class="ifl">College <span style="color:var(--red)">*</span></label>
-            <select v-model="programForm.college_id" class="ifse">
+            <select v-model="programForm.college_id" class="ifse" @change="programForm.department_id = ''">
               <option value="" disabled hidden>Select college...</option>
               <option v-for="c in colleges" :key="c.id" :value="c.id">{{ c.name }}</option>
             </select>
@@ -660,6 +661,14 @@
             <input v-model="programForm.name" class="ifi" maxlength="150" placeholder="e.g. Bachelor of Science in Information Technology" @input="programForm.name = capFirst(String(programForm.name ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, ''))" />
             <div v-if="programTouched && !programForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="programTouched && !programForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
+          </div>
+          <div>
+            <label class="ifl">Department</label>
+            <select v-model="programForm.department_id" class="ifse" :disabled="!programForm.college_id">
+              <option value="">None</option>
+              <option v-for="d in programModalDepartments" :key="d.id" :value="d.id">{{ d.name }}</option>
+            </select>
+            <div style="font-size:11px;color:var(--fog);margin-top:4px">Used to match this program to its Department Chair and Faculty.</div>
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; askSave(programForm.id, saveProgram)">
@@ -944,10 +953,16 @@ const programs = ref([]);
 const loadingPrograms = ref(false);
 const programCollegeFilter = ref('');
 const showProgramModal = ref(false);
-const programForm = ref({ id: null, college_id: '', name: '' });
+const programForm = ref({ id: null, college_id: '', department_id: '', name: '' });
 const programError = ref('');
 const savingProgram = ref(false);
 const programTouched = ref(false);
+
+// Only the chosen college's departments - department_id is cleared when the
+// college changes so a stale cross-college pick can never be submitted.
+const programModalDepartments = computed(() =>
+  departments.value.filter(d => d.college_id === programForm.value.college_id)
+);
 
 async function fetchPrograms() {
   loadingPrograms.value = true;
@@ -963,7 +978,9 @@ async function fetchPrograms() {
 }
 
 function openProgramModal(p) {
-  programForm.value = p ? { id: p.id, college_id: p.college_id, name: p.name } : { id: null, college_id: '', name: '' };
+  programForm.value = p
+    ? { id: p.id, college_id: p.college_id, department_id: p.department_id || '', name: p.name }
+    : { id: null, college_id: '', department_id: '', name: '' };
   programError.value = '';
   programTouched.value = false;
   snapshot('program');

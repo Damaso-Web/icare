@@ -17,7 +17,7 @@ class ManagementProgramController extends Controller
 
     public function index(Request $request)
     {
-        $query = Program::with('college')->orderBy('id');
+        $query = Program::with(['college', 'department'])->orderBy('id');
         // ?active=1: only what can be picked for a new record (the item and its college are both active).
         if ($request->boolean('active')) {
             $query->where('status', 'active')->whereHas('college', fn($c) => $c->where('status', 'active'));
@@ -31,16 +31,19 @@ class ManagementProgramController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'college_id' => ['required', \Illuminate\Validation\Rule::exists('colleges', 'id')->where('status', 'active')],
-            'name'       => ['required', 'string', 'max:255', 'regex:' . self::LABEL_REGEX],
+            'college_id'    => ['required', \Illuminate\Validation\Rule::exists('colleges', 'id')->where('status', 'active')],
+            'name'          => ['required', 'string', 'max:255', 'regex:' . self::LABEL_REGEX],
+            'department_id' => ['nullable', \Illuminate\Validation\Rule::exists('departments', 'id')->where('college_id', $request->college_id)],
+        ], [
+            'department_id.exists' => 'That department does not belong to the selected college.',
         ]);
         $exists = Program::where('college_id', $validated['college_id'])->where('name', $validated['name'])->exists();
         if ($exists) {
             return response()->json(['message' => 'This program already exists for that college.'], 422);
         }
         $validated['name'] = ManagementGuard::capFirst($validated['name']);
-        $program = Program::create($validated)->load('college');
-        ManagementGuard::audit('program', 'created', $program->name, $program, [], ['name' => $program->name, 'college' => $program->college?->name]);
+        $program = Program::create($validated)->load(['college', 'department']);
+        ManagementGuard::audit('program', 'created', $program->name, $program, [], ['name' => $program->name, 'college' => $program->college?->name, 'department' => $program->department?->name]);
         return response()->json($program, 201);
     }
 
@@ -51,14 +54,17 @@ class ManagementProgramController extends Controller
         if ($request->input('name') !== $program->name) $nameRules[] = 'regex:' . self::LABEL_REGEX;
 
         $validated = $request->validate([
-            'college_id' => 'required|exists:colleges,id',
-            'name'       => $nameRules,
+            'college_id'    => 'required|exists:colleges,id',
+            'name'          => $nameRules,
+            'department_id' => ['nullable', \Illuminate\Validation\Rule::exists('departments', 'id')->where('college_id', $request->college_id)],
+        ], [
+            'department_id.exists' => 'That department does not belong to the selected college.',
         ]);
         $validated['name'] = ManagementGuard::capFirst($validated['name']);
-        $old = ['name' => $program->name, 'college' => $program->college?->name];
+        $old = ['name' => $program->name, 'college' => $program->college?->name, 'department' => $program->department?->name];
         $program->update($validated);
-        $program->load('college');
-        ManagementGuard::audit('program', 'updated', $program->name, $program, $old, ['name' => $program->name, 'college' => $program->college?->name]);
+        $program->load(['college', 'department']);
+        ManagementGuard::audit('program', 'updated', $program->name, $program, $old, ['name' => $program->name, 'college' => $program->college?->name, 'department' => $program->department?->name]);
         return response()->json($program);
     }
 

@@ -2,36 +2,58 @@
 
 namespace App\Support;
 
+use App\Models\Program;
+
 // A Department Chair's / Faculty member's "department" comes from the
 // Management > Departments list (e.g. "Information Technology"), while a
 // student's "program" comes from the Programs list (e.g. "Bachelor of Science
-// in Information Technology"). The two lists are not linked, so an exact
-// comparison never matched real data and the student lookup came back empty.
-// A program belongs to a department when its name equals, or contains, the
-// department's name.
+// in Information Technology"). Management > Programs can now link a program
+// to its department directly (10/27/2026) - when it has been, that link is
+// authoritative. Programs added before the link existed, or never linked,
+// fall back to the old rule: a program belongs to a department when its name
+// equals, or contains, the department's name.
 class DepartmentScope
 {
     public static function matches(?string $program, ?string $department): bool
     {
-        $program    = mb_strtolower(trim((string) $program));
-        $department = mb_strtolower(trim((string) $department));
+        $programName    = trim((string) $program);
+        $departmentName = trim((string) $department);
 
-        if ($program === '' || $department === '') {
+        if ($programName === '' || $departmentName === '') {
             return false;
         }
 
-        return $program === $department || str_contains($program, $department);
+        $linked = Program::where('name', $programName)->with('department')->first();
+        if ($linked?->department) {
+            return mb_strtolower($linked->department->name) === mb_strtolower($departmentName);
+        }
+
+        $programName    = mb_strtolower($programName);
+        $departmentName = mb_strtolower($departmentName);
+
+        return $programName === $departmentName || str_contains($programName, $departmentName);
     }
 
     // Same rule as matches(), as a query condition on students.program.
     public static function whereProgramMatches($query, ?string $department)
     {
-        $department = mb_strtolower(trim(str_replace(['%', '_'], '', (string) $department)));
+        $departmentName = trim((string) $department);
 
-        if ($department === '') {
+        if ($departmentName === '') {
             return $query->whereRaw('1 = 0');
         }
 
-        return $query->whereRaw('LOWER(program) LIKE ?', ['%' . $department . '%']);
+        $linkedProgramNames = Program::whereHas('department', fn ($d) =>
+            $d->whereRaw('LOWER(name) = ?', [mb_strtolower($departmentName)])
+        )->pluck('name')->all();
+
+        $likeTerm = mb_strtolower(str_replace(['%', '_'], '', $departmentName));
+
+        return $query->where(function ($q) use ($linkedProgramNames, $likeTerm) {
+            if ($linkedProgramNames) {
+                $q->whereIn('program', $linkedProgramNames);
+            }
+            $q->orWhereRaw('LOWER(program) LIKE ?', ['%' . $likeTerm . '%']);
+        });
     }
 }

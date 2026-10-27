@@ -154,22 +154,13 @@ class ReferralController extends Controller
     {
         $user = $request->user();
 
-        // Bug (10/24/2026, B634): a Dean's dashboard cards count referrals
-        // across their whole college (deanSecretaryVisibleReferrals in
-        // DashboardController), not just ones they personally submitted -
-        // but this endpoint, which those cards link to, only ever looked up
-        // referred_by_user_id = the Dean's own id, so the counts on the
-        // dashboard and the (empty) list behind them never matched. Scoped
-        // the same way the Referral Queue (index()/archived() above) already
-        // scopes a Dean: by the student's college, with the same
-        // is_archived/complaint/TMDU exclusions the dashboard's count uses,
-        // so the aggregate and the row count stay in sync.
-        $base = $user->isDeanSecretary()
-            ? Referral::visibleToDean($user)
-                ->where('is_archived', false)
-                ->whereNull('complaint_id')
-                ->notTmduOwned()
-            : Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
+        // Decision (10/27/2026): Sent Referrals shows what the signed-in
+        // account personally submitted, same as Faculty/Dept Chair/SDU Head
+        // below - a Dean's college-wide view is the Referral Queue
+        // (index()/archived() above), which still uses visibleToDean().
+        // DashboardController::deanSecretaryVisibleReferrals() matches this
+        // so the Dean dashboard cards that link here stay in sync with it.
+        $base = Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
 
         return self::sentList($base, $request);
     }
@@ -1057,7 +1048,9 @@ class ReferralController extends Controller
         ]);
     }
 
-    private function authorizeView(Referral $referral, $user): void
+    // Public so ComplaintController::attachment() can reuse the same rules
+    // for complaints that were filed together with a referral.
+    public function authorizeView(Referral $referral, $user): void
     {
         // Whoever sent a referral can always open it.
         if ($referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id) {

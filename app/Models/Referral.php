@@ -13,6 +13,7 @@ class Referral extends Model
     protected $fillable = [
         'referral_code',
         'student_id',
+        'year_level',
         'case_id',
         'complaint_id',
         'referred_by_user_id',
@@ -73,6 +74,14 @@ class Referral extends Model
     protected static function booted(): void
     {
         static::creating(function (Referral $referral) {
+            // Snapshot the student's year level as of this referral - every
+            // creation path (the staff form, complaints, self-referrals,
+            // outreach) goes through here, so filling it here once covers
+            // them all instead of each controller having to remember to.
+            if (!$referral->year_level && $referral->student_id) {
+                $referral->year_level = Student::where('id', $referral->student_id)->value('year_level');
+            }
+
             // The Referral Slip's (QF-OSS-01) own Ctrl No. - e.g. "26-1" - is
             // the basis for the referral code, the same way the Ctrl No. is
             // the basis for a case's case_number. Falls back to the old

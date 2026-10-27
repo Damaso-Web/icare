@@ -11,12 +11,14 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-// B567: the Dean dashboard's "Total" (and Awaiting / Received / Resolved)
-// counts must match what the Referral Queue itself lists for that Dean's
-// college - not a flat count of every referral from students in that
-// college - since ReferralController::index() already excludes archived
-// referrals, Complaint-originated ones, and anything already escalated to
-// TMDU.
+// B567 (superseded 10/27/2026): the Dean dashboard's "Total" (and Awaiting /
+// Received / Resolved) counts originally had to match the Referral Queue's
+// college-wide list. Decision (10/27/2026): the card links to Sent
+// Referrals, which now shows only what the Dean personally submitted (same
+// as Faculty/Dept Chair/SDU Head) - so the card counts exactly what that
+// list shows: every referral the Dean sent, archived or TMDU-escalated
+// included, minus Complaint-originated ones (which Sent Referrals excludes
+// for everyone).
 class DeanDashboardTest extends TestCase
 {
     use RefreshDatabase;
@@ -28,29 +30,28 @@ class DeanDashboardTest extends TestCase
         return $u;
     }
 
-    private function referralFor(string $college, array $attrs = []): Referral
+    private function referralFor(User $dean, string $college, array $attrs = []): Referral
     {
         $student = Student::factory()->create(['college' => $college]);
-        return Referral::factory()->create(array_merge(['student_id' => $student->id], $attrs));
+        return Referral::factory()->create(array_merge(
+            ['student_id' => $student->id, 'referred_by_user_id' => $dean->id],
+            $attrs
+        ));
     }
 
-    public function test_dashboard_total_matches_referral_queue_list(): void
+    public function test_dashboard_total_matches_sent_referrals_list(): void
     {
         $college = 'College of Information Sciences (CIS)';
         $dean = $this->dean($college);
 
-        // Visible: ordinary, unarchived, non-complaint, non-TMDU-escalated referrals for this college.
-        $this->referralFor($college);
-        $this->referralFor($college, ['status' => 'acknowledged']);
+        // Visible: ordinary referral this Dean sent.
+        $this->referralFor($dean, $college);
+        // Visible: archived referrals still show up in Sent Referrals.
+        $this->referralFor($dean, $college, ['status' => 'acknowledged', 'is_archived' => true]);
 
-        // Not visible: archived.
-        $this->referralFor($college, ['is_archived' => true]);
-
-        // Not visible: originated from a Complaint.
-        $this->referralFor($college, ['complaint_id' => 1]);
-
-        // Not visible: already escalated to TMDU (has a linked TestingRecord).
-        $escalated = $this->referralFor($college);
+        // Visible: already escalated to TMDU (has a linked TestingRecord) -
+        // Sent Referrals doesn't filter these out either.
+        $escalated = $this->referralFor($dean, $college);
         $student = Student::factory()->create(['college' => $college]);
         $case = CaseFile::factory()->create(['student_id' => $student->id]);
         TestingRecord::create([
@@ -61,13 +62,18 @@ class DeanDashboardTest extends TestCase
             'status' => 'pending',
         ]);
 
-        // Not visible: a different college entirely.
-        $this->referralFor('College of Engineering (CE)');
+        // Not visible: originated from a Complaint.
+        $this->referralFor($dean, $college, ['complaint_id' => 1]);
+
+        // Not visible: sent by someone else in the same college.
+        $other = User::factory()->create(['role' => 'faculty', 'college' => $college]);
+        $otherStudent = Student::factory()->create(['college' => $college]);
+        Referral::factory()->create(['student_id' => $otherStudent->id, 'referred_by_user_id' => $other->id]);
 
         $dash = $this->getJson('/api/dashboard')->assertOk()->json();
-        $this->assertSame(2, $dash['stats']['my_referrals']);
+        $this->assertSame(3, $dash['stats']['my_referrals']);
 
-        $list = $this->getJson('/api/referrals')->assertOk()->json();
-        $this->assertSame(2, $list['total']);
+        $sent = $this->getJson('/api/my/referrals')->assertOk()->json();
+        $this->assertSame(3, $sent['total']);
     }
 }
