@@ -110,7 +110,11 @@
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
             <h3>Guidance and Counseling Unit (GCU)</h3>
-            <p>Counseling and other student services, from the first referral to the final session notes.</p>
+            <ul class="lp-card-svc">
+              <li>Individual and group counseling</li>
+              <li>Student referrals and case management</li>
+              <li>Follow-ups and interventions</li>
+            </ul>
             <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
           </button>
           <button type="button" class="lp-card reveal" @click="openUnit('tmdu')">
@@ -118,7 +122,11 @@
               <svg viewBox="0 0 24 24"><path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/></svg>
             </div>
             <h3>Testing and Materials Development Unit (TMDU)</h3>
-            <p>Psychological testing schedules and records, kept together with the student's referral.</p>
+            <ul class="lp-card-svc">
+              <li>Psychological testing and assessment</li>
+              <li>Test scheduling and results</li>
+              <li>Assessment reports</li>
+            </ul>
             <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
           </button>
           <button type="button" class="lp-card reveal" @click="openUnit('sdu')">
@@ -126,7 +134,11 @@
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
             </div>
             <h3>Student Discipline Unit (SDU)</h3>
-            <p>Incident reports and complaints, filed and tracked with a clear status at every step.</p>
+            <ul class="lp-card-svc">
+              <li>Complaints against students</li>
+              <li>Incident reports</li>
+              <li>Case status tracking</li>
+            </ul>
             <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
           </button>
         </div>
@@ -606,6 +618,9 @@ function go(id) {
 .lp-card:hover::after { transform: scaleX(1); }
 .lp-card h3 { font-size: 17px; margin: 16px 0 8px; color: var(--forest); }
 .lp-card p { color: var(--stone); font-size: 14.5px; }
+.lp-card-svc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.lp-card-svc li { position: relative; padding-left: 18px; color: var(--stone); font-size: 14px; line-height: 1.4; }
+.lp-card-svc li::before { content: ''; position: absolute; left: 2px; top: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--sage); }
 .lp-ico { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; }
 .lp-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .lp-ico-g { background: var(--mist); color: var(--moss); }
