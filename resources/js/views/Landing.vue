@@ -403,7 +403,7 @@ const units = [
     key: 'gcu',
     name: 'Guidance and Counseling Unit',
     abbr: 'GCU',
-    about: 'The GCU supports students’ personal, social, academic and career growth through counseling and guidance — a safe, confidential place to talk things through and get help.',
+    about: 'The GCU supports students’ personal, social, academic and career growth through counseling and guidance. It is a safe, confidential place to talk things through and get help.',
     services: [
       'Individual and group counseling sessions',
       'Receiving and acting on referrals from faculty, deans, or the student themselves',
@@ -431,7 +431,7 @@ const units = [
     key: 'sdu',
     name: 'Student Discipline Unit',
     abbr: 'SDU',
-    about: 'The SDU handles student conduct — complaints and incident reports — fairly, confidentially, and with due process at every step.',
+    about: 'The SDU handles student conduct (complaints and incident reports) fairly, confidentially, and with due process at every step.',
     services: [
       'Receiving and reviewing complaints filed against students',
       'Processing incident reports with their supporting evidence',
