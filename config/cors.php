@@ -21,7 +21,7 @@ return [
 
     'allowed_origins' => [
     // The live site, plus localhost for local development.
-    'https://iwouldcare.netlify.app',
+    'https://bsu-oss-imightcare-4b7cce.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],

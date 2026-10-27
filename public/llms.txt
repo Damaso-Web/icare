@@ -8,4 +8,4 @@ iCARE is a private system for BSU staff, faculty and students. Most pages requir
 - [Benguet State University — Office of Student Services](https://bsu.edu.ph/office-of-student-services/): The office that iCARE serves, including the Guidance and Counseling Unit, the Testing and Materials Development Unit, and the Student Discipline Unit.
 
 ## Access
-- [Sign in](https://iwouldcare.netlify.app/welcome): Staff sign in with their employee account; students sign in with their Student ID.
+- [Sign in](https://bsu-oss-imightcare-4b7cce.netlify.app/welcome): Staff sign in with their employee account; students sign in with their Student ID.
