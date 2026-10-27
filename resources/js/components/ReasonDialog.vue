@@ -83,7 +83,7 @@ const valid = computed(() => {
 .rd-msg { font-size: 13px; color: var(--slate); line-height: 1.6; }
 .rd-desc { font-size: 12px; color: var(--slate); background: var(--snow); border: 1px solid var(--cloud); border-radius: var(--r-sm); padding: 10px 12px; line-height: 1.55; }
 .rd-err { font-size: 12px; color: var(--red); background: var(--red-lt); border-radius: var(--r-sm); padding: 8px 10px; }
-.rd-actions { display: flex; gap: 8px; }
+.rd-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .rd-danger { background: var(--red-lt); color: var(--red); border: 1.5px solid #f5c0c0; }
 .rd-danger:disabled { opacity: .5; cursor: not-allowed; }
 </style>

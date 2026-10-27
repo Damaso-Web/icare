@@ -380,7 +380,7 @@
           <div v-if="formError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
             {{ formError }}
           </div>
-          <div style="display:flex;gap:8px;padding-top:4px">
+          <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="goToUserPreview">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
@@ -426,7 +426,7 @@
             </div>
           </div>
 
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" @click="confirmUserSubmit">
               {{ isEditing ? 'Confirm & Save' : (isFacultyView ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
             </button>
@@ -562,7 +562,7 @@
             </div>
           </div>
 
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" @click="doConfirmedImport" :disabled="importing">
               <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
               {{ importing ? 'Uploading...' : 'Confirm & Upload' }}
@@ -583,7 +583,7 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
             All fields in this form will be cleared. This cannot be undone.
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="doConfirmedClear">Yes, Clear Form</button>
             <button class="ibtn ibtn-o" @click="showClearConfirm = false">Cancel</button>
           </div>

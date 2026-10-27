@@ -604,7 +604,7 @@
               <input v-model="ayForm[g.key + '_end']" type="date" class="ifi" />
             </div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!ayValid || savingAy" @click="askSave(ayForm.id, saveAy)">
               {{ savingAy ? 'Saving...' : (ayForm.id ? 'Save Changes' : 'Add Academic Year') }}
             </button>
@@ -631,7 +631,7 @@
             <label class="ifl">Abbreviation</label>
             <input v-model="collegeForm.abbrev" class="ifi" maxlength="20" placeholder="e.g. CE" @input="collegeForm.abbrev = String(collegeForm.abbrev ?? '').replace(/[^a-zA-ZÀ-ɏ'.,\x26()\- ]/g, '').toUpperCase()" />
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!collegeForm.name.trim() || savingCollege" @click="collegeTouched = true; askSave(collegeForm.id, saveCollege)">
               {{ savingCollege ? 'Saving...' : (collegeForm.id ? 'Save Changes' : 'Add College') }}
             </button>
@@ -670,7 +670,7 @@
             </select>
             <div style="font-size:11px;color:var(--fog);margin-top:4px">Used to match this program to its Department Chair and Faculty.</div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!programForm.college_id || !programForm.name.trim() || savingProgram" @click="programTouched = true; askSave(programForm.id, saveProgram)">
               {{ savingProgram ? 'Saving...' : (programForm.id ? 'Save Changes' : 'Add Program') }}
             </button>
@@ -701,7 +701,7 @@
             <div v-if="departmentTouched && !departmentForm.name.trim()" style="font-size:11px;color:var(--red);margin-top:4px">Please fill in this field.</div>
             <div v-if="departmentTouched && !departmentForm.college_id" style="font-size:11px;color:var(--red);margin-top:4px">Please select a college.</div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!departmentForm.college_id || !departmentForm.name.trim() || savingDepartment" @click="departmentTouched = true; askSave(departmentForm.id, saveDepartment)">
               {{ savingDepartment ? 'Saving...' : (departmentForm.id ? 'Save Changes' : 'Add Department') }}
             </button>

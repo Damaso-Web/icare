@@ -453,7 +453,7 @@
             {{ editError }}
           </div>
 
-          <div style="display:flex;gap:8px;padding-top:4px">
+          <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" @click="openEditConfirm" :disabled="editSaving || isEditFormUnchanged">
               <svg v-if="!editSaving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="editSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -724,7 +724,7 @@
             ✓ Student added. Temporary password: <strong style="font-family:var(--mono)">{{ createdPassword }}</strong>
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Share this with the student - they'll be required to change it on first login. This window will close automatically in a few seconds.</div>
           </div>
-          <div style="display:flex;gap:8px;padding-top:4px">
+          <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" type="button" @click="goToPreview" :disabled="saving">
               <svg v-if="!saving" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
@@ -799,7 +799,7 @@
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
             All entered information will be cleared. This cannot be undone.
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="doConfirmedClear">Yes, Clear Form</button>
             <button class="ibtn ibtn-o" @click="showClearConfirm = false">Cancel</button>
           </div>
@@ -1037,7 +1037,7 @@
             <label class="ifl">Explanation <span style="color:var(--red)">*</span></label>
             <input v-model="graduateNotes" class="ifi" placeholder="Please describe the reason for deactivation briefly. Do not include sensitive personal details." maxlength="255" @input="graduateNotes = String(graduateNotes ?? '').replace(/[^a-zA-Z0-9\u00C0-\u024F'.,\x26()\- ]/g, '')" />
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button
               class="ibtn"
               :style="canDeactivate ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--cloud);color:var(--fog);border:1.5px solid var(--cloud);cursor:not-allowed;opacity:.6'"
@@ -1071,7 +1071,7 @@
           <div v-else style="font-size:12px;color:var(--stone)">
             This can be reversed later by reactivating the account.
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button
               class="ibtn"
               :style="deactivating ? 'opacity:.7;cursor:not-allowed;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0;display:flex;align-items:center;justify-content:center;gap:6px' : 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0'"
