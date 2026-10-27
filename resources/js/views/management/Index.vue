@@ -790,7 +790,7 @@
         </div>
         <div style="font-size:12px;color:var(--ink-2, #555);margin-top:12px">Saving creates a <strong>new version</strong> and makes it the active header. Documents already generated keep the header they were made with.</div>
         <div v-if="docPreview.error" style="color:var(--red);font-size:12px;margin-top:8px">{{ docPreview.error }}</div>
-        <div style="display:flex;gap:8px;margin-top:16px">
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
           <button class="ibtn ibtn-p" :disabled="savingDoc[docPreview.key]" @click="confirmDocPreview">{{ savingDoc[docPreview.key] ? 'Saving...' : 'Save as New Version' }}</button>
           <button class="ibtn ibtn-o" @click="docPreview = null">Back to Edit</button>
         </div>

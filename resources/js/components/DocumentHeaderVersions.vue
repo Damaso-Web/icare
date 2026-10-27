@@ -47,7 +47,7 @@
         <div class="dhv-head">Set as active header?</div>
         <div class="dhv-body">
           <div style="font-size:13px">Version <strong>v{{ activating.version_no }}</strong> will become the active header and replace the current one for new documents. Documents already generated are not changed.</div>
-          <div style="display:flex;gap:8px;margin-top:16px">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px">
             <button class="ibtn ibtn-p" :disabled="busy" @click="doActivate">{{ busy ? 'Please wait...' : 'Yes, Set as Active' }}</button>
             <button class="ibtn ibtn-o" :disabled="busy" @click="activating = null">Cancel</button>
           </div>

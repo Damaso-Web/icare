@@ -1575,7 +1575,7 @@
             </div>
           </div>
 
-          <div style="padding:12px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;gap:8px">
+          <div style="padding:12px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="submittingTmdu" @click="referToTmdu">
               {{ submittingTmdu ? 'Referring...' : 'Refer to TMDU' }}
             </button>
