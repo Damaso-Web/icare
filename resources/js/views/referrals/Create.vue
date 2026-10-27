@@ -260,7 +260,7 @@
             <div v-if="referralReasonNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid referral reason. Numbers alone are not allowed.</div>
           </div>
 
-          <div class="form-actions" style="display:flex;gap:9px;margin-top:8px">
+          <div class="form-actions" style="display:flex;justify-content:flex-end;gap:9px;margin-top:8px">
             <button type="submit" class="ibtn ibtn-p" :disabled="loading">
               <svg v-if="!loading" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
               <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
