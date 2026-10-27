@@ -105,27 +105,30 @@
         <div class="lp-kicker reveal">What <span class="lp-keepcase">iCARE</span> supports</div>
         <h2 class="reveal">Three units, one system</h2>
         <div class="lp-grid3">
-          <article class="lp-card reveal">
+          <button type="button" class="lp-card reveal" @click="openUnit('gcu')">
             <div class="lp-ico lp-ico-g">
               <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
             <h3>Guidance and Counseling Unit (GCU)</h3>
             <p>Counseling and other student services, from the first referral to the final session notes.</p>
-          </article>
-          <article class="lp-card reveal">
+            <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
+          </button>
+          <button type="button" class="lp-card reveal" @click="openUnit('tmdu')">
             <div class="lp-ico lp-ico-b">
               <svg viewBox="0 0 24 24"><path d="M9 2v6l-6 10a2 2 0 0 0 1.7 3h14.6a2 2 0 0 0 1.7-3L15 8V2"/><path d="M9 2h6"/><path d="M7 15h10"/></svg>
             </div>
             <h3>Testing and Materials Development Unit (TMDU)</h3>
             <p>Psychological testing schedules and records, kept together with the student's referral.</p>
-          </article>
-          <article class="lp-card reveal">
+            <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
+          </button>
+          <button type="button" class="lp-card reveal" @click="openUnit('sdu')">
             <div class="lp-ico lp-ico-a">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
             </div>
             <h3>Student Discipline Unit (SDU)</h3>
             <p>Incident reports and complaints, filed and tracked with a clear status at every step.</p>
-          </article>
+            <span class="lp-card-more">View details <span aria-hidden="true">&rarr;</span></span>
+          </button>
         </div>
       </div>
     </section>
@@ -221,6 +224,29 @@
     </footer>
 
     <!-- What the Data Privacy Act means -->
+    <!-- Unit details (opened by clicking a unit card) -->
+    <div v-if="activeUnit" class="lp-modal" @click.self="activeUnit = null">
+      <div ref="unitDialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-unit-title" tabindex="-1">
+        <div class="lp-dialog-head">
+          <h3 id="lp-unit-title">{{ activeUnit.name }} <span class="lp-unit-abbr">{{ activeUnit.abbr }}</span></h3>
+        </div>
+        <div class="lp-dialog-body">
+          <p class="lp-unit-lead">{{ activeUnit.about }}</p>
+          <h4>What this unit handles</h4>
+          <ul>
+            <li v-for="s in activeUnit.services" :key="s">{{ s }}</li>
+          </ul>
+          <h4>In iCARE</h4>
+          <p>{{ activeUnit.inCare }}</p>
+          <h4>Contact</h4>
+          <p><a :href="'mailto:' + activeUnit.email">{{ activeUnit.email }}</a></p>
+        </div>
+        <div class="lp-dialog-foot">
+          <button type="button" class="lp-btn lp-btn-solid" @click="activeUnit = null">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="showPrivacy" class="lp-modal" @click.self="showPrivacy = false" @keydown.esc="showPrivacy = false">
       <div ref="dialog" class="lp-dialog" role="dialog" aria-modal="true" aria-labelledby="lp-priv-title" tabindex="-1">
         <!-- B537: a single close control (the "Close" button below) instead of two. -->
@@ -359,14 +385,64 @@ onMounted(() => {
 const showPrivacy = ref(false);
 const showFaq = ref(false);
 const showTerms = ref(false);
+const activeUnit = ref(null);
 const dialog = ref(null);
 const faqDialog = ref(null);
 const termsDialog = ref(null);
-const anyModalOpen = computed(() => showPrivacy.value || showFaq.value || showTerms.value);
+const unitDialog = ref(null);
+const anyModalOpen = computed(() => showPrivacy.value || showFaq.value || showTerms.value || !!activeUnit.value);
 const onKey = e => {
   if (e.key !== 'Escape') return;
-  showPrivacy.value = false; showFaq.value = false; showTerms.value = false;
+  showPrivacy.value = false; showFaq.value = false; showTerms.value = false; activeUnit.value = null;
 };
+
+// The three unit cards open a details modal. Keeping the copy here (not in the
+// cards) makes the cards short and the details easy to edit in one place.
+const units = [
+  {
+    key: 'gcu',
+    name: 'Guidance and Counseling Unit',
+    abbr: 'GCU',
+    about: 'The GCU supports students’ personal, social, academic and career growth through counseling and guidance — a safe, confidential place to talk things through and get help.',
+    services: [
+      'Individual and group counseling sessions',
+      'Receiving and acting on referrals from faculty, deans, or the student themselves',
+      'Managing counseling cases: session notes, interventions and follow-ups',
+      'Coordinating with the Testing and Discipline units when a concern needs them',
+    ],
+    inCare: 'In iCARE, referrals arrive in the GCU queue, are acknowledged and assigned, appointments are scheduled, each session is recorded, and the case is followed through to resolution.',
+    email: 'oss.cgu@bsu.edu.ph',
+  },
+  {
+    key: 'tmdu',
+    name: 'Testing and Materials Development Unit',
+    abbr: 'TMDU',
+    about: 'The TMDU handles psychological testing and assessment, and develops and maintains the testing materials the office uses.',
+    services: [
+      'Scheduling and administering psychological tests',
+      'Interpreting results and preparing assessment reports',
+      'Keeping testing records together with the student’s referral and case',
+      'Processing the testing fee and official receipt',
+    ],
+    inCare: 'In iCARE, a testing request comes from the guidance unit, the test is scheduled and administered, and the results and report are recorded and sent back to guide next steps.',
+    email: 'oss.tmdu@bsu.edu.ph',
+  },
+  {
+    key: 'sdu',
+    name: 'Student Discipline Unit',
+    abbr: 'SDU',
+    about: 'The SDU handles student conduct — complaints and incident reports — fairly, confidentially, and with due process at every step.',
+    services: [
+      'Receiving and reviewing complaints filed against students',
+      'Processing incident reports with their supporting evidence',
+      'Tracking each case’s status through the disciplinary process',
+      'Coordinating hearings, sanctions and resolutions',
+    ],
+    inCare: 'In iCARE, complaints and incident reports are filed with the required evidence and affidavit, reviewed by the SDU Head, and tracked with a clear status from filing to resolution.',
+    email: 'oss.sdu@bsu.edu.ph',
+  },
+];
+const openUnit = (key) => { activeUnit.value = units.find(u => u.key === key) || null; };
 async function watchModal(open, dialogRef) {
   if (open) {
     window.addEventListener('keydown', onKey);
@@ -380,6 +456,7 @@ async function watchModal(open, dialogRef) {
 }
 watch(showPrivacy, open => watchModal(open, dialog));
 watch(showFaq, open => watchModal(open, faqDialog));
+watch(() => !!activeUnit.value, open => watchModal(open, unitDialog));
 watch(showTerms, open => watchModal(open, termsDialog));
 
 // B541: verify the response time, login steps and emergency number with OSS before publishing.
@@ -515,7 +592,12 @@ function go(id) {
 .lp-sec h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 40px); line-height: 1.15; color: var(--forest); margin-bottom: 36px; }
 
 .lp-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-.lp-card { position: relative; overflow: hidden; background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 26px; box-shadow: var(--sh-card); transition: transform .2s var(--ease), box-shadow .2s; }
+.lp-card { position: relative; overflow: hidden; background: #fff; border: 1px solid var(--cloud); border-radius: var(--r-lg); padding: 26px; box-shadow: var(--sh-card); transition: transform .2s var(--ease), box-shadow .2s; cursor: pointer; text-align: left; font: inherit; width: 100%; display: block; }
+.lp-card:focus-visible { outline: 2px solid var(--moss); outline-offset: 2px; }
+.lp-card-more { display: inline-flex; align-items: center; gap: 5px; margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--moss); transition: gap .2s var(--ease); }
+.lp-card:hover .lp-card-more { gap: 9px; }
+.lp-unit-abbr { font-size: 11px; font-weight: 700; color: var(--moss); background: var(--mist); border-radius: 8px; padding: 2px 8px; margin-left: 6px; vertical-align: middle; }
+.lp-unit-lead { color: var(--slate); margin-bottom: 4px; }
 .lp-card::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; transform: scaleX(0); transform-origin: left; transition: transform .3s var(--ease); }
 .lp-card:nth-child(1)::after { background: var(--moss); }
 .lp-card:nth-child(2)::after { background: var(--blue); }
