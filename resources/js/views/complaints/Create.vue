@@ -651,7 +651,7 @@ async function handleSubmit() {
 .cp-box{background:#fff;border-radius:var(--r-lg);width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-lg)}
 .cp-head{padding:18px 22px;border-bottom:1px solid var(--cloud)}
 .cp-body{padding:18px 22px;overflow-y:auto}
-.cp-foot{padding:14px 22px;border-top:1px solid var(--cloud);display:flex;gap:8px}
+.cp-foot{padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px}
 .cp-print-title{font-size:16px;font-weight:700;color:var(--ink);margin-bottom:12px}
 
 .student-dropdown {
