@@ -92,6 +92,44 @@
                was created from. Same shared Referral row shown on
                referrals/Show.vue; only rendered here if this record has one
                (older records created before the referral link existed won't). -->
+          <!-- Limited view of the GCU referral this testing request came from:
+               only what TMDU needs. The full referral and SIF stay with GCU. -->
+          <div class="icard" v-if="record.source_referral">
+            <div class="icard-header">
+              <span class="icard-title">GCU Referral</span>
+              <span class="ibadge" style="background:var(--cloud);color:var(--stone)">Limited view</span>
+            </div>
+            <div class="icard-body">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referral No.</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ record.source_referral.referral_code || '-' }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date Submitted</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ formatDate(record.source_referral.created_at) }}</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Referred By</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ record.source_referral.referrer_name || '-' }} <span style="color:var(--fog)">({{ toTitleCase(record.source_referral.referrer_role) }})</span></div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type / Urgency</div>
+                  <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(record.source_referral.referral_type) }} · {{ toTitleCase(record.source_referral.urgency_level) || '-' }}</div>
+                </div>
+              </div>
+              <div v-if="record.source_referral.nature_of_concern" style="margin-top:12px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Nature of Concern</div>
+                <div style="font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap">{{ record.source_referral.nature_of_concern }}</div>
+              </div>
+              <div v-if="record.source_referral.incident_description" style="margin-top:12px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Reason for Referral</div>
+                <div style="font-size:13px;color:var(--ink);line-height:1.6;white-space:pre-wrap">{{ record.source_referral.incident_description }}</div>
+              </div>
+              <div style="font-size:11px;color:var(--fog);margin-top:12px">Only the details TMDU needs are shown. The full record stays with GCU.</div>
+            </div>
+          </div>
+
           <div class="icard" v-if="record.referral">
             <div class="icard-header"><span class="icard-title">Case Referral Slip</span></div>
 

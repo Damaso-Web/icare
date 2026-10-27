@@ -321,6 +321,34 @@ class ComplaintController extends Controller
         return $complaint;
     }
 
+    // Opens one evidence / affidavit file. The old link pointed at
+    // /storage/..., which only works when the storage symlink exists (it never
+    // did on the deployed server, so every preview failed) and left the file
+    // open to anyone with the URL. This streams it only to the SDU Head or the
+    // staff member who filed the complaint.
+    public function attachment(Request $request, Complaint $complaint, ComplaintAttachment $attachment)
+    {
+        abort_unless((int) $attachment->complaint_id === (int) $complaint->id, 404);
+
+        $user = $request->user();
+        abort_unless(
+            $user->isSDUHead() || $user->isAdmin() || (int) $complaint->filed_by_user_id === (int) $user->id,
+            403,
+            'Unauthorized.'
+        );
+
+        $disk = \Illuminate\Support\Facades\Storage::disk('public');
+        if (!$disk->exists($attachment->file_path)) {
+            return response()->json([
+                'message' => 'This file is no longer available on the server. Ask the sender to upload it again.',
+            ], 404);
+        }
+
+        return $disk->response($attachment->file_path, $attachment->original_filename, [
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
+    }
+
     public function updateStatus(Request $request, Complaint $complaint)
     {
         $validated = $request->validate([

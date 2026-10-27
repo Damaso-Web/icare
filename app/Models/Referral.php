@@ -228,6 +228,29 @@ class Referral extends Model
     public function scopeNotTmduOwned($q) { return $q->whereDoesntHave('testingRecord'); }
     public function isTmduOwned(): bool   { return $this->testingRecord()->exists(); }
 
+    // A Dean sees their college's referrals EXCEPT the ones other offices
+    // submitted (GCU, TMDU, SDU, admin). What stays visible is what the
+    // college itself sends - faculty, Dept Chairs, the Dean - and students'
+    // own self-referrals.
+    public const OTHER_STAFF_ROLES = ['admin', 'gcu_staff', 'tmdu_staff', 'tmdu_head', 'sdu_head', 'system_admin'];
+
+    public function scopeVisibleToDean($q, User $dean)
+    {
+        return $q
+            ->whereHas('student', fn ($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($dean->college)))
+            ->where(fn ($w) => $w->whereNull('referred_by_user_id')
+                ->orWhereDoesntHave('referredBy', fn ($u) => $u->whereIn('role', self::OTHER_STAFF_ROLES)));
+    }
+
+    public function isVisibleToDean(User $dean): bool
+    {
+        if (!in_array($this->student?->college, \App\Support\CollegeName::equivalents($dean->college), true)) {
+            return false;
+        }
+
+        return !in_array($this->referredBy?->role, self::OTHER_STAFF_ROLES, true);
+    }
+
     // Moves active referrals out of the queue and into the archive (used when a
     // student is deactivated or their case file is completed/closed). TMDU's own
     // Case Referral Slips are left alone - they live in TMDU's queue.

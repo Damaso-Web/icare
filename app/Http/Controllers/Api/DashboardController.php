@@ -246,7 +246,7 @@ class DashboardController extends Controller
     // never shows (Total showed 21 while the list behind it had 13).
     private function deanSecretaryVisibleReferrals($user)
     {
-        return Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)))
+        return Referral::visibleToDean($user)
             ->where('is_archived', false)
             ->whereNull('complaint_id')
             ->notTmduOwned();

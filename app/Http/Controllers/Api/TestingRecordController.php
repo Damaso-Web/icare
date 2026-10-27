@@ -191,7 +191,7 @@ class TestingRecordController extends Controller
     {
         AuditLog::record('viewed', "Viewed testing record #{$testingRecord->id}.", $testingRecord);
 
-        return response()->json($testingRecord->load([
+        $data = $testingRecord->load([
             'student',
             'referredBy',
             'tester',
@@ -208,7 +208,20 @@ class TestingRecordController extends Controller
             'appointments' => fn($q) => $q
                 ->where(fn($w) => $w->where('referral_id', $testingRecord->referral_id)->orWhereNull('referral_id')),
             'appointments.staff',
-        ]));
+        ])->toArray();
+
+        // The GCU referral this testing request came from - TMDU gets only
+        // the parts it needs to do the testing. The full referral, the SIF,
+        // notes, interventions and GCU appointments stay with GCU.
+        $source = $testingRecord->sourceReferral;
+        $data['source_referral'] = $source
+            ? $source->only([
+                'referral_code', 'referral_type', 'nature_of_concern', 'urgency_level',
+                'incident_description', 'created_at', 'referrer_name', 'referrer_role',
+            ])
+            : null;
+
+        return response()->json($data);
     }
 
     // Streams the student's uploaded OR photo back to staff. Kept off the

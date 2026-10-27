@@ -391,6 +391,28 @@ class StudentController extends Controller
             ]);
         }
 
+        // Only GCU gets a student's full record. Everyone else sees just the
+        // referrals they are allowed to see: a Dean the college's (minus what
+        // other offices submitted); faculty, Dept Chairs and the SDU Head only
+        // the ones they sent themselves. SDU also keeps its own cases and
+        // appointments; nobody else sees GCU cases or appointments here.
+        if (!$user?->isAdmin() && !$user?->isGCUStaff()) {
+            $referrals = $student->referrals()->notTmduOwned()->with('case:id,status');
+            if ($user?->isDeanSecretary()) {
+                $referrals->visibleToDean($user);
+            } else {
+                $referrals->where('referred_by_user_id', $user?->id);
+            }
+            $isSdu = (bool) $user?->isSDUHead();
+
+            return response()->json([
+                'cases'           => $isSdu ? $student->cases()->where('current_unit', 'SDU')->with(['counselor', 'previousCounselor'])->latest()->get() : [],
+                'referrals'       => $referrals->latest()->get(),
+                'appointments'    => $isSdu ? $student->appointments()->where('unit', 'SDU')->with('staff')->latest()->get() : [],
+                'testing_records' => [],
+            ]);
+        }
+
         return response()->json([
             'cases'           => $student->cases()->with(['counselor', 'previousCounselor'])->latest()->get(),
             'referrals'       => $student->referrals()->notTmduOwned()->with('case:id,status')->latest()->get(),

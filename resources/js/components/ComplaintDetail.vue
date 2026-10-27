@@ -53,7 +53,7 @@
     <div v-if="complaint.attachments?.length">
       <div class="cd-label">Attachments</div>
       <div style="display:flex;flex-direction:column;gap:6px">
-        <a v-for="att in complaint.attachments" :key="att.id" :href="att.url" target="_blank" rel="noopener" class="cd-file">
+        <a v-for="att in complaint.attachments" :key="att.id" href="#" class="cd-file" @click.prevent="openAttachment(att)">
           <span class="ibadge" style="background:var(--cloud);color:var(--stone)">{{ att.category === 'evidence' ? 'Evidence' : 'Affidavit' }}</span>
           {{ att.original_filename }}
         </a>
@@ -65,7 +65,11 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, inject } from 'vue';
+import api from '../api/index';
+import { saveBlob } from '../utils/download';
+
+const toast = inject('toast', null);
 
 const props = defineProps({
   complaint: { type: Object, required: true },
@@ -77,6 +81,26 @@ const complaineeName = computed(() => {
   const s = props.complaint.complainee || props.student;
   return s ? `${s.last_name}, ${s.first_name}${s.middle_name ? ' ' + s.middle_name : ''}` : '-';
 });
+
+// Opens through the API (with the login token) so it works without the
+// storage symlink. PDFs and images preview in a new tab; Word files download.
+async function openAttachment(att) {
+  const previewable = /\.(pdf|jpe?g|png)$/i.test(att.original_filename || '');
+  const w = previewable ? window.open('', '_blank') : null; // opened first so the popup isn't blocked
+  try {
+    const res = await api.get(`/complaints/${props.complaint.id}/attachments/${att.id}`, { responseType: 'blob' });
+    if (previewable && w) {
+      w.location = URL.createObjectURL(res.data);
+    } else {
+      saveBlob(res.data, att.original_filename || 'attachment');
+    }
+  } catch (e) {
+    w?.close();
+    toast?.error(e?.response?.status === 404
+      ? 'This file is no longer available. Ask the sender to upload it again.'
+      : 'Unable to open this file.');
+  }
+}
 
 function formatDate(d) {
   return d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '-';

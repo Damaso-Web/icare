@@ -101,6 +101,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::put('my/referrals/{id}',       [ReferralController::class, 'updateMine']);
     Route::get('my/complaints',           [ComplaintController::class, 'mine']);
     Route::get('my/complaints/{complaint}', [ComplaintController::class, 'showMine']);
+    Route::get('complaints/{complaint}/attachments/{attachment}', [ComplaintController::class, 'attachment']);
     Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);

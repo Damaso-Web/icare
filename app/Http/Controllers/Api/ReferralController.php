@@ -81,12 +81,14 @@ class ReferralController extends Controller
               ->orWhere('student_id', 'like', "%{$request->search}%")
         ));
 
-    if ($user->isFaculty()) {
+    if ($user->isFaculty() || $user->isSDUHead()) {
+        // SDU Head: complaints are their module; the only referrals they see
+        // are the ones they sent themselves.
         $query->where('referred_by_user_id', $user->id);
     } elseif ($user->isDeanSecretary()) {
         // A college representative coordinates on behalf of their whole
-        // college, not just referrals they personally submitted.
-        $query->whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
+        // college - minus what other offices (GCU, TMDU, ...) submitted.
+        $query->visibleToDean($user);
     } elseif ($user->isTMDUStaff()) {
         // TMDU only ever sees the Case Referral Slips GCU sent to it.
         $query->tmduOwned();
@@ -114,10 +116,10 @@ class ReferralController extends Controller
             // Queue's archive view too.
             ->whereNull('complaint_id');
 
-        if ($user->isFaculty()) {
+        if ($user->isFaculty() || $user->isSDUHead()) {
             $query->where('referred_by_user_id', $user->id);
         } elseif ($user->isDeanSecretary()) {
-            $query->whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)));
+            $query->visibleToDean($user);
         } elseif ($user->isTMDUStaff()) {
             $query->tmduOwned();
         }
@@ -163,7 +165,7 @@ class ReferralController extends Controller
         // is_archived/complaint/TMDU exclusions the dashboard's count uses,
         // so the aggregate and the row count stay in sync.
         $base = $user->isDeanSecretary()
-            ? Referral::whereHas('student', fn($s) => $s->whereIn('college', \App\Support\CollegeName::equivalents($user->college)))
+            ? Referral::visibleToDean($user)
                 ->where('is_archived', false)
                 ->whereNull('complaint_id')
                 ->notTmduOwned()
@@ -1064,7 +1066,11 @@ class ReferralController extends Controller
         if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
             abort(403, 'Unauthorized.');
         }
-        if ($user->isDeanSecretary() && !in_array($referral->student->college, \App\Support\CollegeName::equivalents($user->college), true)) {
+        if ($user->isDeanSecretary() && !$referral->isVisibleToDean($user)) {
+            abort(403, 'Unauthorized.');
+        }
+        // SDU Head only ever opens referrals they sent (handled above).
+        if ($user->isSDUHead()) {
             abort(403, 'Unauthorized.');
         }
 
