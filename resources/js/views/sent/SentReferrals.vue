@@ -95,7 +95,7 @@
             <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
           </template>
         </div>
-        <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;gap:8px">
+        <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
           <template v-if="!editing">
             <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
             <button class="ibtn ibtn-o" @click="close">Close</button>
