@@ -91,7 +91,7 @@
               <option v-for="(label, key) in TYPES" :key="key" :value="key">{{ label }}</option>
             </select>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!formValid || busy" @click="saveForm">{{ busy ? 'Saving...' : 'Save' }}</button>
             <button class="ibtn ibtn-o" :disabled="busy" @click="closeForm">Cancel</button>
           </div>

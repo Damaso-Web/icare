@@ -691,6 +691,8 @@ class TestingRecordController extends Controller
                 'original_filename'   => $file->getClientOriginalName(),
                 'mime_type'           => $file->getClientMimeType() ?: 'application/octet-stream',
                 'file_size'           => $file->getSize() ?: 0,
+                // Keep a copy in the database so the PAR survives backend redeploys.
+                'content'             => base64_encode(file_get_contents($file->getRealPath())),
                 'is_confidential'     => true,
                 'uploaded_by_user_id' => $request->user()->id,
             ];

@@ -416,7 +416,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown on the Schedule Test Taking and Schedule PAR Release cards in a testing record. The Ctrl No. is blank on the printed slip, so it can stay empty.</div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button v-if="isSystemAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.tmduSlip" @click="openDocPreview('QF-TMDU-02', tmduSlipDoc, 'tmduSlip', 'Appointment Slip')">
               {{ savingDoc.tmduSlip ? 'Saving...' : 'Preview &amp; Save as New Version' }}
             </button>
@@ -454,7 +454,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all referral forms, current and future.</div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.referral" @click="openDocPreview('QF-OSS-01', referralDoc, 'referral', 'Referral Slip')">
               {{ savingDoc.referral ? 'Saving...' : 'Preview &amp; Save as New Version' }}
             </button>
@@ -491,7 +491,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Applies to all feedback slips, current and future.</div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.feedback" @click="openDocPreview('QF-OSS-03', feedbackDoc, 'feedback', 'Feedback Slip')">
               {{ savingDoc.feedback ? 'Saving...' : 'Preview &amp; Save as New Version' }}
             </button>
@@ -528,7 +528,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Student Information card in Case Files. The full Ctrl No. is Year-Term-Client No. (e.g. 26-1-0012); the client no. at the end is set per student on their record.</div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.sif" @click="openDocPreview('QF-OSS-GCU-01', sifDoc, 'sif', 'Student Information File')">
               {{ savingDoc.sif ? 'Saving...' : 'Preview &amp; Save as New Version' }}
             </button>
@@ -569,7 +569,7 @@
             </div>
           </div>
           <div style="font-size:11px;color:var(--fog);margin-top:10px">Shown at the top of the Admission Slip on Class Attendance referrals.</div>
-          <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;flex-wrap:wrap">
             <button v-if="isAdmin" class="ibtn ibtn-p ibtn-sm" :disabled="savingDoc.admission" @click="openDocPreview('QF-OSS-GCU-09', admissionDoc, 'admission', 'Admission Slip')">
               {{ savingDoc.admission ? 'Saving...' : 'Preview &amp; Save as New Version' }}
             </button>
@@ -751,7 +751,7 @@
             <input class="ifi" :value="formOptionForm.value" disabled style="background:var(--snow);color:var(--stone)" />
             <div style="font-size:11px;color:var(--stone);margin-top:4px">Not editable - existing records reference this value.</div>
           </div>
-          <div style="display:flex;gap:8px">
+          <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" :disabled="!formOptionForm.label.trim() || (!formOptionForm.id && !formOptionForm.value.trim()) || (activeTab === 'wellness' && !formOptionForm.unit) || savingFormOption" @click="formOptionTouched = true; askSave(formOptionForm.id, saveFormOption)">
               {{ savingFormOption ? 'Saving...' : (formOptionForm.id ? 'Save Changes' : 'Add') }}
             </button>
