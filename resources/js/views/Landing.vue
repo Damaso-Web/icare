@@ -12,6 +12,7 @@
           </span>
         </a>
         <nav class="lp-links" aria-label="Sections">
+          <a href="#top" @click.prevent="go('top')">Home</a>
           <a href="#services" @click.prevent="go('services')">Services</a>
           <a href="#how" @click.prevent="go('how')">How it works</a>
           <a href="#contact" @click.prevent="go('contact')">Contact</a>
@@ -26,6 +27,7 @@
       </div>
       <!-- Mobile section menu -->
       <div class="lp-mobile" :class="{ 'is-open': menuOpen }">
+        <a href="#top" @click.prevent="goM('top')">Home</a>
         <a href="#services" @click.prevent="goM('services')">Services</a>
         <a href="#how" @click.prevent="goM('how')">How it works</a>
         <a href="#contact" @click.prevent="goM('contact')">Contact</a>

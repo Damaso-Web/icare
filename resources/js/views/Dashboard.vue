@@ -554,6 +554,8 @@ function formatDate(date) {
 // without the person needing to leave and come back to the page. `loading`
 // is only touched on the very first load, so refreshes don't flash the
 // spinner over the whole page.
+// B633: shortened from 30s to 7s so the numbers feel live without the
+// person having to reload the page.
 let refreshTimer = null;
 // B553: a quiet pulse on the stat numbers after a background refresh changes
 // anything, so it's visible at a glance that fresh data just came in without
@@ -581,7 +583,7 @@ async function fetchDashboard(isInitial = false) {
 onMounted(() => {
   fetchDashboard(true);
   fetchSduPanels();
-  refreshTimer = setInterval(() => fetchDashboard(false), 30000);
+  refreshTimer = setInterval(() => fetchDashboard(false), 7000);
 });
 
 onUnmounted(() => {
