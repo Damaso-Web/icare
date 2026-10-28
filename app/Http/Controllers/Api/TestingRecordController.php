@@ -230,6 +230,18 @@ class TestingRecordController extends Controller
     // TestingRecord instead, so this is its own small endpoint.
     public function orPhoto(TestingRecord $testingRecord)
     {
+        if ($testingRecord->or_photo_disk === 'cloudinary' && $testingRecord->or_photo_cloud_public_id) {
+            $bytes = app(\App\Support\CloudinaryClient::class)->fetch(
+                $testingRecord->or_photo_cloud_public_id,
+                $testingRecord->or_photo_cloud_resource_type ?: 'image'
+            );
+
+            return response($bytes, 200, [
+                'Content-Type'        => 'image/jpeg',
+                'Content-Disposition' => 'inline; filename="' . ($testingRecord->or_photo_original_name ?: 'or-photo.jpg') . '"',
+            ]);
+        }
+
         abort_unless(
             $testingRecord->or_photo_path && Storage::disk('local')->exists($testingRecord->or_photo_path),
             404,
@@ -321,13 +333,22 @@ class TestingRecordController extends Controller
         ]);
 
         $file = $request->file('or_photo');
-        $path = $file->store("testing-or-photos/{$testingRecord->id}", 'local');
+
+        try {
+            $cloud = app(\App\Support\CloudinaryClient::class)->upload($file->getRealPath(), 'testing-or-photos');
+        } catch (\Throwable $e) {
+            Log::error('OR photo upload to Cloudinary failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'The photo could not be uploaded right now. Please try again in a moment.'], 502);
+        }
 
         $testingRecord->update([
-            'status'                  => 'or_submitted',
-            'or_photo_path'           => $path,
-            'or_photo_original_name'  => $file->getClientOriginalName(),
-            'or_uploaded_at'          => now(),
+            'status'                       => 'or_submitted',
+            'or_photo_path'                => null,
+            'or_photo_disk'                => 'cloudinary',
+            'or_photo_cloud_public_id'     => $cloud['public_id'],
+            'or_photo_cloud_resource_type' => $cloud['resource_type'],
+            'or_photo_original_name'       => $file->getClientOriginalName(),
+            'or_uploaded_at'               => now(),
         ]);
 
         AuditLog::record('or_submitted', "Student submitted OR and requested testing schedule for record #{$testingRecord->id}.", $testingRecord);
@@ -681,18 +702,25 @@ class TestingRecordController extends Controller
         // referral for older records that predate that link.
         if ($request->hasFile('report_file')) {
             $file = $request->file('report_file');
-            $path = $file->store("testing-reports/{$testingRecord->id}", 'local');
+
+            try {
+                $cloud = app(\App\Support\CloudinaryClient::class)->upload($file->getRealPath(), 'testing-reports');
+            } catch (\Throwable $e) {
+                Log::error('PAR upload to Cloudinary failed', ['error' => $e->getMessage()]);
+                return response()->json(['message' => 'The report file could not be uploaded right now. Please try again in a moment.'], 502);
+            }
 
             $docBase = [
                 'document_type'       => 'psychological_assessment_report',
-                'disk'                => 'local',
-                'path'                => $path,
-                'stored_filename'     => basename($path),
+                'disk'                => 'cloudinary',
+                'path'                => null,
+                'cloud_public_id'     => $cloud['public_id'],
+                'cloud_resource_type' => $cloud['resource_type'],
+                'cloud_format'        => $cloud['format'],
+                'stored_filename'     => $cloud['public_id'],
                 'original_filename'   => $file->getClientOriginalName(),
                 'mime_type'           => $file->getClientMimeType() ?: 'application/octet-stream',
                 'file_size'           => $file->getSize() ?: 0,
-                // Keep a copy in the database so the PAR survives backend redeploys.
-                'content'             => base64_encode(file_get_contents($file->getRealPath())),
                 'is_confidential'     => true,
                 'uploaded_by_user_id' => $request->user()->id,
             ];

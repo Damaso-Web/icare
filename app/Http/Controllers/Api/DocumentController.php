@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Document;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class DocumentController extends Controller
 {
@@ -35,28 +35,21 @@ class DocumentController extends Controller
         abort_unless($modelClass::whereKey($request->documentable_id)->exists(), 422, 'The record you are attaching to does not exist.');
 
         $file = $request->file('file');
-        // Extension comes from the detected content type, never from the client's filename.
-        $ext = $file->guessExtension() ?: 'bin';
-        $storedFilename = Str::uuid() . '.' . $ext;
-        $path = $file->storeAs('documents', $storedFilename, 'private');
 
-        $document = Document::create([
-            'uploaded_by_user_id' => $request->user()->id,
-            'documentable_type'   => $modelClass,
-            'documentable_id'     => $request->documentable_id,
-            'original_filename'   => $file->getClientOriginalName(),
-            'stored_filename'     => $storedFilename,
-            'disk'                => 'private',
-            'path'                => $path,
-            'mime_type'           => $file->getMimeType(),
-            'file_size'           => $file->getSize(),
-            // Keep a copy in the database so the file survives backend redeploys
-            // (Render's free disk is wiped on every deploy).
-            'content'             => base64_encode(file_get_contents($file->getRealPath())),
-            'document_type'       => $request->document_type,
-            'description'         => $request->description,
-            'is_confidential'     => $request->is_confidential ?? false,
-        ]);
+        try {
+            $document = Document::storeUploadedFile($file, [
+                'uploaded_by_user_id' => $request->user()->id,
+                'documentable_type'   => $modelClass,
+                'documentable_id'     => $request->documentable_id,
+                'original_filename'   => $file->getClientOriginalName(),
+                'document_type'       => $request->document_type,
+                'description'         => $request->description,
+                'is_confidential'     => $request->is_confidential ?? false,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Document upload to Cloudinary failed', ['error' => $e->getMessage()]);
+            return response()->json(['message' => 'The file could not be uploaded right now. Please try again in a moment.'], 502);
+        }
 
         AuditLog::record('uploaded', "Uploaded document {$document->original_filename}.", $document);
         return response()->json($document, 201);
@@ -82,21 +75,7 @@ class DocumentController extends Controller
         $this->authorizeAccess($request, $document);
         AuditLog::record('downloaded', "Downloaded document {$document->original_filename}.", $document);
 
-        // Prefer the copy stored in the database (survives redeploys); fall back
-        // to the disk for any older file still present there.
-        if (!empty($document->content)) {
-            $name = str_replace(['"', "\r", "\n"], '', $document->original_filename ?: 'file');
-            return response(base64_decode($document->content))
-                ->header('Content-Type', $document->mime_type ?: 'application/octet-stream')
-                ->header('Content-Disposition', 'attachment; filename="' . $name . '"')
-                ->header('X-Content-Type-Options', 'nosniff');
-        }
-        if (Storage::disk($document->disk)->exists($document->path)) {
-            return Storage::disk($document->disk)->download($document->path, $document->original_filename, [
-                'X-Content-Type-Options' => 'nosniff',
-            ]);
-        }
-        return response()->json(['message' => 'This file is no longer available. Please ask the sender to upload it again.'], 404);
+        return $document->streamResponse();
     }
 
     public function destroy(Request $request, Document $document)
@@ -108,7 +87,12 @@ class DocumentController extends Controller
             'You can only delete documents you uploaded.'
         );
 
-        Storage::disk($document->disk)->delete($document->path);
+        if ($document->disk === 'cloudinary' && $document->cloud_public_id) {
+            app(\App\Support\CloudinaryClient::class)->delete($document->cloud_public_id, $document->cloud_resource_type ?: 'raw');
+        } elseif ($document->disk && $document->path) {
+            Storage::disk($document->disk)->delete($document->path);
+        }
+
         AuditLog::record('deleted', "Deleted document {$document->original_filename}.", $document);
         $document->delete();
         return response()->json(['message' => 'Document deleted.']);

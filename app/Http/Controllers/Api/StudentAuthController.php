@@ -580,21 +580,7 @@ public function downloadPar(Request $request, $id)
 
     AuditLog::record('downloaded', "Student downloaded their PAR copy ({$doc->original_filename}).", $doc);
 
-    // Prefer the copy stored in the database (survives redeploys); fall back to
-    // the disk for any older file still present there.
-    if (!empty($doc->content)) {
-        $name = str_replace(['"', "\r", "\n"], '', $doc->original_filename ?: 'PAR');
-        return response(base64_decode($doc->content))
-            ->header('Content-Type', $doc->mime_type ?: 'application/octet-stream')
-            ->header('Content-Disposition', 'attachment; filename="' . $name . '"')
-            ->header('X-Content-Type-Options', 'nosniff');
-    }
-    if (!\Illuminate\Support\Facades\Storage::disk($doc->disk)->exists($doc->path)) {
-        return response()->json(['message' => 'No PAR file is available for this record. Please ask the TMDU to upload it again.'], 404);
-    }
-    return \Illuminate\Support\Facades\Storage::disk($doc->disk)->download($doc->path, $doc->original_filename, [
-        'X-Content-Type-Options' => 'nosniff',
-    ]);
+    return $doc->streamResponse();
 }
 
 }
