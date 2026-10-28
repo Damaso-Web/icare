@@ -28,7 +28,12 @@
 <style>
     @page { margin: 17mm 16mm 16mm 16mm; }
     * { box-sizing: border-box; }
-    body { font-family: 'DejaVu Sans', sans-serif; font-size: 8.2pt; color: #1d1d1d; line-height: 1.25; }
+    {{-- Helvetica instead of DejaVu Sans: it's one of dompdf's built-in
+         "standard 14" PDF fonts, so no TTF has to be loaded, parsed and
+         subset on every export. The report only uses plain ASCII plus a
+         middle-dot separator, which Helvetica's WinAnsi encoding already
+         covers, so nothing is lost and renders are noticeably faster. --}}
+    body { font-family: Helvetica, sans-serif; font-size: 8.2pt; color: #1d1d1d; line-height: 1.25; }
 
     /* Letterhead (first page) and the running header on later pages */
     .letterhead { text-align: center; padding-bottom: 10px; border-bottom: 2px solid #1f5c3a; margin-bottom: 4px; }
