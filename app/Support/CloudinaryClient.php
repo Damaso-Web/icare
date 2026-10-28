@@ -58,7 +58,14 @@ class CloudinaryClient
     public function upload(string $localPath, string $folder): array
     {
         $timestamp = time();
-        $publicId  = $folder . '/' . (string) Str::uuid();
+        // Bug (10/29/2026): this used to be "{$folder}/" . Str::uuid(), with
+        // $folder ALSO sent below as its own 'folder' param. Cloudinary
+        // prepends 'folder' onto whatever 'public_id' it's given, so a
+        // public_id that already started with the folder name came out
+        // doubled - "testing-reports/testing-reports/<uuid>" - instead of
+        // "testing-reports/<uuid>". public_id here is just the unique id;
+        // the 'folder' param below is what actually places it in the folder.
+        $publicId  = (string) Str::uuid();
 
         $toSign = [
             'folder'    => $folder,
@@ -94,7 +101,10 @@ class CloudinaryClient
         $json = $response->json();
 
         return [
-            'public_id'     => $json['public_id'] ?? $publicId,
+            // Fallback (the happy path always has this from Cloudinary's own
+            // response) needs the folder prefixed back on, since $publicId
+            // above is now just the bare uuid.
+            'public_id'     => $json['public_id'] ?? "{$folder}/{$publicId}",
             'resource_type' => $json['resource_type'] ?? 'raw',
             'format'        => $json['format'] ?? null,
             'bytes'         => $json['bytes'] ?? null,
