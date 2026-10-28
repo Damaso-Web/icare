@@ -703,7 +703,18 @@ function stageOf(status) {
   return 'pending'; // pending, fee_form_pending, or_submitted (legacy)
 }
 
-const stage = computed(() => stageOf(record.value.status));
+// A record can reach 'test_results_issued' with no PAR actually attached if
+// the upload failed after the status was already saved (fixed server-side,
+// but older/already-affected records can still be in this state). Treat
+// those as still "Awaiting Results" so the Attach PAR form stays reachable
+// instead of leaving the record permanently stuck with a missing PAR.
+const hasParDocument = computed(() =>
+  (record.value.documents || []).some(d => d.document_type === 'psychological_assessment_report')
+);
+const stage = computed(() => {
+  if (record.value.status === 'test_results_issued' && !hasParDocument.value) return 'awaiting_results';
+  return stageOf(record.value.status);
+});
 
 const pipeline = [
   { key: 'pending',               label: 'Pending' },

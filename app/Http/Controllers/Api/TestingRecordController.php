@@ -663,10 +663,16 @@ class TestingRecordController extends Controller
     // callers that still send it keep working.
     public function sendToGcu(Request $request, TestingRecord $testingRecord)
     {
-        // Results can only be issued once - without this, re-submitting this
-        // action would silently overwrite the report (and re-attach a new
-        // file over the original) after it's already gone out to GCU.
-        if ($testingRecord->status === 'test_results_issued') {
+        // Results can only be issued once a PAR is actually attached -
+        // without this, re-submitting would silently overwrite the report
+        // (and re-attach a new file over the original) after it's already
+        // gone out to GCU. A record that reached test_results_issued without
+        // ever getting a PAR document (e.g. an upload failure that happened
+        // after the status was already saved, since fixed) is NOT
+        // considered "already issued" here, so it can still be resubmitted.
+        $alreadyHasPar = $testingRecord->status === 'test_results_issued'
+            && $testingRecord->documents()->where('document_type', 'psychological_assessment_report')->exists();
+        if ($alreadyHasPar) {
             abort(422, 'Test results have already been issued to GCU for this record.');
         }
         $this->ensureTesterAssigned($testingRecord, $request);
@@ -687,19 +693,12 @@ class TestingRecordController extends Controller
             'report_file'        => 'nullable|file|max:10240',
         ]);
 
-        $testingRecord->update([
-            ...$request->only(['assessment_summary', 'findings', 'recommendations']),
-            'status'             => 'test_results_issued',
-            'report_date'        => today(),
-            'report_sent_to_gcu' => true,
-            'report_sent_at'     => now(),
-        ]);
-
-        // If a PAR file was attached, store it once and link it to both the
-        // testing record and its referral, so it shows up wherever either
-        // one is viewed. Prefer the referral this record was actually
-        // created from (referral_id); fall back to the case's latest
-        // referral for older records that predate that link.
+        // Upload the PAR file (if any) BEFORE touching the testing record at
+        // all. Doing this after marking results as released meant a failed
+        // Cloudinary upload still left the record showing "Results Released"
+        // with no PAR ever attached - results status and PAR attachment must
+        // succeed or fail together.
+        $cloud = null;
         if ($request->hasFile('report_file')) {
             $file = $request->file('report_file');
 
@@ -709,6 +708,22 @@ class TestingRecordController extends Controller
                 Log::error('PAR upload to Cloudinary failed', ['error' => $e->getMessage()]);
                 return response()->json(['message' => 'The report file could not be uploaded right now. Please try again in a moment.'], 502);
             }
+        }
+
+        $testingRecord->update([
+            ...$request->only(['assessment_summary', 'findings', 'recommendations']),
+            'status'             => 'test_results_issued',
+            'report_date'        => today(),
+            'report_sent_to_gcu' => true,
+            'report_sent_at'     => now(),
+        ]);
+
+        // Link the uploaded PAR to both the testing record and its referral,
+        // so it shows up wherever either one is viewed. Prefer the referral
+        // this record was actually created from (referral_id); fall back to
+        // the case's latest referral for older records that predate that link.
+        if ($cloud) {
+            $file = $request->file('report_file');
 
             $docBase = [
                 'document_type'       => 'psychological_assessment_report',

@@ -65,7 +65,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:var(--sh-lg)">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Referral for Psychological Testing</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="selected = null">✕</button>
         </div>
         <CaseReferralView :data="selected" />
         <div style="padding:0 22px 22px;display:flex;justify-content:flex-end;gap:8px">
