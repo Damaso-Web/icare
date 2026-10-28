@@ -473,13 +473,15 @@ class ReportWorkbook
             'reportTitle' => $this->reportTitle,
             'period'      => $this->period,
             'generatedAt' => $this->generatedAt,
-        ])->setPaper('a4', 'landscape')
-          ->setOption('isFontSubsettingEnabled', true);   // embed only the letters used
+        ])->setPaper('a4', 'landscape');
 
         $dompdf = $pdf->getDomPDF();
         $dompdf->render();
         $canvas = $dompdf->getCanvas();
-        $font   = $dompdf->getFontMetrics()->getFont('DejaVu Sans');
+        // Helvetica is one of dompdf's built-in standard fonts (same as the
+        // body font in reports/export-pdf.blade.php), so the footer text
+        // doesn't pull in and subset the DejaVu Sans TTF just for itself.
+        $font   = $dompdf->getFontMetrics()->getFont('Helvetica');
         $footer = 'iCARE - ' . $this->reportTitle . '  |  Generated ' . $this->generatedAt;
         $canvas->page_text(45, $canvas->get_height() - 28, $footer, $font, 7, [0.45, 0.45, 0.45]);
         $canvas->page_text($canvas->get_width() - 110, $canvas->get_height() - 28, 'Page {PAGE_NUM} of {PAGE_COUNT}', $font, 7, [0.45, 0.45, 0.45]);
