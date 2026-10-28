@@ -27,7 +27,7 @@
             </template>
             <template v-else>
               <div class="hero-kicker">{{ roleTitle }}</div>
-              <abbr v-if="auth.user?.role !== 'faculty'" class="hero-oss" title="Office of Student Services" style="text-decoration:none">OSS</abbr>
+              <span v-if="auth.user?.role !== 'faculty'" class="hero-oss">Office of Student Services</span>
             </template>
           </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>

@@ -66,13 +66,17 @@ class AuthController extends Controller
         // a credential failure - don't count it against the lockout guard,
         // just point them at the sign-in card their account actually belongs
         // under. (No audience sent - a bare /login - skips this check.)
+        // The message stays generic (doesn't name the account's real role/
+        // audience) for the same reason as BAD_LOGIN above - the sign-in
+        // form shouldn't be usable to find out what kind of account an
+        // email belongs to.
         if ($request->audience === 'faculty' && !in_array($user->role, self::FACULTY_AUDIENCE_ROLES, true)) {
             AuditLog::record('login_failed', "Staff login refused for {$user->name}: {$user->role} account used the Faculty sign-in.", $user, [], [], $user);
-            return response()->json(['message' => 'This is an OSS Personnel account. Please use the OSS Personnel sign-in instead.'], 401);
+            return response()->json(['message' => 'The credentials entered do not match this sign-in portal. Please select the appropriate sign-in type at the top left.'], 401);
         }
         if ($request->audience === 'oss' && !in_array($user->role, self::OSS_AUDIENCE_ROLES, true)) {
             AuditLog::record('login_failed', "Staff login refused for {$user->name}: {$user->role} account used the OSS Personnel sign-in.", $user, [], [], $user);
-            return response()->json(['message' => 'This is a Faculty account. Please use the Faculty sign-in instead.'], 401);
+            return response()->json(['message' => 'The credentials entered do not match this sign-in portal. Please select the appropriate sign-in type at the top left.'], 401);
         }
 
         // A one-time password (from registering) works only for a short time.
