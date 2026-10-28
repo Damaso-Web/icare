@@ -43,6 +43,17 @@ class AppointmentController extends Controller
         if (in_array($role, ['admin', 'gcu_staff'], true) && $appointment->unit === 'TMDU') {
             abort(403, 'This appointment belongs to TMDU.');
         }
+        // Bug (10/29/2026): index() above already restricts an SDU Head's
+        // appointment LIST to unit === 'SDU' (line ~77), but this show()
+        // guard had no matching check at all - an SDU Head who knew or
+        // guessed an appointment id could fetch any GCU or TMDU
+        // appointment directly, bypassing the list-level restriction
+        // entirely. Same shape as the DocumentController/SessionNoteController
+        // fixes: a read-one endpoint wasn't held to the same rule as its
+        // own read-many endpoint.
+        if ($role === 'sdu_head' && $appointment->unit !== 'SDU') {
+            abort(403, 'This appointment belongs to another unit.');
+        }
 
         // B625 reverted (10/25/2026): gcu_staff is back to unit-wide access
         // on GCU appointments, same as Student Information Files (B623).
@@ -488,6 +499,12 @@ class AppointmentController extends Controller
 
     public function cancel(Request $request, Appointment $appointment)
 {
+    // Bug (10/29/2026): unlike confirm()/reschedule()/checkIn()/update()
+    // just above, this action never called authorizeUnit() - any staff
+    // role could cancel any unit's appointment, not just their own unit's,
+    // regardless of what show()/index() let them even see.
+    $this->authorizeUnit($appointment);
+
     $request->validate(['cancellation_reason' => 'required|string|max:1000']);
 
     $appointment->update([

@@ -33,11 +33,19 @@ class SessionNoteController extends Controller
         }
     }
 
+    // Bug (10/29/2026): these three read endpoints only blocked faculty and
+    // dean secretaries, so any other staff role - SDU Head, TMDU staff,
+    // TMDU Head - could read any case's session notes (counseling
+    // observations, interventions, student responses) via a direct API
+    // call. The frontend never surfaces this to them - referrals/Show.vue
+    // only fetches session notes `if (isGCU.value)` - but the backend
+    // didn't enforce it, same shape as the document access-control bug.
+    // Session notes are a counselor-only workflow end to end (write access
+    // is already canCounsel()-gated above), so read access is now the same
+    // allowlist instead of a blocklist that only named two roles.
     public function index(Request $request, CaseFile $case)
     {
-        $user = $request->user();
-
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
+        if (!$request->user()->canCounsel()) {
             abort(403, 'Access denied.');
         }
 
@@ -48,9 +56,7 @@ class SessionNoteController extends Controller
 
     public function indexByReferral(Request $request, Referral $referral)
     {
-        $user = $request->user();
-
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
+        if (!$request->user()->canCounsel()) {
             abort(403, 'Access denied.');
         }
 
@@ -175,9 +181,7 @@ class SessionNoteController extends Controller
 
     public function show(SessionNote $sessionNote)
     {
-        $user = request()->user();
-
-        if ($user->isFaculty() || $user->isDeanSecretary()) {
+        if (!request()->user()->canCounsel()) {
             abort(403, 'Access denied.');
         }
 
