@@ -4,20 +4,31 @@
     <div class="hero">
       <div class="hero-row">
         <div>
-          <!-- The unit, with the office it belongs to right beside it -->
+          <!-- The unit, with the office it belongs to right beside it.
+               B629/B632/B635/B638 (10/24-10/26/2026): Dean and Dept Chair
+               get one dot-separated line - role, their full department/
+               college name, then the college abbreviation (e.g.
+               "DEPARTMENT CHAIR • Department of Library and Information
+               Science • CIS") - the role renders uppercase via .hero-kicker's
+               own CSS, the rest stays normal case for readability, same as
+               it's typed here. OSS personnel (Admin/GCU/SDU/TMDU) keep the
+               plain "OSS" chip exactly as before. Faculty gets neither -
+               just their existing "Faculty · Department" kicker, same as a
+               student's dashboard already has no such chip at all. -->
           <div class="hero-kicker-row">
-            <div class="hero-kicker">{{ roleTitle }}</div>
-            <!-- Bug (10/24/2026, B637 original): always shown as "OSS", as
-                 plain text beside the role title rather than inside a boxed
-                 pill - the full name is still there as a tooltip. Was
-                 previously the full name in a pill on a computer, shrinking
-                 to a boxed "OSS" on a phone (B587); now it's always just
-                 the abbreviation, with no box, at every width.
-                 Bug (10/25/2026, B637 revised + B639): for Dean/Dean
-                 Secretary/Dept Chair accounts, this now shows the account's
-                 own college abbreviation (e.g. "CIS") instead of the fixed
-                 "OSS" - everyone else is unchanged. -->
-            <abbr class="hero-oss" :title="affiliationFullName" style="text-decoration:none">{{ affiliationAbbrev }}</abbr>
+            <template v-if="showsCollegeAbbrev">
+              <div class="hero-kicker">{{ roleBase }}</div>
+              <span class="hero-kicker-sep">&bull;</span>
+              <span class="hero-kicker-detail">{{ bulletAffiliation }}</span>
+              <template v-if="bulletAbbrev">
+                <span class="hero-kicker-sep">&bull;</span>
+                <span class="hero-kicker-detail">{{ bulletAbbrev }}</span>
+              </template>
+            </template>
+            <template v-else>
+              <div class="hero-kicker">{{ roleTitle }}</div>
+              <abbr v-if="auth.user?.role !== 'faculty'" class="hero-oss" title="Office of Student Services" style="text-decoration:none">OSS</abbr>
+            </template>
           </div>
           <h1>{{ greeting }}, {{ firstName }}!</h1>
           <p>Here's what needs your attention today.</p>
@@ -187,11 +198,12 @@
                  originated themselves, not an incoming queue to process - "View
                  all" was pointed at the Referral Queue instead of their own
                  Sent Referrals history.
-                 Bug (10/25/2026, B628): for plain Faculty this card is just a
-                 glance at what's most recent, not a second place to browse
-                 the full list (Sent Referrals already does that) - no "View
-                 all" button, and only the latest 3 rows. -->
-            <router-link v-if="auth.user?.role !== 'faculty'" :to="{ name: 'sent-referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
+                 B628 (10/25/2026) hid this button for plain Faculty, showing
+                 only the latest 3 rows with no second way to browse the full
+                 list. B634 (10/26/2026) restored it - Faculty gets "View all"
+                 too now, same as every other role; only the 3-row limit from
+                 B628 stays. -->
+            <router-link :to="{ name: 'sent-referrals' }" class="ibtn ibtn-g ibtn-sm">View all</router-link>
           </div>
           <div class="ts">
             <table class="itable">
@@ -217,9 +229,12 @@
           </div>
         </div>
 
-        <!-- B608: My Submitted Complaints - a Dept Chair's own filed
+        <!-- B608: My Submitted Complaints - a Dean's or Dept Chair's own filed
              complaints, same table layout and "View all" pattern as the
-             Sent Referrals card above, pointed at Sent Complaints instead. -->
+             Sent Referrals card above, pointed at Sent Complaints instead.
+             B636/B637 (10/26/2026): this was missing the Code column the
+             Referrals card has - added below, same complaint_code shown on
+             the Sent Complaints page itself. -->
         <div class="icard" v-if="dashboard.recent_complaints?.length" style="grid-column:1/-1">
           <div class="icard-header">
             <span class="icard-title">My Submitted Complaints</span>
@@ -229,6 +244,7 @@
             <table class="itable">
               <thead>
                 <tr>
+                  <th>Code</th>
                   <th>Student</th>
                   <th>Violation</th>
                   <th>Status</th>
@@ -237,6 +253,7 @@
               </thead>
               <tbody>
                 <tr v-for="c in dashboard.recent_complaints" :key="c.id">
+                  <td style="font-family:var(--mono);font-size:11px">{{ c.complaint_code }}</td>
                   <td>{{ c.complainee?.first_name }} {{ c.complainee?.last_name }}</td>
                   <td>{{ c.violation_type }}</td>
                   <td><span class="ibadge" :class="'ibadge-' + c.status">{{ toTitleCase(c.status) }}</span></td>
@@ -282,9 +299,15 @@
       </div>
 
       <!-- Empty state -->
+      <!-- B630 (10/24/2026): Dept Chair and Faculty (and Dean, same outbound-
+           only role) have no incoming queue to "check" - they only ever
+           submit referrals/complaints and track their own. "...or checking
+           the queue" was wrong for them; "...or complaint" is correct for
+           every role, since everyone can do at least one of the two. -->
       <div class="empty-state" v-if="isEmpty && !auth.isSDUHead">
         <h3>No data yet</h3>
-        <p>Start by submitting a referral or checking the queue.</p>
+        <p v-if="auth.isDean || auth.isDeptChair || auth.user?.role === 'faculty'">Start by submitting a referral or complaint.</p>
+        <p v-else>Start by submitting a referral or checking the queue.</p>
       </div>
     </template>
 
@@ -324,7 +347,10 @@ const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', mon
 const ROLE_TITLES = {
   admin: 'Admin · GCU Head', gcu_staff: 'Guidance and Counseling Unit', sdu_head: 'Student Discipline Unit',
   tmdu_staff: 'Testing and Measurement Development Unit', faculty: 'Faculty', dean: 'Dean',
-  dept_chair: 'Department Chair', dean_secretary: 'Dean', tmdu_head: 'TMDU Head', system_admin: 'System Administrator',
+  dept_chair: 'Department Chair', dean_secretary: 'Dean',
+  // B631 (10/26/2026): was the bare "TMDU Head", inconsistent with the full
+  // designation already used for tmdu_staff just above.
+  tmdu_head: 'Testing and Measurement Development Unit Head', system_admin: 'System Administrator',
 };
 // B565: a faculty member's banner just said "Faculty" with no indication of
 // which department/college they belong to. Department is stored as a bare
@@ -344,46 +370,32 @@ const facultyAffiliation = computed(() => {
   const dept = (auth.user?.department || '').trim();
   return dept ? `Faculty · ${dept}` : 'Faculty';
 });
-// B594: same idea as facultyAffiliation above - "Dean" alone doesn't say
-// which college. "Dean of the College of Information Sciences" instead.
-const deanAffiliation = computed(() => {
-  const college = bareCollegeName(auth.user?.college);
-  if (!college) return 'Dean';
-  // "Dean of the College of Information Sciences" reads better than
-  // dropping the "the" - but only when the name actually starts with
-  // "College of...", so an oddly-named college doesn't get a stray "the".
-  return /^College of /i.test(college) ? `Dean of the ${college}` : `Dean of ${college}`;
-});
-// B604: "Department Chair" alone doesn't say which department they oversee -
-// "Department Chair of the Department of Information Sciences" instead.
-const deptChairAffiliation = computed(() => {
-  const dept = (auth.user?.department || '').trim();
-  if (!dept) return 'Department Chair';
-  return /^Department of /i.test(dept) ? `Department Chair of the ${dept}` : `Department Chair of the Department of ${dept}`;
-});
 const roleTitle = computed(() => {
   if (auth.user?.role === 'faculty') return facultyAffiliation.value;
-  if (auth.user?.role === 'dean' || auth.user?.role === 'dean_secretary') return deanAffiliation.value;
-  if (auth.user?.role === 'dept_chair') return deptChairAffiliation.value;
   return ROLE_TITLES[auth.user?.role] || 'iCARE';
 });
-// Bug (10/25/2026, B637 revised + B639): for a Dean or Dept Chair, the chip
-// beside the role title shows their own college's abbreviation (e.g. "CIS")
-// instead of the generic "OSS" - every other role is unaffected and keeps
-// plain "OSS", since neither bug mentioned them. affiliation_abbrev comes
-// from the dashboard API (App\Support\CollegeName::abbrev on the account's
-// college); if it couldn't be resolved, this falls back to "OSS" rather
-// than showing something blank or wrong.
+// B629/B632/B635/B638 (10/24-10/26/2026): Dean and Dept Chair get a single
+// dot-separated kicker line - "DEPARTMENT CHAIR • Department of Library and
+// Information Science • CIS" - instead of the old "Department Chair of the
+// Department of X" phrasing with a separate college-abbreviation chip.
+// roleBase is just the bare role name (the template's own CSS uppercases
+// it); bulletAffiliation is the account's full department (Dept Chair) or
+// college (Dean) name; bulletAbbrev is the trailing college code.
 const showsCollegeAbbrev = computed(() => ['dean', 'dean_secretary', 'dept_chair'].includes(auth.user?.role));
-const affiliationAbbrev = computed(() => {
-  if (!showsCollegeAbbrev.value) return 'OSS';
-  return dashboard.value.affiliation_abbrev || 'OSS';
+const roleBase = computed(() => (auth.user?.role === 'dept_chair' ? 'Department Chair' : 'Dean'));
+const bulletAffiliation = computed(() => {
+  if (auth.user?.role === 'dept_chair') {
+    const dept = (auth.user?.department || '').trim();
+    if (!dept) return '';
+    return /^Department of /i.test(dept) ? dept : `Department of ${dept}`;
+  }
+  return bareCollegeName(auth.user?.college);
 });
-const affiliationFullName = computed(() => {
-  if (!showsCollegeAbbrev.value) return 'Office of Student Services';
-  const college = bareCollegeName(auth.user?.college);
-  return college || 'Office of Student Services';
-});
+// affiliation_abbrev comes from the dashboard API (App\Support\CollegeName::abbrev
+// on the account's college); left blank (not "OSS") when it can't be resolved,
+// so the bullet row just drops that trailing segment instead of showing a
+// wrong or placeholder value.
+const bulletAbbrev = computed(() => dashboard.value.affiliation_abbrev || '');
 
 // The two or three places each role goes most, one tap from the banner.
 // Named exactly as in the menu, so a shortcut and its menu item read the same.

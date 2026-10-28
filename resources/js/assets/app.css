@@ -338,6 +338,13 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
 /* B637: the office abbreviation beside the role title - plain text, no pill
    box, at every width (the full name is still there as a tooltip). */
 .hero-oss{font-size:11px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;color:rgba(255,255,255,.55);flex-shrink:0}
+/* B629/B632/B635/B638: Dean/Dept Chair's one-line kicker - role (still
+   uppercase via .hero-kicker above), then their full department/college
+   name and college code, in normal case so a long department name stays
+   readable instead of shouting. No box/border, same plain-text treatment
+   as .hero-oss. */
+.hero-kicker-sep{font-size:11px;color:rgba(255,255,255,.4);flex-shrink:0}
+.hero-kicker-detail{font-size:11px;font-weight:600;letter-spacing:.2px;color:rgba(255,255,255,.72);flex-shrink:0}
 .hero-actions{display:flex;gap:8px;flex-wrap:wrap}
 /* The shortcuts are one set: the same look and the same size as each other. */
 .hero-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:158px;padding:11px 16px;border-radius:11px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .13s,border-color .13s,transform .1s}

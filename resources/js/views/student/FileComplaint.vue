@@ -76,13 +76,21 @@
         </div>
         <div>
           <label class="ifl">Evidence <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
-          <input type="file" multiple :accept="ACCEPT" @change="pick($event, evidence); clearFieldError('evidence')" />
+          <!-- B583 (10/23/2026, mobile file picker): the previous fix (B586)
+               tried extensions + explicit MIME types so Android/Chrome's
+               picker would offer "Files" alongside Camera/Gallery, but
+               mixing image types into `accept` still collapses the picker to
+               camera/gallery-only on Android - dropping `accept` entirely is
+               the documented fix. Wrong types/oversized files are still
+               caught by badFile() on submit, which names the exact file and
+               repeats the same allowed-types/size message shown here. -->
+          <input type="file" multiple @change="pick($event, evidence); clearFieldError('evidence')" />
           <div v-if="evidence.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidence.length }} file(s) selected</div>
           <div v-if="fieldErrors.evidence" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Evidence file.</div>
         </div>
         <div>
           <label class="ifl">Affidavit of Witness <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
-          <input type="file" multiple :accept="ACCEPT" @change="pick($event, affidavit); clearFieldError('affidavit')" />
+          <input type="file" multiple @change="pick($event, affidavit); clearFieldError('affidavit')" />
           <div v-if="affidavit.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavit.length }} file(s) selected</div>
           <div v-if="fieldErrors.affidavit" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Affidavit of Witness file.</div>
         </div>
@@ -128,9 +136,8 @@ const target = ref(null);
 const violationTypes = ref([]);
 const evidence = ref([]);
 const affidavit = ref([]);
-// B586: extensions + explicit MIME types, so Android/Chrome's file chooser
-// offers "Files" alongside Camera/Gallery instead of defaulting to the latter.
-const ACCEPT = '.pdf,.doc,.docx,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+// B586's `accept` attribute was removed by B583 (10/23/2026) - see the two
+// file inputs above. OK_EXT/badFile() below is the only gate now.
 const OK_EXT = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
 const MAX_BYTES = 10 * 1024 * 1024;
 
