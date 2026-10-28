@@ -4,7 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
+use App\Models\CaseFile;
+use App\Models\Complaint;
 use App\Models\Document;
+use App\Models\Referral;
+use App\Models\TestingRecord;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -56,10 +60,79 @@ class DocumentController extends Controller
     }
 
     // Confidential files (e.g. the PAR) are for GCU / TMDU only - SDU can't open them.
+    //
+    // Bug (10/29/2026): this was the ONLY check here. A non-confidential
+    // document attached to, say, a TMDU case was reachable by anyone in
+    // ['admin','gcu_staff','sdu_head','tmdu_staff','tmdu_head'] (the role
+    // list the documents/* routes allow), with no check on which unit the
+    // document's own case/referral/testing record/complaint belongs to -
+    // so an SDU Head could view and download a document that had nothing
+    // to do with SDU just because it wasn't marked confidential. Every
+    // other controller in the app enforces a per-unit check on top of the
+    // role list (CaseController::authorizeUnitAccess(),
+    // ReferralController::authorizeView(), the testing-records route
+    // group, ComplaintController::attachment()) - documents were the one
+    // place that check was missing. This reuses those same checks instead
+    // of reinventing unit logic here, so there's exactly one source of
+    // truth for "does this unit own this record."
     private function authorizeAccess(Request $request, Document $document): void
     {
-        if ($document->is_confidential && !in_array($request->user()->role, ['admin', 'gcu_staff', 'tmdu_staff', 'tmdu_head'], true)) {
+        $user = $request->user();
+
+        if ($document->is_confidential && !in_array($user->role, ['admin', 'gcu_staff', 'tmdu_staff', 'tmdu_head'], true)) {
             abort(403, 'You do not have access to this confidential document.');
+        }
+
+        // Admin and GCU staff are unit-wide ("team model") everywhere else
+        // in the app - no per-unit narrowing applies to them here either.
+        if ($user->isAdmin() || $user->isGCUStaff()) {
+            return;
+        }
+
+        switch ($document->documentable_type) {
+            case CaseFile::class:
+                $case = $document->documentable;
+                if ($case) {
+                    if ($user->isTMDUStaff() && $case->current_unit !== 'TMDU') {
+                        abort(403, 'This document belongs to a different unit.');
+                    }
+                    if ($user->isSDUHead() && $case->current_unit !== 'SDU') {
+                        abort(403, 'This document belongs to a different unit.');
+                    }
+                }
+                break;
+
+            case Referral::class:
+                $referral = $document->documentable;
+                if ($referral) {
+                    app(ReferralController::class)->authorizeView($referral, $user);
+                }
+                break;
+
+            case TestingRecord::class:
+                // Testing Records belong to TMDU only (same role list as the
+                // testing-records routes themselves, routes/api.php). The
+                // PAR that GCU needs to read is duplicated onto the Referral
+                // when TestingRecordController::sendToGcu() issues it, so
+                // GCU reaches its copy through the Referral case above, not
+                // this one - nobody outside TMDU should resolve this branch.
+                if (!$user->isTMDUStaff()) {
+                    abort(403, 'This document belongs to a different unit.');
+                }
+                break;
+
+            case Complaint::class:
+                // Same rule as ComplaintController::attachment(): the SDU
+                // Head and the person who filed it can always open it;
+                // anyone else only if they're authorized on the referral
+                // it was filed together with.
+                $complaint = $document->documentable;
+                if ($complaint && !$user->isSDUHead() && (int) $complaint->filed_by_user_id !== (int) $user->id) {
+                    $referral = $complaint->referral;
+                    abort_unless($referral, 403, 'Unauthorized.');
+                    app(ReferralController::class)->authorizeView($referral, $user);
+                }
+                break;
         }
     }
 
