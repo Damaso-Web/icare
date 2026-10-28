@@ -28,6 +28,15 @@ services:
       # ---- Forgot password: link inside the email points here ----
       - key: FRONTEND_URL
         value: https://iwouldcare.netlify.app
+      # ---- Persistent file storage (B113) ----
+      # Render's own disk is wiped on every deploy, so complaint evidence,
+      # OR photos, and PAR reports are stored on Cloudinary instead (see
+      # App\Support\CloudinaryClient). Paste the single CLOUDINARY_URL
+      # value from your Cloudinary dashboard here. Without this set,
+      # uploads silently fall back to local disk and are LOST on the next
+      # deploy - this is what caused PAR downloads to fail before.
+      - key: CLOUDINARY_URL
+        sync: cloudinary://233393483795356:0vF-vFGZZPcj89tI4av74jnFy-M@d5qtaibh  # cloudinary://<api_key>:<api_secret>@<cloud_name>
       # ---- Outgoing email: Gmail SMTP (needs a Google App Password) ----
       # NOTE: Render's free web services block outbound ports 25/465/587, so
       # Gmail will time out there. On a paid instance it works as-is. On the
