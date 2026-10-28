@@ -1,0 +1,18 @@
+name: Keep Render Backend Awake
+
+on:
+  schedule:
+    # Every 5 minutes (the shortest interval GitHub Actions allows, and not
+    # guaranteed to the minute). Render's free tier sleeps after ~15 min
+    # idle, so this keeps comfortable margin even if a run slips late.
+    - cron: "*/5 * * * *"
+  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab too
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping iCARE backend health check
+        run: |
+          curl -sS -o /dev/null -w "Status: %{http_code}\n" \
+            https://icare-backend-5jwe.onrender.com/
