@@ -423,7 +423,7 @@ const units = [
       'Coordinating with the Testing and Discipline units when a concern needs them',
     ],
     inCare: 'In iCARE, referrals arrive in the GCU queue, are acknowledged and assigned, appointments are scheduled, each session is recorded, and the case is followed through to resolution.',
-    email: 'oss.cgu@bsu.edu.ph',
+    email: 'oss.gcu@bsu.edu.ph',
   },
   {
     key: 'tmdu',
@@ -496,7 +496,7 @@ const contacts = [
   },
   {
     name: 'Guidance and Counseling Unit',
-    email: 'oss.cgu@bsu.edu.ph',
+    email: 'oss.gcu@bsu.edu.ph',
     phoneLabel: 'Mobile', phone: '0907-905-0644',
     facebook: 'https://www.facebook.com/bsuossgcu', facebookLabel: 'BSU OSS GCU',
   },
