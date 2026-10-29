@@ -352,58 +352,6 @@
             </div>
           </div>
 
-          <!-- Previous Interventions - plain narrative log, scoped to THIS
-               referral only (previousInterventionsForReferral - the history
-               list used to read every intervention on the whole case,
-               unfiltered, the same bug Handoff History had before it was
-               scoped). No longer doubles as the admission slip for Class
-               Attendance - that excused/unexcused determination now lives
-               on its own Admission Slip card below, with its own document
-               code. Student Information Files only. Replaced by Sanction/s
-               Given + Detailed Report for an Incident Report. -->
-          <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Previous Interventions</span></div>
-            <div class="icard-body">
-              <div style="font-size:11px;color:var(--stone);margin-bottom:10px;font-style:italic">For OSS Personnel</div>
-
-              <!-- Add entry (GCU only) - Person-In-Charge is always the logged-in staff account -->
-              <div v-if="isGCU && !isResolved && canEditSif">
-                <label class="ifl">Intervention</label>
-                <textarea v-model="interventionForm.text" class="ifta" style="min-height:70px" placeholder="Describe any prior support or actions already taken..." maxlength="2000" @input="interventionForm.text = plainText(interventionForm.text)"></textarea>
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:8px;margin-bottom:16px" @click="addIntervention">Save Entry</button>
-              </div>
-              <div v-else-if="isGCU && isResolved" style="background:var(--mist);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss);margin-bottom:16px">
-                ✓ {{ lockedText }}
-              </div>
-              <div v-else-if="isGCU && !canEditSif" style="background:var(--cloud);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--stone);margin-bottom:16px">
-                ⚠ This referral must be acknowledged and have an appointment set and attended before entries can be added.
-              </div>
-
-              <!-- History - each saved entry is permanent; new activity adds another entry, it never overwrites -->
-              <div v-if="!previousInterventionsForReferral.length" style="font-size:13px;color:var(--stone)">No previous interventions recorded yet.</div>
-              <div v-else style="display:flex;flex-direction:column;gap:8px">
-                <div
-                  v-for="item in previousInterventionsForReferral"
-                  :key="item.id"
-                  style="padding:10px 12px;background:var(--snow);border-radius:var(--r-sm);border-left:2px solid var(--silver);cursor:pointer;transition:background .1s"
-                  @mouseover="$event.currentTarget.style.background='var(--foam)'"
-                  @mouseleave="$event.currentTarget.style.background='var(--snow)'"
-                  @click="viewIntervention(item)"
-                >
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-                    <div style="font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ item.description }}</div>
-                    <div style="font-size:11px;color:var(--fog);flex-shrink:0">{{ formatDate(item.created_at) }}</div>
-                  </div>
-                  <div style="font-size:11px;color:var(--stone);margin-top:3px">
-                    {{ toTitleCase(item.type) || 'Previous Intervention' }}
-                    <span v-if="item.is_completed" class="ibadge" style="background:var(--mist);color:var(--moss);margin-left:4px">Completed</span>
-                  </div>
-                  <div style="font-size:10.5px;color:var(--fog);margin-top:2px">By {{ item.recorded_by?.name || item.person_in_charge?.name || '-' }}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
           <!-- Admission Slip - Class Attendance referrals only. This is the
                actual excused/unexcused determination (previously this lived
                inside Previous Interventions, conflating a narrative log with
@@ -1364,57 +1312,6 @@
       </div>
 
 
-      <!-- Intervention Detail Modal -->
-      <div v-if="selectedIntervention" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="selectedIntervention = null">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
-            <div style="font-size:15px;font-weight:600;color:var(--ink)">Intervention Summary</div>
-            <button class="ibtn ibtn-g ibtn-sm" @click="selectedIntervention = null">✕</button>
-          </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Type</div>
-              <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(selectedIntervention.type) || 'Previous Intervention' }}</div>
-            </div>
-            <div v-if="selectedIntervention.referral">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service</div>
-              <div style="font-size:13px;color:var(--ink)">{{ toTitleCase(selectedIntervention.referral?.referral_type) || '-' }}</div>
-            </div>
-            <div v-if="selectedIntervention.referral">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Reason of Referral</div>
-              <div style="font-size:13px;color:var(--ink);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedIntervention.referral?.nature_of_concern || '-' }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">{{ selectedIntervention.type === 'previous_intervention' ? 'Intervention' : 'Notes' }}</div>
-              <div style="font-size:13.5px;color:var(--ink);line-height:1.6;white-space:pre-line;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver)">{{ selectedIntervention.description }}</div>
-            </div>
-            <div v-if="selectedIntervention.excused !== null">
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Remarks</div>
-              <div style="font-size:13px;color:var(--ink)">{{ selectedIntervention.excused ? 'Excused' : 'Unexcused' }}</div>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Person-In-Charge</div>
-                <div style="font-size:13px;color:var(--ink)">{{ selectedIntervention.person_in_charge?.name || '-' }}</div>
-              </div>
-              <div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
-                <div style="font-size:13px;color:var(--ink)">{{ formatDate(selectedIntervention.created_at) }}</div>
-              </div>
-            </div>
-
-            <div v-if="selectedIntervention.is_completed" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--forest)">
-              ✓ Completed {{ formatDate(selectedIntervention.completed_at) }}{{ selectedIntervention.completed_by ? ' by ' + selectedIntervention.completed_by.name : '' }}.
-            </div>
-
-            <div style="display:flex;gap:8px;justify-content:flex-end">
-              <button v-if="isGCU && !selectedIntervention.is_completed" class="ibtn ibtn-p" @click="markInterventionCompleted">Done</button>
-              <button class="ibtn ibtn-o" @click="selectedIntervention = null">Close</button>
-            </div>
-          </div>
-        </div>
-      </div>
-
       <!-- View / Edit Follow-up Notes Modal -->
       <div v-if="selectedFollowUp" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeFollowUpDetail">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -2063,31 +1960,19 @@ const schedulingFollowUp = ref(false);
 const selectedFollowUp  = ref(null);
 const followUpNotesForm = ref('');
 
-const interventionForm = ref({ text: '' });
-const selectedIntervention = ref(null);
-
 // Incident Report only - "Sanction/s Given" and "Detailed Report" reuse the
-// same case-intervention log as Previous Interventions/Session Notes, just
-// typed differently and without the excused/unexcused remarks.
+// same case-intervention log as Session Notes, just typed differently and
+// without the excused/unexcused remarks.
 const sanctionForm = ref({ text: '' });
 const detailedReportForm = ref({ text: '' });
 
-
-function viewIntervention(item) {
-  selectedIntervention.value = item;
-}
-
-async function markInterventionCompleted() {
-  try {
-    const res = await caseAPI.completeIntervention(selectedIntervention.value.id);
-    Object.assign(selectedIntervention.value, res.data);
-    const idx = (referral.value.case.interventions || []).findIndex(i => i.id === res.data.id);
-    if (idx !== -1) referral.value.case.interventions[idx] = res.data;
-    toast?.success('Intervention marked as completed.');
-  } catch (e) {
-    toast?.error('Failed to mark intervention as completed.');
-  }
-}
+// Bug (10/30/2026): Previous Interventions section removed from this page
+// (card, Intervention Detail Modal, interventionForm/selectedIntervention
+// state, viewIntervention(), addIntervention(), markInterventionCompleted(),
+// and the previousInterventionsForReferral computed) per request - it was
+// still showing under Student Information Files. interventionsForReferral
+// below stays: sanctionsForReferral/detailedReportsForReferral (Incident
+// Report) still filter from it.
 
 const interventionsForReferral = computed(() => {
   const all = referral.value.case?.interventions || [];
@@ -2110,19 +1995,6 @@ const sanctionsForReferral = computed(() =>
 );
 const detailedReportsForReferral = computed(() =>
   interventionsForReferral.value.filter(i => i.type === 'detailed_report')
-);
-
-// The Previous Interventions history itself was still reading every
-// intervention on the whole case (referral.case.interventions, unfiltered)
-// instead of this referral's own - so a case carrying several referrals
-// (one student, one case for life) showed every OTHER referral's entries
-// here too, same bug Handoff History had before it was scoped. This uses
-// the same interventionsForReferral filtering sanctionsForReferral and
-// detailedReportsForReferral already use, narrowed to the plain
-// 'previous_intervention' type (addIntervention() already saves
-// referral_id correctly - only the display was unfiltered).
-const previousInterventionsForReferral = computed(() =>
-  interventionsForReferral.value.filter(i => i.type === 'previous_intervention')
 );
 
 // Opens through the API (with the login token) so it works without the
@@ -2613,27 +2485,6 @@ async function sendFeedback() {
     toast?.error(e.response?.data?.message || 'Failed to send feedback.');
   } finally {
     sendingFeedback.value = false;
-  }
-}
-
-async function addIntervention() {
-  if (!interventionForm.value.text) {
-    toast?.error('Please describe the intervention.');
-    return;
-  }
-  try {
-    const res = await caseAPI.addIntervention(referral.value.case.id, {
-      referral_id: referral.value.id,
-      type: 'previous_intervention',
-      description: interventionForm.value.text,
-    });
-    if (!referral.value.case.interventions) referral.value.case.interventions = [];
-    referral.value.case.interventions.unshift(res.data);
-    interventionForm.value = { text: '' };
-    toast?.success('Entry recorded.');
-    viewIntervention(res.data);
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to save entry.');
   }
 }
 

@@ -276,9 +276,14 @@ const pageTitle = computed(() => {
     appointments:        'Appointments',
     testing:             'Testing Records',
     'testing-appointments': 'TMDU Appointments',
+    // Bug (10/30/2026): 'testing-show' and 'notifications' were missing
+    // here, so those two pages fell through to the 'iCARE' fallback below
+    // instead of their own breadcrumb.
+    'testing-show':      'Testing Record',
     reports:             'Reports & Analytics',
     users:               'User Management',
     'faculty-directory': 'Faculty',
+    notifications:       'Notifications',
     'my-account':        'My Account',
     audit:               'Audit Logs',
     'call-slips':        'Call Slips',

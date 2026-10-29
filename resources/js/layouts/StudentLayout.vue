@@ -253,6 +253,9 @@ const pageTitle = computed(() => {
     'student-sent-complaints': 'Sent Complaints',
     'student-testing':      'My Testing',
     'student-account':      'My Account',
+    // Bug (10/30/2026): also missing, same "iCARE / iCARE" fallback bug.
+    'student-schedule-new': 'Schedule Appointment',
+    'student-notifications': 'Notifications',
   };
   // Bug (10/25/2026): Appointment Details and Referral Details had no entry
   // here (their real title is a record code that only exists once it has
