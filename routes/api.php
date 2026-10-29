@@ -105,6 +105,13 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::get('complaints/{complaint}/attachments/{attachment}', [ComplaintController::class, 'attachment']);
     Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
+    // Lets the referrer who submitted an unacknowledged referral fix the
+    // linked student's name/program/year level/sex from Edit Referral -
+    // narrower than (and deliberately separate from) the Students module's
+    // own update route below, which stays role:admin,gcu_staff only.
+    // ReferralController::updateReferredStudent() enforces "referrer, and
+    // only before acknowledgement" itself.
+    Route::put('referrals/{referral}/student', [ReferralController::class, 'updateReferredStudent']);
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);
     Route::post('referrals/{referral}/archive',   [ReferralController::class, 'archive']);
     Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);

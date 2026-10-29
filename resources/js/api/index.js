@@ -234,6 +234,7 @@ export const referralAPI = {
     store:        (data)     => api.post('/referrals', data),
     show:         (id)       => api.get(`/referrals/${id}`),
     update:       (id, data) => api.put(`/referrals/${id}`, data),
+    updateStudent:(id, data) => api.put(`/referrals/${id}/student`, data),
     acknowledge:  (id)       => api.post(`/referrals/${id}/acknowledge`),
     assign:       (id, data) => api.post(`/referrals/${id}/assign`, data),
     updateStatus: (id, data) => api.patch(`/referrals/${id}/status`, data),

@@ -427,6 +427,73 @@ class ReferralController extends Controller
         return response()->json($referral);
     }
 
+    // The referrer who submitted a referral can also fix the student's basic
+    // profile info (name/program/year level/sex) right from Edit Referral,
+    // until GCU acknowledges it - the same window they already get to edit
+    // the referral's own fields in (see update()/applyReferrerEdit() above).
+    //
+    // This is deliberately its OWN endpoint rather than widening
+    // StudentController::update(), whose student store/update routes are
+    // locked to role:admin,gcu_staff on purpose (see routes/api.php) -
+    // "changing student records is limited to the roles that own the
+    // Students module, enforced here and not just by the frontend". That
+    // boundary stays intact for the Students module itself; this narrowly
+    // reopens it only for the one person who just submitted an
+    // unacknowledged referral about this exact student, fixing a typo or a
+    // wrong program/year level they themselves entered minutes ago - not a
+    // general grant to edit any student's profile.
+    public function updateReferredStudent(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+        abort_unless(
+            $referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id,
+            403,
+            'Only the person who submitted this referral can edit the student\'s info here.'
+        );
+        $referral->abortIfLocked();
+        abort_if(
+            $referral->acknowledged_at || $referral->status !== 'submitted',
+            422,
+            'GCU already acknowledged this referral, so the student\'s info can no longer be edited here.'
+        );
+
+        $student = $referral->student;
+        abort_unless($student, 404, 'This referral has no linked student record.');
+
+        // Same name pattern StudentController uses - letters (incl.
+        // accented), spaces, apostrophes, hyphens and periods only.
+        $nameRegex = '/^[a-zA-Z\x{00C0}-\x{024F}\'\-\.\s]+$/u';
+
+        $data = $request->validate([
+            'first_name'  => ['sometimes', 'required', 'string', 'min:2', 'max:255', 'regex:' . $nameRegex],
+            'last_name'   => ['sometimes', 'required', 'string', 'min:2', 'max:255', 'regex:' . $nameRegex],
+            'middle_name' => ['nullable', 'string', 'min:2', 'max:255', 'regex:' . $nameRegex],
+            'suffix'      => ['nullable', 'string', 'max:20', 'regex:' . $nameRegex],
+            'sex'         => 'nullable|in:Male,Female,Prefer not to say',
+            'program'     => 'nullable|string|max:255',
+            'year_level'  => 'sometimes|required|string',
+        ]);
+
+        // Same "blank optional field means leave as-is" rule StudentController
+        // uses - this form re-sends the whole section, so an empty optional
+        // field was just never touched, not a deliberate clear.
+        foreach (['middle_name', 'suffix', 'sex', 'program'] as $optionalField) {
+            if (array_key_exists($optionalField, $data) && $data[$optionalField] === '') {
+                unset($data[$optionalField]);
+            }
+        }
+
+        $old = $student->only(array_keys($data));
+        $student->update($data);
+        AuditLog::record(
+            'updated',
+            "Referrer edited student info for {$student->first_name} {$student->last_name} via referral {$referral->referral_code} before acknowledgement.",
+            $student, $old, $student->only(array_keys($data))
+        );
+
+        return response()->json($student->fresh());
+    }
+
     public function archive(Request $request, Referral $referral)
     {
         $this->authorizeReferralWriter($request, $referral);

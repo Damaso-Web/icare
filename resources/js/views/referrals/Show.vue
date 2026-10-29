@@ -1495,6 +1495,59 @@
                 <textarea v-model="referralEditForm.incident_description" class="ifta" style="min-height:80px" maxlength="2000"></textarea>
               </div>
             </template>
+
+            <!-- Student info - fixes a typo or wrong detail the referrer just
+                 entered themselves; same pre-acknowledgement window as the
+                 rest of this form. Does not touch Student ID, College,
+                 Section or contact/guardian info - those stay the Students
+                 module's own (Admin/GCU Staff only). -->
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Student Info</div>
+              <div style="flex:1;height:1px;background:var(--cloud)"></div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+              <div>
+                <label class="ifl">Last Name</label>
+                <input v-model="studentEditForm.last_name" class="ifi" maxlength="255" />
+              </div>
+              <div>
+                <label class="ifl">First Name</label>
+                <input v-model="studentEditForm.first_name" class="ifi" maxlength="255" />
+              </div>
+              <div>
+                <label class="ifl">Middle Name</label>
+                <input v-model="studentEditForm.middle_name" class="ifi" maxlength="255" />
+              </div>
+              <div>
+                <label class="ifl">Suffix</label>
+                <input v-model="studentEditForm.suffix" class="ifi" maxlength="20" placeholder="e.g. Jr." />
+              </div>
+              <div>
+                <label class="ifl">Sex</label>
+                <select v-model="studentEditForm.sex" class="ifse">
+                  <option value="">-</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Prefer not to say">Prefer not to say</option>
+                </select>
+              </div>
+              <div>
+                <label class="ifl">Year Level</label>
+                <select v-model="studentEditForm.year_level" class="ifse">
+                  <option value="" disabled hidden>Select...</option>
+                  <option v-for="n in 10" :key="n" :value="String(n)">{{ n }}</option>
+                </select>
+              </div>
+              <div style="grid-column:1 / -1">
+                <label class="ifl">Program</label>
+                <select v-model="studentEditForm.program" class="ifse">
+                  <option value="">-</option>
+                  <option v-if="studentEditForm.program && !studentEditPrograms.includes(studentEditForm.program)" :value="studentEditForm.program">{{ studentEditForm.program }}</option>
+                  <option v-for="p in studentEditPrograms" :key="p" :value="p">{{ p }}</option>
+                </select>
+              </div>
+            </div>
+
             <div v-if="referralEditError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ referralEditError }}</div>
             <div style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="saveReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Save Changes' }}</button>
@@ -2795,20 +2848,64 @@ const savingReferralEdit = ref(false);
 const referralEditError = ref('');
 const referralEditForm = ref({ nature_of_concern: '', incident_description: '', incident_date: '' });
 
+// Student info section of Edit Referral - see updateReferredStudent() on the
+// backend. Only the fields a referrer is allowed to fix: no Student ID,
+// College, Section or contact/guardian info (Students module only).
+const studentEditForm = ref({ first_name: '', last_name: '', middle_name: '', suffix: '', sex: '', program: '', year_level: '' });
+const studentEditOriginal = ref({});
+const studentEditProgramsByCollege = ref({});
+const studentEditPrograms = computed(() => studentEditProgramsByCollege.value[referral.value.student?.college] || []);
+
+async function loadStudentEditPrograms() {
+  if (Object.keys(studentEditProgramsByCollege.value).length) return;
+  try {
+    const headers = { Authorization: `Bearer ${localStorage.getItem('token')}` };
+    const [collegeRes, programRes] = await Promise.all([
+      axios.get(`${API_BASE}/management/colleges`, { headers }),
+      axios.get(`${API_BASE}/management/programs`, { headers }),
+    ]);
+    const collegeNameById = {};
+    (collegeRes.data || []).forEach(c => { collegeNameById[c.id] = c.name; });
+    const grouped = {};
+    (programRes.data || []).forEach(p => {
+      const collegeName = collegeNameById[p.college_id];
+      if (!collegeName) return;
+      (grouped[collegeName] ||= []).push(p.name);
+    });
+    studentEditProgramsByCollege.value = grouped;
+  } catch (e) { /* the Program field still works as a free text fallback via the current value */ }
+}
+
 function openReferralEdit() {
   referralEditForm.value = {
     nature_of_concern:    referral.value.nature_of_concern || '',
     incident_description: referral.value.incident_description || '',
     incident_date:        referral.value.incident_date ? String(referral.value.incident_date).slice(0, 10) : '',
   };
+  const s = referral.value.student || {};
+  studentEditForm.value = {
+    first_name:  s.first_name || '',
+    last_name:   s.last_name || '',
+    middle_name: s.middle_name || '',
+    suffix:      s.suffix || '',
+    sex:         s.sex || '',
+    program:     s.program || '',
+    year_level:  s.year_level ? String(s.year_level) : '',
+  };
+  studentEditOriginal.value = { ...studentEditForm.value };
   referralEditError.value = '';
   showReferralEdit.value = true;
+  loadStudentEditPrograms();
 }
 
 async function saveReferralEdit() {
   const f = referralEditForm.value;
   if ((f.nature_of_concern || '').trim().length < 10) {
     referralEditError.value = 'Please describe the concern in at least 10 characters.';
+    return;
+  }
+  if (!studentEditForm.value.first_name.trim() || !studentEditForm.value.last_name.trim()) {
+    referralEditError.value = "Please fill in the student's first and last name.";
     return;
   }
   savingReferralEdit.value = true;
@@ -2821,6 +2918,19 @@ async function saveReferralEdit() {
     }
     const res = await referralAPI.update(referral.value.id, payload);
     referral.value = { ...referral.value, ...res.data };
+
+    // Only sent when something in the Student Info section actually
+    // changed - avoids an extra write (and an extra audit log entry) on
+    // every save when the referrer only touched the referral fields above.
+    const sf = studentEditForm.value;
+    const changedStudentFields = Object.keys(sf).filter(k => (sf[k] || '') !== (studentEditOriginal.value[k] || ''));
+    if (changedStudentFields.length) {
+      const studentPayload = {};
+      changedStudentFields.forEach(k => { studentPayload[k] = sf[k]; });
+      const sRes = await referralAPI.updateStudent(referral.value.id, studentPayload);
+      referral.value = { ...referral.value, student: { ...referral.value.student, ...sRes.data } };
+    }
+
     showReferralEdit.value = false;
     toast?.success('Referral updated.');
   } catch (e) {
