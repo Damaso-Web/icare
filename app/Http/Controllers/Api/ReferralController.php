@@ -1042,6 +1042,22 @@ class ReferralController extends Controller
         // Lets the student know their copy is ready in the student portal.
         $referral->student?->notify(new \App\Notifications\FeedbackSlipSentNotification($referral));
 
+        // Bug (10/29/2026): referrers never received anything when a
+        // feedback slip was sent - only the referred student did. Tell
+        // whoever referred the case too, staff or student, the same way
+        // an existing referrer is found elsewhere in this controller
+        // (reassignment notices): staff via referred_by_user_id, student
+        // via referred_by_student_id. Skip when the student-referrer IS
+        // the referred student (a self-referral) - that's the same
+        // person already notified just above, so don't double-send.
+        $referrer = $referral->referred_by_user_id
+            ? User::find($referral->referred_by_user_id)
+            : ($referral->referred_by_student_id ? \App\Models\Student::find($referral->referred_by_student_id) : null);
+        $isSelfReferral = $referrer instanceof \App\Models\Student && $referrer->id === $referral->student_id;
+        if ($referrer && !$isSelfReferral) {
+            $referrer->notify(new \App\Notifications\FeedbackSlipSentNotification($referral, forReferrer: true));
+        }
+
         return response()->json($slip->load('sentBy'));
     }
 

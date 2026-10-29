@@ -74,8 +74,13 @@
           <!-- B583/B584: live, as the user types. -->
           <div v-if="descriptionNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid narration of facts. Numbers alone are not allowed.</div>
         </div>
+        <!-- Bug (10/29/2026): Evidence and Affidavit of Witness were both
+             required - they're an either/or, so only one needs to be
+             attached. The "*" moved off the individual labels since neither
+             is required on its own; fieldErrors.proof covers the combined
+             check (see validateField()/submit() below). -->
         <div>
-          <label class="ifl">Evidence <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
+          <label class="ifl">Evidence <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
           <!-- B583 (10/23/2026, mobile file picker): the previous fix (B586)
                tried extensions + explicit MIME types so Android/Chrome's
                picker would offer "Files" alongside Camera/Gallery, but
@@ -84,15 +89,14 @@
                the documented fix. Wrong types/oversized files are still
                caught by badFile() on submit, which names the exact file and
                repeats the same allowed-types/size message shown here. -->
-          <input type="file" multiple @change="pick($event, evidence); clearFieldError('evidence')" />
+          <input type="file" multiple @change="pick($event, evidence); clearFieldError('proof')" />
           <div v-if="evidence.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidence.length }} file(s) selected</div>
-          <div v-if="fieldErrors.evidence" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Evidence file.</div>
         </div>
         <div>
-          <label class="ifl">Affidavit of Witness <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
-          <input type="file" multiple @change="pick($event, affidavit); clearFieldError('affidavit')" />
+          <label class="ifl">Affidavit of Witness <span style="color:var(--fog);font-weight:400">(accepted files: PDF, DOC, DOCX, JPG, PNG; up to 10 MB each)</span></label>
+          <input type="file" multiple @change="pick($event, affidavit); clearFieldError('proof')" />
           <div v-if="affidavit.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavit.length }} file(s) selected</div>
-          <div v-if="fieldErrors.affidavit" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Affidavit of Witness file.</div>
+          <div v-if="fieldErrors.proof" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Evidence file or at least one Affidavit of Witness file.</div>
         </div>
         <label style="display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--ink)">
           <input v-model="form.certification_agreed" type="checkbox" style="margin-top:3px" />
@@ -217,8 +221,13 @@ async function submit() {
     error.value = 'Please provide a valid narration of facts. Numbers alone are not allowed.';
     return;
   }
-  if (!evidence.value.length) { fieldErrors.value = { ...fieldErrors.value, evidence: true }; error.value = 'Please attach at least one Evidence file.'; return; }
-  if (!affidavit.value.length) { fieldErrors.value = { ...fieldErrors.value, affidavit: true }; error.value = 'Please attach at least one Affidavit of Witness file.'; return; }
+  // Bug (10/29/2026): Evidence and Affidavit of Witness are an either/or -
+  // at least one of the two needs to be attached, not both.
+  if (!evidence.value.length && !affidavit.value.length) {
+    fieldErrors.value = { ...fieldErrors.value, proof: true };
+    error.value = 'Please attach at least one Evidence file or at least one Affidavit of Witness file.';
+    return;
+  }
   const bad = badFile(evidence.value) || badFile(affidavit.value);
   if (bad) { error.value = `"${bad.name}" is not allowed. Use PDF, DOC, DOCX, JPG or PNG files up to 10 MB.`; return; }
   if (!f.certification_agreed) { error.value = 'Please tick the certification.'; return; }

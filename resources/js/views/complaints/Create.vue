@@ -125,7 +125,7 @@
         </div>
 
         <div style="margin-bottom:14px">
-          <label class="ifl">Address</label>
+          <label class="ifl">Address if known</label>
           <input
             v-model="form.complainee_address"
             type="text"
@@ -190,20 +190,25 @@
           <div v-if="descriptionNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid narration of facts. Numbers alone are not allowed.</div>
         </div>
 
+        <!-- Bug (10/29/2026): Evidence and Affidavit of Witness were both
+             required - they're an either/or, so only one needs to be
+             attached. The "*" moved off the individual labels since neither
+             is required on its own; the combined check is in validate()
+             below (errs.evidence/errs.affidavit are set together). -->
         <div style="margin-bottom:14px">
-          <label class="ifl">Evidence <span style="color:var(--red)">*</span></label>
+          <label class="ifl">Evidence</label>
           <!-- B586: extensions alone make some Android/Chrome versions fall
                back to a camera/gallery-only picker with no "Files" option.
                Pairing each extension with its real MIME type fixes it. -->
           <input type="file" multiple :accept="FILE_ACCEPT" class="ifi" :style="errorStyle('evidence')" @change="onFilesSelected($event, 'evidence')" />
-          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX. At least one Evidence or Affidavit of Witness file is required.</div>
           <div v-if="evidenceFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidenceFiles.length }} file(s) selected</div>
         </div>
 
         <div style="margin-bottom:14px">
-          <label class="ifl">Affidavit of Witness <span style="color:var(--red)">*</span></label>
+          <label class="ifl">Affidavit of Witness</label>
           <input type="file" multiple :accept="FILE_ACCEPT" class="ifi" :style="errorStyle('affidavit')" @change="onFilesSelected($event, 'affidavit')" />
-          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX.</div>
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Accepted file types: PDF, JPG, PNG, DOC, DOCX. At least one Evidence or Affidavit of Witness file is required.</div>
           <div v-if="affidavitFiles.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavitFiles.length }} file(s) selected</div>
         </div>
 
@@ -573,8 +578,12 @@ function openCertificationModal() {
   if (!form.value.violation_type)        { errs.violation_type = true;        missing.push('Specific Act of Misconduct'); }
   if (!form.value.incident_date)         { errs.incident_date = true;         missing.push('Date of Incident'); }
   if (!form.value.description)           { errs.description = true;          missing.push('Narration of Facts'); }
-  if (!evidenceFiles.value.length)       { errs.evidence = true;             missing.push('Evidence (attach at least one file)'); }
-  if (!affidavitFiles.value.length)      { errs.affidavit = true;            missing.push('Affidavit of Witness (attach at least one file)'); }
+  // Bug (10/29/2026): Evidence and Affidavit of Witness are an either/or -
+  // at least one of the two needs to be attached, not both.
+  if (!evidenceFiles.value.length && !affidavitFiles.value.length) {
+    errs.evidence = true; errs.affidavit = true;
+    missing.push('Evidence or Affidavit of Witness (attach at least one file)');
+  }
   if (form.value.incident_date && form.value.incident_date > todayStr) { errs.incident_date = true; missing.push('a Date of Incident that is not in the future'); }
 
   fieldErrors.value = errs;

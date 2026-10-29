@@ -122,26 +122,27 @@ class ComplaintController extends Controller
         $me = $request->user('student');
         abort_if((int) $request->complainee_student_id === (int) $me->id, 422, 'You cannot file a complaint against yourself.');
         $request->merge(['complainant_name' => trim($me->first_name . ' ' . $me->last_name)]);
-        // Student form: Narration of Facts is 10 to 1000 characters; evidence and
-        // affidavit are required and limited to document or image files.
+        // Student form: Narration of Facts is 10 to 1000 characters.
+        // Bug (10/29/2026): evidence and the Affidavit of Witness were both
+        // required - they're an either/or: either one attached is enough,
+        // checked manually below instead of two separate "required" rules.
         $fileRule = 'file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240';
         $request->validate([
             'description'  => ['required', 'string', 'min:10', 'max:1000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
-            'evidence'     => 'required|array|min:1',
+            'evidence'     => 'nullable|array',
             'evidence.*'   => $fileRule,
-            'affidavit'    => 'required|array|min:1',
+            'affidavit'    => 'nullable|array',
             'affidavit.*'  => $fileRule,
         ], [
             'description.min'    => 'Please describe the facts in at least 10 characters.',
             // B584: Narration of Facts must not be numbers-only.
             'description.regex'  => 'Please provide a valid narration of facts. Numbers alone are not allowed.',
-            'evidence.required'  => 'Please attach at least one evidence file.',
-            'evidence.min'       => 'Please attach at least one evidence file.',
-            'affidavit.required' => 'Please attach at least one Affidavit of Witness file.',
-            'affidavit.min'      => 'Please attach at least one Affidavit of Witness file.',
             'evidence.*.mimes'   => 'Evidence must be a PDF, Word document (DOC, DOCX) or image (JPG, PNG).',
             'affidavit.*.mimes'  => 'Affidavit of Witness must be a PDF, Word document (DOC, DOCX) or image (JPG, PNG).',
         ]);
+        if (!count($request->file('evidence', [])) && !count($request->file('affidavit', []))) {
+            abort(422, 'Please attach at least one evidence file or at least one Affidavit of Witness file.');
+        }
         return $this->file($request, [
             'user_id' => null, 'student_id' => $me->id, 'name' => trim($me->first_name . ' ' . $me->last_name),
             'role' => 'student', 'college' => $me->college,
@@ -180,10 +181,12 @@ class ComplaintController extends Controller
 
     private function file(Request $request, array $filer)
     {
-        // Staff must attach both the evidence and the affidavit of a witness; students file from their own portal form.
+        // Staff attach the evidence and/or the affidavit of a witness - an
+        // either/or, checked manually below; students file from their own
+        // portal form (storeByStudent() already validated/checked theirs).
         $staff = $filer['user_id'] !== null;
         $proofRules = $staff
-            ? ['evidence' => 'required|array|min:1', 'affidavit' => 'required|array|min:1']
+            ? ['evidence' => 'nullable|array', 'affidavit' => 'nullable|array']
             : [];
         $validated = $request->validate([
             ...$proofRules,
@@ -202,15 +205,15 @@ class ComplaintController extends Controller
             'evidence.*'             => 'nullable|file|max:10240',
             'affidavit.*'            => 'nullable|file|max:10240',
         ], [
-            'evidence.required'      => 'Please attach at least one evidence file.',
-            'evidence.min'           => 'Please attach at least one evidence file.',
-            'affidavit.required'     => 'Please attach at least one Affidavit of Witness file.',
-            'affidavit.min'          => 'Please attach at least one Affidavit of Witness file.',
             // B584: Address and Narration of Facts must not be numbers-only.
             'complainant_address.regex' => 'Please provide a valid address. Numbers alone are not allowed.',
             'description.regex'         => 'Please provide a valid narration of facts. Numbers alone are not allowed.',
             'incident_date.before_or_equal' => 'The date of incident cannot be in the future.',
         ]);
+
+        if ($staff && !count($request->file('evidence', [])) && !count($request->file('affidavit', []))) {
+            abort(422, 'Please attach at least one evidence file or at least one Affidavit of Witness file.');
+        }
 
         $student = Student::findOrFail($validated['complainee_student_id']);
         if (! $student->is_active) {
@@ -233,6 +236,23 @@ class ComplaintController extends Controller
             || !\App\Support\DepartmentScope::matches($student->program, $actor->department)
         )) {
             return response()->json(['message' => 'You can only file complaints against students enrolled in your own department.'], 403);
+        }
+
+        // Bug (10/29/2026): the student-portal complaint form
+        // (FileComplaint.vue) never asked for complainee_college/
+        // department/address at all - only the staff "File a Complaint"
+        // form (Create.vue) fills those in client-side from the selected
+        // student. $student is already loaded above for the Dean/Dept
+        // Chair scope checks, so default any of these three the request
+        // didn't send from that same record instead of leaving them null
+        // for every student-filed complaint.
+        $validated['complainee_college'] = $validated['complainee_college'] ?? $student->college;
+        $validated['complainee_address'] = $validated['complainee_address'] ?? $student->address;
+        if (empty($validated['complainee_department'])) {
+            $linkedDepartment = \App\Models\Program::where('name', $student->program)->with('department')->first()?->department?->name;
+            if ($linkedDepartment) {
+                $validated['complainee_department'] = $linkedDepartment;
+            }
         }
 
         $complaint = Complaint::create([
