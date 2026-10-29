@@ -119,4 +119,16 @@ function formatDate(d) {
 @media (max-width: 860px) {
   .cd-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+/* B628 (10/30/2026): the side-by-side grids (Complainant/Complainee next to
+   each other, then 4 fact fields across) read fine on screen but printed as
+   "left right left right" columns squeezed onto a page - stacked to a
+   single column instead, top to bottom, which is how a printed document is
+   meant to be read. Scoped styles still apply inside @media print, and this
+   component is printed from more than one place (Create.vue's Print
+   Complaint, SDU's Complaints page, inside a Student Incident Report), so
+   fixing it here instead of per-caller covers all of them. */
+@media print {
+  .cd-grid, .cd-facts { display: block; }
+  .cd-grid > div, .cd-facts > div { margin-bottom: 12px; }
+}
 </style>
