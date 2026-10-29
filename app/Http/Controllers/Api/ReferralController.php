@@ -580,8 +580,18 @@ class ReferralController extends Controller
                 // their own date/time via the scheduling link - but it's
                 // still a real row with a real date, so it must never land
                 // on a weekend by default.
+                //
+                // Bug (10/29/2026): this loop only skipped weekends, never
+                // an active Holiday/Suspension - unlike every other place an
+                // appointment_date is set (store(), confirm(),
+                // scheduleForStudent(), PublicSchedulingController::submit(),
+                // TestingRecordController::scheduleTesting(), all of which
+                // call BlockedDates), so a placeholder landing on a holiday
+                // was created and shown on the calendar as a real booked
+                // date until the student replaced it - and if nobody ever
+                // did, it just sat there on the holiday. Now skips both.
                 $placeholderDate = now()->addDay();
-                while ($placeholderDate->isWeekend()) {
+                while ($placeholderDate->isWeekend() || \App\Support\BlockedDates::message($placeholderDate->format('Y-m-d'))) {
                     $placeholderDate->addDay();
                 }
 
@@ -782,8 +792,10 @@ class ReferralController extends Controller
             return;
         }
 
+        // Same holiday gap as the placeholder in acknowledge() above - see
+        // the comment there. Fixed in both places together (10/29/2026).
         $placeholder = now()->addDay();
-        while ($placeholder->isWeekend()) {
+        while ($placeholder->isWeekend() || \App\Support\BlockedDates::message($placeholder->format('Y-m-d'))) {
             $placeholder->addDay();
         }
         \App\Models\Appointment::create([

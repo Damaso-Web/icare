@@ -47,7 +47,17 @@
         <option value="desc">Date: Newest First</option>
         <option value="asc">Date: Oldest First</option>
       </select>
-      <div style="display:flex;align-items:center;gap:6px">
+      <!-- Bug (10/29/2026): these two inputs sit one level deeper than every
+           other filter here (inside this wrapper div, not a direct child of
+           .filter-bar), so app.css's mobile rule that stretches every other
+           filter to full width/stacks it never reached them - they stayed
+           pinned at width:150px while the mobile stylesheet also bumps input
+           font-size to 16px (prevents iOS zoom-on-tap), which left no room
+           for the native date format to render at that width. Result: on a
+           phone, the date fields looked blank/empty. Fixed below (scoped
+           style) by letting this wrapper go full width and its two inputs
+           share it evenly, same as every other filter on mobile. -->
+      <div class="date-range-filter" style="display:flex;align-items:center;gap:6px">
         <input v-model="filters.date_from" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
         <span style="color:var(--stone);font-size:13px">-</span>
         <input v-model="filters.date_to" type="date" class="ifi" style="width:150px" @change="fetchReferrals" />
@@ -234,3 +244,14 @@ onMounted(() => {
 // Keep the queue current so new referrals appear without a manual reload.
 useAutoRefresh(() => fetchReferrals(pagination.value?.current_page || 1, true), 25000);
 </script>
+
+<style scoped>
+/* Bug fix (10/29/2026): see the comment above .date-range-filter in the
+   template - on mobile, give this wrapper the same full-width stacking
+   every other filter gets, and let its two date inputs share that width
+   evenly instead of staying pinned at 150px each. */
+@media (max-width: 860px) {
+  .date-range-filter { flex: 1 1 100%; width: 100%; }
+  .date-range-filter > .ifi { flex: 1 1 0; width: auto !important; min-width: 0; }
+}
+</style>

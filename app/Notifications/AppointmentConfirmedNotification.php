@@ -35,6 +35,18 @@ class AppointmentConfirmedNotification extends Notification
             'appointment_code'  => $this->appointment->appointment_code,
             'appointment_date'  => $date,
             'start_time'        => $time,
+            // Bug (10/29/2026): notificationTarget.js sends a bare
+            // appointment_id to the "appointments" route, which is
+            // restricted to admin/gcu_staff only - the referrer (faculty,
+            // dean, sdu_head, tmdu_staff, etc.) isn't on that list and hit
+            // "Access Denied" clicking their own notification. Including
+            // referral_id here lets notificationTarget.js send them to the
+            // referral instead, which every referrer can always open
+            // (ReferralController::authorizeView lets whoever sent a
+            // referral view it). Only set for the referrer copy - the
+            // student copy keeps going to their own appointment page as
+            // before, since that's never been reported broken.
+            'referral_id'       => $this->forReferrer ? $this->appointment->referral_id : null,
             'message'           => $this->forReferrer
                 ? "An appointment {$this->appointment->appointment_code} has been set on {$when} for the student you referred."
                 : "Your appointment {$this->appointment->appointment_code} on {$when} has been confirmed.",
