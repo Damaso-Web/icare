@@ -494,6 +494,176 @@ class ReferralController extends Controller
         return response()->json($student->fresh());
     }
 
+    // Bug (10/30/2026): updateReferredStudent() above only lets a referrer fix
+    // the CURRENT student's own details (a typo'd name, wrong year level) -
+    // there was no way to correct the referral when the referrer picked the
+    // wrong student from the search box in the first place. This re-points
+    // the referral at a different, already-existing student entirely, same
+    // pre-acknowledgement window and same department/college scoping rules
+    // as filing a new referral (store() above), and moves it onto that
+    // student's own Case File (one per student for life, same find-or-create
+    // rule store() uses).
+    public function reassignStudent(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+        abort_unless(
+            $referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id,
+            403,
+            'Only the person who submitted this referral can change the student here.'
+        );
+        $referral->abortIfLocked();
+        abort_unless($referral->referrerCanEdit(), 422, 'GCU already acknowledged this referral, so the student can no longer be changed here.');
+
+        $validated = $request->validate([
+            'student_id' => 'required|exists:students,id',
+        ]);
+
+        $newStudent = Student::findOrFail($validated['student_id']);
+        abort_unless($newStudent->is_active, 422, 'This student account is deactivated and cannot be referred. Please reactivate the student first.');
+
+        // Same department/college scoping store() enforces - a Dean/Dept
+        // Chair/Faculty referrer can only point this referral at a student
+        // within their own scope, even if a student_id from outside it
+        // reaches this endpoint some other way.
+        if ($user->isDean() && !in_array($newStudent->college, \App\Support\CollegeName::equivalents($user->college), true)) {
+            return response()->json(['message' => 'You can only refer students enrolled in your own college.'], 403);
+        }
+        if (($user->isDeptChair() || $user->role === 'faculty') && (
+            !in_array($newStudent->college, \App\Support\CollegeName::equivalents($user->college), true)
+            || !\App\Support\DepartmentScope::matches($newStudent->program, $user->department)
+        )) {
+            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
+        }
+
+        if ($newStudent->id === $referral->student_id) {
+            return response()->json($referral->fresh()->load('student:id,student_id,first_name,last_name,middle_name,suffix,sex,college,program,year_level'));
+        }
+
+        $old = $referral->toArray();
+
+        $case = CaseFile::where('student_id', $newStudent->id)->first();
+        if (!$case) {
+            $case = CaseFile::create([
+                'student_id'   => $newStudent->id,
+                'case_type'    => $referral->referral_type,
+                'current_unit' => 'GCU',
+                'status'       => 'open',
+                'opened_date'  => today(),
+            ]);
+        } elseif (!$case->isOpen()) {
+            $case->update(['status' => 'open', 'closed_date' => null]);
+        }
+
+        $referral->update([
+            'student_id' => $newStudent->id,
+            'case_id'    => $case->id,
+        ]);
+
+        AuditLog::record(
+            'updated',
+            "Referrer changed referral {$referral->referral_code} to a different student ({$newStudent->student_id}) before acknowledgement.",
+            $referral, $old, $referral->fresh()->toArray()
+        );
+
+        return response()->json($referral->fresh()->load('student:id,student_id,first_name,last_name,middle_name,suffix,sex,college,program,year_level'));
+    }
+
+    // Lets the referrer delete their own referral outright, but only while it
+    // is still unacknowledged (same window as applyReferrerEdit()/
+    // reassignStudent() above) - nothing has happened on it yet, so a plain
+    // delete is safe. Every FK that points at a referral (appointments,
+    // session notes, testing records, case handoffs...) is nullOnDelete, so
+    // this can't leave anything in a broken state; it just can't have
+    // accumulated any of those yet at this stage. Once GCU acknowledges it,
+    // it's their record and the referrer can only ask to void it (below).
+    public function destroy(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+        abort_unless(
+            $referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id,
+            403,
+            'Only the person who submitted this referral can delete it.'
+        );
+        abort_unless($referral->referrerCanEdit(), 422, 'This referral was already acknowledged, so it can no longer be deleted. You can request cancellation instead.');
+
+        $code = $referral->referral_code;
+        AuditLog::record('deleted', "Deleted unacknowledged referral {$code}.", $referral, $referral->toArray(), []);
+        $referral->delete();
+
+        return response()->json(['message' => "Referral {$code} deleted."]);
+    }
+
+    // Once a referral is acknowledged, the referrer can no longer delete it
+    // themselves - they can ask GCU/SDU/TMDU (whichever unit owns it) to
+    // void it instead. A pending request shows on the referral itself for
+    // that unit to approve (archives it, see approveVoid()) or deny.
+    public function requestVoid(Request $request, Referral $referral)
+    {
+        $user = $request->user();
+        abort_unless(
+            $referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id,
+            403,
+            'Only the person who submitted this referral can request its cancellation.'
+        );
+        $referral->abortIfLocked();
+        abort_if($referral->referrerCanEdit(), 422, 'This referral has not been acknowledged yet - you can delete it directly instead.');
+        abort_if($referral->void_requested_at, 422, 'A cancellation request is already pending for this referral.');
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        $referral->update(['void_requested_at' => now(), 'void_reason' => $data['reason']]);
+        AuditLog::record('updated', "Requested cancellation/void of referral {$referral->referral_code}.", $referral);
+
+        $sduTypes  = ['disciplinary'];
+        $tmduTypes = ['psychological_testing'];
+        if (in_array($referral->referral_type, $sduTypes)) {
+            $unitRoles = ['sdu_head'];
+        } elseif (in_array($referral->referral_type, $tmduTypes)) {
+            $unitRoles = ['tmdu_staff', 'tmdu_head'];
+        } else {
+            $unitRoles = ['admin', 'gcu_staff'];
+        }
+        $recipients = User::whereIn('role', $unitRoles)->where('is_active', true)->get();
+        Notification::send($recipients, new \App\Notifications\VoidRequestedNotification($referral));
+
+        return response()->json($referral->fresh());
+    }
+
+    public function approveVoid(Request $request, Referral $referral)
+    {
+        $this->authorizeReferralWriter($request, $referral);
+        $this->authorizeView($referral, $request->user());
+        abort_unless($referral->void_requested_at, 422, 'There is no pending cancellation request for this referral.');
+
+        $referral->update(['is_archived' => true, 'void_requested_at' => null, 'void_reason' => null]);
+        AuditLog::record('archived', "Approved cancellation of referral {$referral->referral_code} - archived.", $referral);
+
+        if ($referral->referredBy) {
+            $referral->referredBy->notify(new \App\Notifications\VoidRequestDecidedNotification($referral, approved: true));
+        }
+
+        return response()->json($referral->fresh());
+    }
+
+    public function denyVoid(Request $request, Referral $referral)
+    {
+        $this->authorizeReferralWriter($request, $referral);
+        $this->authorizeView($referral, $request->user());
+        abort_unless($referral->void_requested_at, 422, 'There is no pending cancellation request for this referral.');
+
+        $data = $request->validate(['note' => 'nullable|string|max:500']);
+        $referral->update(['void_requested_at' => null, 'void_reason' => null]);
+        AuditLog::record('updated', "Denied cancellation request for referral {$referral->referral_code}.", $referral);
+
+        if ($referral->referredBy) {
+            $referral->referredBy->notify(new \App\Notifications\VoidRequestDecidedNotification($referral, approved: false, denialNote: $data['note'] ?? null));
+        }
+
+        return response()->json($referral->fresh());
+    }
+
     public function archive(Request $request, Referral $referral)
     {
         $this->authorizeReferralWriter($request, $referral);

@@ -876,19 +876,23 @@
               ⚠ Some Student IDs already exist. Choose how to handle all duplicates below.
             </div>
 
-           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)" @scroll="onPreviewScroll">
             <table class="itable">
               <thead>
                 <tr>
                   <th style="width:50px">Row</th>
+                  <th>Name</th>
+                  <th>Email</th>
                   <th style="width:110px">Student ID</th>
                   <th style="width:100px">Status</th>
                   <th>Reason</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in previewData.preview" :key="item.row">
+                <tr v-for="item in visiblePreviewRows" :key="item.row">
                   <td style="font-size:12px">{{ item.row }}</td>
+                  <td style="font-size:12px">{{ item.name || '-' }}</td>
+                  <td style="font-size:12px">{{ item.email || '-' }}</td>
                   <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '-' }}</td>
                   <td>
                     <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
@@ -913,6 +917,15 @@
               </tbody>
             </table>
           </div>
+
+            <!-- Loaded incrementally as you scroll (see visiblePreviewRows/
+                 onPreviewScroll) - every row is still reachable by just
+                 scrolling, the DOM just never holds more than a few hundred
+                 <tr>s at once, which is what keeps this screen responsive on
+                 a big masterlist. -->
+            <div v-if="previewVisibleCount < sortedPreviewRows.length" style="font-size:11px;color:var(--fog);text-align:center">
+              Showing {{ previewVisibleCount }} of {{ sortedPreviewRows.length }} rows - scroll for more
+            </div>
 
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
@@ -1598,6 +1611,36 @@ const importSummary = computed(() => {
   };
 });
 
+// Bug (10/30/2026, speed): the preview table used to render every row from
+// the file in one go - on a masterlist of a few thousand students that's
+// thousands of <tr>s in one scrollable box, which visibly freezes the
+// browser. Page-button pagination fixed the freeze but staff want a plain
+// scrollbar like the rest of the app, not "Next/Previous" clicking - so
+// instead this keeps the scrollable box, but only renders a chunk of rows
+// into it at a time (PREVIEW_CHUNK_SIZE), and loads the next chunk
+// automatically as the scrollbar nears the bottom (onPreviewScroll). The
+// DOM still never holds more than a few hundred rows at once, the scroll
+// itself stays completely native, and every row is reachable just by
+// scrolling. Rows needing attention (invalid/duplicate/same-name) sort
+// first so they show up immediately instead of being buried among
+// thousands of plain "New" rows.
+const PREVIEW_CHUNK_SIZE = 150;
+const previewVisibleCount = ref(PREVIEW_CHUNK_SIZE);
+const sortedPreviewRows = computed(() => {
+  const items = previewData.value.preview || [];
+  const needsAttention = i => !i.valid || i.is_duplicate || i.name_matches?.length;
+  // A stable partition (attention rows first, original order preserved
+  // within each group) - not a re-sort, so "Row" stays meaningful.
+  return [...items.filter(needsAttention), ...items.filter(i => !needsAttention(i))];
+});
+const visiblePreviewRows = computed(() => sortedPreviewRows.value.slice(0, previewVisibleCount.value));
+function onPreviewScroll(e) {
+  const el = e.target;
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+    previewVisibleCount.value = Math.min(previewVisibleCount.value + PREVIEW_CHUNK_SIZE, sortedPreviewRows.value.length);
+  }
+}
+
 function openImportConfirm(choice) {
   pendingImportChoice.value = choice;
   showImportConfirm.value = true;
@@ -1923,6 +1966,7 @@ function closeImportModal() {
 function resetImportFlow() {
   previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
   previewError.value = '';
+  previewVisibleCount.value = PREVIEW_CHUNK_SIZE;
 }
 
 async function handleFileSelect(e) {
@@ -1949,6 +1993,7 @@ async function handleFileSelect(e) {
     }
 
     previewData.value = res.data;
+    previewVisibleCount.value = PREVIEW_CHUNK_SIZE;
   } catch (err) {
     previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
   } finally {

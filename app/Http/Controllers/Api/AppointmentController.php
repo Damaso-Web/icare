@@ -83,12 +83,27 @@ class AppointmentController extends Controller
                     ->where(fn($w) => $w->whereNull('request_status')->orWhereNotIn('request_status', ['awaiting_student', 'cancelled', 'rescheduled'])))
                 ->when($request->referral_id,      fn($q) => $q->where('referral_id', $request->referral_id))
                 ->when($request->appointment_type, fn($q) => $q->where('appointment_type', $request->appointment_type))
+                // B628 (10/30/2026): lets staff search by student name/ID or
+                // appointment code instead of scrolling the whole list.
+                ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
+                    $qq->whereHas('student', fn($s) =>
+                        $s->where('first_name', 'like', "%{$request->search}%")
+                          ->orWhere('last_name', 'like', "%{$request->search}%")
+                          ->orWhere('student_id', 'like', "%{$request->search}%")
+                    )->orWhere('appointment_code', 'like', "%{$request->search}%");
+                }))
                 // GCU and TMDU appointments are separate calendars.
                 ->when($user->isTMDUStaff(), fn($q) => $q->where('unit', 'TMDU'))
                 ->when($user->isSDUHead(),   fn($q) => $q->where('unit', 'SDU'))
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
                 // visibility on GCU appointments, not just their own caseload.
+                // B628 (10/30/2026): group order is Confirmed, then everything
+                // still awaiting action (pending/awaiting_student/no_show/
+                // rescheduled/cancelled), then Completed last - so a completed
+                // appointment automatically sinks to the bottom of the list
+                // instead of just being sorted by recency alongside active ones.
+                ->orderByRaw("CASE WHEN status = 'confirmed' THEN 0 WHEN status = 'completed' THEN 2 ELSE 1 END")
                 ->orderByDesc('created_at')
                 ->paginate($perPage)
         );
@@ -350,6 +365,91 @@ class AppointmentController extends Controller
             'appointment'           => $appointment->fresh()->load('slotHistory'),
             'previous_appointment'  => $old,
             'scheduling_link'       => rtrim((string) config('app.frontend_url'), '/') . "/schedule/{$newToken}",
+        ]);
+    }
+
+    // B628 (10/30/2026): "Reschedule Now" - the staff-side counterpart to
+    // reschedule() above. reschedule() reopens the SAME appointment for the
+    // student to pick their own new slot; this instead lets staff pick the
+    // new date/time themselves and lock it in immediately, same as
+    // scheduleForStudent() does for a not-yet-scheduled appointment. No
+    // student action is needed afterward - they're just notified of the
+    // change.
+    public function rescheduleNow(Request $request, Appointment $appointment)
+    {
+        $this->authorizeUnit($appointment);
+
+        $validated = $request->validate([
+            'reschedule_reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u'],
+            'appointment_date' => [
+                'required',
+                'date',
+                'after_or_equal:today',
+                function ($attribute, $value, $fail) {
+                    if (Carbon::parse($value)->isWeekend()) {
+                        $fail('Appointments can only be scheduled Monday through Friday.');
+                    }
+                },
+            ],
+            'start_time' => 'required|date_format:H:i',
+            'end_time'   => 'required|date_format:H:i|after:start_time',
+        ], ['reschedule_reason.regex' => 'Please explain the reason in words, not numbers only.']);
+
+        if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+            abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
+        }
+        \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
+
+        $conflict = Appointment::where('unit', $appointment->unit)
+            ->where('appointment_date', $validated['appointment_date'])
+            ->where('id', '!=', $appointment->id)
+            ->whereNotIn('status', ['cancelled', 'rescheduled'])
+            ->where('request_status', '!=', 'awaiting_student')
+            ->where('start_time', '<', $validated['end_time'])
+            ->where('end_time', '>', $validated['start_time'])
+            ->exists();
+        if ($conflict) {
+            abort(422, 'This time slot conflicts with another appointment for this unit. Please pick another.');
+        }
+
+        $reason = trim($validated['reschedule_reason']);
+        $old = $this->slotSnapshot($appointment);
+
+        DB::transaction(function () use ($appointment, $validated, $reason, $old, $request) {
+            if ($old['date']) {
+                \App\Models\AppointmentSlotHistory::create([
+                    'appointment_id' => $appointment->id, 'slot_date' => $old['date'], 'start_time' => $old['start'], 'end_time' => $old['end'],
+                    'staff_user_id' => $old['staff_user_id'], 'reason' => $reason, 'rescheduled_by_type' => 'staff',
+                    'rescheduled_by_name' => $request->user()->name, 'created_at' => now(),
+                ]);
+            }
+            $appointment->update([
+                'appointment_date'  => $validated['appointment_date'],
+                'start_time'        => $validated['start_time'],
+                'end_time'          => $validated['end_time'],
+                'status'            => 'confirmed',
+                'request_status'    => null,
+                'reschedule_reason' => $reason,
+                'times_rescheduled' => $appointment->times_rescheduled + 1,
+                'checked_in'        => false,
+                'checked_in_at'     => null,
+            ]);
+        });
+
+        AuditLog::record('rescheduled_by_staff',
+            "{$request->user()->name} rescheduled appointment {$appointment->appointment_code} directly to {$validated['appointment_date']} {$validated['start_time']}-{$validated['end_time']} (no student action needed). "
+            . "Previous slot: {$old['date']} {$old['start']}-{$old['end']}. Reason: {$reason}.",
+            $appointment, $old, ['status' => 'confirmed', 'appointment_date' => $validated['appointment_date']]);
+
+        try {
+            $appointment->student?->notify(new \App\Notifications\AppointmentRescheduledDirectlyNotification($appointment->fresh(), $reason));
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        return response()->json([
+            'message'     => 'Appointment rescheduled.',
+            'appointment' => $appointment->fresh()->load(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy', 'slotHistory']),
         ]);
     }
 
@@ -818,8 +918,11 @@ public function checkConflictByStudent(Request $request)
             abort(422, 'This appointment is not waiting for a schedule to be picked.');
         }
 
+        // Bug (10/30/2026): unlike store() above, this never had
+        // after_or_equal:today - staff using "Schedule Now" could set a past
+        // date and the request went through with no error at all.
         $data = $request->validate([
-            'appointment_date' => 'required|date',
+            'appointment_date' => 'required|date|after_or_equal:today',
             'start_time'       => 'required|date_format:H:i',
             'end_time'         => 'required|date_format:H:i|after:start_time',
         ]);

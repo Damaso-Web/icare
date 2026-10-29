@@ -104,6 +104,11 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::get('my/complaints/{complaint}', [ComplaintController::class, 'showMine']);
     Route::get('complaints/{complaint}/attachments/{attachment}', [ComplaintController::class, 'attachment']);
     Route::apiResource('referrals', ReferralController::class)->except(['destroy']);
+    // Deleting a referral isn't part of the plain apiResource set (most
+    // referrals must never be deletable once acted on) - this route exists
+    // only for the one case ReferralController::destroy() allows: the
+    // referrer deleting their own still-unacknowledged referral.
+    Route::delete('referrals/{referral}', [ReferralController::class, 'destroy']);
     Route::post('referrals/{referral}/acknowledge', [ReferralController::class, 'acknowledge']);
     // Lets the referrer who submitted an unacknowledged referral fix the
     // linked student's name/program/year level/sex from Edit Referral -
@@ -112,6 +117,17 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     // ReferralController::updateReferredStudent() enforces "referrer, and
     // only before acknowledgement" itself.
     Route::put('referrals/{referral}/student', [ReferralController::class, 'updateReferredStudent']);
+    // Re-points the referral at a different, already-existing student (the
+    // referrer picked the wrong one when filing it) - same pre-acknowledgement
+    // window, enforced in ReferralController::reassignStudent() itself.
+    Route::put('referrals/{referral}/reassign-student', [ReferralController::class, 'reassignStudent']);
+    // Request for Cancellation/Void of Referral - the referrer's path once a
+    // referral is acknowledged and destroy() no longer applies. approve
+    // archives it; deny clears the request. Both gated to the unit that owns
+    // the referral via authorizeReferralWriter(), same as archive/unarchive.
+    Route::post('referrals/{referral}/request-void', [ReferralController::class, 'requestVoid']);
+    Route::post('referrals/{referral}/approve-void', [ReferralController::class, 'approveVoid']);
+    Route::post('referrals/{referral}/deny-void',    [ReferralController::class, 'denyVoid']);
     Route::get('referrals-archived',              [ReferralController::class, 'archived']);
     Route::post('referrals/{referral}/archive',   [ReferralController::class, 'archive']);
     Route::post('referrals/{referral}/unarchive', [ReferralController::class, 'unarchive']);
@@ -169,6 +185,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::apiResource('appointments', AppointmentController::class)->except(['destroy']);
     Route::post('appointments/{appointment}/confirm',    [AppointmentController::class, 'confirm']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
+    Route::post('appointments/{appointment}/reschedule-now', [AppointmentController::class, 'rescheduleNow']);
     Route::post('appointments/{appointment}/cancel',     [AppointmentController::class, 'cancel']);
     Route::post('appointments/{appointment}/check-in',   [AppointmentController::class, 'checkIn']);
     Route::post('appointments/{appointment}/escalate-no-show', [AppointmentController::class, 'escalateNoShow']);

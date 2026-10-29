@@ -214,6 +214,23 @@
             <div class="icard-header">
               <span class="icard-title">{{ isCaseReferralSlip ? 'Case Referral Slip' : 'Referral Info' }}</span>
               <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="margin-left:auto" @click="openReferralEdit">Edit Referral</button>
+              <!-- Delete only while unacknowledged - once GCU/SDU/TMDU
+                   acknowledges it, it's their record and the referrer can
+                   only ask to void it (the button below instead). -->
+              <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
+              <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="margin-left:auto;color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
+            </div>
+
+            <!-- Pending cancellation/void request - shown to the referrer
+                 (status) and to the reviewing unit (Approve/Deny). -->
+            <div v-if="referral.void_requested_at" style="margin:0 18px 14px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px 14px">
+              <div style="font-size:12.5px;color:var(--amber);font-weight:600">Cancellation/Void requested{{ isReferrerOfThis ? '' : ` by ${referral.referrer_name}` }}</div>
+              <div style="font-size:12px;color:var(--slate);margin-top:4px;line-height:1.5">{{ referral.void_reason }}</div>
+              <div v-if="canReviewVoid" style="display:flex;gap:8px;margin-top:10px">
+                <button class="ibtn ibtn-p ibtn-sm" :disabled="decidingVoid" @click="approveVoidRequest">{{ decidingVoid ? 'Working...' : 'Approve (Archive Referral)' }}</button>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="decidingVoid" @click="denyVoidRequest">Deny</button>
+              </div>
+              <div v-else-if="isReferrerOfThis" style="font-size:11.5px;color:var(--stone);margin-top:6px">Waiting for review.</div>
             </div>
 
             <!-- Document Code Header - read only. Revision No. / Effectivity /
@@ -1367,6 +1384,28 @@
         </div>
       </div>
 
+      <!-- Request Cancellation/Void of Referral (referrer, after acknowledgement) -->
+      <div v-if="showVoidModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showVoidModal = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Request Cancellation/Void of Referral</div>
+            <button class="ibtn ibtn-g ibtn-sm" @click="showVoidModal = false">✕</button>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:12px;color:var(--stone);line-height:1.6">This referral has already been acknowledged, so it can no longer be deleted directly. Explain why it should be cancelled - the reviewing unit will approve or deny this request.</div>
+            <div>
+              <label class="ifl">Reason</label>
+              <textarea v-model="voidReason" class="ifta" style="min-height:100px" maxlength="1000" placeholder="e.g. filed for the wrong student, duplicate referral, issue already resolved directly..."></textarea>
+            </div>
+            <div v-if="voidError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ voidError }}</div>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="requestingVoid" @click="submitVoidRequest">{{ requestingVoid ? 'Submitting...' : 'Submit Request' }}</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="requestingVoid" @click="showVoidModal = false">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Edit Referral (referrer only, until GCU acknowledges it) -->
       <div v-if="showReferralEdit" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showReferralEdit = false">
         <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
@@ -1402,6 +1441,47 @@
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Student Info</div>
               <div style="flex:1;height:1px;background:var(--cloud)"></div>
             </div>
+
+            <!-- Referred the wrong student entirely - separate from the name/
+                 details fields below, since switching students moves this
+                 referral onto a different Student Information File (see
+                 reassignStudent() / ReferralController::reassignStudent()).
+                 Takes effect immediately on pick, not on Save Changes. -->
+            <div v-if="!showChangeStudent">
+              <button type="button" class="ibtn ibtn-o ibtn-sm" :disabled="reassigningStudent" @click="showChangeStudent = true">Referred the wrong student? Change Student</button>
+            </div>
+            <div v-else style="position:relative;display:flex;flex-direction:column;gap:6px">
+              <label class="ifl">Search for the correct student</label>
+              <input
+                v-model="changeStudentQuery"
+                class="ifi"
+                placeholder="e.g. 2302021 or Dela Cruz"
+                maxlength="100"
+                :disabled="reassigningStudent"
+                @input="onChangeStudentSearch"
+                @focus="showChangeStudentDropdown = changeStudentSuggestions.length > 0"
+                autocomplete="off"
+              />
+              <div
+                v-if="showChangeStudentDropdown && changeStudentSuggestions.length > 0"
+                style="position:absolute;top:62px;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto"
+              >
+                <div
+                  v-for="s in changeStudentSuggestions"
+                  :key="s.id"
+                  style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud)"
+                  @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                  @mouseleave="$event.currentTarget.style.background='#fff'"
+                  @click="pickChangeStudent(s)"
+                >
+                  <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
+                  <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '-' }}</div>
+                </div>
+              </div>
+              <div v-if="changeStudentError" style="font-size:11px;color:var(--red)">{{ changeStudentError }}</div>
+              <button type="button" class="ibtn ibtn-g ibtn-sm" style="align-self:flex-start" :disabled="reassigningStudent" @click="showChangeStudent = false; changeStudentQuery = ''; changeStudentSuggestions = []; changeStudentError = ''">Cancel</button>
+            </div>
+
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
               <div>
                 <label class="ifl">Last Name</label>
@@ -1659,14 +1739,15 @@
               <div style="font-size:12.5px;font-weight:600;color:var(--moss)">Schedule Now</div>
               <div style="font-size:11.5px;color:var(--stone)">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <input v-model="apptScheduleForm.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" />
+                <input v-model="apptScheduleForm.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" :min="todayStr" />
                 <input v-model="apptScheduleForm.start_time" type="time" class="ifi" style="flex:1;min-width:100px" />
                 <input v-model="apptScheduleForm.end_time" type="time" class="ifi" style="flex:1;min-width:100px" />
               </div>
+              <div v-if="apptScheduleBlockedMsg" style="font-size:11px;color:var(--red)">{{ apptScheduleBlockedMsg }}</div>
               <button
                 class="ibtn ibtn-p ibtn-sm"
                 style="justify-content:center"
-                :disabled="!apptScheduleForm.appointment_date || !apptScheduleForm.start_time || !apptScheduleForm.end_time || apptScheduling"
+                :disabled="!apptScheduleForm.appointment_date || !apptScheduleForm.start_time || !apptScheduleForm.end_time || apptScheduling || !!apptScheduleBlockedMsg"
                 @click="confirmApptSchedule"
               >{{ apptScheduling ? 'Scheduling...' : 'Schedule Now' }}</button>
             </div>
@@ -1896,14 +1977,14 @@ import { ref, onMounted, inject, computed, watch } from 'vue';
 import { useBlockedDates } from '../../utils/blockedDates';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import api, { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI } from '../../api/index';
+import api, { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI, studentAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
 import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
 import FeedbackSlipPaper from '../../components/FeedbackSlipPaper.vue';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 import { useDiscardGuard } from '../../utils/discardGuard';
 import { useAuthStore } from '../../stores/auth';
-import { toTitleCase, plainText, referralSourceFor, formatTime12 } from '../../utils/validators';
+import { toTitleCase, plainText, referralSourceFor, formatTime12, safeSearchInput } from '../../utils/validators';
 
 const route   = useRoute();
 const router  = useRouter();
@@ -2694,6 +2775,89 @@ const canEditSubmittedReferral = computed(() => {
     && !r.acknowledged_at
     && !isResolved.value;
 });
+const isReferrerOfThis = computed(() => !!auth.user && referral.value?.referred_by_user_id === auth.user.id);
+
+const deletingReferral = ref(false);
+async function deleteReferral() {
+  if (!confirm(`Delete referral ${referral.value.referral_code}? This cannot be undone.`)) return;
+  deletingReferral.value = true;
+  try {
+    await referralAPI.destroy(referral.value.id);
+    toast?.success('Referral deleted.');
+    router.push({ name: fromCases.value ? 'cases' : 'referrals' });
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to delete referral.');
+  } finally {
+    deletingReferral.value = false;
+  }
+}
+
+// Once acknowledged, the referrer can no longer delete outright - they can
+// ask the owning unit to void it instead, until it's resolved/closed/archived.
+const canRequestVoid = computed(() => {
+  const r = referral.value;
+  return isReferrerOfThis.value && !!r?.acknowledged_at && !isResolved.value && !r.void_requested_at;
+});
+const showVoidModal = ref(false);
+const voidReason = ref('');
+const voidError = ref('');
+const requestingVoid = ref(false);
+async function submitVoidRequest() {
+  if (voidReason.value.trim().length < 10) {
+    voidError.value = 'Please explain why in at least 10 characters.';
+    return;
+  }
+  requestingVoid.value = true;
+  voidError.value = '';
+  try {
+    const res = await referralAPI.requestVoid(referral.value.id, { reason: voidReason.value.trim() });
+    referral.value = { ...referral.value, ...res.data };
+    showVoidModal.value = false;
+    voidReason.value = '';
+    toast?.success('Cancellation request submitted.');
+  } catch (e) {
+    voidError.value = e.response?.data?.message || 'Failed to submit the request.';
+  } finally {
+    requestingVoid.value = false;
+  }
+}
+
+// Reviewing a pending request: TMDU reviews its own Case Referral Slips,
+// GCU/SDU review everything else - authorizeReferralWriter() on the backend
+// is what actually enforces this; this just decides whether to show the
+// buttons.
+const canReviewVoid = computed(() => {
+  const r = referral.value;
+  if (!r?.void_requested_at) return false;
+  return r.testing_record ? isTMDUStaff.value : (isGCU.value || isSDUHead.value);
+});
+const decidingVoid = ref(false);
+async function approveVoidRequest() {
+  if (!confirm('Approve this cancellation? The referral will be archived.')) return;
+  decidingVoid.value = true;
+  try {
+    const res = await referralAPI.approveVoid(referral.value.id);
+    referral.value = { ...referral.value, ...res.data };
+    toast?.success('Cancellation approved - referral archived.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to approve the request.');
+  } finally {
+    decidingVoid.value = false;
+  }
+}
+async function denyVoidRequest() {
+  decidingVoid.value = true;
+  try {
+    const res = await referralAPI.denyVoid(referral.value.id);
+    referral.value = { ...referral.value, ...res.data };
+    toast?.success('Cancellation request denied.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to deny the request.');
+  } finally {
+    decidingVoid.value = false;
+  }
+}
+
 const showReferralEdit = ref(false);
 const savingReferralEdit = ref(false);
 const referralEditError = ref('');
@@ -2706,6 +2870,79 @@ const studentEditForm = ref({ first_name: '', last_name: '', middle_name: '', su
 const studentEditOriginal = ref({});
 const studentEditProgramsByCollege = ref({});
 const studentEditPrograms = computed(() => studentEditProgramsByCollege.value[referral.value.student?.college] || []);
+
+// "Referred the wrong student? Change Student" - see reassignStudent() in
+// the backend. Separate from studentEditForm above: that section edits the
+// CURRENT student's own fields, this re-points the referral at a different
+// student entirely and takes effect immediately (not on Save Changes),
+// since it moves the referral onto a different Student Information File.
+const showChangeStudent = ref(false);
+const changeStudentQuery = ref('');
+const changeStudentSuggestions = ref([]);
+const showChangeStudentDropdown = ref(false);
+const changeStudentError = ref('');
+const reassigningStudent = ref(false);
+let changeStudentTimeout = null;
+
+function onChangeStudentSearch() {
+  changeStudentQuery.value = safeSearchInput(changeStudentQuery.value);
+  changeStudentError.value = '';
+  clearTimeout(changeStudentTimeout);
+  if (changeStudentQuery.value.length < 2) {
+    changeStudentSuggestions.value = [];
+    showChangeStudentDropdown.value = false;
+    return;
+  }
+  changeStudentTimeout = setTimeout(async () => {
+    try {
+      const res = await studentAPI.index({ search: changeStudentQuery.value, is_active: 1 });
+      // Don't offer the student this referral is already about.
+      changeStudentSuggestions.value = (res.data.data || []).filter(s => s.id !== referral.value.student?.id);
+      showChangeStudentDropdown.value = changeStudentSuggestions.value.length > 0;
+    } catch (e) {
+      changeStudentSuggestions.value = [];
+    }
+  }, 350);
+}
+
+async function pickChangeStudent(s) {
+  if (!confirm(`Change this referral to ${s.last_name}, ${s.first_name} (${s.student_id})? This moves it onto that student's own Student Information File.`)) return;
+  reassigningStudent.value = true;
+  changeStudentError.value = '';
+  try {
+    await referralAPI.reassignStudent(referral.value.id, { student_id: s.id });
+    // Reassigning moves the referral onto a different student's Case File
+    // entirely - reassignStudent()'s own response only returns the referral
+    // with its new student, not the case and all its nested data (sessions,
+    // appointments, interventions, sibling referrals...) that the rest of
+    // this page reads from referral.value.case. A full reload keeps those
+    // in sync instead of leaving them pointed at the old student's case.
+    const fresh = await referralAPI.show(referral.value.id);
+    referral.value = fresh.data;
+    showChangeStudent.value = false;
+    changeStudentQuery.value = '';
+    changeStudentSuggestions.value = [];
+    showChangeStudentDropdown.value = false;
+    // The Student Info fields below edit the student now on the referral -
+    // reload them so they don't still show the old student's details.
+    const ns = referral.value.student || {};
+    studentEditForm.value = {
+      first_name:  ns.first_name || '',
+      last_name:   ns.last_name || '',
+      middle_name: ns.middle_name || '',
+      suffix:      ns.suffix || '',
+      sex:         ns.sex || '',
+      program:     ns.program || '',
+      year_level:  ns.year_level ? String(ns.year_level) : '',
+    };
+    studentEditOriginal.value = { ...studentEditForm.value };
+    toast?.success('Referral moved to the selected student.');
+  } catch (e) {
+    changeStudentError.value = e.response?.data?.message || 'Failed to change the student. Please try again.';
+  } finally {
+    reassigningStudent.value = false;
+  }
+}
 
 async function loadStudentEditPrograms() {
   if (Object.keys(studentEditProgramsByCollege.value).length) return;
@@ -2745,6 +2982,11 @@ function openReferralEdit() {
   };
   studentEditOriginal.value = { ...studentEditForm.value };
   referralEditError.value = '';
+  showChangeStudent.value = false;
+  changeStudentQuery.value = '';
+  changeStudentSuggestions.value = [];
+  showChangeStudentDropdown.value = false;
+  changeStudentError.value = '';
   showReferralEdit.value = true;
   loadStudentEditPrograms();
 }
@@ -3145,6 +3387,11 @@ const showFollowUpConfirm = ref(false);
 
 const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
 const followUpBlockedMsg = computed(() => blockedMessageFor(followUpForm.value.appointment_date));
+// Bug (10/30/2026): this "Schedule Now" date input had no :min and no
+// holiday/suspension check at all - staff could pick a past date or a
+// blocked one here and the backend's own scheduleForStudent() didn't catch
+// it either (see that controller fix). Same pattern as followUpForm above.
+const apptScheduleBlockedMsg = computed(() => blockedMessageFor(apptScheduleForm.value.appointment_date));
 
 function openFollowUpModal() {
   loadBlockedDates();

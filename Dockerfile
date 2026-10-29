@@ -18,6 +18,24 @@ RUN apt-get update && apt-get install -y \
 # Enable Apache mod_rewrite
 RUN a2enmod rewrite
 
+# Bug (10/30/2026): this image shipped with no php.ini at all, so PHP ran on
+# its compiled-in defaults - in particular memory_limit was effectively
+# unbounded, which let a single heavy request (e.g. parsing a several-
+# thousand-row masterlist with PhpSpreadsheet) consume all of the
+# container's actual RAM and crash the whole Apache/PHP process, taking
+# down every other in-flight request with it until Render restarted the
+# container (what a 502 + "hibernate-wake-error" on unrelated endpoints
+# right after an import attempt actually means). Explicit limits here mean
+# an oversized request hits a clean PHP error instead of killing the
+# container for everyone.
+RUN { \
+    echo 'memory_limit = 256M'; \
+    echo 'upload_max_filesize = 20M'; \
+    echo 'post_max_size = 20M'; \
+    echo 'max_execution_time = 120'; \
+    echo 'max_input_time = 120'; \
+    } > /usr/local/etc/php/conf.d/icare-limits.ini
+
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ReferralFormOption;
 use App\Support\ManagementGuard;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class ManagementFormOptionController extends Controller
 {
@@ -31,10 +32,18 @@ class ManagementFormOptionController extends Controller
 
     public function store(Request $request)
     {
+        // Bug (10/30/2026): the Management UI already has a unit picker (GCU/
+        // TMDU) for Wellness Services and sends it in the payload, but this
+        // validate() never allow-listed 'unit', so Laravel silently dropped
+        // it before create() ever saw it - every referral_type row has been
+        // saved with unit = null regardless of what the admin picked. That's
+        // why the referral queue's "All Services" dropdown (which filters
+        // strictly on unit === 'GCU'/'TMDU') has always come back empty.
         $validated = $request->validate([
             'category'   => 'required|string|in:' . implode(',', self::CATEGORIES),
             'value'      => ['required', 'string', 'max:100', 'regex:/^[a-zA-Z0-9_]+$/'],
             'label'      => ['required', 'string', 'max:255', 'regex:' . self::LABEL_REGEX],
+            'unit'       => 'required_if:category,referral_type|nullable|string|in:GCU,TMDU',
             'sort_order' => 'nullable|integer',
         ]);
         $exists = ReferralFormOption::where('category', $validated['category'])->where('value', $validated['value'])->exists();
@@ -63,12 +72,18 @@ class ManagementFormOptionController extends Controller
 
         $validated = $request->validate([
             'label'      => $labelRules,
+            // Same bug as store(): 'unit' was never allow-listed here either,
+            // so editing a Wellness Service's unit silently did nothing. The
+            // update payload never includes 'category' (it's not editable),
+            // so this checks the existing record's category instead of
+            // required_if, which can only read from the request itself.
+            'unit'       => [Rule::requiredIf($formOption->category === 'referral_type'), 'nullable', 'string', 'in:GCU,TMDU'],
             'sort_order' => 'nullable|integer',
         ]);
         $validated['label'] = ManagementGuard::capFirst($validated['label']);
-        $old = $formOption->only(['label']);
+        $old = $formOption->only(['label', 'unit']);
         $formOption->update($validated);
-        ManagementGuard::audit(self::tabFor($formOption), 'updated', $formOption->label, $formOption, $old, $formOption->only(['label']));
+        ManagementGuard::audit(self::tabFor($formOption), 'updated', $formOption->label, $formOption, $old, $formOption->only(['label', 'unit']));
         return response()->json($formOption);
     }
 

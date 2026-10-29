@@ -22,6 +22,14 @@
          so the options other than GCU were dead ends that looked like they
          should work. -->
     <div class="filter-bar">
+      <input
+        v-model="filters.search"
+        type="text"
+        class="fsm"
+        placeholder="Search by student name, ID, or appointment code..."
+        style="flex:1;min-width:200px"
+        @input="onSearchInput"
+      />
       <select v-model="filters.status" class="fsm" @change="fetchAppointments">
         <option value="">All</option>
         <option value="pending">Pending</option>
@@ -276,13 +284,14 @@
             <div class="ad-label" style="margin-bottom:2px;color:var(--moss)">Schedule Now</div>
             <div style="font-size:11.5px;color:var(--stone);margin-bottom:8px">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
             <div class="ad-override-row">
-              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" />
+              <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="todayStr" />
               <input v-model="scheduleForm.start_time" type="time" class="ifi" />
               <input v-model="scheduleForm.end_time" type="time" class="ifi" />
-              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent" @click="applyScheduleStudent">
+              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent || !!scheduleBlockedMsg" @click="applyScheduleStudent">
                 {{ schedulingStudent ? 'Scheduling...' : 'Schedule Now' }}
               </button>
             </div>
+            <div v-if="scheduleBlockedMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ scheduleBlockedMsg }}</div>
           </div>
 
           <!-- Admin / GCU Staff only: manually override the appointment's status -->
@@ -473,6 +482,28 @@
             <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
             <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
           </div>
+
+          <!-- B628 (10/30/2026): "Reschedule Now" - lets staff pick the new
+               date/time themselves and lock it in right away, instead of
+               only being able to send the student a request to pick one. -->
+          <div style="border-top:1px solid var(--cloud);margin-top:2px;padding-top:14px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:12.5px;font-weight:600;color:var(--moss)">Or Reschedule Now</div>
+            <div style="font-size:12px;color:var(--stone);line-height:1.5">Set the new date and time yourself - no action needed from the student.</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+              <input v-model="rescheduleNowForm.appointment_date" type="date" class="ifi" :min="todayStr" />
+              <input v-model="rescheduleNowForm.start_time" type="time" class="ifi" />
+              <input v-model="rescheduleNowForm.end_time" type="time" class="ifi" />
+            </div>
+            <div v-if="rescheduleNowBlockedMsg" style="font-size:11px;color:var(--red)">{{ rescheduleNowBlockedMsg }}</div>
+            <button
+              class="ibtn ibtn-p ibtn-sm"
+              style="justify-content:center"
+              :disabled="!rescheduleForm.reschedule_reason || !rescheduleNowForm.appointment_date || !rescheduleNowForm.start_time || !rescheduleNowForm.end_time || reschedulingNow || !!rescheduleNowBlockedMsg"
+              @click="submitRescheduleNow"
+            >
+              {{ reschedulingNow ? 'Rescheduling...' : 'Reschedule Now' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -525,7 +556,16 @@ const pagination = ref({});
 // (confirmed, completed, etc.) until staff manually cleared the filter.
 // '' matches the "All" option below, so the calendar shows everything by
 // default.
-const filters = ref({ status: '', date: '' });
+const filters = ref({ status: '', date: '', search: '' });
+
+// B628 (10/30/2026): debounced so each keystroke doesn't fire its own
+// request - mirrors the search pattern already used elsewhere (e.g.
+// students/Index.vue).
+let searchDebounce = null;
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => fetchAppointments(), 350);
+}
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
@@ -595,6 +635,18 @@ async function applyOverride() {
 
 // ---- Admin / GCU Staff: schedule a date/time directly for the student ----
 const scheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+// Bug (10/30/2026): this "Schedule Now" input had no :min and no holiday/
+// suspension check - staff could pick a past date, or a blocked one, and
+// the backend's own scheduleForStudent() didn't catch either case (see that
+// controller fix). todayStr/scheduleBlockedMsg block both here too.
+const todayStr = (() => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
+const scheduleBlockedMsg = computed(() => {
+  const d = scheduleForm.value.appointment_date;
+  return d && blockedMap.value[d] ? `This date is not available: ${blockedMap.value[d].label}.` : '';
+});
 const schedulingStudent = ref(false);
 async function applyScheduleStudent() {
   if (!detailTarget.value || schedulingStudent.value) return;
@@ -857,6 +909,7 @@ async function submitCancel() {
 function openReschedule(a) {
   rescheduleTarget.value = a;
   rescheduleForm.value = { reschedule_reason: '' };
+  rescheduleNowForm.value = { appointment_date: '', start_time: '', end_time: '' };
   showRescheduleModal.value = true;
 }
 
@@ -876,10 +929,45 @@ async function submitReschedule() {
   }
 }
 
+// B628 (10/30/2026): "Reschedule Now" state for the picker added to the
+// Reschedule modal above - reuses the same reschedule_reason field as the
+// "Send Reschedule Request" action, but books the new slot directly instead
+// of sending the student a link.
+const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+const reschedulingNow = ref(false);
+const rescheduleNowBlockedMsg = computed(() => {
+  const d = rescheduleNowForm.value.appointment_date;
+  return d && blockedMap.value[d] ? `This date is not available: ${blockedMap.value[d].label}.` : '';
+});
+
+async function submitRescheduleNow() {
+  if (!rescheduleForm.value.reschedule_reason) {
+    toast?.error('Please provide a reason for the reschedule.');
+    return;
+  }
+  reschedulingNow.value = true;
+  try {
+    await appointmentAPI.rescheduleNow(rescheduleTarget.value.id, {
+      reschedule_reason: rescheduleForm.value.reschedule_reason,
+      appointment_date: rescheduleNowForm.value.appointment_date,
+      start_time: rescheduleNowForm.value.start_time,
+      end_time: rescheduleNowForm.value.end_time,
+    });
+    toast?.success('Appointment rescheduled.');
+    showRescheduleModal.value = false;
+    fetchAppointments();
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to reschedule appointment.');
+  } finally {
+    reschedulingNow.value = false;
+  }
+}
+
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { status: '', date: '' };
+  filters.value = { status: '', date: '', search: '' };
   previewDate.value = null;
   fetchAppointments();
 }

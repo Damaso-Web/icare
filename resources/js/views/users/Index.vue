@@ -476,7 +476,7 @@
               ⚠ Some emails already exist. Choose how to handle all duplicates below.
             </div>
 
-           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)" @scroll="onPreviewScroll">
             <table class="itable">
               <thead>
                 <tr>
@@ -488,7 +488,7 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="item in previewData.preview" :key="item.row">
+                <tr v-for="item in visiblePreviewRows" :key="item.row">
                   <td style="font-size:12px">{{ item.row }}</td>
                   <td style="font-size:12px">{{ item.name || '-' }}</td>
                   <td style="font-family:var(--mono);font-size:12px">{{ item.email || '-' }}</td>
@@ -508,6 +508,10 @@
               </tbody>
             </table>
           </div>
+
+            <div v-if="previewVisibleCount < sortedPreviewRows.length" style="font-size:11px;color:var(--fog);text-align:center">
+              Showing {{ previewVisibleCount }} of {{ sortedPreviewRows.length }} rows - scroll for more
+            </div>
 
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
@@ -910,6 +914,28 @@ const importSummary = computed(() => {
   };
 });
 
+// Matches the Students masterlist import: a few thousand <tr> rows
+// rendered at once froze the page, so the table keeps its usual scrollbar
+// (not page-button pagination) but only renders a chunk of rows at a time,
+// loading the next chunk automatically as the scrollbar nears the bottom
+// (onPreviewScroll). Every row is still reachable by just scrolling; the
+// DOM never holds more than a few hundred rows at once. Rows needing
+// attention are sorted to the front so they show up immediately.
+const PREVIEW_CHUNK_SIZE = 150;
+const previewVisibleCount = ref(PREVIEW_CHUNK_SIZE);
+const sortedPreviewRows = computed(() => {
+  const items = previewData.value.preview || [];
+  const needsAttention = i => !i.valid || i.is_duplicate;
+  return [...items.filter(needsAttention), ...items.filter(i => !needsAttention(i))];
+});
+const visiblePreviewRows = computed(() => sortedPreviewRows.value.slice(0, previewVisibleCount.value));
+function onPreviewScroll(e) {
+  const el = e.target;
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+    previewVisibleCount.value = Math.min(previewVisibleCount.value + PREVIEW_CHUNK_SIZE, sortedPreviewRows.value.length);
+  }
+}
+
 function onSearchLetters() {
   filters.value.search = safeSearchInput(filters.value.search);
   fetchUsers();
@@ -1143,6 +1169,7 @@ function closeImportModal() {
 function resetImportFlow() {
   previewData.value = { preview: [], total: 0, duplicates: 0, token: '' };
   previewError.value = '';
+  previewVisibleCount.value = PREVIEW_CHUNK_SIZE;
 }
 
 async function handleFileSelect(e) {
@@ -1163,6 +1190,7 @@ async function handleFileSelect(e) {
     }
 
     previewData.value = res.data;
+    previewVisibleCount.value = PREVIEW_CHUNK_SIZE;
   } catch (err) {
     previewError.value = err.response?.data?.message || 'Failed to read file. Please check the format.';
   } finally {

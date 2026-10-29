@@ -888,12 +888,21 @@ class StudentController extends Controller
         $rows = [];
 
         if (in_array($ext, ['xlsx', 'xls'])) {
-            $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file->getRealPath());
+            // Bug (10/30/2026, speed): a masterlist is plain data, never
+            // formulas or styling, but IOFactory::load() by default parses
+            // both anyway - setReadDataOnly() skips style/formatting/layout
+            // parsing entirely, and rangeToArray()'s calculateFormulas
+            // argument (false here, was true/default) skips the formula
+            // engine per cell too. On a 5000-row file this is the
+            // difference between several seconds and under a second.
+            $reader = \PhpOffice\PhpSpreadsheet\IOFactory::createReader($ext === 'xls' ? 'Xls' : 'Xlsx');
+            $reader->setReadDataOnly(true);
+            $spreadsheet = $reader->load($file->getRealPath());
             $sheet = $spreadsheet->getActiveSheet();
             // Read only the part of the sheet that actually holds values.
             $lastCol = $sheet->getHighestDataColumn();
             $lastRow = $sheet->getHighestDataRow();
-            $data  = $sheet->rangeToArray("A1:{$lastCol}{$lastRow}", null, true, true, false);
+            $data  = $sheet->rangeToArray("A1:{$lastCol}{$lastRow}", null, false, true, false);
 
             $rawHeader = array_map(fn($h) => strtolower(trim($h ?? '')), $data[0]);
             for ($i = 1; $i < count($data); $i++) {

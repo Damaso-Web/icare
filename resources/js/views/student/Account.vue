@@ -486,7 +486,7 @@
             <div v-if="pwMismatch" style="font-size:11.5px;color:var(--red);margin-top:5px">Passwords do not match.</div>
             <div v-else-if="pwMatch" style="font-size:11.5px;color:var(--moss);margin-top:5px">Passwords match.</div>
           </div>
-          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="askChangePassword">Change Password</button>
+          <button class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="changingPw" @click="askChangePassword">{{ changingPw ? 'Changing...' : 'Change Password' }}</button>
         </div>
       </div>
 
@@ -603,12 +603,14 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import PasswordChecklist from '../../components/PasswordChecklist.vue';
 import axios from 'axios';
 import { emailProblem as checkEmail } from '../../utils/emailCheck';
 import { contactNumberInput } from '../../utils/validators';
 
-const toast = inject('toast', null);
+const toast  = inject('toast', null);
+const router = useRouter();
 const capFirst = v => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
 
 // B311: what is wrong with a field, shown on the field itself ('' when fine).
@@ -1222,6 +1224,16 @@ function askChangePassword() {
   }
   const problem = passwordProblem(f.password);
   if (problem) { pwError.value = problem; return; }
+  // Bug (10/30/2026): a brand-new/temporary password being changed for the
+  // first time (forced by must_change_password) skipped straight to
+  // changePassword() on the staff side (MyAccount.vue), but this student
+  // version always showed the "Are you sure?" confirmation - there's
+  // nothing to second-guess on a required first change. The confirmation
+  // modal is only for a voluntary change afterwards.
+  if (student.value.must_change_password) {
+    changePassword();
+    return;
+  }
   showPwConfirm.value = true;
 }
 
@@ -1238,6 +1250,11 @@ async function confirmChangePassword() {
 async function changePassword() {
   pwError.value = '';
   pwSuccess.value = '';
+  // Captured before the request, since a successful change flips
+  // must_change_password to false below - this is what the account was
+  // actually doing just now (its forced, first-time change or not).
+  const wasForced = !!student.value.must_change_password;
+  changingPw.value = true;
   try {
     await axios.put(`${API_BASE}/student/password`, pwForm.value, authHeaders());
     student.value.must_change_password = false;
@@ -1249,8 +1266,14 @@ async function changePassword() {
     showConfirmPw.value = false;
     pwSuccess.value = 'Password changed successfully.';
     toast?.success('Password changed successfully.');
+    // The account was locked to this page until the temporary password was
+    // replaced - now that it has been, go on to the dashboard like a normal
+    // sign-in would, instead of leaving them sitting on My Account.
+    if (wasForced) router.push({ name: 'student-dashboard' });
   } catch (e) {
     pwError.value = firstApiError(e, 'Failed to change password.');
+  } finally {
+    changingPw.value = false;
   }
 }
 
