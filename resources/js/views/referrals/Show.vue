@@ -1251,11 +1251,11 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
               <div>
                 <label class="ifl">Start Time <span style="color:var(--red)">*</span></label>
-                <input v-model="followUpForm.start_time" type="time" class="ifi" />
+                <input v-model="followUpForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
               </div>
               <div>
                 <label class="ifl">End Time <span style="color:var(--red)">*</span></label>
-                <input v-model="followUpForm.end_time" type="time" class="ifi" />
+                <input v-model="followUpForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
               </div>
             </div>
             <div>
@@ -1740,8 +1740,8 @@
               <div style="font-size:11.5px;color:var(--stone)">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
               <div style="display:flex;flex-wrap:wrap;gap:8px">
                 <input v-model="apptScheduleForm.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" :min="todayStr" />
-                <input v-model="apptScheduleForm.start_time" type="time" class="ifi" style="flex:1;min-width:100px" />
-                <input v-model="apptScheduleForm.end_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+                <input v-model="apptScheduleForm.start_time" type="time" class="ifi" style="flex:1;min-width:100px" min="08:00" max="16:00" />
+                <input v-model="apptScheduleForm.end_time" type="time" class="ifi" style="flex:1;min-width:100px" min="08:00" max="16:00" />
               </div>
               <div v-if="apptScheduleBlockedMsg" style="font-size:11px;color:var(--red)">{{ apptScheduleBlockedMsg }}</div>
               <button
@@ -1974,7 +1974,7 @@
 <script setup>
 import { saveBlob } from '../../utils/download';
 import { ref, onMounted, inject, computed, watch } from 'vue';
-import { useBlockedDates } from '../../utils/blockedDates';
+import { useBlockedDates, officeHoursMessage } from '../../utils/blockedDates';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import api, { referralAPI, sessionNoteAPI, caseAPI, appointmentAPI, userAPI, caseReferralAPI, studentAPI } from '../../api/index';
@@ -3386,12 +3386,18 @@ const todayStr = new Date().toISOString().split('T')[0];
 const showFollowUpConfirm = ref(false);
 
 const { load: loadBlockedDates, messageFor: blockedMessageFor } = useBlockedDates('staff');
-const followUpBlockedMsg = computed(() => blockedMessageFor(followUpForm.value.appointment_date));
+// B628 (10/30/2026): also checks office hours (8:00 AM - 4:00 PM) now - the
+// date-only check left a 6 PM follow-up, say, with no warning at all until
+// the backend rejected it (store() didn't even enforce this server-side
+// until this same fix - see AppointmentController::store()).
+const followUpBlockedMsg = computed(() =>
+  blockedMessageFor(followUpForm.value.appointment_date) || officeHoursMessage(followUpForm.value.start_time, followUpForm.value.end_time));
 // Bug (10/30/2026): this "Schedule Now" date input had no :min and no
 // holiday/suspension check at all - staff could pick a past date or a
 // blocked one here and the backend's own scheduleForStudent() didn't catch
 // it either (see that controller fix). Same pattern as followUpForm above.
-const apptScheduleBlockedMsg = computed(() => blockedMessageFor(apptScheduleForm.value.appointment_date));
+const apptScheduleBlockedMsg = computed(() =>
+  blockedMessageFor(apptScheduleForm.value.appointment_date) || officeHoursMessage(apptScheduleForm.value.start_time, apptScheduleForm.value.end_time));
 
 function openFollowUpModal() {
   loadBlockedDates();

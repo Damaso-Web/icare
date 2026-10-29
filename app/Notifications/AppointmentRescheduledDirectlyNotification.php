@@ -26,6 +26,13 @@ class AppointmentRescheduledDirectlyNotification extends Notification
         $when = trim("{$date} {$time}");
         $reason = rtrim(trim($this->reason), '.');
 
+        // B628 (10/30/2026, revised): reason is now optional for Reschedule
+        // Now - "...rescheduled to {when} due to ." read as broken when left
+        // blank, so the "due to ..." clause only appears if staff typed one.
+        $message = $reason
+            ? "Your appointment {$this->appointment->appointment_code} has been rescheduled to {$when} due to {$reason}."
+            : "Your appointment {$this->appointment->appointment_code} has been rescheduled to {$when}.";
+
         return [
             'type'             => 'appointment_rescheduled_directly',
             'appointment_id'   => $this->appointment->id,
@@ -33,7 +40,7 @@ class AppointmentRescheduledDirectlyNotification extends Notification
             'appointment_date' => $date,
             'start_time'       => $time,
             'reason'           => $this->reason,
-            'message'          => "Your appointment {$this->appointment->appointment_code} has been rescheduled to {$when} due to {$reason}.",
+            'message'          => $message,
         ];
     }
 }

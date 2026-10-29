@@ -285,8 +285,8 @@
             <div style="font-size:11.5px;color:var(--stone);margin-bottom:8px">This student is still waiting to pick their own schedule. Set a date and time yourself instead, or leave this and let them use their scheduling link.</div>
             <div class="ad-override-row">
               <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="todayStr" />
-              <input v-model="scheduleForm.start_time" type="time" class="ifi" />
-              <input v-model="scheduleForm.end_time" type="time" class="ifi" />
+              <input v-model="scheduleForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
+              <input v-model="scheduleForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
               <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent || !!scheduleBlockedMsg" @click="applyScheduleStudent">
                 {{ schedulingStudent ? 'Scheduling...' : 'Schedule Now' }}
               </button>
@@ -479,26 +479,34 @@
             <textarea v-model="rescheduleForm.reschedule_reason" class="ifta" style="min-height:80px" placeholder="Why does this need to be rescheduled?" maxlength="1000"></textarea>
           </div>
           <div style="display:flex;gap:8px">
-            <button class="ibtn ibtn-p" @click="submitReschedule">Send Reschedule Request</button>
+            <button class="ibtn ibtn-p" :disabled="!rescheduleForm.reschedule_reason" @click="submitReschedule">Send Reschedule Request</button>
             <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
           </div>
 
           <!-- B628 (10/30/2026): "Reschedule Now" - lets staff pick the new
                date/time themselves and lock it in right away, instead of
-               only being able to send the student a request to pick one. -->
+               only being able to send the student a request to pick one.
+               Its own reason field, separate from the one above: this is
+               staff directly rebooking an already-decided slot, not asking
+               the student why they need a new one, so a reason here is
+               optional, just an audit-log/notification note if staff want
+               to leave one - revised 10/30/2026 after it was first built
+               sharing the required field above, which made this button look
+               broken/unclickable whenever that field was left blank. -->
           <div style="border-top:1px solid var(--cloud);margin-top:2px;padding-top:14px;display:flex;flex-direction:column;gap:8px">
             <div style="font-size:12.5px;font-weight:600;color:var(--moss)">Or Reschedule Now</div>
             <div style="font-size:12px;color:var(--stone);line-height:1.5">Set the new date and time yourself - no action needed from the student.</div>
+            <textarea v-model="rescheduleNowForm.reason" class="ifta" style="min-height:50px" placeholder="Reason (optional) - included in the student's notification if filled in" maxlength="1000"></textarea>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
               <input v-model="rescheduleNowForm.appointment_date" type="date" class="ifi" :min="todayStr" />
-              <input v-model="rescheduleNowForm.start_time" type="time" class="ifi" />
-              <input v-model="rescheduleNowForm.end_time" type="time" class="ifi" />
+              <input v-model="rescheduleNowForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
+              <input v-model="rescheduleNowForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
             </div>
             <div v-if="rescheduleNowBlockedMsg" style="font-size:11px;color:var(--red)">{{ rescheduleNowBlockedMsg }}</div>
             <button
               class="ibtn ibtn-p ibtn-sm"
               style="justify-content:center"
-              :disabled="!rescheduleForm.reschedule_reason || !rescheduleNowForm.appointment_date || !rescheduleNowForm.start_time || !rescheduleNowForm.end_time || reschedulingNow || !!rescheduleNowBlockedMsg"
+              :disabled="!rescheduleNowForm.appointment_date || !rescheduleNowForm.start_time || !rescheduleNowForm.end_time || reschedulingNow || !!rescheduleNowBlockedMsg"
               @click="submitRescheduleNow"
             >
               {{ reschedulingNow ? 'Rescheduling...' : 'Reschedule Now' }}
@@ -517,6 +525,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
+import { officeHoursMessage } from '../../utils/blockedDates';
 import axios from 'axios';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 
@@ -636,17 +645,36 @@ async function applyOverride() {
 // ---- Admin / GCU Staff: schedule a date/time directly for the student ----
 const scheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 // Bug (10/30/2026): this "Schedule Now" input had no :min and no holiday/
-// suspension check - staff could pick a past date, or a blocked one, and
-// the backend's own scheduleForStudent() didn't catch either case (see that
-// controller fix). todayStr/scheduleBlockedMsg block both here too.
+// suspension/weekend check - staff could pick a past date, a weekend, or a
+// blocked one, and the backend didn't reliably catch all of those either
+// (see the scheduleForStudent()/rescheduleNow() controller fixes).
+// todayStr/dateBlockedMsg() block all of this client-side too, same rules
+// the backend enforces (after_or_equal:today + Mon-Fri only).
 const todayStr = (() => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 })();
-const scheduleBlockedMsg = computed(() => {
-  const d = scheduleForm.value.appointment_date;
-  return d && blockedMap.value[d] ? `This date is not available: ${blockedMap.value[d].label}.` : '';
-});
+// Shared by scheduleBlockedMsg (Schedule Now) and rescheduleNowBlockedMsg
+// (Reschedule Now) below - a plain <input type="date"> can't disable
+// specific weekdays on its own, so weekends are checked here in JS.
+function dateBlockedMsg(d) {
+  if (!d) return '';
+  // Parsed at local noon so the day-of-week doesn't shift back a day for a
+  // timezone behind UTC.
+  const day = new Date(`${d}T12:00:00`).getDay();
+  if (day === 0 || day === 6) {
+    return 'Appointments can only be scheduled Monday through Friday.';
+  }
+  return blockedMap.value[d] ? `This date is not available: ${blockedMap.value[d].label}.` : '';
+}
+// B628 (10/30/2026): office hours (8:00 AM - 4:00 PM) were only ever
+// enforced server-side (and only on scheduleForStudent()/rescheduleNow()) -
+// a plain <input type="time"> has no min/max either, so this is checked
+// here too, same as the date-side checks above.
+function dateOrTimeBlockedMsg(d, start, end) {
+  return dateBlockedMsg(d) || officeHoursMessage(start, end);
+}
+const scheduleBlockedMsg = computed(() => dateOrTimeBlockedMsg(scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time));
 const schedulingStudent = ref(false);
 async function applyScheduleStudent() {
   if (!detailTarget.value || schedulingStudent.value) return;
@@ -909,7 +937,7 @@ async function submitCancel() {
 function openReschedule(a) {
   rescheduleTarget.value = a;
   rescheduleForm.value = { reschedule_reason: '' };
-  rescheduleNowForm.value = { appointment_date: '', start_time: '', end_time: '' };
+  rescheduleNowForm.value = { appointment_date: '', start_time: '', end_time: '', reason: '' };
   showRescheduleModal.value = true;
 }
 
@@ -930,25 +958,19 @@ async function submitReschedule() {
 }
 
 // B628 (10/30/2026): "Reschedule Now" state for the picker added to the
-// Reschedule modal above - reuses the same reschedule_reason field as the
-// "Send Reschedule Request" action, but books the new slot directly instead
-// of sending the student a link.
-const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '' });
+// Reschedule modal above - its own reason field (optional, see the
+// rescheduleNow() controller method), not shared with "Send Reschedule
+// Request" above, and books the new slot directly instead of sending the
+// student a link.
+const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '', reason: '' });
 const reschedulingNow = ref(false);
-const rescheduleNowBlockedMsg = computed(() => {
-  const d = rescheduleNowForm.value.appointment_date;
-  return d && blockedMap.value[d] ? `This date is not available: ${blockedMap.value[d].label}.` : '';
-});
+const rescheduleNowBlockedMsg = computed(() => dateOrTimeBlockedMsg(rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time));
 
 async function submitRescheduleNow() {
-  if (!rescheduleForm.value.reschedule_reason) {
-    toast?.error('Please provide a reason for the reschedule.');
-    return;
-  }
   reschedulingNow.value = true;
   try {
     await appointmentAPI.rescheduleNow(rescheduleTarget.value.id, {
-      reschedule_reason: rescheduleForm.value.reschedule_reason,
+      reschedule_reason: rescheduleNowForm.value.reason,
       appointment_date: rescheduleNowForm.value.appointment_date,
       start_time: rescheduleNowForm.value.start_time,
       end_time: rescheduleNowForm.value.end_time,

@@ -136,6 +136,14 @@ class AppointmentController extends Controller
 
         \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
 
+        // B628 (10/30/2026): scheduleForStudent() and rescheduleNow() both
+        // enforce office hours (8:00 AM - 4:00 PM); this endpoint (used by
+        // e.g. the Follow-up Session form) never did, so a follow-up could
+        // be booked at, say, 6 PM with nothing catching it.
+        if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+            return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
+        }
+
         $conflictFound = !empty($validated['staff_user_id'])
             ? Appointment::hasConflict($validated['staff_user_id'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'])
             : Appointment::hasUnitConflict($validated['unit'], $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
@@ -379,8 +387,13 @@ class AppointmentController extends Controller
     {
         $this->authorizeUnit($appointment);
 
+        // B628 (10/30/2026, revised): unlike reschedule() above (which sends
+        // the student a request and genuinely needs to tell them why), this
+        // is staff directly rebooking an already-decided slot - the reason
+        // is optional here, just a note for the audit log/notification if
+        // staff want to leave one.
         $validated = $request->validate([
-            'reschedule_reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u'],
+            'reschedule_reason' => ['nullable', 'string', 'max:1000'],
             'appointment_date' => [
                 'required',
                 'date',
@@ -393,7 +406,7 @@ class AppointmentController extends Controller
             ],
             'start_time' => 'required|date_format:H:i',
             'end_time'   => 'required|date_format:H:i|after:start_time',
-        ], ['reschedule_reason.regex' => 'Please explain the reason in words, not numbers only.']);
+        ]);
 
         if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
             abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
@@ -412,7 +425,7 @@ class AppointmentController extends Controller
             abort(422, 'This time slot conflicts with another appointment for this unit. Please pick another.');
         }
 
-        $reason = trim($validated['reschedule_reason']);
+        $reason = trim($validated['reschedule_reason'] ?? '');
         $old = $this->slotSnapshot($appointment);
 
         DB::transaction(function () use ($appointment, $validated, $reason, $old, $request) {
@@ -438,7 +451,7 @@ class AppointmentController extends Controller
 
         AuditLog::record('rescheduled_by_staff',
             "{$request->user()->name} rescheduled appointment {$appointment->appointment_code} directly to {$validated['appointment_date']} {$validated['start_time']}-{$validated['end_time']} (no student action needed). "
-            . "Previous slot: {$old['date']} {$old['start']}-{$old['end']}. Reason: {$reason}.",
+            . "Previous slot: {$old['date']} {$old['start']}-{$old['end']}." . ($reason ? " Reason: {$reason}." : ''),
             $appointment, $old, ['status' => 'confirmed', 'appointment_date' => $validated['appointment_date']]);
 
         try {
