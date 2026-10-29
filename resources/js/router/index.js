@@ -386,7 +386,14 @@ const routes = [
                 path: 'call-slips',
                 name: 'call-slips',
                 component: CallSlips,
-                meta: { roles: ['dean_secretary', 'dept_chair'] },
+                // Bug (B639, 10/28/2026): 'dean' was missing here, so the Dean
+                // dashboard's own Call Slips shortcut (quickActions below)
+                // sent a Dean account to a route their own role couldn't
+                // open. CallSlipController::index() already scopes results
+                // by $user->college with no role check of its own, so Dean
+                // seeing the same college-scoped list dean_secretary and
+                // dept_chair see is correct, not just permitted.
+                meta: { roles: ['dean', 'dean_secretary', 'dept_chair'] },
             },
             {
                 path: 'backup',
