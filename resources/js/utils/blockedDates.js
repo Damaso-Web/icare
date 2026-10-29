@@ -57,11 +57,22 @@ export function useBlockedDates(role = 'staff') {
 // and only find out from a 422 error (or, via store(), have it silently
 // accepted). Exported standalone (not part of useBlockedDates) since it
 // only needs the two time strings, not the loaded holiday map.
-/** "Appointments can only be scheduled between 8:00 AM and 4:00 PM." or '' */
+// Bug (10/30/2026, revised): this originally only checked `start < 08:00 ||
+// end > 16:00` (matching the backend's own original check, fixed the same
+// way there now) - a start_time of 20:51 (8:51 PM) and end_time of 04:41
+// (4:41 AM) both passed it, since "20:51" > "08:00" and "04:41" < "16:00"
+// as plain strings. Checking both bounds on both fields actually constrains
+// the whole window to 08:00-16:00. Also added the end-after-start check
+// here (the backend already enforces this via `after:start_time`, but
+// nothing surfaced it live while typing before this).
+/** "Appointments can only be scheduled between 8:00 AM and 4:00 PM." / "End time must be after start time." or '' */
 export function officeHoursMessage(startTime, endTime) {
     if (!startTime || !endTime) return '';
-    if (startTime < '08:00' || endTime > '16:00') {
+    if (startTime < '08:00' || startTime >= '16:00' || endTime <= '08:00' || endTime > '16:00') {
         return 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.';
+    }
+    if (endTime <= startTime) {
+        return 'End time must be after start time.';
     }
     return '';
 }

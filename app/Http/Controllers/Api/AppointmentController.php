@@ -140,7 +140,14 @@ class AppointmentController extends Controller
         // enforce office hours (8:00 AM - 4:00 PM); this endpoint (used by
         // e.g. the Follow-up Session form) never did, so a follow-up could
         // be booked at, say, 6 PM with nothing catching it.
-        if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+        // B628 (10/30/2026, revised): the original `start < 08:00 || end >
+        // 16:00` check only ever caught a too-early start or a too-late end
+        // - a start_time of 20:51 (8:51 PM) and end_time of 04:41 (4:41 AM
+        // the NEXT clock reading) both passed it, since "20:51" > "08:00"
+        // lexicographically and "04:41" < "16:00". Checking both bounds on
+        // both fields actually constrains the whole window to 08:00-16:00.
+        if ($validated['start_time'] < '08:00' || $validated['start_time'] >= '16:00'
+            || $validated['end_time'] <= '08:00' || $validated['end_time'] > '16:00') {
             return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
         }
 
@@ -408,7 +415,11 @@ class AppointmentController extends Controller
             'end_time'   => 'required|date_format:H:i|after:start_time',
         ]);
 
-        if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+        // B628 (10/30/2026, revised): see the matching comment in store() above
+        // - checks both bounds on both fields, not just a too-early start or
+        // a too-late end.
+        if ($validated['start_time'] < '08:00' || $validated['start_time'] >= '16:00'
+            || $validated['end_time'] <= '08:00' || $validated['end_time'] > '16:00') {
             abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
         }
         \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
@@ -944,7 +955,11 @@ public function checkConflictByStudent(Request $request)
         if ($dayOfWeek > 5) {
             abort(422, 'Appointments can only be scheduled Monday to Friday.');
         }
-        if ($data['start_time'] < '08:00' || $data['end_time'] > '16:00') {
+        // B628 (10/30/2026, revised): see the matching comment in store() above
+        // - checks both bounds on both fields, not just a too-early start or
+        // a too-late end.
+        if ($data['start_time'] < '08:00' || $data['start_time'] >= '16:00'
+            || $data['end_time'] <= '08:00' || $data['end_time'] > '16:00') {
             abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
         }
         if ($blocked = \App\Support\BlockedDates::message($data['appointment_date'])) {

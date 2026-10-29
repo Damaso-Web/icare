@@ -493,20 +493,16 @@
             <button class="ibtn ibtn-o" @click="showRescheduleModal = false">Cancel</button>
           </div>
 
-          <!-- B628 (10/30/2026): "Reschedule Now" - lets staff pick the new
-               date/time themselves and lock it in right away, instead of
-               only being able to send the student a request to pick one.
-               Its own reason field, separate from the one above: this is
-               staff directly rebooking an already-decided slot, not asking
-               the student why they need a new one, so a reason here is
-               optional, just an audit-log/notification note if staff want
-               to leave one - revised 10/30/2026 after it was first built
-               sharing the required field above, which made this button look
-               broken/unclickable whenever that field was left blank. -->
+          <!-- B628 (10/30/2026, revised): "Reschedule Now" - lets staff pick
+               the new date/time themselves and lock it in right away,
+               instead of only being able to send the student a request to
+               pick one. No reason field here (removed per request) - this
+               is staff directly rebooking an already-decided slot, not
+               asking the student why they need a new one, so the backend
+               call just sends an empty reason. -->
           <div style="border-top:1px solid var(--cloud);margin-top:2px;padding-top:14px;display:flex;flex-direction:column;gap:8px">
             <div style="font-size:12.5px;font-weight:600;color:var(--moss)">Or Reschedule Now</div>
             <div style="font-size:12px;color:var(--stone);line-height:1.5">Set the new date and time yourself - no action needed from the student.</div>
-            <textarea v-model="rescheduleNowForm.reason" class="ifta" style="min-height:50px" placeholder="Reason (optional) - included in the student's notification if filled in" maxlength="1000"></textarea>
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
               <input v-model="rescheduleNowForm.appointment_date" type="date" class="ifi" :min="todayStr" />
               <input v-model="rescheduleNowForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
@@ -947,7 +943,7 @@ async function submitCancel() {
 function openReschedule(a) {
   rescheduleTarget.value = a;
   rescheduleForm.value = { reschedule_reason: '' };
-  rescheduleNowForm.value = { appointment_date: '', start_time: '', end_time: '', reason: '' };
+  rescheduleNowForm.value = { appointment_date: '', start_time: '', end_time: '' };
   showRescheduleModal.value = true;
 }
 
@@ -967,12 +963,12 @@ async function submitReschedule() {
   }
 }
 
-// B628 (10/30/2026): "Reschedule Now" state for the picker added to the
-// Reschedule modal above - its own reason field (optional, see the
-// rescheduleNow() controller method), not shared with "Send Reschedule
-// Request" above, and books the new slot directly instead of sending the
+// B628 (10/30/2026, revised): "Reschedule Now" state for the picker added
+// to the Reschedule modal above - no reason field (removed per request), so
+// an empty reschedule_reason is just sent as '' (the backend already treats
+// it as optional). Books the new slot directly instead of sending the
 // student a link.
-const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '', reason: '' });
+const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const reschedulingNow = ref(false);
 const rescheduleNowBlockedMsg = computed(() => dateOrTimeBlockedMsg(rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time));
 
@@ -980,7 +976,7 @@ async function submitRescheduleNow() {
   reschedulingNow.value = true;
   try {
     await appointmentAPI.rescheduleNow(rescheduleTarget.value.id, {
-      reschedule_reason: rescheduleNowForm.value.reason,
+      reschedule_reason: '',
       appointment_date: rescheduleNowForm.value.appointment_date,
       start_time: rescheduleNowForm.value.start_time,
       end_time: rescheduleNowForm.value.end_time,
