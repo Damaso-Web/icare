@@ -27,7 +27,7 @@ services:
         sync: false
       # ---- Forgot password: link inside the email points here ----
       - key: FRONTEND_URL
-        value: https://iwouldcare.netlify.app
+        value: https://ishouldhavecared.netlify.app
       # ---- Persistent file storage ----
       # Render's own disk is wiped on every deploy, so documents, OR photos,
       # and PAR reports are stored on Cloudinary instead (see
