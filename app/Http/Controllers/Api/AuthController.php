@@ -79,11 +79,9 @@ class AuthController extends Controller
             return response()->json(['message' => 'The credentials entered do not match this sign-in portal. Please select the appropriate sign-in type at the top left.'], 401);
         }
 
-        // A one-time password (from registering) works only for a short time.
-        if ($user->temp_password_expires_at && $user->temp_password_expires_at->isPast()) {
+       if ($user->must_change_password && $user->temp_password_expires_at && $user->temp_password_expires_at->isPast()) {
             return response()->json(['message' => 'Your one-time password has expired. Please register again to get a new one.'], 401);
         }
-
         // Only reveal the deactivated state AFTER a correct password.
         if (!$user->is_active) {
             AuditLog::record('login_failed', "Failed staff login for {$user->name}: account is deactivated.", $user, [], [], $user);

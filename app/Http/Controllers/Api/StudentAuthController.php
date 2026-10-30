@@ -58,8 +58,7 @@ class StudentAuthController extends Controller
             return response()->json(['message' => 'Invalid Student ID or password.' . \App\Support\LoginGuard::attemptsMessage($left), 'attempts_left' => $left], 401);
         }
 
-        // A one-time password (from registering) works only for a short time.
-        if ($student->temp_password_expires_at && $student->temp_password_expires_at->isPast()) {
+        if ($student->must_change_password && $student->temp_password_expires_at && $student->temp_password_expires_at->isPast()) {
             return response()->json([
                 'error'   => 'otp_expired',
                 'message' => 'Your one-time password has expired. Please register again to get a new one.',
@@ -85,9 +84,12 @@ class StudentAuthController extends Controller
 
         // Still on a temporary / one-time password: remind them in the bell
         // (once, until they have read it).
-        if ($student->must_change_password && !$student->unreadNotifications()->where('type', ChangePasswordReminderNotification::class)->exists()) {
-            $student->notify(new ChangePasswordReminderNotification());
-        }
+       if ($student->must_change_password && $student->temp_password_expires_at && $student->temp_password_expires_at->isPast()) {
+    return response()->json([
+        'error'   => 'otp_expired',
+        'message' => 'Your one-time password has expired. Please register again to get a new one.',
+    ], 401);
+}
 
         AuditLog::record('login', "Student {$student->student_id} logged in.", $student, [], [], $student);
 
