@@ -1,3 +1,12 @@
+<IfModule mod_headers.c>
+    # B644 (10/30/2026, ZAP finding): a static file that exists on disk
+    # (this directory's own assets) is served by Apache directly - it never
+    # reaches Laravel's SecurityHeaders middleware, which only runs for
+    # requests that get rewritten to index.php below. Without this, those
+    # responses had no X-Content-Type-Options at all.
+    Header set X-Content-Type-Options "nosniff"
+</IfModule>
+
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes

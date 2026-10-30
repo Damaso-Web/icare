@@ -22,7 +22,17 @@ class SecurityHeaders
             $response->headers->set('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
             $response->headers->set('Cache-Control', 'no-store, private');
         } else {
-            $response->headers->set('Content-Security-Policy', "frame-ancestors 'none'");
+            // B644 (10/30/2026, ZAP findings): this used to be just
+            // "frame-ancestors 'none'" - every OTHER directive was
+            // undefined, which is the same as unrestricted (ZAP's "Failure
+            // to Define Directive with No Fallback" / "Wildcard Directive"
+            // alerts). This only matters locally - in production the
+            // frontend is a separate Netlify site with its own fully
+            // explicit policy (see netlify.toml), and this backend's "/"
+            // just returns a JSON health message (routes/web.php). Mirrors
+            // netlify.toml's policy so local `php artisan serve` testing
+            // matches production instead of being wide open.
+            $response->headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self'; frame-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'");
         }
 
         if ($request->isSecure()) {

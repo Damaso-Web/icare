@@ -15,8 +15,12 @@ RUN apt-get update && apt-get install -y \
     && docker-php-ext-configure zip \
     && docker-php-ext-install pdo pdo_mysql mbstring exif pcntl bcmath gd zip
 
-# Enable Apache mod_rewrite
-RUN a2enmod rewrite
+# Enable Apache mod_rewrite (SPA/API routing) and mod_headers (ZAP finding,
+# B644: static files that exist on disk - public/build/assets/*.js etc. -
+# are served by Apache directly, bypassing Laravel's SecurityHeaders
+# middleware entirely; mod_headers + public/.htaccess below adds
+# X-Content-Type-Options to those too).
+RUN a2enmod rewrite headers
 
 # Bug (10/30/2026): this image shipped with no php.ini at all, so PHP ran on
 # its compiled-in defaults - in particular memory_limit was effectively
@@ -35,6 +39,13 @@ RUN { \
     echo 'max_execution_time = 120'; \
     echo 'max_input_time = 120'; \
     } > /usr/local/etc/php/conf.d/icare-limits.ini
+
+# B644 (10/30/2026, ZAP finding): PHP sends "X-Powered-By: PHP/8.3.x" on
+# every response by default - tells an attacker the exact runtime version
+# for free. expose_php off removes it. Apache's own ServerTokens/
+# ServerSignature (configured below, next to the VirtualHost) do the same
+# for the "Server: Apache/..." header.
+RUN echo 'expose_php = Off' > /usr/local/etc/php/conf.d/icare-security.ini
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -60,6 +71,12 @@ RUN echo '<VirtualHost *:80>\n\
         Require all granted\n\
     </Directory>\n\
 </VirtualHost>' > /etc/apache2/sites-available/000-default.conf
+
+# ServerTokens Prod / ServerSignature Off strip the "Server: Apache/2.4.x
+# (Debian)" version string from every response and from error pages, same
+# reasoning as expose_php above.
+RUN echo 'ServerTokens Prod\nServerSignature Off' > /etc/apache2/conf-available/icare-security.conf \
+    && a2enconf icare-security
 
 EXPOSE 80
 

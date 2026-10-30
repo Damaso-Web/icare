@@ -1,13 +1,18 @@
 services:
   - type: web
     name: icare-backend
-    env: php
-    buildCommand: |
-      composer install --no-dev --optimize-autoloader --no-security-blocking
-      php artisan config:cache
-      php artisan route:cache
-      php artisan view:cache
-    startCommand: php artisan serve --host=0.0.0.0 --port=$PORT
+    # B644 (10/30/2026): the actual Render service (dashboard: Settings ->
+    # Runtime) has always been "Docker", building and running from this
+    # repo's Dockerfile - this blueprint said `env: php` with its own
+    # buildCommand/startCommand instead, which was simply never true. That
+    # mismatch meant this file documented the WRONG deploy path: if the
+    # service were ever recreated from this blueprint (or re-synced), Render
+    # would switch to its native PHP buildpack and silently drop everything
+    # the Dockerfile does - the memory_limit fix for the OOM crashes (B-fix,
+    # see Dockerfile) and the expose_php/ServerTokens hardening below it.
+    # `env: docker` here just states what has actually been running.
+    env: docker
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: APP_NAME
         value: iCARE
@@ -15,6 +20,12 @@ services:
         value: production
       - key: APP_DEBUG
         value: false
+      # B644 (10/30/2026, ZAP finding): unset, this left config/session.php's
+      # "secure" cookie flag effectively off, even though Render always
+      # serves this app over HTTPS - the cookie's own Secure attribute is a
+      # separate protection from the platform's HTTPS termination.
+      - key: SESSION_SECURE_COOKIE
+        value: true
       - key: DB_CONNECTION
         value: mysql
       - key: DB_HOST
