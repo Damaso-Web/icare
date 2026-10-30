@@ -319,8 +319,11 @@ class ReferralController extends Controller
         Notification::send($recipients, new NewReferralNotification($referral));
 
         // Tell the student they were referred (who, which unit, their login)
-        // and ask them to update My Account. Sent on every referral.
-        $student->notify(new ReferredStudentNotification($referral));
+        // and ask them to update My Account. Sent on every referral. B643:
+        // the notification can no longer read temp_password back out of
+        // the model (it's hashed) - refresh it here so there's a fresh
+        // plaintext to hand straight to the notification.
+        $student->notify(new ReferredStudentNotification($referral, \App\Support\PasswordReset::refreshPendingTempPassword($student)));
 
         return response()->json([
             ...$referral->load(['student', 'referredBy'])->toArray(),

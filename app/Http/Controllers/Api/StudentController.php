@@ -137,10 +137,16 @@ class StudentController extends Controller
 
         $tempPassword = Str::random(10);
 
+        // B643 (10/30/2026): temp_password used to be stored in plain text so
+        // it could be looked up again later (viewTempPassword() below) - a
+        // DB leak would hand out live, working passwords. It's now a hash
+        // (same as the real `password` column) and is never written back to
+        // the database in plain text; this response is the ONLY place the
+        // admin ever sees it.
         $student = Student::create([
             ...$validated,
             'password'              => Hash::make($tempPassword),
-            'temp_password'         => $tempPassword,
+            'temp_password'         => Hash::make($tempPassword),
             'must_change_password'  => true,
             'is_active'             => true,
         ]);
@@ -195,9 +201,34 @@ class StudentController extends Controller
         'medical_notes',
     ];
 
+    // B641 (10/30/2026): index() scopes a Dean/Dept Chair/Faculty search to
+    // their own college/department (B590/B618/B626), but this direct
+    // GET /api/students/{id} had no such check at all - any Dean, Dept
+    // Chair, or plain Faculty account could open ANY student's full
+    // profile (including the SIF fields below) just by guessing/knowing an
+    // ID, bypassing the search scope entirely. Reuses the exact same scope
+    // rule as index() so there's one source of truth.
+    private function authorizeCollegeScope(Student $student): void
+    {
+        $user = request()->user();
+        if (!$user) return;
+
+        if ($user->isDean()) {
+            abort_unless(in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true), 403, 'This student is outside your college.');
+            return;
+        }
+
+        if ($user->isDeptChair() || $user->role === 'faculty') {
+            $inCollege = in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true);
+            $inProgram = \App\Support\DepartmentScope::matches($student->program, $user->department);
+            abort_unless($inCollege && $inProgram, 403, 'This student is outside your department.');
+        }
+    }
+
     public function show(Student $student)
     {
         $this->authorizeTmduScope($student);
+        $this->authorizeCollegeScope($student);
 
         $data = $student->toArray();
         if (request()->user()?->isTMDUStaff()) {
@@ -447,14 +478,19 @@ class StudentController extends Controller
         ]);
     }
 
-    // Admin-only: view current temp password if the student hasn't changed it yet
+    // Admin-only: reports whether the account's temp password is still unused
+    // ("pending"). B643 (10/30/2026): temp_password is now a hash (see store()
+    // and PasswordReset::perform()), so the original value cannot be shown
+    // again here even while it's still pending - it was only ever shown once,
+    // in the create/reset response. Once the student changes it
+    // (must_change_password turns false), there's nothing left to retrieve.
     public function viewTempPassword(Student $student)
     {
         if (!$student->must_change_password || !$student->temp_password) {
             return response()->json(['message' => 'This student has already set their own password.'], 404);
         }
 
-        return response()->json(['temp_password' => $student->temp_password]);
+        return response()->json(['pending' => true, 'message' => 'A temporary password is set but can only be shown once, at the time it was created or reset. If it was missed or lost, reset the password to generate a new one.']);
     }
 
     // Last resort for a student who cannot use "Forgot password": needs a reason from the list.
@@ -822,7 +858,9 @@ class StudentController extends Controller
             $inserts[] = array_merge($payload, [
                 'student_id'            => $rowData['student_id'],
                 'password'              => Hash::make($tempPassword, ['rounds' => 4]),
-                'temp_password'         => $tempPassword,
+                // B643: never any individual reveal for an imported row either -
+                // hashed like every other write path.
+                'temp_password'         => Hash::make($tempPassword, ['rounds' => 4]),
                 'must_change_password'  => true,
                 'is_active'             => true,
                 'created_at'            => $now,

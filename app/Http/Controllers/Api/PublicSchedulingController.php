@@ -26,7 +26,15 @@ class PublicSchedulingController extends Controller
 
     public function checkAvailability(Request $request, $token)
     {
-        $appointment = Appointment::where('scheduling_token', $token)->firstOrFail();
+        // B642 (10/30/2026): show() and submit() below both require
+        // token_expires_at >= now() - this endpoint (and monthAvailability()
+        // right after it) only checked the token string itself, so an
+        // expired scheduling link kept returning real availability data
+        // (200) forever instead of 404 once expired. Same predicate as the
+        // other two token-gated handlers.
+        $appointment = Appointment::where('scheduling_token', $token)
+            ->where('token_expires_at', '>=', now())
+            ->firstOrFail();
 
         $request->validate([
             'appointment_date' => 'required|date',
@@ -45,7 +53,11 @@ class PublicSchedulingController extends Controller
             return response()->json(['available' => false, 'message' => 'Appointments can only be scheduled Monday to Friday.']);
         }
 
-        if ($request->start_time < '08:00' || $request->end_time > '16:00') {
+        // B628-equivalent: bounded on both ends (see AppointmentController)
+        // so a too-late start (e.g. 20:51) or too-early end (e.g. 04:41)
+        // can't slip through.
+        if ($request->start_time < '08:00' || $request->start_time >= '16:00'
+            || $request->end_time <= '08:00' || $request->end_time > '16:00') {
             return response()->json(['available' => false, 'message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.']);
         }
 
@@ -103,7 +115,10 @@ class PublicSchedulingController extends Controller
 
     public function monthAvailability(Request $request, $token)
     {
-        $appointment = Appointment::where('scheduling_token', $token)->firstOrFail();
+        // B642: same expired-token gap as checkAvailability() above.
+        $appointment = Appointment::where('scheduling_token', $token)
+            ->where('token_expires_at', '>=', now())
+            ->firstOrFail();
 
         $request->validate([
             'month' => 'required|date_format:Y-m',
@@ -182,7 +197,9 @@ class PublicSchedulingController extends Controller
             return response()->json(['message' => 'Appointments can only be scheduled Monday to Friday.'], 422);
         }
 
-        if ($request->start_time < '08:00' || $request->end_time > '16:00') {
+        // B628-equivalent: bounded on both ends (see AppointmentController).
+        if ($request->start_time < '08:00' || $request->start_time >= '16:00'
+            || $request->end_time <= '08:00' || $request->end_time > '16:00') {
             return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
         }
 

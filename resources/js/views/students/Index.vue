@@ -183,23 +183,11 @@
           </div>
 
           <div v-if="viewedStudent.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
-              <button type="button" @click="toggleTempPasswordVisible" :disabled="!viewedStudent.is_active" style="background:none;border:none;cursor:pointer;color:var(--fog);padding:2px;display:flex;align-items:center">
-                <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
+            <div style="font-size:12.5px;color:var(--slate);margin-top:4px;line-height:1.5">
+              A temporary password is set but hasn't been used yet. For security, it can only be shown once - right when it was created or reset - and can't be looked up again.
             </div>
-            <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
-              {{ showTempPassword ? (tempPasswordValue || 'Loading...') : '••••••••••' }}
-            </div>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">Student hasn't logged in and changed their password yet.</div>
+            <div style="font-size:11px;color:var(--stone);margin-top:6px">Student hasn't logged in and changed their password yet. If it was missed or lost, use Reset Password below.</div>
           </div>
 
           <div v-if="resetPasswordResult" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--forest)">
@@ -1203,8 +1191,6 @@ const createdPassword = ref('');
 
 const showViewModal  = ref(false);
 const viewedStudent  = ref({});
-const showTempPassword  = ref(false);
-const tempPasswordValue = ref('');
 const resetPasswordResult = ref('');
 
 const showEditModal = ref(false);
@@ -1547,8 +1533,6 @@ const doConfirmedResetPw = async ({ reason, note }) => {
     const res = await studentAPI.resetPassword(viewedStudent.value.id, { reason, note });
     showResetPwConfirm.value = false;
     resetPasswordResult.value = res.data.temp_password;
-    tempPasswordValue.value = res.data.temp_password;
-    showTempPassword.value = true;
     viewedStudent.value.must_change_password = true;
     toast?.success('Password reset successfully. The student was signed out and notified by email.');
   } catch (e) {
@@ -1851,8 +1835,6 @@ const statusHistory = ref([]);
 function openView(s) {
   viewedStudent.value = s;
   resetPasswordResult.value = '';
-  showTempPassword.value = false;
-  tempPasswordValue.value = '';
   statusHistory.value = [];
   if (auth.isAdmin || auth.user?.role === 'gcu_staff') {
     studentAPI.statusHistory(s.id).then(r => { statusHistory.value = r.data; }).catch(() => { statusHistory.value = []; });
@@ -1939,18 +1921,6 @@ async function saveEditedStudent() {
 function resetStudentPassword() {
   resetError.value = '';
   showResetPwConfirm.value = true;
-}
-
-async function toggleTempPasswordVisible() {
-  showTempPassword.value = !showTempPassword.value;
-  if (showTempPassword.value && !tempPasswordValue.value) {
-    try {
-      const res = await studentAPI.viewTempPassword(viewedStudent.value.id);
-      tempPasswordValue.value = res.data.temp_password;
-    } catch (e) {
-      tempPasswordValue.value = 'Unable to retrieve.';
-    }
-  }
 }
 
 function openImportModal() {

@@ -140,7 +140,10 @@ class StudentOutreachController extends Controller
         $recipients = User::whereIn('role', ['admin', 'gcu_staff'])->where('is_active', true)->get();
         Notification::send($recipients, new NewReferralNotification($referral));
         if (! $self) {
-            $student->notify(new ReferredStudentNotification($referral));
+            // B643: refresh+pass the temp password the same way as the staff
+            // referral flow (ReferralController::store()) - it can no longer
+            // be read back out of the model.
+            $student->notify(new ReferredStudentNotification($referral, \App\Support\PasswordReset::refreshPendingTempPassword($student)));
         }
         if (! $isExisting) {
             $student->notify(new FillOutFormsNotification());

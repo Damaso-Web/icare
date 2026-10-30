@@ -101,7 +101,10 @@ class PasswordReset
         $temp = Str::random(10);
         $account->forceFill([
             'password'                 => Hash::make($temp),
-            'temp_password'            => $temp,
+            // B643 (10/30/2026): temp_password is a hash now, never plain
+            // text - $temp is returned below so the admin sees it exactly
+            // once, but nothing reversible is written to the database.
+            'temp_password'            => Hash::make($temp),
             'must_change_password'     => true,
             'temp_password_expires_at' => null,
         ])->save();
@@ -129,6 +132,36 @@ class PasswordReset
             ['password_last_changed' => $before['last_changed_at']],
             ['reason' => $label, 'note' => $note, 'sessions_signed_out' => true, 'email_notice_sent' => $emailed]
         );
+
+        return $temp;
+    }
+
+    /**
+     * B643 (10/30/2026): ReferredStudentNotification used to read the
+     * student's *existing* temp_password back out of the database to put
+     * in the referral email - the exact "retrieve a stored plaintext
+     * password later" pattern the security review flagged, just via email
+     * instead of a "View Temp Password" button. Now that temp_password is
+     * a hash, that value can't be read back at all. This generates and
+     * stores a FRESH one-time password (still only ever as a hash) and
+     * returns the plaintext so the caller can put it straight into the
+     * notification - nothing reversible ever touches the database.
+     *
+     * Returns null when the account has no pending temp password to
+     * refresh (the student already set their own password), in which case
+     * the caller should not mention a password in the notification at all.
+     */
+    public static function refreshPendingTempPassword($account): ?string
+    {
+        if (!$account->must_change_password || !$account->temp_password) {
+            return null;
+        }
+
+        $temp = Str::random(10);
+        $account->forceFill([
+            'password'      => Hash::make($temp),
+            'temp_password' => Hash::make($temp),
+        ])->save();
 
         return $temp;
     }

@@ -167,28 +167,11 @@
           </div>
 
           <div v-if="canManage && viewedUser.must_change_password" style="background:var(--snow);border:1px solid var(--cloud);border-radius:var(--r-sm);padding:12px 14px">
-            <div style="display:flex;align-items:center;justify-content:space-between">
-              <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
-              <button
-                type="button"
-                @click="toggleTempPasswordVisible"
-                :disabled="!viewedUser.is_active"
-                :style="{ background:'none', border:'none', cursor: viewedUser.is_active ? 'pointer' : 'not-allowed', color:'var(--fog)', padding:'2px', display:'flex', alignItems:'center', opacity: viewedUser.is_active ? 1 : .5 }"
-              >
-                <svg v-if="!showTempPassword" viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" style="width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">
-                  <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
+            <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog)">Temporary Password</div>
+            <div style="font-size:12.5px;color:var(--slate);margin-top:4px;line-height:1.5">
+              A temporary password is set but hasn't been used yet. For security, it can only be shown once - right when it was created or reset - and can't be looked up again.
             </div>
-            <div style="font-size:14px;color:var(--ink);font-family:var(--mono);margin-top:4px">
-              {{ showTempPassword ? (tempPasswordValue || 'Loading...') : '••••••••••' }}
-            </div>
-            <div style="font-size:11px;color:var(--stone);margin-top:4px">User hasn't changed their password yet.</div>
+            <div style="font-size:11px;color:var(--stone);margin-top:6px">User hasn't changed their password yet. If it was missed or lost, use Reset Password below.</div>
           </div>
 
           <div v-if="statusHistory.length">
@@ -845,8 +828,6 @@ async function fetchManagementData() {
 const viewedUser = ref({});
 const formError  = ref('');
 const resetPasswordResult = ref('');
-const showTempPassword = ref(false);
-const tempPasswordValue = ref('');
 const userFormSnapshot = ref('');
 
 const userForm = ref({
@@ -978,8 +959,6 @@ function generatePassword() {
 
 async function openView(u) {
   resetPasswordResult.value = '';
-  showTempPassword.value = false;
-  tempPasswordValue.value = '';
   viewedUser.value = u;
   statusHistory.value = [];
   showViewModal.value = true;
@@ -1017,18 +996,6 @@ async function openEditFromView() {
 
 function resetPassword(u) {
   openResetPwConfirm(u);
-}
-
-async function toggleTempPasswordVisible() {
-  showTempPassword.value = !showTempPassword.value;
-  if (showTempPassword.value && !tempPasswordValue.value) {
-    try {
-      const res = await userAPI.viewTempPassword(viewedUser.value.id);
-      tempPasswordValue.value = res.data.temp_password;
-    } catch (e) {
-      tempPasswordValue.value = 'Unable to retrieve.';
-    }
-  }
 }
 
 function resetUserForm() {

@@ -143,11 +143,14 @@ class UserController extends Controller
             $validated['department'] = null;
         }
 
+        // B643 (10/30/2026): temp_password is a hash now, never plain text -
+        // the admin already typed this password in, so nothing is lost by
+        // not keeping a reversible copy of it.
         $user = User::create([
             ...$validated,
             'name'                  => trim($validated['first_name'] . ' ' . $validated['last_name']),
             'password'              => Hash::make($validated['password']),
-            'temp_password'         => $validated['password'],
+            'temp_password'         => Hash::make($validated['password']),
             'must_change_password'  => true,
             'is_active'             => true,
         ]);
@@ -363,7 +366,10 @@ class UserController extends Controller
         return response()->json(['name' => $user->name] + \App\Support\PasswordReset::info($user));
     }
 
-    // Admin-only: view current temp password if the user hasn't changed it yet
+    // Admin-only: reports whether the account's temp password is still unused
+    // ("pending"). B643 (10/30/2026): temp_password is now a hash, so the
+    // original value can't be shown again here - it was only ever shown
+    // once, in the create/reset response.
     public function viewTempPassword(User $user)
     {
         $this->authorizeManaged($user);
@@ -371,7 +377,7 @@ class UserController extends Controller
             return response()->json(['message' => 'This user has already set their own password.'], 404);
         }
 
-        return response()->json(['temp_password' => $user->temp_password]);
+        return response()->json(['pending' => true, 'message' => 'A temporary password is set but can only be shown once, at the time it was created or reset. If it was missed or lost, reset the password to generate a new one.']);
     }
 
     public function import(Request $request)
@@ -483,7 +489,9 @@ class UserController extends Controller
                 'department'            => $rowData['department'] ?? null,
                 'contact_number'        => $rowData['contact_number'] ?? null,
                 'password'              => Hash::make($tempPassword),
-                'temp_password'         => $tempPassword,
+                // B643: hashed - the plaintext below is the only place this
+                // is shown, same as a single created account.
+                'temp_password'         => Hash::make($tempPassword),
                 'must_change_password'  => true,
                 'is_active'             => true,
             ]);
@@ -853,7 +861,8 @@ class UserController extends Controller
                 } else {
                     $tempPassword = Str::random(10);
                     $payload['password']             = Hash::make($tempPassword);
-                    $payload['temp_password']        = $tempPassword;
+                    // B643: hashed - the plaintext below is the only place this is shown.
+                    $payload['temp_password']        = Hash::make($tempPassword);
                     $payload['must_change_password'] = true;
                     $payload['is_active']            = true;
 

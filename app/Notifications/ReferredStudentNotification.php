@@ -16,7 +16,12 @@ class ReferredStudentNotification extends Notification
 {
     use Queueable, \App\Notifications\Concerns\SendsEmail;
 
-    public function __construct(public Referral $referral) {}
+    // B643 (10/30/2026): temp_password is now a hash and can't be read back
+    // out of the model - the caller must generate a fresh one (see
+    // PasswordReset::refreshPendingTempPassword()) and pass the plaintext
+    // in here directly, since this is the only moment it will ever exist
+    // outside the hash.
+    public function __construct(public Referral $referral, public ?string $freshTempPassword = null) {}
 
     /** The unit handling this referral, as it is written in the email. */
     private function unit(): string
@@ -52,10 +57,10 @@ class ReferredStudentNotification extends Notification
             ->line("You have been referred by {$this->referral->referrer_name} to the {$this->unit()}.");
 
         // The temporary password is only included while the student still has
-        // not set their own. It is read now, never stored in the notification.
-        $password = ($notifiable->must_change_password && $notifiable->temp_password)
-            ? $notifiable->temp_password
-            : null;
+        // not set their own - $freshTempPassword is generated fresh by the
+        // caller right before this is sent (see PasswordReset::
+        // refreshPendingTempPassword()), never read back from storage.
+        $password = $this->freshTempPassword;
 
         if ($password) {
             $mail->line('Please log in to iCARE using your Student ID Number and the password given below:')

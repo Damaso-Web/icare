@@ -182,7 +182,9 @@ class FacultyController extends UserController
             'role'                 => $role,
             'name'                 => trim($validated['first_name'] . ' ' . $validated['last_name']),
             'password'             => Hash::make($temp),
-            'temp_password'        => $temp,
+            // B643: hashed - $temp below (the create response) is the only
+            // place this is ever shown.
+            'temp_password'        => Hash::make($temp),
             'must_change_password' => true,
             'is_active'            => true,
         ]);
