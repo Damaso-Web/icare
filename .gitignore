@@ -11,3 +11,4 @@ ca.pem
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
 tests/e2e/screenshots/
+coverage-baseline-*.txt
