@@ -97,18 +97,26 @@ class SentReferralsComplaintsTest extends TestCase
             'violation_type' => 'Bullying', 'incident_date' => now()->subDay()->toDateString(),
             'description' => 'It happened in the hallway.', 'certification_agreed' => true,
         ];
-        // evidence and affidavit are required, allowed types only, narration 10 to 1000 characters
-        $this->withHeaders($json)->post('/api/student/outreach/complaints', $data)->assertStatus(422)->assertJsonValidationErrors(['evidence', 'affidavit']);
+        // evidence and affidavit are an either/or requirement (B583, 10/29/2026:
+        // ComplaintController::storeByStudent()) - missing BOTH is a general 422,
+        // not per-field errors, since neither field is individually required.
+        // Allowed types only, narration 10 to 1000 characters.
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', $data)
+            ->assertStatus(422)
+            ->assertJson(['message' => 'Please attach at least one evidence file or at least one Affidavit of Witness file.']);
         $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.exe')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['evidence.0']);
         $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => 'short']) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
         $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => str_repeat('x', 1001)]) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
+        // Evidence alone (no affidavit) is enough - that's the either/or itself.
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['complainee_student_id' => $other->id]) + ['evidence' => [$file('e.png')]])->assertStatus(201);
         $r = $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.docx')]]);
         $r->assertStatus(201)->assertJsonPath("filer_name", 'Me Cruz');
         $id = $r->json('id');
         $this->assertNull(Complaint::find($id)->filed_by_user_id);
         $this->assertSame(1, Referral::where('complaint_id', $id)->count());
 
-        $this->getJson('/api/student/outreach/complaints')->assertOk()->assertJsonCount(1, 'data');
+        // 2, not 1: the evidence-only complaint above also filed successfully.
+        $this->getJson('/api/student/outreach/complaints')->assertOk()->assertJsonCount(2, 'data');
         $this->getJson("/api/student/outreach/complaints/{$id}")->assertOk();
 
         Sanctum::actingAs($other, [], 'student');
@@ -131,17 +139,22 @@ class SentReferralsComplaintsTest extends TestCase
         ];
         $json = ['Accept' => 'application/json'];
 
-        // Evidence and the witness affidavit are both required for staff.
-        $this->withHeaders($json)->post('/api/complaints', $data)->assertStatus(422)->assertJsonValidationErrors(['evidence', 'affidavit']);
+        // Evidence and the witness affidavit are an either/or for staff too
+        // (B583, 10/29/2026: ComplaintController::file()) - missing both is a
+        // general 422, and evidence alone is sufficient to proceed.
+        $this->withHeaders($json)->post('/api/complaints', $data)
+            ->assertStatus(422)
+            ->assertJson(['message' => 'Please attach at least one evidence file or at least one Affidavit of Witness file.']);
         $this->withHeaders($json)->post('/api/complaints', $data + ['evidence' => [\Illuminate\Http\UploadedFile::fake()->create('e.pdf', 10)]])
-            ->assertStatus(422)->assertJsonValidationErrors(['affidavit']);
+            ->assertStatus(201);
 
         $id = $this->withHeaders($json)->post('/api/complaints', $data + [
             'evidence'  => [\Illuminate\Http\UploadedFile::fake()->create('e.pdf', 10)],
             'affidavit' => [\Illuminate\Http\UploadedFile::fake()->create('a.pdf', 10)],
         ])->assertStatus(201)->json("id");
 
-        $this->getJson('/api/my/complaints')->assertOk()->assertJsonCount(1, 'data');
+        // 2, not 1: the evidence-only complaint above also filed successfully.
+        $this->getJson('/api/my/complaints')->assertOk()->assertJsonCount(2, 'data');
         $this->getJson("/api/my/complaints/{$id}")->assertOk();
         Sanctum::actingAs($b);
         $this->getJson('/api/my/complaints')->assertOk()->assertJsonCount(0, 'data');

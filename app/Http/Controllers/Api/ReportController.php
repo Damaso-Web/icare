@@ -21,6 +21,35 @@ use App\Support\ReportWorkbook;
 
 class ReportController extends Controller
 {
+    // B645 (10/30/2026): MONTH()/YEAR()/DATEDIFF() are MySQL-only SQL
+    // functions - every report that grouped by month or computed a day
+    // span used them directly, so the SAME code that works against the
+    // real MySQL database threw "no such function" on SQLite (the test
+    // suite's in-memory DB, see phpunit.xml). These three helpers pick the
+    // portable equivalent for whichever connection is actually in use, so
+    // the exact same query works on both without maintaining two versions
+    // of each report method.
+    private function yearExpr(string $column): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "CAST(strftime('%Y', {$column}) AS INTEGER)"
+            : "YEAR({$column})";
+    }
+
+    private function monthExpr(string $column): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', {$column}) AS INTEGER)"
+            : "MONTH({$column})";
+    }
+
+    private function dateDiffExpr(string $laterDate, string $earlierDate): string
+    {
+        return DB::getDriverName() === 'sqlite'
+            ? "CAST(julianday({$laterDate}) - julianday({$earlierDate}) AS INTEGER)"
+            : "DATEDIFF({$laterDate}, {$earlierDate})";
+    }
+
     public function referrals(Request $request)
     {
         $request->validate([
@@ -165,8 +194,8 @@ class ReportController extends Controller
                                     ->get()->toArray(),
             'monthly_trend'   => $query->clone()
                                     ->select(
-                                        DB::raw('MONTH(created_at) as month'),
-                                        DB::raw('YEAR(created_at) as year'),
+                                        DB::raw($this->monthExpr('created_at') . ' as month'),
+                                        DB::raw($this->yearExpr('created_at') . ' as year'),
                                         DB::raw('count(*) as count')
                                     )
                                     ->groupBy('year', 'month')
@@ -593,8 +622,8 @@ class ReportController extends Controller
             'attendance'     => $this->buildAttendance($query->clone()),
             'monthly_trend'  => $query->clone()
                                     ->select(
-                                        DB::raw('MONTH(appointment_date) as month'),
-                                        DB::raw('YEAR(appointment_date) as year'),
+                                        DB::raw($this->monthExpr('appointment_date') . ' as month'),
+                                        DB::raw($this->yearExpr('appointment_date') . ' as year'),
                                         DB::raw('count(*) as count')
                                     )
                                     ->groupBy('year', 'month')
@@ -699,13 +728,13 @@ class ReportController extends Controller
                                     ->count(),
             'avg_days_to_close' => round(
                 (clone $query)->whereIn('status', self::DONE_CASE_STATUSES)
-                    ->avg(DB::raw('DATEDIFF(COALESCE(closed_date, DATE(status_changed_at)), opened_date)')) ?? 0,
+                    ->avg(DB::raw($this->dateDiffExpr('COALESCE(closed_date, DATE(status_changed_at))', 'opened_date'))) ?? 0,
                 1
             ),
             'monthly_trend'  => $query->clone()
                                     ->select(
-                                        DB::raw('MONTH(opened_date) as month'),
-                                        DB::raw('YEAR(opened_date) as year'),
+                                        DB::raw($this->monthExpr('opened_date') . ' as month'),
+                                        DB::raw($this->yearExpr('opened_date') . ' as year'),
                                         DB::raw('count(*) as count')
                                     )
                                     ->groupBy('year', 'month')
@@ -743,15 +772,22 @@ class ReportController extends Controller
             ->when($request->date_from, fn($w) => $w->whereDate('created_at', '>=', $request->date_from))
             ->when($request->date_to,   fn($w) => $w->whereDate('created_at', '<=', $request->date_to))];
 
+        // B645 (10/30/2026): ->having('referrals_count', ...) on a
+        // withCount() column is a HAVING clause with no GROUP BY - MySQL
+        // tolerates referencing a selected (non-aggregate) column there,
+        // but SQLite refuses with "HAVING clause on a non-aggregate query".
+        // has(...) with the same relation/constraint/count expresses the
+        // identical filter as a WHERE-level subquery count comparison
+        // instead, which both databases support.
         $topRecurringStudents = Student::withCount($inPeriod)
-            ->having('referrals_count', '>', 1)
+            ->has('referrals', '>', 1, 'and', $inPeriod['referrals'])
             ->orderByDesc('referrals_count')
             ->limit(10)
             ->get(['id', 'student_id', 'first_name', 'last_name', 'college']);
 
         return [
             'by_type'                  => $byType->toArray(),
-            'total_recurring_students' => Student::withCount($inPeriod)->having('referrals_count', '>', 1)->get(['id'])->count(),
+            'total_recurring_students' => Student::has('referrals', '>', 1, 'and', $inPeriod['referrals'])->count(),
             'top_recurring_students'   => $topRecurringStudents->toArray(),
         ];
     }
