@@ -5,7 +5,7 @@
         <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
       </button>
 
-      <AuthBrand :subtitle="(isStudent ? 'Student Portal' : 'BSU Personnel') + ' · Forgot Password'" />
+      <AuthBrand :subtitle="(isStudent ? 'Student Portal' : (isFaculty ? 'Faculty' : 'BSU Personnel')) + ' · Forgot Password'" />
 
       <div class="icard" style="padding:22px">
 
@@ -89,6 +89,12 @@ const router = useRouter();
 
 const isStudent = computed(() => route.query.type === 'student');
 const type = computed(() => (isStudent.value ? 'student' : 'staff'));
+// Bug (10/30/2026): this page had no idea whether a staff visitor came from
+// the Faculty or OSS Personnel sign-in screen - Login.vue's "Forgot
+// password?" link now passes `audience` through (see that fix), so both
+// the header label and the Back button below can tell the two apart
+// instead of always showing/returning to the generic "BSU Personnel" one.
+const isFaculty = computed(() => route.query.audience === 'faculty');
 
 const step = ref('email');           // email -> code -> done
 const email = ref('');
@@ -121,7 +127,14 @@ function firstError(e, fallback) {
 
 function goBack() {
   skipConsentNextTime(type.value);
-  router.push({ name: isStudent.value ? 'student-login' : 'login' });
+  // Bug (10/30/2026): this always landed back on the default (OSS
+  // Personnel) login screen - a Faculty user clicking Back (or "Go to Sign
+  // In" after a successful reset) ended up on the wrong sign-in form
+  // entirely. Carries `audience` back through so it returns to whichever
+  // one they actually came from.
+  router.push(isStudent.value
+    ? { name: 'student-login' }
+    : { name: 'login', query: isFaculty.value ? { audience: 'faculty' } : {} });
 }
 
 async function sendCode() {

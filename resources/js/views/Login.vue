@@ -89,7 +89,12 @@
           <label class="remember" title="Fills in your email next time and keeps you signed in after closing the browser. Leave it off on a shared computer.">
             <input v-model="rememberMe" type="checkbox" /> Remember me
           </label>
-          <router-link :to="{ name: 'forgot-password', query: { type: 'staff' } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
+          <!-- Bug (10/30/2026): this dropped `audience` entirely, so Forgot
+               Password had no way to know whether the click came from the
+               Faculty or OSS Personnel sign-in screen and always showed the
+               generic "BSU Personnel" label - even for Faculty. Passed
+               through now so Forgot Password can tell the two apart. -->
+          <router-link :to="{ name: 'forgot-password', query: { type: 'staff', audience: audience } }" style="font-size:12px;color:var(--moss)">Forgot password?</router-link>
         </div>
         <button type="submit" class="ibtn ibtn-p" style="width:100%;justify-content:center" :disabled="loading">
           <span v-if="loading" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
