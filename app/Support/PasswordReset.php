@@ -101,12 +101,9 @@ class PasswordReset
         $temp = Str::random(10);
         $account->forceFill([
             'password'                 => Hash::make($temp),
-            // B643 (10/30/2026): temp_password is a hash now, never plain
-            // text - $temp is returned below so the admin sees it exactly
-            // once, but nothing reversible is written to the database.
             'temp_password'            => Hash::make($temp),
             'must_change_password'     => true,
-            'temp_password_expires_at' => null,
+            'temp_password_expires_at' => now()->addDays(7),
         ])->save();
         self::stamp($account, 'admin_reset', $actor->name);
 
@@ -159,8 +156,9 @@ class PasswordReset
 
         $temp = Str::random(10);
         $account->forceFill([
-            'password'      => Hash::make($temp),
-            'temp_password' => Hash::make($temp),
+            'password'                 => Hash::make($temp),
+            'temp_password'            => Hash::make($temp),
+            'temp_password_expires_at' => now()->addDays(7),
         ])->save();
 
         return $temp;

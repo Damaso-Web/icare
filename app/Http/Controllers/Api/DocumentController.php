@@ -18,7 +18,6 @@ class DocumentController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            // Whitelist by real content (not the client-supplied extension)
             'file'              => 'required|file|max:10240|mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx|mimetypes:application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/zip,application/octet-stream',
             'document_type'     => 'required|in:referral_slip,client_information_form,psychological_assessment_report,session_notes,admission_slip,incident_report,supporting_document,other',
             'documentable_type' => 'required|in:referral,case,testing_record,complaint',
@@ -27,8 +26,6 @@ class DocumentController extends Controller
             'is_confidential'   => 'boolean',
         ]);
 
-        // The client only picks a short key; the real model class comes from this map,
-        // so nobody can attach documents to arbitrary classes.
         $typeMap = [
             'referral'       => \App\Models\Referral::class,
             'case'           => \App\Models\CaseFile::class,
@@ -36,7 +33,22 @@ class DocumentController extends Controller
             'complaint'      => \App\Models\Complaint::class,
         ];
         $modelClass = $typeMap[$request->documentable_type];
-        abort_unless($modelClass::whereKey($request->documentable_id)->exists(), 422, 'The record you are attaching to does not exist.');
+        $parent = $modelClass::find($request->documentable_id);
+        abort_unless($parent, 422, 'The record you are attaching to does not exist.');
+
+        // B642 (10/31/2026): previously the ONLY check on upload was "the
+        // record exists" - an SDU Head could blind-write a document onto a
+        // TMDU case and then never see it again (show/download would 403),
+        // leaving orphaned rows in the DB and files in Cloudinary. Same
+        // unit policy the show/download routes already use, applied before
+        // the file is ever uploaded so a denied request has no side effect.
+        $this->authorizeParent($request, $parent, $modelClass);
+
+        // A non-privileged uploader must not be able to flag a document as
+        // confidential if they couldn't otherwise see one - otherwise they
+        // could make their own upload unreadable to themselves later.
+        $canSetConfidential = in_array($request->user()->role, ['admin', 'gcu_staff', 'tmdu_staff', 'tmdu_head'], true);
+        $isConfidential = $canSetConfidential && (bool) ($request->is_confidential ?? false);
 
         $file = $request->file('file');
 
@@ -48,7 +60,7 @@ class DocumentController extends Controller
                 'original_filename'   => $file->getClientOriginalName(),
                 'document_type'       => $request->document_type,
                 'description'         => $request->description,
-                'is_confidential'     => $request->is_confidential ?? false,
+                'is_confidential'     => $isConfidential,
             ]);
         } catch (\Throwable $e) {
             Log::error('Document upload to Cloudinary failed', ['error' => $e->getMessage()]);
@@ -83,52 +95,51 @@ class DocumentController extends Controller
             abort(403, 'You do not have access to this confidential document.');
         }
 
+        if ($document->documentable) {
+            $this->authorizeParent($request, $document->documentable, $document->documentable_type);
+        }
+    }
+
+    /**
+     * B642: shared unit-scope check for "does this user own/see this record"
+     * - applied to the parent record on upload, show, download and destroy
+     * so no route can bypass it.
+     */
+    private function authorizeParent(Request $request, $parent, string $parentType): void
+    {
+        $user = $request->user();
+
         // Admin and GCU staff are unit-wide ("team model") everywhere else
         // in the app - no per-unit narrowing applies to them here either.
         if ($user->isAdmin() || $user->isGCUStaff()) {
             return;
         }
 
-        switch ($document->documentable_type) {
+        switch ($parentType) {
             case CaseFile::class:
-                $case = $document->documentable;
-                if ($case) {
-                    if ($user->isTMDUStaff() && $case->current_unit !== 'TMDU') {
-                        abort(403, 'This document belongs to a different unit.');
-                    }
-                    if ($user->isSDUHead() && $case->current_unit !== 'SDU') {
-                        abort(403, 'This document belongs to a different unit.');
-                    }
+                if ($user->isTMDUStaff() && $parent->current_unit !== 'TMDU') {
+                    abort(403, 'This document belongs to a different unit.');
+                }
+                if ($user->isSDUHead() && $parent->current_unit !== 'SDU') {
+                    abort(403, 'This document belongs to a different unit.');
                 }
                 break;
 
             case Referral::class:
-                $referral = $document->documentable;
-                if ($referral) {
-                    app(ReferralController::class)->authorizeView($referral, $user);
-                }
+                app(ReferralController::class)->authorizeView($parent, $user);
                 break;
 
             case TestingRecord::class:
-                // Testing Records belong to TMDU only (same role list as the
-                // testing-records routes themselves, routes/api.php). The
-                // PAR that GCU needs to read is duplicated onto the Referral
-                // when TestingRecordController::sendToGcu() issues it, so
-                // GCU reaches its copy through the Referral case above, not
-                // this one - nobody outside TMDU should resolve this branch.
+                // Testing Records belong to TMDU only - see the original comment.
                 if (!$user->isTMDUStaff()) {
                     abort(403, 'This document belongs to a different unit.');
                 }
                 break;
 
             case Complaint::class:
-                // Same rule as ComplaintController::attachment(): the SDU
-                // Head and the person who filed it can always open it;
-                // anyone else only if they're authorized on the referral
-                // it was filed together with.
-                $complaint = $document->documentable;
-                if ($complaint && !$user->isSDUHead() && (int) $complaint->filed_by_user_id !== (int) $user->id) {
-                    $referral = $complaint->referral;
+                // Same rule as ComplaintController::attachment().
+                if (!$user->isSDUHead() && (int) $parent->filed_by_user_id !== (int) $user->id) {
+                    $referral = $parent->referral;
                     abort_unless($referral, 403, 'Unauthorized.');
                     app(ReferralController::class)->authorizeView($referral, $user);
                 }
@@ -153,6 +164,13 @@ class DocumentController extends Controller
 
     public function destroy(Request $request, Document $document)
     {
+        // B642: unit scope first - a cross-unit delete (e.g. an SDU Head's
+        // legacy upload accidentally parked on a TMDU case) is refused
+        // before the uploader-or-admin rule can allow it. Admin and
+        // same-unit uploaders still pass; the original rule is otherwise
+        // untouched.
+        $this->authorizeAccess($request, $document);
+
         // Only the uploader or the GCU Head may delete a document.
         abort_unless(
             $request->user()->role === 'admin' || $document->uploaded_by_user_id === $request->user()->id,

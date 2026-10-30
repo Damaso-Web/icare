@@ -448,16 +448,16 @@ class AppointmentController extends Controller
                 ]);
             }
             $appointment->update([
-                'appointment_date'  => $validated['appointment_date'],
-                'start_time'        => $validated['start_time'],
-                'end_time'          => $validated['end_time'],
-                'status'            => 'confirmed',
-                'request_status'    => null,
-                'reschedule_reason' => $reason,
-                'times_rescheduled' => $appointment->times_rescheduled + 1,
-                'checked_in'        => false,
-                'checked_in_at'     => null,
-            ]);
+            'appointment_date'  => $validated['appointment_date'],
+            'start_time'        => $validated['start_time'],
+            'end_time'          => $validated['end_time'],
+            'status'            => 'confirmed',
+            'request_status'    => 'confirmed',
+            'reschedule_reason' => $reason,
+            'times_rescheduled' => $appointment->times_rescheduled + 1,
+            'checked_in'        => false,
+            'checked_in_at'     => null,
+        ]);
         });
 
         AuditLog::record('rescheduled_by_staff',
