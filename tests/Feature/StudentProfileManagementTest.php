@@ -243,19 +243,25 @@ class StudentProfileManagementTest extends TestCase
     }
 
     public function test_history_scopes_faculty_to_only_their_own_referrals(): void
-    {
-        $student = Student::factory()->create();
-        $case = CaseFile::factory()->create(['student_id' => $student->id]);
-        $faculty = User::factory()->create(['role' => 'faculty', 'is_active' => true]);
-        $other = User::factory()->create(['role' => 'faculty', 'is_active' => true]);
-        Referral::factory()->create(['student_id' => $student->id, 'case_id' => $case->id, 'referred_by_user_id' => $faculty->id]);
-        Referral::factory()->create(['student_id' => $student->id, 'case_id' => $case->id, 'referred_by_user_id' => $other->id]);
+{
+    $student = Student::factory()->create(['college' => 'CIT', 'program' => 'BSIT']);
+    $case = CaseFile::factory()->create(['student_id' => $student->id]);
+    $faculty = User::factory()->create([
+        'role' => 'faculty', 'is_active' => true,
+        'college' => 'CIT', 'department' => 'BSIT',
+    ]);
+    $other = User::factory()->create([
+        'role' => 'faculty', 'is_active' => true,
+        'college' => 'CIT', 'department' => 'BSIT',
+    ]);
+    Referral::factory()->create(['student_id' => $student->id, 'case_id' => $case->id, 'referred_by_user_id' => $faculty->id]);
+    Referral::factory()->create(['student_id' => $student->id, 'case_id' => $case->id, 'referred_by_user_id' => $other->id]);
 
-        $res = $this->actingAs($faculty)->getJson("/api/students/{$student->id}/history")->assertOk();
+    $res = $this->actingAs($faculty)->getJson("/api/students/{$student->id}/history")->assertOk();
 
-        $this->assertCount(1, $res->json('referrals'));
-        $this->assertCount(0, $res->json('cases')); // faculty never sees GCU cases
-    }
+    $this->assertCount(1, $res->json('referrals'));
+    $this->assertCount(0, $res->json('cases')); // faculty never sees GCU cases
+}
 
     public function test_history_blocks_tmdu_staff_from_a_student_never_referred_to_tmdu(): void
     {

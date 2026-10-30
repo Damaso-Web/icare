@@ -155,22 +155,29 @@ class CaseActionsTest extends TestCase
     }
 
     public function test_acknowledge_handoff_records_who_acknowledged_and_notifies_the_sender(): void
-    {
-        Notification::fake();
-        $sender = $this->gcuStaff();
-        $case = $this->caseFile();
-        $handoff = CaseHandoff::create([
-            'case_id' => $case->id, 'from_user_id' => $sender->id,
-            'to_user_id' => $this->gcuStaff()->id, 'from_unit' => 'GCU', 'to_unit' => 'SDU', 'reason' => 'test',
-        ]);
+        {
+            Notification::fake();
+            $sender = $this->gcuStaff();
+            $sdu = User::factory()->create(['role' => 'sdu_head', 'is_active' => true]);
+            // current_unit must match the handoff's to_unit (the controller's
+            // "still the active receiving assignment" check).
+            $case = $this->caseFile(['current_unit' => 'SDU']);
+            $handoff = CaseHandoff::create([
+                'case_id'     => $case->id,
+                'from_user_id' => $sender->id,
+                'to_user_id'   => $sdu->id,
+                'from_unit'   => 'GCU',
+                'to_unit'     => 'SDU',
+                'reason'      => 'test',
+            ]);
 
-        $this->actingAs($this->gcuStaff())
-            ->postJson("/api/cases/{$case->id}/handoffs/{$handoff->id}/acknowledge")
-            ->assertOk();
+            $this->actingAs($sdu)
+                ->postJson("/api/cases/{$case->id}/handoffs/{$handoff->id}/acknowledge")
+                ->assertOk();
 
-        $this->assertTrue((bool) $handoff->fresh()->acknowledged);
-        Notification::assertSentTo($sender, \App\Notifications\HandoffAcknowledgedNotification::class);
-    }
+            $this->assertTrue((bool) $handoff->fresh()->acknowledged);
+            Notification::assertSentTo($sender, \App\Notifications\HandoffAcknowledgedNotification::class);
+        }
 
     public function test_acknowledge_handoff_rejects_a_handoff_from_a_different_case(): void
     {
