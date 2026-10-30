@@ -182,6 +182,16 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
 
     // Appointments
     // Appointments are cancelled, not deleted.
+    // B648 (10/30/2026): GET /appointments/availability has to be declared
+    // BEFORE apiResource() below - Laravel matches GET routes in
+    // declaration order, not by literal-vs-wildcard specificity, so with
+    // apiResource's GET appointments/{appointment} (show) registered
+    // first, a request to .../availability was being swallowed by show()
+    // with "availability" bound as the {appointment} id and always 404ing
+    // ("No query results for model [Appointment] availability") - the
+    // frontend (resources/js/api/index.js) calls this endpoint, so it was
+    // actually broken, not just missing test coverage.
+    Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::apiResource('appointments', AppointmentController::class)->except(['destroy']);
     Route::post('appointments/{appointment}/confirm',    [AppointmentController::class, 'confirm']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
@@ -195,7 +205,6 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     // appointment still awaiting the student to pick one (from the Override
     // Status panel), instead of waiting for them to use their scheduling link.
     Route::post('appointments/{appointment}/schedule-student', [AppointmentController::class, 'scheduleForStudent'])->middleware('role:admin,gcu_staff');
-    Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::post('appointments/check-conflict',           [AppointmentController::class, 'checkConflict']);
 
     // Call Slips (Dean's Secretary - escalated no-show follow-up)

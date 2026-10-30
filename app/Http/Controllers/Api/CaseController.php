@@ -70,6 +70,20 @@ class CaseController extends Controller
         }
     }
 
+    /** Handoffs are coordination actions: the current owning unit may send its case onward. */
+    private function authorizeHandoffSender(CaseFile $case): void
+    {
+        $user = request()->user();
+        $maySend = match ($case->current_unit) {
+            'GCU' => in_array($user?->role, ['admin', 'gcu_staff'], true),
+            'SDU' => $user?->isSDUHead() === true,
+            'TMDU' => $user?->isTMDUStaff() === true,
+            default => false,
+        };
+
+        abort_unless($maySend, 403, 'Only an authorized member of the current owning unit can hand off this case.');
+    }
+
     // B623 reverted (10/25/2026): any GCU staff member may open any Student
     // Information File, not just their own caseload - back to the "team
     // model". Kept as a method (no-op) so show()'s call site needs no change.
@@ -466,10 +480,9 @@ class CaseController extends Controller
 
     public function handoff(Request $request, CaseFile $case)
     {
-        $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter($case);
+        $this->authorizeHandoffSender($case);
 
-        $request->validate([
+        $validated = $request->validate([
             'to_user_id'  => 'required|exists:users,id',
             'to_unit'     => 'required|in:GCU,SDU,TMDU',
             'reason'      => 'required|string|max:1000',
@@ -482,35 +495,60 @@ class CaseController extends Controller
             'referral_id' => 'nullable|integer|exists:referrals,id',
         ]);
 
+        $recipient = User::findOrFail($validated['to_user_id']);
+        abort_if($validated['to_unit'] === $case->current_unit, 422, 'Choose a different receiving unit.');
+
+        $recipientBelongsToUnit = match ($validated['to_unit']) {
+            'GCU' => in_array($recipient->role, ['admin', 'gcu_staff'], true),
+            'SDU' => $recipient->role === 'sdu_head',
+            'TMDU' => $recipient->isTMDUStaff(),
+        };
+        abort_unless($recipient->is_active && $recipientBelongsToUnit, 422, 'The selected recipient must be active and belong to the receiving unit.');
+
+        if (!empty($validated['referral_id'])) {
+            $referral = Referral::findOrFail($validated['referral_id']);
+            abort_unless((int) $referral->case_id === (int) $case->id, 422, 'This referral does not belong to this case.');
+        }
+
         $handoff = CaseHandoff::create([
             'case_id'      => $case->id,
-            'referral_id'  => $request->referral_id,
+            'referral_id'  => $validated['referral_id'] ?? null,
             'from_user_id' => $request->user()->id,
-            'to_user_id'   => $request->to_user_id,
+            'to_user_id'   => $recipient->id,
             'from_unit'    => $case->current_unit,
-            'to_unit'      => $request->to_unit,
-            'reason'       => $request->reason,
-            'notes'        => $request->notes,
+            'to_unit'      => $validated['to_unit'],
+            'reason'       => $validated['reason'],
+            'notes'        => $validated['notes'] ?? null,
         ]);
 
-        $case->update(['current_unit' => $request->to_unit]);
+        $case->update(['current_unit' => $validated['to_unit']]);
 
         if ($handoff->toUser) {
             Notification::send($handoff->toUser, new CaseHandoffNotification($handoff));
         }
 
-        AuditLog::record('handoff', "Case {$case->case_number} handed off to {$request->to_unit}.", $case);
+        AuditLog::record('handoff', "Case {$case->case_number} handed off to {$validated['to_unit']}.", $case);
         return response()->json($case);
     }
 
     public function acknowledgeHandoff(Request $request, CaseFile $case, CaseHandoff $handoff)
     {
-        $this->authorizeStaffAccess();
-        $this->authorizeCaseWriter($case);
+        // Receipt is performed by the named receiving user, not by the
+        // sending unit's case writer. In particular, a TMDU/SDU recipient
+        // must be able to acknowledge without being granted GCU SIF write
+        // access, and an unrelated GCU user must not acknowledge on their behalf.
+        abort_unless((int) $handoff->case_id === (int) $case->id, 422, 'This handoff does not belong to this case.');
+        abort_unless((int) $handoff->to_user_id === (int) $request->user()->id, 403, 'Only the designated receiving user can acknowledge this handoff.');
+        abort_if($handoff->acknowledged, 422, 'This handoff has already been acknowledged.');
+        abort_unless($case->current_unit === $handoff->to_unit, 422, 'This handoff is no longer the active receiving assignment.');
 
-        if ($handoff->case_id !== $case->id) {
-            abort(422, 'This handoff does not belong to this case.');
-        }
+        $recipientBelongsToUnit = match ($handoff->to_unit) {
+            'GCU' => in_array($request->user()->role, ['admin', 'gcu_staff'], true),
+            'SDU' => $request->user()->role === 'sdu_head',
+            'TMDU' => $request->user()->isTMDUStaff(),
+            default => false,
+        };
+        abort_unless($recipientBelongsToUnit, 403, 'Your account does not belong to the receiving unit.');
 
         $handoff->update([
             'acknowledged'    => true,

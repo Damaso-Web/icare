@@ -107,7 +107,7 @@ class BackupController extends Controller
 
         DB::beginTransaction();
         try {
-            DB::statement('SET FOREIGN_KEY_CHECKS=0');
+            $this->foreignKeyChecks(false);
 
             foreach ($tableOrder as $table) {
                 if (!isset($payload[$table])) {
@@ -121,10 +121,10 @@ class BackupController extends Controller
                 }
             }
 
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            $this->foreignKeyChecks(true);
             DB::commit();
         } catch (\Throwable $e) {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            $this->foreignKeyChecks(true);
             DB::rollBack();
             abort(500, 'Restore failed: ' . $e->getMessage());
         }
@@ -132,6 +132,19 @@ class BackupController extends Controller
         AuditLog::record('backup_restored', "Restored {$type} from backup #{$backup->id} ({$backup->file_path}).");
 
         return response()->json(['message' => ucfirst($type) . " restored from backup #{$backup->id}."]);
+    }
+
+    // B646 (10/30/2026): SET FOREIGN_KEY_CHECKS is MySQL-only syntax - it
+    // throws a syntax error on SQLite (the test suite's in-memory DB). The
+    // table order this is called around is already child-before-parent
+    // (see the comment on restoreData()), so there's nothing to actually
+    // disable on SQLite; PRAGMA foreign_keys is also a documented no-op
+    // mid-transaction there, so skipping it is correct, not just convenient.
+    private function foreignKeyChecks(bool $enabled): void
+    {
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=' . ($enabled ? 1 : 0));
+        }
     }
 
     private function checkConfirmation(Request $request, BackupRecord $backup): void

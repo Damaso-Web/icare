@@ -18,49 +18,62 @@ class MonitoringController extends Controller
             abort(403, 'Unauthorized.');
         }
 
+        // Monitoring is a unit-specific work queue. Keep the same unit
+        // boundaries as the underlying case, appointment, and referral lists.
         $unitFilter = function ($query, $column = 'unit') use ($user) {
             if ($user->isTMDUStaff()) {
                 $query->where($column, 'TMDU');
             } elseif ($user->isSDUHead()) {
                 $query->where($column, 'SDU');
+            } else {
+                $query->where($column, 'GCU');
             }
             return $query;
         };
 
-        // Feature 60: Pending referrals - excludes Complaints (Incident
-        // Reports), which are SDU's own module tracked via the dedicated
-        // Complaints page rather than this general monitoring widget.
-        $pendingReferrals = Referral::with(['student', 'referredBy'])
+        // Feature 60: pending referrals exclude complaint-derived records and
+        // apply the same TMDU ownership boundary as ReferralController::index.
+        $pendingReferralsQuery = Referral::with(['student', 'referredBy'])
             ->where('status', 'submitted')
-            ->whereNull('complaint_id')
-            ->latest()
-            ->paginate(10, ['*'], 'referrals_page');
+            ->whereNull('complaint_id');
+        if ($user->isTMDUStaff()) {
+            $pendingReferralsQuery->tmduOwned();
+        } else {
+            $pendingReferralsQuery->notTmduOwned();
+        }
+        if ($user->isSDUHead()) {
+            $pendingReferralsQuery->where('referred_by_user_id', $user->id);
+        }
 
-        // Feature 61: Pending appointments
+        // Feature 61: pending appointments, scoped to the user's service unit.
         $pendingAppointmentsQuery = Appointment::with(['student', 'staff'])
             ->where('status', 'pending');
         $unitFilter($pendingAppointmentsQuery);
-        $pendingAppointments = $pendingAppointmentsQuery->orderBy('appointment_date')
-            ->paginate(10, ['*'], 'appointments_page');
 
-        // Feature 62: Unresolved cases (open, in_progress, awaiting_testing, awaiting_external, on_hold,
-        // or explicitly flagged as requiring follow-up)
+        // Feature 62: unresolved cases and follow-up flags, scoped to the same
+        // unit so summary cards cannot reveal counts from another service.
         $unresolvedCasesQuery = CaseFile::with(['student', 'counselor', 'latestReferral'])
             ->where(function ($q) {
                 $q->whereIn('status', ['open', 'in_progress', 'awaiting_testing', 'awaiting_external', 'on_hold'])
                   ->orWhere('requires_follow_up', true);
             });
         $unitFilter($unresolvedCasesQuery, 'current_unit');
-        $unresolvedCases = $unresolvedCasesQuery->latest()
-            ->paginate(10, ['*'], 'cases_page');
 
-        // Summary counts for quick stat cards
+        $flaggedFollowUpQuery = CaseFile::where('requires_follow_up', true);
+        $unitFilter($flaggedFollowUpQuery, 'current_unit');
+
+        // Compute totals before paginate() mutates the builders with limit and
+        // offset, otherwise the stats can accidentally reflect only one page.
         $stats = [
-            'pending_referrals'    => Referral::where('status', 'submitted')->whereNull('complaint_id')->count(),
+            'pending_referrals'    => (clone $pendingReferralsQuery)->count(),
             'pending_appointments' => (clone $pendingAppointmentsQuery)->count(),
             'unresolved_cases'     => (clone $unresolvedCasesQuery)->count(),
-            'flagged_follow_up'    => CaseFile::where('requires_follow_up', true)->count(),
+            'flagged_follow_up'    => (clone $flaggedFollowUpQuery)->count(),
         ];
+
+        $pendingReferrals = $pendingReferralsQuery->latest()->paginate(10, ['*'], 'referrals_page');
+        $pendingAppointments = $pendingAppointmentsQuery->orderBy('appointment_date')->paginate(10, ['*'], 'appointments_page');
+        $unresolvedCases = $unresolvedCasesQuery->latest()->paginate(10, ['*'], 'cases_page');
 
         return response()->json([
             'stats'                => $stats,

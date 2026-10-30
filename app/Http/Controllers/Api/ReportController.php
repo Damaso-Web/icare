@@ -1158,7 +1158,7 @@ class ReportController extends Controller
             ->map(fn($r) => ['label' => $r->label, 'total' => (int) $r->total]);
 
         $months = array_fill(1, 12, 0);
-        foreach ((clone $own)->selectRaw('month(referrals.created_at) as m, count(*) as total')->groupBy('m')->get() as $r) {
+        foreach ((clone $own)->selectRaw($this->monthExpr('referrals.created_at') . ' as m, count(*) as total')->groupBy('m')->get() as $r) {
             $months[(int) $r->m] = (int) $r->total;
         }
 

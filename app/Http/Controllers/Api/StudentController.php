@@ -426,15 +426,20 @@ class StudentController extends Controller
         return response()->json($student);
     }
 
-        public function history(Student $student)
+    public function history(Student $student)
     {
+        $user = request()->user();
+
+        // Authorize before writing an audit event or returning any related
+        // records. The list endpoint is college/department scoped, so the
+        // direct history endpoint must enforce the same boundary as show().
+        $this->authorizeTmduScope($student);
+        $this->authorizeCollegeScope($student);
+
         // The Student Profile page always loads this, and it is what returns
         // the student's referrals, cases, appointments and testing records -
-        // so this is where opening a profile is logged (once per open).
+        // so this is where opening an authorized profile is logged (once per open).
         AuditLog::record('viewed', "Viewed student profile and records for {$student->first_name} {$student->last_name} ({$student->student_id}).", $student);
-
-        $user = request()->user();
-        $this->authorizeTmduScope($student);
 
         // TMDU works from Testing Records and its own Case Referral Slips -
         // never the SIF (cases) or GCU's referrals/appointments. GCU in turn
@@ -981,14 +986,34 @@ class StudentController extends Controller
             'last_name'  => 'required|string',
         ]);
 
-        $existing = Student::where('first_name', $request->first_name)
+        $user = $request->user();
+        $existingQuery = Student::where('first_name', $request->first_name)
             ->where('last_name', $request->last_name)
-            ->when($request->middle_name, fn($q) => $q->where('middle_name', $request->middle_name))
-            ->first();
+            ->when($request->filled('middle_name'), fn($q) => $q->where('middle_name', $request->middle_name));
+
+        // Match the same scope used by student search. The duplicate-name
+        // helper should not become a side door for enumerating students from
+        // another college or department.
+        if ($user?->isDean()) {
+            $existingQuery->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
+        } elseif ($user?->isDeptChair() || $user?->role === 'faculty') {
+            $existingQuery->whereIn('college', \App\Support\CollegeName::equivalents($user->college))
+                ->where(fn ($q) => \App\Support\DepartmentScope::whereProgramMatches($q, $user->department));
+        }
+
+        $existing = $existingQuery->first();
 
         return response()->json([
             'duplicate_found' => (bool) $existing,
-            'existing_student' => $existing,
+            // Return only the fields consumed by the duplicate confirmation
+            // dialog; never serialize the full Student model here.
+            'existing_student' => $existing ? [
+                'id' => $existing->id,
+                'student_id' => $existing->student_id,
+                'first_name' => $existing->first_name,
+                'middle_name' => $existing->middle_name,
+                'last_name' => $existing->last_name,
+            ] : null,
         ]);
     }
 
