@@ -199,7 +199,12 @@ class ComplaintController extends Controller
             'complainee_office'      => ['nullable', 'string', 'max:255', 'regex:' . self::TEXT_REGEX],
             'complainee_address'     => 'nullable|string|max:255',
             'violation_type'         => 'required|string|max:255',
-            'incident_date'          => 'required|date|before_or_equal:today',
+            'incident_date'          => [
+                'required',
+                'date',
+                'before_or_equal:today',
+                'after_or_equal:' . now()->subYear()->toDateString(),
+            ],
             'description'            => ['required', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'certification_agreed'   => 'required|accepted',
             'evidence.*'             => 'nullable|file|max:10240',
@@ -209,6 +214,7 @@ class ComplaintController extends Controller
             'complainant_address.regex' => 'Please provide a valid address. Numbers alone are not allowed.',
             'description.regex'         => 'Please provide a valid narration of facts. Numbers alone are not allowed.',
             'incident_date.before_or_equal' => 'The date of incident cannot be in the future.',
+            'incident_date.after_or_equal'  => 'The date of incident cannot be more than one year in the past.',
         ]);
 
         if ($staff && !count($request->file('evidence', [])) && !count($request->file('affidavit', []))) {
@@ -370,7 +376,7 @@ class ComplaintController extends Controller
 
         return response(base64_decode($attachment->content))
             ->header('Content-Type', $attachment->mime_type ?: 'application/octet-stream')
-            ->header('Content-Disposition', 'inline; filename="' . $filename . '"')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"')
             ->header('X-Content-Type-Options', 'nosniff');
     }
 
