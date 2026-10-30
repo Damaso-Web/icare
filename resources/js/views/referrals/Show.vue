@@ -211,14 +211,26 @@
 
           <!-- Referral Info (merged with the former "Referral Details" card) -->
           <div class="icard" v-if="!isIncidentReport">
+            <!-- Bug (10/30/2026): Edit Referral/Delete Referral used to sit
+                 directly in the title's own flex row, each with its own
+                 margin-left:auto - on a narrow screen that row couldn't fit
+                 title + 2 buttons, so it wrapped mid-row with the buttons
+                 misaligned (Delete Referral landing on its own line, pinned
+                 left instead of lining up with Edit Referral). Grouped the
+                 action buttons into their own wrapper so the title stays on
+                 its own line and the buttons wrap together as a unit - see
+                 .icard-header .ref-actions in app.css for the mobile rule
+                 that makes them share a tidy, evenly-sized row underneath. -->
             <div class="icard-header">
               <span class="icard-title">{{ isCaseReferralSlip ? 'Case Referral Slip' : 'Referral Info' }}</span>
-              <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="margin-left:auto" @click="openReferralEdit">Edit Referral</button>
-              <!-- Delete only while unacknowledged - once GCU/SDU/TMDU
-                   acknowledges it, it's their record and the referrer can
-                   only ask to void it (the button below instead). -->
-              <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
-              <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="margin-left:auto;color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
+              <div class="ref-actions" style="margin-left:auto;display:flex;flex-wrap:wrap;gap:8px">
+                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" @click="openReferralEdit">Edit Referral</button>
+                <!-- Delete only while unacknowledged - once GCU/SDU/TMDU
+                     acknowledges it, it's their record and the referrer can
+                     only ask to void it (the button below instead). -->
+                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
+                <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
+              </div>
             </div>
 
             <!-- Pending cancellation/void request - shown to the referrer
@@ -1407,13 +1419,24 @@
       </div>
 
       <!-- Edit Referral (referrer only, until GCU acknowledges it) -->
+      <!-- Bug (10/30/2026): this form is long (concern, disciplinary fields,
+           Change Student, 6 student-info fields) and the box had no
+           max-height - on a short mobile viewport it just grew taller than
+           the screen with nothing to scroll (the outer overlay centers it
+           but never scrolls), so Save Changes/Cancel at the very bottom
+           were pushed off-screen and completely unreachable. Switched to
+           the same max-height + scrollable-body + sticky-footer pattern
+           already used by the Refer to TMDU modal below (and Student
+           Profile above) - header and footer stay fixed, only the middle
+           scrolls, so the buttons are always visible regardless of form
+           length or screen height. -->
       <div v-if="showReferralEdit" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showReferralEdit = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
-          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--sh-lg)">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Edit Referral</div>
             <button class="ibtn ibtn-g ibtn-sm" @click="showReferralEdit = false">✕</button>
           </div>
-          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px;overflow-y:auto">
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
               You can change this referral until it is acknowledged.
             </div>
@@ -1526,10 +1549,10 @@
             </div>
 
             <div v-if="referralEditError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ referralEditError }}</div>
-            <div style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="saveReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Save Changes' }}</button>
-              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="showReferralEdit = false">Cancel</button>
-            </div>
+          </div>
+          <div style="padding:14px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;gap:8px;flex-shrink:0">
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="saveReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Save Changes' }}</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="showReferralEdit = false">Cancel</button>
           </div>
         </div>
       </div>

@@ -452,6 +452,14 @@ body.is-busy button[type="submit"]{pointer-events:none;opacity:.55;cursor:progre
   /* Card headers with a title and a badge or button wrap instead of overflowing. */
   .icard-header{flex-wrap:wrap}
 
+  /* B628 (10/30/2026): Referral Info's Edit Referral/Delete Referral group
+     (.ref-actions) - on a narrow screen there isn't room for it next to the
+     title, so it wraps onto its own line below; this makes it take the
+     full width there and gives each button an even share instead of
+     sitting left-aligned at its natural (cramped) size. */
+  .icard-header .ref-actions{width:100%;margin-left:0 !important}
+  .icard-header .ref-actions>.ibtn{flex:1 1 auto;justify-content:center}
+
   /* 16px inputs stop iPhones from zooming the page when a field is tapped. */
   .ifi,.ifse,.ifta,.sin,.fsm,input,select,textarea{font-size:16px !important}
   /* Scroll hint: a soft edge shows when a table has more columns off-screen. */
