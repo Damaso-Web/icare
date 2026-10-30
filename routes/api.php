@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\FacultyController;
 use App\Http\Controllers\Api\DocumentSettingController;
 use App\Http\Controllers\Api\ManagementAcademicYearController;
 use App\Http\Controllers\Api\ManagementCalendarEntryController;
+use App\Http\Controllers\Api\MonitoringController;
 
 // Public routes
 Route::post('/login',           [AuthController::class, 'login'])->middleware('throttle:login');
@@ -67,6 +68,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
 
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index']);
+
+    // Unit-scoped operational work queue and summary counts.
+    Route::get('/monitoring', [MonitoringController::class, 'index'])
+        ->middleware('role:admin,gcu_staff,sdu_head,tmdu_staff,tmdu_head');
 
     // Students
     // Looking a student up stays open to every staff role (Refer Student needs
