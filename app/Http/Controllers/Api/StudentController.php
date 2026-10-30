@@ -239,7 +239,11 @@ class StudentController extends Controller
     }
 
     public function update(Request $request, Student $student)
-    {
+{
+
+    $request->replace(
+        array_filter($request->all(), fn ($v) => $v !== '' && $v !== null)
+    );
         $validated = $request->validate([
             'student_id'             => ['sometimes', 'required', 'string', 'regex:' . self::ID_REGEX, 'unique:students,student_id,' . $student->id],
             'first_name'             => ['sometimes', 'required', 'string', 'min:2', 'max:255', 'regex:' . self::NAME_REGEX],
