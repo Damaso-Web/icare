@@ -107,6 +107,17 @@ class SentReferralsComplaintsTest extends TestCase
         $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.exe')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['evidence.0']);
         $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => 'short']) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
         $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['description' => str_repeat('x', 1001)]) + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.pdf')]])->assertStatus(422)->assertJsonValidationErrors(['description']);
+        
+        // B647: Date of incident cannot be older than 1 year
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['incident_date' => now()->subYears(2)->toDateString()]) + ['evidence' => [$file('e.png')]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['incident_date']);
+
+        // Future date is also rejected (existing rule).
+        $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['incident_date' => now()->addDay()->toDateString()]) + ['evidence' => [$file('e.png')]])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors(['incident_date']);
+
         // Evidence alone (no affidavit) is enough - that's the either/or itself.
         $this->withHeaders($json)->post('/api/student/outreach/complaints', array_merge($data, ['complainee_student_id' => $other->id]) + ['evidence' => [$file('e.png')]])->assertStatus(201);
         $r = $this->withHeaders($json)->post('/api/student/outreach/complaints', $data + ['evidence' => [$file('e.png')], 'affidavit' => [$file('a.docx')]]);
