@@ -5,10 +5,8 @@
       <p>Choose what you'd like to do.</p>
     </div>
 
-    <!-- B576: a plain "1fr 1fr" grid already stretches both cards to the
-         same row height by default, but had no mobile breakpoint at all
-         (always 2 columns, however narrow the screen) and was capped at
-         760px instead of filling the available width. -->
+    <!-- B573: Fluid responsive grid. 1 column on mobile, 2 equal columns on desktop.
+         Removed the max-width cap so the cards stretch to fill the container. -->
     <div class="choice-grid">
       <button type="button" class="icard choice-card" @click="goTo('referral-create-form')">
         <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="var(--moss)" stroke-width="2">
@@ -27,8 +25,6 @@
         </svg>
         <h3 style="margin:12px 0 6px">File a Complaint</h3>
         <p style="font-size:13px;color:var(--slate);margin:0">
-          <!-- B577: "SDU Head" is an internal role name, not the unit a
-               referring faculty/dean/staff member would recognize. -->
           Report an act of misconduct against a student. Reviewed by the Student Discipline Unit.
         </p>
       </button>
@@ -48,12 +44,16 @@ function goTo(name) {
 <style scoped>
 .choice-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* minmax(0, 1fr) prevents grid items from overflowing when text is long */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 20px;
   width: 100%;
-  max-width: 760px;
-  align-items: stretch;
+  /* Removed max-width: 760px to allow full fluid stretching */
+  align-items: stretch; 
+  /* Ensures all rows stretch to the same height */
+  grid-auto-rows: 1fr; 
 }
+
 .choice-card {
   width: 100%;
   height: 100%;
@@ -65,12 +65,18 @@ function goTo(name) {
   display: flex;
   flex-direction: column;
   transition: border-color .15s, transform .15s;
+  /* Prevent the button from shrinking smaller than its content */
+  min-height: 100%; 
 }
+
 .choice-card:hover {
   border-color: var(--moss);
   transform: translateY(-2px);
 }
+
 @media (max-width: 640px) {
-  .choice-grid { grid-template-columns: 1fr; max-width: none; }
+  .choice-grid { 
+    grid-template-columns: 1fr; 
+  }
 }
 </style>
