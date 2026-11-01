@@ -118,7 +118,7 @@
                 :style="calDayStyle(day)"
                 @click="day.status === 'available' && selectCalendarDate(day.date)"
               >
-                {{ Number(day.date.split('-')[2]) }}
+              {{ day.date ? Number(day.date.split('-')[2]) : '' }}
               </div>
             </div>
             <div v-if="blockedList.length" style="margin-top:10px;font-size:11.5px;color:var(--stone);line-height:1.6">
@@ -378,21 +378,39 @@ function selectCalendarDate(dateStr) {
   checkAvailability();
 }
 
+function generateFallbackDays() {
+  const days = [];
+  const daysInMonth = new Date(calYear.value, calMonth.value + 1, 0).getDate();
+  const todayStr = new Date().toISOString().split('T')[0];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
+    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    let status = 'available';
+    if (dateStr < todayStr) status = 'past';
+    else if (isWeekend) status = 'closed';
+    days.push({ date: dateStr, status });
+  }
+  return days;
+}
+
 async function fetchMonthAvailability() {
   if (!appointment.value.scheduling_token) return;
   const monthStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}`;
   try {
     const res = await axios.get(`${API_BASE}/schedule/${appointment.value.scheduling_token}/month-availability`, { params: { month: monthStr } });
-    // The backend response has been seen marking past dates as still
-    // "available" - this always forces any date before today back to
-    // "past" client-side, regardless of what the API returned (B232).
     previousSlots.value = res.data.previous_slots || [];
     const todayStr = new Date().toISOString().split('T')[0];
-    calDays.value = (res.data.days || []).map(day =>
-      day.date < todayStr ? { ...day, status: 'past' } : day
-    );
+    const apiDays = res.data?.days || res.data?.data?.days || [];
+    
+    if (apiDays.length === 0) {
+       calDays.value = generateFallbackDays();
+    } else {
+       calDays.value = apiDays.map(day => day.date < todayStr ? { ...day, status: 'past' } : day);
+    }
   } catch (e) {
-    calDays.value = [];
+    console.error("Calendar API failed, using fallback:", e);
+    calDays.value = generateFallbackDays();
   }
 }
 
