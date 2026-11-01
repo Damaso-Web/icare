@@ -420,25 +420,9 @@ const quickActions = computed(() => {
     case 'sdu_head':       return [{ name: 'incident-reports', label: 'Student Incident Reports', icon: ICONS.file }, { name: 'complaints', label: 'Complaints', icon: ICONS.alert }, refer];
     case 'tmdu_head':
     case 'tmdu_staff':     return [{ name: 'testing', label: 'Testing Records', icon: ICONS.check }, { name: 'testing-appointments', label: 'TMDU Appointments', icon: ICONS.calendar }];
-    // B639/B640 (10/28/2026): split Dean from Dean's Secretary - they used
-    // to share this array, but the fixes differ per role. Dean: the Call
-    // Slips shortcut now actually resolves (B639, router meta fixed
-    // alongside this) instead of hitting a role it didn't have, and the
-    // second button is relabeled "User Management" and pointed at /users
-    // (B640) - broader than the Faculty directory, matching what a Dean can
-    // actually see there (their college's chairs, faculty and staff), and a
-    // route Dean already had access to. Dean's Secretary is untouched: they
-    // aren't in the 'users' route's allowed roles, so swapping their button
-    // the same way would have broken it.
-    case 'dean':           return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'users', label: 'User Management', icon: ICONS.users }, refer];
+    case 'dean':           return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'users', label: 'Faculty', icon: ICONS.users }, refer];
     case 'dean_secretary': return [{ name: 'call-slips', label: 'Call Slips', icon: ICONS.phone }, { name: 'faculty-directory', label: 'Faculty', icon: ICONS.users || ICONS.file }, refer];
-    // Bug (10/25/2026, B627): Faculty no longer has the Referral Queue page
-    // (B626) - "File a Complaint" sits beside "Refer Student" instead, same
-    // pairing the Dept Chair banner already uses below.
     case 'faculty':        return [refer, { name: 'complaint-create', label: 'File a Complaint', icon: ICONS.alert }];
-    // B605/B606: a Dept Chair is a referring authority, not processing
-    // staff - no Referral Queue button; "Complaint a Student" sits beside
-    // "Refer Student" instead, so both forms are one tap from the banner.
     case 'dept_chair':     return [refer, { name: 'complaint-create', label: 'Complaint a Student', icon: ICONS.alert }];
     default:               return [];
   }
