@@ -95,7 +95,7 @@ const expiresIn = ref(30);
 function toLogin() {
   // The privacy notice was agreed to here, so go straight to the sign-in form.
   skipConsentNextTime('staff');
-  router.push({ name: 'login' });
+  router.push({ name: 'login', query: { audience: 'faculty' } });
 }
 
 async function submit() {

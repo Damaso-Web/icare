@@ -10,8 +10,8 @@
       <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
         <div style="font-size:13px;color:var(--ink);line-height:1.55">What you changed on this form has not been saved and will be lost.</div>
         <div style="display:flex;gap:8px">
-          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerDiscard(false)">Keep Editing</button>
           <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="answerDiscard(true)">Discard</button>
+          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerDiscard(false)">Keep Editing</button>
         </div>
       </div>
     </div>
@@ -23,8 +23,7 @@
       <div style="padding:18px 22px;border-bottom:1px solid var(--cloud);font-size:15px;font-weight:600;color:var(--ink)">{{ actionAsk.title }}</div>
       <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
         <div style="font-size:13px;color:var(--ink);line-height:1.55;white-space:pre-line">{{ actionAsk.message }}</div>
-        <div style="display:flex;gap:8px">
-          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerAction(false)">{{ actionAsk.cancelText || 'Go Back' }}</button>
+                <div style="display:flex;gap:8px">
           <button
             class="ibtn"
             :class="actionAsk.danger ? '' : 'ibtn-p'"
@@ -32,6 +31,7 @@
             :style="actionAsk.danger ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : ''"
             @click="answerAction(true)"
           >{{ actionAsk.confirmText || 'Yes, Continue' }}</button>
+          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="answerAction(false)">{{ actionAsk.cancelText || 'Go Back' }}</button>
         </div>
       </div>
     </div>
