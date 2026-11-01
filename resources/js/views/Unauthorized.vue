@@ -4,8 +4,8 @@
     <div style="font-size:20px;font-weight:600;color:var(--forest)">Access Denied</div>
     <div style="font-size:14px;color:var(--stone)">You don't have permission to view this page.</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-      <button class="ibtn ibtn-o" @click="goBack">Go Back</button>
       <button class="ibtn ibtn-p" @click="goHome">Go to Dashboard</button>
+<button class="ibtn ibtn-o" @click="goBack">Go Back</button>
     </div>
   </div>
 </template>

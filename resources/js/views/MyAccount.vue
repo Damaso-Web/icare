@@ -181,8 +181,8 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to change your password?</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
             <button type="button" class="ibtn ibtn-p" :disabled="changingPw" @click="confirmChangePassword">{{ changingPw ? 'Changing...' : 'Yes, Change Password' }}</button>
+<button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
           </div>
         </div>
       </div>

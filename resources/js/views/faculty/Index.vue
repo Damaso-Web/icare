@@ -247,8 +247,8 @@
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
         </div>
         <div class="ffoot">
-          <button class="ibtn ibtn-o" @click="formOpen = false">Cancel</button>
           <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem || employeeIdDuplicate || nameDuplicate" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
+<button class="ibtn ibtn-o" @click="formOpen = false">Cancel</button>
         </div>
       </div>
     </div>
@@ -266,8 +266,8 @@
           <p style="font-size:11px;color:var(--stone);margin-top:8px">The current chair of that department (if any) goes back to regular faculty.</p>
         </div>
         <div class="ffoot">
-          <button class="ibtn ibtn-o" @click="chairTarget = null">Cancel</button>
           <button class="ibtn ibtn-p" :disabled="!chairDept || saving" @click="confirmChair">Assign</button>
+<button class="ibtn ibtn-o" @click="chairTarget = null">Cancel</button>
         </div>
       </div>
     </div>
@@ -304,8 +304,8 @@
         <div class="fhead"><span>Please confirm</span></div>
         <div class="fbody"><p style="font-size:13px">{{ confirm.text }}</p></div>
         <div class="ffoot">
-          <button class="ibtn ibtn-o" @click="confirm = null">Cancel</button>
           <button class="ibtn ibtn-p" :disabled="saving" @click="runConfirm">Yes, continue</button>
+<button class="ibtn ibtn-o" @click="confirm = null">Cancel</button>
         </div>
       </div>
     </div>
@@ -401,11 +401,11 @@
           </template>
         </div>
         <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
-          <button class="ibtn ibtn-o" @click="closeUpload">{{ result ? 'Close' : 'Cancel' }}</button>
           <button v-if="!result && preview.length" class="ibtn ibtn-p" :disabled="saving" @click="confirmUpload">
             <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
             {{ saving ? 'Uploading...' : 'Confirm Upload' }}
           </button>
+<button class="ibtn ibtn-o" @click="closeUpload">{{ result ? 'Close' : 'Cancel' }}</button>
         </div>
       </div>
     </div>

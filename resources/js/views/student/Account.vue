@@ -530,8 +530,8 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to change your password?</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
             <button type="button" class="ibtn ibtn-p" :disabled="changingPw" @click="confirmChangePassword">{{ changingPw ? 'Changing...' : 'Yes, Change Password' }}</button>
+<button type="button" class="ibtn ibtn-o" :disabled="changingPw" @click="showPwConfirm = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -560,8 +560,8 @@
             <span style="font-size:12px;line-height:1.5;color:var(--slate)">I understand the above mentioned Data Privacy Notice of Benguet State University (BSU) and consent to the collection and official use of my personal information through this medium for all legal intents and purposes. I understand that the OSS-SDS-Guidance and Counseling Unit (GCU) will abide by the policy as mentioned above except for cases not within its control. I give my full consent to OSS-SDS-Guidance and Counseling Unit (GCU) necessary and relevant data pertaining to my personal data. I certify that the information I am saving is true and correct.</span>
           </label>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-o" @click="confirmAction = null">Cancel</button>
             <button type="button" class="ibtn ibtn-p" :disabled="!consentChecked || !pendingChanges.length || (needsAgeConfirm && !ageConfirmed)" @click="confirmSave">Yes, Save</button>
+<button type="button" class="ibtn ibtn-o" @click="confirmAction = null">Cancel</button>
           </div>
         </div>
       </div>
@@ -576,8 +576,8 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">Are you sure you want to remove this sibling's information? This action cannot be undone.</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-o" :disabled="removingSibling" @click="removeSiblingIdx = null">Cancel</button>
             <button type="button" class="ibtn ibtn-p" style="background:var(--red);border-color:var(--red)" :disabled="removingSibling" @click="confirmRemoveSibling">{{ removingSibling ? 'Removing...' : 'Confirm Removal' }}</button>
+<button type="button" class="ibtn ibtn-o" :disabled="removingSibling" @click="removeSiblingIdx = null">Cancel</button>
           </div>
         </div>
       </div>
@@ -592,8 +592,8 @@
         <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">You haven't entered any information for this sibling. Do you want to continue or discard this entry?</div>
           <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button type="button" class="ibtn ibtn-o" style="color:var(--red)" @click="discardBlankSibling">Discard Entry</button>
             <button type="button" class="ibtn ibtn-p" @click="blankSiblingIdx = null">Continue Editing</button>
+<button type="button" class="ibtn ibtn-o" style="color:var(--red)" @click="discardBlankSibling">Discard Entry</button>
           </div>
         </div>
       </div>

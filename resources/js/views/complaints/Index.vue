@@ -76,8 +76,8 @@
           <ComplaintDetail v-else :complaint="activeComplaint" />
         </div>
         <div style="padding:12px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap">
-          <button class="ibtn ibtn-o ibtn-sm" @click="activeComplaint = null">Close</button>
           <button class="ibtn ibtn-p ibtn-sm" @click="openIncidentReport(activeComplaint)">Open Student Incident Report</button>
+<button class="ibtn ibtn-o ibtn-sm" @click="activeComplaint = null">Close</button>
         </div>
       </div>
     </div>
