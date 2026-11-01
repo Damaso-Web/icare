@@ -80,6 +80,7 @@
           v-for="r in referrals"
           :key="r.id"
           class="qr"
+          :style="r.is_archived ? 'opacity: 0.6; background: var(--snow);' : ''"
           @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
         >
           <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
@@ -89,8 +90,8 @@
               <span class="qid">{{ r.student?.student_id }}</span>
             </div>
             <div class="qtags">
-              <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
               <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+              <span v-else class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
             </div>
             <div class="qmeta">
               {{ toTitleCase(r.referral_type) }} · {{ formatDateTime(r.created_at) }} · {{ r.referral_code }}

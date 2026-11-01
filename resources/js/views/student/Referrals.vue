@@ -44,13 +44,13 @@
         <div
           v-for="r in filteredReferrals"
           :key="r.id"
-          style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+          :style="'padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer;' + (r.is_archived ? 'opacity: 0.6; background: var(--snow);' : '')"
           @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
         >
           <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDateTime(r.created_at) }}</div>
-          <span class="ibadge" :class="'ibadge-' + simplifiedStatus(r.status)" style="margin-top:6px;display:inline-block" :title="toTitleCase(r.status)">{{ simplifiedStatus(r.status) === 'closed' ? 'Closed' : 'Pending' }}</span>
-          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
+          <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-top:6px;display:inline-block">Archived</span>
+          <span v-else class="ibadge" :class="'ibadge-' + simplifiedStatus(r.status)" style="margin-top:6px;display:inline-block" :title="toTitleCase(r.status)">{{ simplifiedStatus(r.status) === 'closed' ? 'Closed' : 'Pending' }}</span>          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
         </div>
       </div>
     </div>

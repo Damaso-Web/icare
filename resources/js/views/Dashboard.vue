@@ -80,6 +80,7 @@
               v-for="r in dashboard.recent_referrals"
               :key="r.id"
               class="qr"
+              :style="r.is_archived ? 'opacity: 0.6; background: var(--snow);' : ''"
               @click="auth.isDean || auth.isDeptChair || auth.user?.role === 'faculty' ? $router.push({ name: 'sent-referrals', query: { view: r.id } }) : $router.push({ name: 'referral-show', params: { id: r.id } })"
             >
               <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
@@ -95,7 +96,8 @@
                      complaint-based referrals in ComplaintController), so
                      the "Medium" tag it always showed was meaningless. -->
                 <div class="qtags">
-                  <span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
+                  <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+                  <span v-else class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span>
                 </div>
               </div>
             </div>
