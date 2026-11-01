@@ -31,8 +31,8 @@ class FeedbackSlipSentNotification extends Notification
             'type'        => 'feedback_slip_sent',
             'referral_id' => $r->id,
             'message'     => $this->forReferrer
-                ? "A feedback slip for the referral you made ({$r->referral_code}) has been sent."
-                : "A feedback slip for your referral ({$r->referral_code}) has been sent. You can view it under My Referrals.",
+                ? "A feedback slip for your referral for {$r->student->first_name} {$r->student->last_name} has been sent."
+                : "A feedback slip for your referral has been sent. You can view it under My Referrals.",
         ];
     }
 }

@@ -20,7 +20,7 @@ class ReferralAcknowledgedNotification extends Notification
             'referral_id'    => $this->referral->id,
             'referral_code'  => $this->referral->referral_code,
             'student_name'   => $this->referral->student->first_name . ' ' . $this->referral->student->last_name,
-            'message'        => "Referral {$this->referral->referral_code} has been acknowledged by GCU.",
+            'message'        => 'Your referral for ' . $this->referral->student->first_name . ' ' . $this->referral->student->last_name . ' has been acknowledged by GCU.',
         ];
     }
 }

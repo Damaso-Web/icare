@@ -16,9 +16,10 @@ class VoidRequestDecidedNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        $studentName = $this->referral->student->first_name . ' ' . $this->referral->student->last_name;
         $message = $this->approved
-            ? "Your request to cancel referral {$this->referral->referral_code} was approved. It has been archived."
-            : "Your request to cancel referral {$this->referral->referral_code} was denied." . ($this->denialNote ? " Reason: {$this->denialNote}" : '');
+            ? "Your request to cancel your referral for {$studentName} was approved. It has been archived."
+            : "Your request to cancel your referral for {$studentName} was denied." . ($this->denialNote ? " Reason: {$this->denialNote}" : '');
 
         return [
             'type'           => 'void_decided',
