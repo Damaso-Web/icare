@@ -253,6 +253,9 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import RequiredDocumentsDownload from '../../components/RequiredDocumentsDownload.vue';
 import { usePageSubtitleStore } from '../../stores/pageSubtitle';
+import { useBlockedDates } from '../../utils/blockedDates';
+
+const { load: loadBlocked, messageFor: blockedMessageFor } = useBlockedDates('student');
 
 const route = useRoute();
 const router = useRouter();
@@ -386,10 +389,15 @@ function generateFallbackDays() {
     const dateStr = `${calYear.value}-${String(calMonth.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     const dayOfWeek = new Date(dateStr + 'T00:00:00').getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+    const isHoliday = !!blockedMessageFor(dateStr);
+    
     let status = 'available';
+    let label = '';
     if (dateStr < todayStr) status = 'past';
+    else if (isHoliday) { status = 'blocked'; label = blockedMessageFor(dateStr); }
     else if (isWeekend) status = 'closed';
-    days.push({ date: dateStr, status });
+    
+    days.push({ date: dateStr, status, label });
   }
   return days;
 }
@@ -444,6 +452,16 @@ async function checkAvailability() {
     return;
   }
 
+  // Check if the date is blocked by a holiday
+  const blockedMsg = blockedMessageFor(scheduleForm.value.appointment_date);
+  if (blockedMsg) {
+    isAvailable.value = false;
+    availabilityMessage.value = blockedMsg;
+    availabilityChecked.value = true;
+    return;
+  }
+
+  // Check if they already used this exact slot before
   availabilityMessage.value = '';
   if (hitsPreviousSlot(scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time)) {
     isAvailable.value = false;
@@ -452,6 +470,7 @@ async function checkAvailability() {
     return;
   }
 
+  // Ask the backend if it's available
   checkingAvailability.value = true;
   try {
     const res = await axios.post(
@@ -592,6 +611,7 @@ function formatDate(date) {
 }
 
 onMounted(async () => {
+  loadBlocked();
   try {
     const res = await axios.get(`${API_BASE}/student/appointments/${route.params.id}`, authHeaders());
     appointment.value = res.data;

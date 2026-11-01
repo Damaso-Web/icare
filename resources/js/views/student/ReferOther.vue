@@ -11,7 +11,17 @@
     </div>
     <div class="icard" style="max-width:640px">
       <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          Student Information
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
         <StudentIdLookup v-model="target" />
+        
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
+          Referral Details
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
+        
         <div>
           <label class="ifl">Service <span style="color:var(--red)">*</span></label>
           <select v-model="form.referral_type" class="ifse">

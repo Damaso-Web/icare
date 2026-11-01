@@ -79,18 +79,13 @@
               <input :value="student.student_id || ''" class="ifi" disabled />
             </div>
             <div>
-              <!-- B552 (partial): Program and Year Level were already separate
-                   fields on the student record - only the display combined
-                   them into one "Course and Year" string. Splitting them out
-                   here is as far as this fix goes: an academic-year-transition
-                   prompt (or an admin batch-advancement workflow) that updates
-                   year_level itself is a separate product decision - whether
-                   it runs automatically, needs the student's confirmation, or
-                   is a manual admin action, and how an irregular/graduating
-                   student is excluded - and shouldn't be guessed at here. -->
-              <label class="ifl">Course</label>
-              <input :value="student.program || ''" class="ifi" disabled />
+              <label class="ifl">College</label>
+              <input :value="student.college || ''" class="ifi" disabled />
             </div>
+          </div>
+          <div>
+            <label class="ifl">Course</label>
+            <input :value="student.program || ''" class="ifi" disabled />
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>

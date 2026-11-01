@@ -7,6 +7,11 @@
     </div>
     <div class="icard" style="max-width:680px">
       <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          Complainant Information
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
+
         <div>
           <label class="ifl">Your Name</label>
           <input class="ifi" :value="myName" readonly style="background:var(--snow);color:var(--stone);cursor:not-allowed" />
@@ -23,7 +28,18 @@
           />
           <div v-if="addressNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid address. Numbers alone are not allowed.</div>
         </div>
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
+          Complainee Information
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
+
         <StudentIdLookup v-model="target" :allow-self="false" />
+        
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
+          Complaint Details
+          <div style="flex:1;height:1px;background:var(--cloud)"></div>
+        </div>
+
         <div>
           <label class="ifl">Act of Misconduct <span style="color:var(--red)">*</span></label>
           <select
