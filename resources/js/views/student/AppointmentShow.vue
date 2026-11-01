@@ -121,9 +121,6 @@
               {{ day.date ? Number(day.date.split('-')[2]) : '' }}
               </div>
             </div>
-            <div v-if="blockedList.length" style="margin-top:10px;font-size:11.5px;color:var(--stone);line-height:1.6">
-              <div v-for="b in blockedList" :key="b.date"><strong>{{ Number(b.date.split('-')[2]) }}</strong>: {{ b.label }} (not available)</div>
-            </div>
           </div>
 
           <div>
@@ -372,7 +369,7 @@ function calDayStyle(day) {
   if (day.status === 'available') return 'cursor:pointer;background:#dcfce7;color:#15803d;font-weight:600';
   if (day.status === 'full') return 'cursor:not-allowed;background:#fee2e2;color:#b91c1c';
   if (day.status === 'past') return 'cursor:not-allowed;color:var(--silver)';
-  if (day.status === 'blocked') return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280;text-decoration:line-through';
+  if (day.status === 'blocked') return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280';
   return 'cursor:not-allowed;background:#e5e7eb;color:#6b7280';
 }
 
@@ -480,8 +477,9 @@ async function checkAvailability() {
     isAvailable.value = res.data.available;
     availabilityMessage.value = res.data.message || '';
     availabilityChecked.value = true;
-  } catch (e) {
+    } catch (e) {
     isAvailable.value = false;
+    availabilityMessage.value = e.response?.data?.message || 'Could not verify availability. Please check your connection and try again.';
     availabilityChecked.value = true;
   } finally {
     checkingAvailability.value = false;

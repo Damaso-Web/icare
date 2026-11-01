@@ -5,8 +5,8 @@
       <h1>File a Complaint</h1>
       <p>Report an act of misconduct against a student. This is reviewed by the Student Discipline Unit.</p>
     </div>
-    <div class="icard" style="max-width:680px">
-      <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
+    <div class="icard" style="max-width:680px;margin:0 auto">
+      <form @submit.prevent="openCertificationModal" style="padding:22px; display:flex; flex-direction:column; gap:14px;">
         <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:4px">
           Complainant Information
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
@@ -96,11 +96,12 @@
         </div>
         
         <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
-        <div style="display:flex;gap:8px">
-          <button class="ibtn ibtn-p" :disabled="sending" @click="openCertificationModal">{{ sending ? 'Submitting...' : 'Submit Complaint' }}</button>
-          <button class="ibtn ibtn-o" :disabled="sending" @click="goBack">Cancel</button>
+        
+        <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:8px">
+          <button type="submit" class="ibtn ibtn-p" :disabled="sending">{{ sending ? 'Submitting...' : 'Submit Complaint' }}</button>
+          <button type="button" class="ibtn ibtn-g" :disabled="sending" @click="goBack">Cancel</button>
         </div>
-      </div>
+      </form>
     </div>
 
     <!-- Certification Modal -->

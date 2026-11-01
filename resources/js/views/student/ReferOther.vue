@@ -4,43 +4,57 @@
 -->
 <template>
   <div class="fade-up">
-    <button type="button" class="ibtn ibtn-o" style="margin-bottom:12px" @click="goBack">&larr; Back</button>
-    <div class="ph" style="margin-bottom:20px">
-      <h1>Refer a Student</h1>
-      <p>Tell GCU about a student who may need support, or about yourself. You can follow what you sent under Sent Referrals.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <button class="ibtn ibtn-o ibtn-sm" type="button" @click="goBack">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <div class="ph" style="margin:0">
+        <h1>Refer a Student</h1>
+        <p>Tell GCU about a student who may need support. You can follow what you sent under Sent Referrals.</p>
+      </div>
     </div>
-    <div class="icard" style="max-width:640px">
-      <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          Student Information
-          <div style="flex:1;height:1px;background:var(--cloud)"></div>
-        </div>
-        <StudentIdLookup v-model="target" />
-        
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
-          Referral Details
-          <div style="flex:1;height:1px;background:var(--cloud)"></div>
-        </div>
-        
-        <div>
-          <label class="ifl">Service <span style="color:var(--red)">*</span></label>
-          <select v-model="form.referral_type" class="ifse">
-            <option value="" disabled>Select a service...</option>
-            <option v-for="s in SERVICES" :key="s.value" :value="s.value">{{ s.label }}</option>
-          </select>
-        </div>
-        <div>
-          <label class="ifl">Reason for referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(at least 10 characters, max 1000)</span></label>
-          <textarea v-model="form.nature_of_concern" class="ifta" style="min-height:130px" maxlength="1000" :style="reasonNumbersOnly ? 'border-color:var(--red);border-width:1.5px' : ''"></textarea>
-          <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ form.nature_of_concern.length }}/1000</div>
-          <!-- B582: live, as the user types - not just discovered on submit. -->
-          <div v-if="reasonNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid referral reason. Numbers alone are not allowed.</div>
-        </div>
-        <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
-        <div style="display:flex;gap:8px">
-          <button class="ibtn ibtn-p" :disabled="sending" @click="submit">{{ sending ? 'Sending...' : 'Send Referral' }}</button>
-          <button class="ibtn ibtn-o" :disabled="sending" @click="goBack">Cancel</button>
-        </div>
+
+    <div class="icard" style="max-width:820px;margin:0 auto">
+      <div class="icard-body">
+        <form @submit.prevent="submit" style="padding:22px">
+          
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
+            Student Information
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+          
+          <div style="margin-bottom:14px">
+            <StudentIdLookup v-model="target" />
+          </div>
+
+          <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
+            Referral Details
+            <div style="flex:1;height:1px;background:var(--cloud)"></div>
+          </div>
+
+          <div style="margin-bottom:14px">
+            <label class="ifl">Service Requested <span style="color:var(--red)">*</span></label>
+            <select v-model="form.referral_type" class="ifse" required>
+              <option value="" disabled>Select a service...</option>
+              <option v-for="s in SERVICES" :key="s.value" :value="s.value">{{ s.label }}</option>
+            </select>
+          </div>
+
+          <div style="margin-bottom:14px">
+            <label class="ifl">Concern / Reason for Referral <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 1000 characters)</span></label>
+            <textarea v-model="form.nature_of_concern" class="ifta" style="min-height:130px" maxlength="1000" :style="reasonNumbersOnly ? 'border-color:var(--red);border-width:1.5px' : ''"></textarea>
+            <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ form.nature_of_concern.length }}/1000</div>
+            <div v-if="reasonNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid referral reason. Numbers alone are not allowed.</div>
+          </div>
+
+          <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:14px">{{ error }}</div>
+
+          <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:8px">
+            <button type="submit" class="ibtn ibtn-p" :disabled="sending">{{ sending ? 'Sending...' : 'Send Referral' }}</button>
+            <button type="button" class="ibtn ibtn-g" :disabled="sending" @click="goBack">Cancel</button>
+          </div>
+
+        </form>
       </div>
     </div>
   </div>
