@@ -1579,8 +1579,44 @@
             <div v-if="referralEditError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ referralEditError }}</div>
           </div>
           <div style="padding:14px 22px;border-top:1px solid var(--cloud);background:var(--snow);display:flex;gap:8px;flex-shrink:0">
-            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="saveReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Save Changes' }}</button>
+            <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="saveReferralEdit">Save Changes</button>
             <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="savingReferralEdit" @click="showReferralEdit = false">Cancel</button>
+          </div>
+                </div>
+      </div>
+
+      <!-- Confirm Edit Preview Modal -->
+      <div v-if="showEditConfirm" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showEditConfirm = false">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:600px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
+          <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+            <div style="font-size:15px;font-weight:600;color:var(--ink)">Confirm Changes</div>
+          </div>
+          <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+            <div style="font-size:13px;color:var(--stone)">
+              You are about to save <strong>{{ editChanges.length }}</strong> change{{ editChanges.length === 1 ? '' : 's' }} to this referral:
+            </div>
+            <div style="border:1px solid var(--cloud);border-radius:var(--r-sm);overflow:hidden">
+              <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                  <tr style="background:var(--snow)">
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">Field</th>
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">Before</th>
+                    <th style="text-align:left;padding:8px 12px;font-weight:600;color:var(--stone);font-size:11px;text-transform:uppercase">After</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in editChanges" :key="c.label" style="border-top:1px solid var(--cloud)">
+                    <td style="padding:8px 12px;color:var(--slate)">{{ c.label }}</td>
+                    <td style="padding:8px 12px;color:var(--red);text-decoration:line-through">{{ c.before }}</td>
+                    <td style="padding:8px 12px;color:var(--moss);font-weight:600">{{ c.after }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:8px">
+              <button class="ibtn ibtn-p" :disabled="savingReferralEdit" @click="executeReferralEdit">{{ savingReferralEdit ? 'Saving...' : 'Confirm & Save' }}</button>
+              <button class="ibtn ibtn-o" :disabled="savingReferralEdit" @click="showEditConfirm = false">Go Back & Edit</button>
+            </div>
           </div>
         </div>
       </div>
@@ -2832,7 +2868,8 @@ async function deleteReferral() {
   const ok = await confirmAction?.({
     title: 'Delete Referral?',
     message: `Delete referral ${referral.value.referral_code}? This cannot be undone.`,
-    confirmText: 'Yes, Delete Referral',
+    confirmText: 'Yes',
+    cancelText: 'Cancel',
   });
   if (confirmAction && !ok) return;
 
@@ -2941,9 +2978,40 @@ async function denyVoidRequest() {
 }
 
 const showReferralEdit = ref(false);
+const showEditConfirm = ref(false);
 const savingReferralEdit = ref(false);
 const referralEditError = ref('');
 const referralEditForm = ref({ nature_of_concern: '', incident_description: '', incident_date: '' });
+const referralEditOriginal = ref({});
+
+const editChanges = computed(() => {
+  const changes = [];
+  const rf = referralEditForm.value;
+  const ro = referralEditOriginal.value;
+  
+  if (rf.nature_of_concern !== ro.nature_of_concern) {
+    changes.push({ label: 'Concern / Reason', before: ro.nature_of_concern || '-', after: rf.nature_of_concern || '-' });
+  }
+  if (rf.incident_date !== ro.incident_date) {
+    changes.push({ label: 'Incident Date', before: ro.incident_date || '-', after: rf.incident_date || '-' });
+  }
+  if (rf.incident_description !== ro.incident_description) {
+    changes.push({ label: 'Incident Description', before: ro.incident_description || '-', after: rf.incident_description || '-' });
+  }
+
+  const sf = studentEditForm.value;
+  const so = studentEditOriginal.value;
+  const studentLabels = {
+    first_name: 'First Name', last_name: 'Last Name', middle_name: 'Middle Name',
+    suffix: 'Suffix', sex: 'Sex', college: 'College', program: 'Program', year_level: 'Year Level'
+  };
+  for (const [key, label] of Object.entries(studentLabels)) {
+    if (String(sf[key] || '') !== String(so[key] || '')) {
+      changes.push({ label, before: so[key] || '-', after: sf[key] || '-' });
+    }
+  }
+  return changes;
+});
 
 // Student info section of Edit Referral - see updateReferredStudent() on the
 // backend. Only the fields a referrer is allowed to fix: no Student ID,
@@ -3056,6 +3124,8 @@ function openReferralEdit() {
     incident_description: referral.value.incident_description || '',
     incident_date:        referral.value.incident_date ? String(referral.value.incident_date).slice(0, 10) : '',
   };
+  referralEditOriginal.value = { ...referralEditForm.value };
+  showEditConfirm.value = false;
   const s = referral.value.student || {};
   studentEditForm.value = {
     first_name:  s.first_name || '',
@@ -3078,7 +3148,7 @@ function openReferralEdit() {
   loadStudentEditPrograms();
 }
 
-async function saveReferralEdit() {
+function saveReferralEdit() {
   const f = referralEditForm.value;
   if ((f.nature_of_concern || '').trim().length < 10) {
     referralEditError.value = 'Please describe the concern in at least 10 characters.';
@@ -3088,8 +3158,19 @@ async function saveReferralEdit() {
     referralEditError.value = "Please fill in the student's first and last name.";
     return;
   }
+  if (editChanges.value.length === 0) {
+    showReferralEdit.value = false; // Nothing changed
+    return;
+  }
+  showEditConfirm.value = true;
+}
+
+async function executeReferralEdit() {
+  showEditConfirm.value = false;
   savingReferralEdit.value = true;
   referralEditError.value = '';
+  const f = referralEditForm.value;
+  
   try {
     const payload = { nature_of_concern: f.nature_of_concern.trim() };
     if (referral.value.referral_type === 'disciplinary') {
@@ -3099,9 +3180,6 @@ async function saveReferralEdit() {
     const res = await referralAPI.update(referral.value.id, payload);
     referral.value = { ...referral.value, ...res.data };
 
-    // Only sent when something in the Student Info section actually
-    // changed - avoids an extra write (and an extra audit log entry) on
-    // every save when the referrer only touched the referral fields above.
     const sf = studentEditForm.value;
     const changedStudentFields = Object.keys(sf).filter(k => (sf[k] || '') !== (studentEditOriginal.value[k] || ''));
     if (changedStudentFields.length) {
