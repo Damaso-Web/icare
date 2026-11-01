@@ -203,21 +203,21 @@ class ReferralController extends Controller
 
     // The sender corrects a referral that GCU has not acknowledged yet.
     public function updateMine(Request $request, $id)
-    {
-        $referral = Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id')->findOrFail($id);
+{
+    $referral = Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id')->findOrFail($id);
 
-        // Allow archiving/unarchiving directly from Sent Referrals
-        if ($request->has('is_archived')) {
-            $referral->update(['is_archived' => $request->boolean('is_archived')]);
-            // If the request ONLY contains is_archived (from the Cancel/Restore button), skip the edit validation
-            if (count($request->except('is_archived')) === 0) {
-                return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
-            }
+    // Allow archiving/unarchiving directly from Sent Referrals
+    if ($request->has('is_archived')) {
+        $referral->update(['is_archived' => $request->boolean('is_archived')]);
+        // If the request ONLY contains is_archived (from the Cancel button), skip the edit validation
+        if (count($request->except('is_archived')) === 0) {
+            return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
         }
-
-        $referral->applyReferrerEdit($request);
-        return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
     }
+
+    $referral->applyReferrerEdit($request);
+    return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
+}
 
     public function store(Request $request)
     {

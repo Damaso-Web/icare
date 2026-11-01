@@ -39,7 +39,10 @@
               <td style="font-family:var(--mono);font-size:12px">{{ r.referral_code }}</td>
               <td>{{ r.student ? `${r.student.last_name}, ${r.student.first_name}` : '-' }}</td>
               <td>{{ title(r.referral_type) }}</td>
-              <td><span class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span></td>
+              <td>
+                <span class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span>
+                <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:4px">Archived</span>
+              </td>
               <td style="font-size:12px;white-space:nowrap">{{ fmt(r.created_at) }}</td>
               <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r; editing = false">View</button></td>
             </tr>
@@ -266,26 +269,19 @@ async function pickStudent(s) {
 
 
 async function cancelReferral() {
-  // Use the custom modal if available, otherwise fallback
   let ok = true;
   if (confirmAction) {
-    ok = await confirmAction({
-      title: 'Cancel & Archive Referral?',
-      message: 'Are you sure you want to cancel and archive this referral?',
-      confirmText: 'Yes, Cancel & Archive',
-      cancelText: 'Never Mind'
-    });
+    ok = await confirmAction({ title: 'Cancel Referral?', message: 'Are you sure you want to cancel this referral? It will be moved to the archive.', confirmText: 'Yes, Cancel', cancelText: 'Never Mind' });
   } else {
-    ok = window.confirm('Are you sure you want to cancel and archive this referral?');
+    ok = window.confirm('Are you sure you want to cancel this referral?');
   }
-  
   if (!ok) return;
 
   try {
-    // Use the proper delete endpoint so the database actually removes it
-    await api.delete(`/referrals/${selected.value.id}`);
-    toast?.success('Referral cancelled and deleted.');
-    close();
+    // THIS MUST BE http.put AND is_archived: 1
+    await http.put(`${base}/${selected.value.id}`, { is_archived: 1 });
+    toast?.success('Referral cancelled and archived.');
+    selected.value.is_archived = 1;
     load(page.value);
   } catch (e) {
     toast?.error(e.response?.data?.message || e.message || 'Error cancelling referral.');
