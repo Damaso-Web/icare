@@ -35,13 +35,19 @@
             <tr><th>Referral No.</th><th>Student</th><th>Type</th><th>Status</th><th>Date Sent</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="r in rows" :key="r.id" style="cursor:pointer" @click="selected = r; editing = false">
+            <tr 
+              v-for="r in rows" 
+              :key="r.id" 
+              :style="'cursor:pointer;' + (r.is_archived ? 'opacity: 0.6; background: var(--snow); color: var(--stone);' : '')" 
+              @click="selected = r; editing = false"
+            >
               <td style="font-family:var(--mono);font-size:12px">{{ r.referral_code }}</td>
               <td>{{ r.student ? `${r.student.last_name}, ${r.student.first_name}` : '-' }}</td>
               <td>{{ title(r.referral_type) }}</td>
               <td>
-                <span class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span>
-                <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:4px">Archived</span>
+                <!-- If archived, show ONLY the Archived badge. Otherwise show the normal status. -->
+                <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+                <span v-else class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span>
               </td>
               <td style="font-size:12px;white-space:nowrap">{{ fmt(r.created_at) }}</td>
               <td style="text-align:right"><button class="ibtn ibtn-o ibtn-sm" @click.stop="selected = r; editing = false">View</button></td>
@@ -66,10 +72,11 @@
             <div class="sr-k">Student</div>
             <div class="sr-v">{{ selected.student ? `${selected.student.first_name} ${selected.student.last_name}` : '-' }}</div>
           </div>
-                    <div>
+          <div>
             <div class="sr-k">Status</div>
-            <span class="ibadge" :class="'ibadge-' + selected.status">{{ title(selected.status) }}</span>
-            <span v-if="selected.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:6px">Archived</span>
+            <!-- If archived, show ONLY the Archived badge. Otherwise show the normal status. -->
+            <span v-if="selected.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+            <span v-else class="ibadge" :class="'ibadge-' + selected.status">{{ title(selected.status) }}</span>
           </div>
 
           <template v-if="!editing">
