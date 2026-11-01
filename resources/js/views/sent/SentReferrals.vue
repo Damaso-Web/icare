@@ -75,14 +75,47 @@
                 <span style="font-size:13.5px; color:var(--ink)">{{ selected.student ? `${selected.student.first_name} ${selected.student.last_name}` : '-' }}</span>
                 <button type="button" class="ibtn ibtn-o ibtn-sm" @click="toggleChangeStudent">Change Student</button>
               </div>
-              <div v-else style="position:relative">
-                <input v-model="studentQuery" class="ifi" placeholder="Search by name or ID..." @input="searchStudents" />
-                <div v-if="studentResults.length" style="position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--cloud); border-radius:var(--r-sm); box-shadow:var(--sh-lg); z-index:50; max-height:200px; overflow-y:auto; margin-top:4px;">
-                  <div v-for="s in studentResults" :key="s.id" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--cloud); font-size:13px" @click="pickStudent(s)">
-                    {{ s.last_name }}, {{ s.first_name }} <span style="font-family:var(--mono); font-size:11px; color:var(--fog)">({{ s.student_id }})</span>
+                            <div v-else style="position:relative; margin-top: 8px;">
+                <!-- Reused Search UI from Create Referral -->
+                <div class="sw" style="width: 100%;">
+                  <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  <input 
+                    v-model="studentQuery" 
+                    class="sin" 
+                    placeholder="Search student name or ID..." 
+                    @input="searchStudents" 
+                  />
+                </div>
+
+                <!-- Dropdown Results -->
+                <div v-if="studentQuery.length >= 2" style="position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--cloud); border-radius:var(--r-sm); box-shadow:var(--sh-lg); z-index:50; max-height:200px; overflow-y:auto;">
+                  
+                  <!-- Loading State -->
+                  <div v-if="searchingStudents" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
+                    Searching...
+                  </div>
+                  
+                  <!-- No Results -->
+                  <div v-else-if="!studentResults.length" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
+                    No students found.
+                  </div>
+
+                  <!-- Results -->
+                  <div 
+                    v-else
+                    v-for="s in studentResults" 
+                    :key="s.id" 
+                    style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--cloud); font-size:13px; transition:background 0.1s" 
+                    @mouseover="$event.currentTarget.style.background='var(--foam)'"
+                    @mouseleave="$event.currentTarget.style.background='#fff'"
+                    @click="pickStudent(s)"
+                  >
+                    <div style="font-weight:600; color:var(--ink)">{{ s.last_name }}, {{ s.first_name }}</div>
+                    <div style="font-family:var(--mono); font-size:11px; color:var(--fog)">{{ s.student_id }} · {{ s.college }}</div>
                   </div>
                 </div>
-                <button type="button" class="ibtn ibtn-g ibtn-sm" style="margin-top:8px" @click="changeStudentMode = false">Cancel Change</button>
+
+                <button type="button" class="ibtn ibtn-o ibtn-sm" style="margin-top:8px" @click="changeStudentMode = false">Cancel Change</button>
               </div>
             </div>
             
@@ -130,12 +163,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, inject } from 'vue';
 import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
 import api, { studentApi, referralAPI } from '../../api/index';
 
 const route = useRoute();
+const toast = inject('toast');
+const confirmAction = inject('confirmAction', null);
 const isStudent = !!route.meta.student;
 const http = isStudent ? studentApi : api;
 const base = isStudent ? '/student/outreach/referrals' : '/my/referrals';
@@ -154,6 +189,7 @@ const form = ref({});
 const changeStudentMode = ref(false);
 const studentQuery = ref('');
 const studentResults = ref([]);
+const searchingStudents = ref(false);
 let searchTimer = null;
 
 function toggleChangeStudent() {
@@ -169,45 +205,69 @@ function searchStudents() {
     return;
   }
   searchTimer = setTimeout(async () => {
+    searchingStudents.value = true;
     try {
-      const res = await api.get('/students', { params: { search: studentQuery.value, scope: 'all', is_active: 1 } });
+      // Reusing the same endpoint and scope as the Create Referral form
+      const res = await studentApi.index({ search: studentQuery.value, is_active: 1, scope: 'all' });
       studentResults.value = (res.data.data || []).filter(s => s.id !== selected.value.student_id);
     } catch (e) {
       studentResults.value = [];
+    } finally {
+      searchingStudents.value = false;
     }
   }, 300);
 }
 
 async function pickStudent(s) {
+  // 1. Ask for confirmation first using your custom modal
+  const ok = await confirmAction?.({
+    title: 'Change Student?',
+    message: `Are you sure you want to move this referral to ${s.first_name} ${s.last_name}? This will move it to their official record.`,
+    confirmText: 'Yes, Change Student',
+    cancelText: 'Cancel'
+  });
+  if (confirmAction && !ok) return;
+
+  // 2. If confirmed, make the API call
   try {
-    // The route is PUT, not POST!
     await api.put(`/referrals/${selected.value.id}/reassign-student`, { student_id: s.id });
-    alert('Success! Referral moved to ' + s.first_name + ' ' + s.last_name);
+    toast?.success('Referral successfully moved to ' + s.first_name + ' ' + s.last_name);
     
-    // Update the UI
+    // 3. Update the UI
     selected.value.student = s;
     const idx = rows.value.findIndex(x => x.id === selected.value.id);
     if (idx >= 0) rows.value[idx].student = s;
     
     toggleChangeStudent();
   } catch (e) {
-    alert('Error changing student: ' + (e.response?.data?.message || e.message));
+    toast?.error(e.response?.data?.message || e.message || 'Failed to change student.');
   }
 }
 
-// --- CANCEL REFERRAL LOGIC ---
+
 async function cancelReferral() {
-  let ok = window.confirm('Are you sure you want to cancel and archive this referral?');
+  // Use the custom modal if available, otherwise fallback
+  let ok = true;
+  if (confirmAction) {
+    ok = await confirmAction({
+      title: 'Cancel & Archive Referral?',
+      message: 'Are you sure you want to cancel and archive this referral?',
+      confirmText: 'Yes, Cancel & Archive',
+      cancelText: 'Never Mind'
+    });
+  } else {
+    ok = window.confirm('Are you sure you want to cancel and archive this referral?');
+  }
+  
   if (!ok) return;
 
   try {
-    // Since there is no DELETE route, we use the update route to close/archive it
     await http.put(`${base}/${selected.value.id}`, { status: 'closed', is_archived: 1 });
-    alert('Referral cancelled and archived.');
+    toast?.success('Referral cancelled and archived.');
     close();
     load(page.value);
   } catch (e) {
-    alert('Error cancelling: ' + (e.response?.data?.message || e.message));
+    toast?.error(e.response?.data?.message || e.message || 'Error cancelling referral.');
   }
 }
 

@@ -1489,36 +1489,38 @@
             <div v-if="!showChangeStudent">
               <button type="button" class="ibtn ibtn-o ibtn-sm" :disabled="reassigningStudent" @click="showChangeStudent = true">Referred the wrong student? Change Student</button>
             </div>
-            <div v-else style="position:relative;display:flex;flex-direction:column;gap:6px">
+              <div v-else style="position:relative;display:flex;flex-direction:column;gap:6px; margin-top: 4px;">
               <label class="ifl">Search for the correct student</label>
-              <input
-                v-model="changeStudentQuery"
-                class="ifi"
-                placeholder="e.g. 2302021 or Dela Cruz"
-                maxlength="100"
-                :disabled="reassigningStudent"
-                @input="onChangeStudentSearch"
-                @focus="showChangeStudentDropdown = changeStudentSuggestions.length > 0"
-                autocomplete="off"
-              />
-              <div
-                v-if="showChangeStudentDropdown && changeStudentSuggestions.length > 0"
-                style="position:absolute;top:62px;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto"
-              >
-                <div
-                  v-for="s in changeStudentSuggestions"
-                  :key="s.id"
-                  style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud)"
-                  @mouseover="$event.currentTarget.style.background='var(--foam)'"
-                  @mouseleave="$event.currentTarget.style.background='#fff'"
-                  @click="pickChangeStudent(s)"
-                >
+              <div class="sw" style="width: 100%;">
+                <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input
+                  v-model="changeStudentQuery"
+                  class="sin"
+                  placeholder="Search student name or ID..."
+                  maxlength="100"
+                  :disabled="reassigningStudent"
+                  @input="onChangeStudentSearch"
+                  @focus="showChangeStudentDropdown = changeStudentSuggestions.length > 0"
+                  autocomplete="off"
+                />
+              </div>
+              
+              <div v-if="changeStudentQuery.length >= 2" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto">
+                
+                <div v-if="searchingStudents" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
+                  Searching...
+                </div>
+                <div v-else-if="!changeStudentSuggestions.length" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
+                  No students found.
+                </div>
+                <div v-else v-for="s in changeStudentSuggestions" :key="s.id" style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud)" @mouseover="$event.currentTarget.style.background='var(--foam)'" @mouseleave="$event.currentTarget.style.background='#fff'" @click="pickChangeStudent(s)">
                   <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
                   <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '-' }}</div>
                 </div>
               </div>
+              
               <div v-if="changeStudentError" style="font-size:11px;color:var(--red)">{{ changeStudentError }}</div>
-              <button type="button" class="ibtn ibtn-g ibtn-sm" style="align-self:flex-start" :disabled="reassigningStudent" @click="showChangeStudent = false; changeStudentQuery = ''; changeStudentSuggestions = []; changeStudentError = ''">Cancel</button>
+              <button type="button" class="ibtn ibtn-o ibtn-sm" style="align-self:flex-start" :disabled="reassigningStudent" @click="showChangeStudent = false; changeStudentQuery = ''; changeStudentSuggestions = []; changeStudentError = ''">Cancel</button>
             </div>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
@@ -2952,6 +2954,7 @@ const changeStudentSuggestions = ref([]);
 const showChangeStudentDropdown = ref(false);
 const changeStudentError = ref('');
 const reassigningStudent = ref(false);
+const searchingStudents = ref(false);
 let changeStudentTimeout = null;
 
 function onChangeStudentSearch() {
@@ -2963,14 +2966,16 @@ function onChangeStudentSearch() {
     showChangeStudentDropdown.value = false;
     return;
   }
-  changeStudentTimeout = setTimeout(async () => {
+    changeStudentTimeout = setTimeout(async () => {
+    searchingStudents.value = true;
     try {
       const res = await studentAPI.index({ search: changeStudentQuery.value, is_active: 1, scope: 'all' });
-      // Don't offer the student this referral is already about.
       changeStudentSuggestions.value = (res.data.data || []).filter(s => s.id !== referral.value.student?.id);
       showChangeStudentDropdown.value = changeStudentSuggestions.value.length > 0;
     } catch (e) {
       changeStudentSuggestions.value = [];
+    } finally {
+      searchingStudents.value = false;
     }
   }, 350);
 }
