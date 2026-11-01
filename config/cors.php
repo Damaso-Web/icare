@@ -20,8 +20,8 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-    // The live site, plus localhost for local development.
-    'https://icouldhavecared.netlify.app',
+    // The live sites, plus localhost for local development.
+    'https://icanhavecaredalot.netlify.app',
     'http://localhost:5173',
     'http://localhost:3000',
 ],
