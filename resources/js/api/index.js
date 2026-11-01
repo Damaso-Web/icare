@@ -265,6 +265,7 @@ export const caseAPI = {
     handoff:         (id, data) => api.post(`/cases/${id}/handoff`, data),
     acknowledgeHandoff: (id, handoffId) => api.post(`/cases/${id}/handoffs/${handoffId}/acknowledge`),
     flagUnreachable: (id, data) => api.post(`/cases/${id}/flag-unreachable`, data),
+    toggleSevere: (id, data) => api.patch(`/cases/${id}/severe`, data),
     flagFollowUp:    (id, data) => api.post(`/cases/${id}/flag-follow-up`, data),
     resolveFollowUp: (id)       => api.post(`/cases/${id}/resolve-follow-up`),
     addIntervention: (id, data) => api.post(`/cases/${id}/interventions`, data),

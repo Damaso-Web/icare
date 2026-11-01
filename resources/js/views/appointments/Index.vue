@@ -330,7 +330,7 @@
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <template v-if="!['cancelled','completed'].includes(detailTarget.status)">
               <button v-if="detailTarget.status === 'pending' && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-p ibtn-sm" @click="openConfirm(detailTarget); detailTarget = null">Confirm Appointment</button>
-              <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget); detailTarget = null">Mark Attended</button>
+              <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkIn(detailTarget)">Mark Attended</button>
               <button v-if="detailTarget.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="openNoShow(detailTarget); detailTarget = null">Mark No-Show</button>
               <button v-if="['pending','confirmed'].includes(detailTarget.status) && detailTarget.request_status !== 'awaiting_student'" class="ibtn ibtn-sm" style="background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="openReschedule(detailTarget); detailTarget = null">Request Reschedule</button>
               <button v-if="canSendCallSlip(detailTarget)" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="callSlipPrompt = true">Send Call Slip</button>
@@ -539,6 +539,7 @@ const toast  = inject('toast');
 const auth   = useAuthStore();
 const router = useRouter();
 const route  = useRoute();
+const confirmAction = inject('confirmAction', null);
 
 // B241 - present only when this page was reached from a Student Information
 // File action (see the return_to query param those links now attach).
@@ -875,11 +876,20 @@ async function submitConfirm() {
 }
 
 async function checkIn(a) {
+  const ok = await confirmAction?.({
+    title: 'Mark as Attended?',
+    message: `Mark ${a.student?.last_name}, ${a.student?.first_name}'s appointment as attended? This cannot be undone.`,
+    confirmText: 'Yes, Mark Attended',
+  });
+  if (confirmAction && !ok) return;
+
   try {
     const res = await appointmentAPI.checkIn(a.id);
     a.status = res.data?.status || 'completed';
     a.checked_in = true;
     toast?.success('Student marked as attended.');
+    // Close the detail modal only on success — not on cancel
+    if (detailTarget.value?.id === a.id) detailTarget.value = null;
     fetchAppointments();
     fetchAllAppointments();
   } catch (e) {
@@ -902,6 +912,18 @@ function openNoShow(a) {
 async function submitNoShow(action) {
   if (!noShowTarget.value || submittingNoShow.value) return;
   if (action === 'call_slip' && noShowTarget.value.no_show_escalated) return;
+
+  // Call Slip already has its own inline confirmation (callSlipConfirming);
+  // the reschedule path is the only one that fires straight from the modal.
+  if (action === 'reschedule') {
+    const ok = await confirmAction?.({
+      title: 'Mark as No-Show?',
+      message: `Mark ${noShowTarget.value.student?.last_name}, ${noShowTarget.value.student?.first_name}'s appointment as a no-show and ask them to reschedule?`,
+      confirmText: 'Yes, Mark No-Show',
+    });
+    if (confirmAction && !ok) return;
+  }
+
   submittingNoShow.value = true;
   try {
     const res = await appointmentAPI.escalateNoShow(noShowTarget.value.id, action);
@@ -929,6 +951,13 @@ async function submitCancel() {
     toast?.error('Please provide a reason for the cancellation.');
     return;
   }
+  const ok = await confirmAction?.({
+    title: 'Cancel Appointment?',
+    message: `Cancel ${cancelTarget.value.student?.last_name}, ${cancelTarget.value.student?.first_name}'s appointment? The student will be notified. This cannot be undone.`,
+    confirmText: 'Yes, Cancel',
+  });
+  if (confirmAction && !ok) return;
+
   try {
     await appointmentAPI.cancel(cancelTarget.value.id, cancelForm.value);
     cancelTarget.value.status = 'cancelled';

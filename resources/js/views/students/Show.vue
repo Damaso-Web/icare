@@ -50,10 +50,19 @@
         </span>
         <span v-if="isReassignedAway" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Reassigned · Read-only</span>
         <div class="case-actions" style="margin-left:auto;display:flex;gap:8px">
-          <!-- Update Case Status - moved here from Referral Details (B242),
-               since this is the actual Case Details view for the SIF. -->
           <span v-if="fromCases && sifArchived" class="ibadge" style="background:var(--cloud);color:var(--stone);align-self:center">Archived · view only</span>
           <!-- On an archived file only the GCU Head may still change the case status (to reopen it). -->
+          <button
+            v-if="isGCU && fromCases && primaryCase && !sifArchived"
+            class="ibtn ibtn-sm"
+            :style="primaryCase.is_severe
+              ? 'background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)'
+              : 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0'"
+            @click="openSevereModal"
+          >
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            {{ primaryCase.is_severe ? 'Unflag Severe' : 'Flag as Severe' }}
+          </button>
           <button v-if="isGCU && fromCases && primaryCase && (!sifArchived || (auth.user?.role === 'admin' && student?.is_active !== false))" class="ibtn ibtn-o ibtn-sm" @click="newCaseStatus = primaryCase.status; showCaseStatusModal = true">
             <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             Update Case Status
@@ -75,6 +84,18 @@
             Edit Student Profile
           </button>
         </div>
+      </div>
+
+      <div
+        v-if="primaryCase?.is_severe"
+        style="background:var(--red-lt);border:1px solid var(--red);border-radius:var(--r-sm);padding:10px 14px;color:var(--red);font-size:12.5px;margin-bottom:16px;display:flex;align-items:flex-start;gap:8px"
+      >
+        <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <span>
+          <strong>Severe Case.</strong>
+          Flagged{{ primaryCase.severe_flagged_at ? ' on ' + formatDate(primaryCase.severe_flagged_at) : '' }}<span v-if="primaryCase.severeFlaggedBy?.name"> by {{ primaryCase.severeFlaggedBy.name }}</span>.
+          <span v-if="primaryCase.severe_reason"> Reason: {{ primaryCase.severe_reason }}</span>
+        </span>
       </div>
 
       <div style="display:grid;grid-template-columns:1fr 300px;gap:16px">
@@ -676,6 +697,38 @@
         </div>
       </div>
 
+      <div v-if="showSevereModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showSevereModal = false">
+  <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:460px;overflow:hidden;box-shadow:var(--sh-lg)">
+    <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+      <div style="font-size:15px;font-weight:600;color:var(--ink)">
+        {{ primaryCase?.is_severe ? 'Unflag Severe Case' : 'Flag Case as Severe' }}
+      </div>
+      <button class="ibtn ibtn-g ibtn-sm" @click="showSevereModal = false">✕</button>
+    </div>
+    <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+      <div
+        :style="primaryCase?.is_severe
+          ? 'background:var(--mist);border:1px solid var(--mint);color:var(--moss)'
+          : 'background:var(--red-lt);border:1px solid var(--red);color:var(--red)'"
+        style="border-radius:var(--r-sm);padding:12px 14px;font-size:13px"
+      >
+        <template v-if="primaryCase?.is_severe">This case is currently flagged as severe. Unflagging will clear the mark from the SIF list.</template>
+        <template v-else>⚠ Flagging this case as severe adds a red badge on the SIF list and shows it under the "Severe Cases" filter.</template>
+      </div>
+      <div v-if="!primaryCase?.is_severe">
+        <label class="ifl">Reason (optional)</label>
+        <textarea v-model="severeReason" class="ifta" style="min-height:80px" maxlength="500" placeholder="Why is this case being flagged as severe?"></textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="ibtn ibtn-p" :disabled="savingSevere" @click="saveSevereFlag">
+          {{ savingSevere ? 'Saving...' : (primaryCase?.is_severe ? 'Yes, Unflag' : 'Yes, Flag as Severe') }}
+        </button>
+        <button class="ibtn ibtn-o" :disabled="savingSevere" @click="showSevereModal = false">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
     </template>
     <!-- Confirm: notify the student to fill out their forms -->
     <div v-if="showRemindModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:70;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!sendingReminder && (showRemindModal = false)">
@@ -764,6 +817,39 @@ const referralSearch = ref('');
 // Update Case Status - moved here from Referral Details (B242)
 const showCaseStatusModal = ref(false);
 const newCaseStatus       = ref('');
+
+// Severe case flag — admin / GCU staff only, on the SIF detail view.
+const showSevereModal = ref(false);
+const severeReason    = ref('');
+const savingSevere    = ref(false);
+
+function openSevereModal() {
+  severeReason.value = '';
+  showSevereModal.value = true;
+}
+
+async function saveSevereFlag() {
+  if (!primaryCase.value || savingSevere.value) return;
+  savingSevere.value = true;
+  try {
+    const res = await caseAPI.toggleSevere(primaryCase.value.id, {
+      is_severe:     !primaryCase.value.is_severe,
+      severe_reason: primaryCase.value.is_severe ? null : (severeReason.value.trim() || null),
+    });
+    primaryCase.value.is_severe         = res.data.is_severe;
+    primaryCase.value.severe_reason     = res.data.severe_reason;
+    primaryCase.value.severe_flagged_at = res.data.severe_flagged_at;
+    primaryCase.value.severe_flagged_by = res.data.severe_flagged_by;
+    // toggleSevere returns the case with severeFlaggedBy eager-loaded
+    primaryCase.value.severeFlaggedBy   = res.data.severeFlaggedBy;
+    showSevereModal.value = false;
+    toast?.success(primaryCase.value.is_severe ? 'Case flagged as severe.' : 'Case unflagged.');
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to update the severe flag.');
+  } finally {
+    savingSevere.value = false;
+  }
+}
 
 async function updateCaseStatus() {
   try {

@@ -45,6 +45,10 @@ class CaseFile extends Model
         'status_changed_at',
         'follow_up_due_date',
         'no_show_count',
+        'is_severe',
+        'severe_reason',
+        'severe_flagged_at',
+        'severe_flagged_by',
     ];
 
     protected $casts = [
@@ -61,6 +65,8 @@ class CaseFile extends Model
         'unreachable_flagged_at'  => 'datetime',
         'status_changed_at'       => 'datetime',
         'follow_up_due_date'      => 'date',
+        'is_severe'               => 'boolean',
+        'severe_flagged_at'       => 'datetime',
     ];
 
     protected static function booted(): void
@@ -102,6 +108,7 @@ class CaseFile extends Model
     // can still see it (read-only) under "Reassigned/History".
     public function previousCounselor() { return $this->belongsTo(User::class, 'previous_counselor_id'); }
     public function flaggedBy()     { return $this->belongsTo(User::class, 'unreachable_flagged_by'); }
+    public function severeFlaggedBy() { return $this->belongsTo(User::class, 'severe_flagged_by'); }
     public function followUpFlaggedBy() { return $this->belongsTo(User::class, 'follow_up_flagged_by'); }
     public function interventions()  { return $this->hasMany(CaseIntervention::class, 'case_id')->latest(); }
     public function sessionNotes()  { return $this->hasMany(SessionNote::class, 'case_id')->orderBy('session_date'); }

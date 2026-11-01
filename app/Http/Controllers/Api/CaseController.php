@@ -118,11 +118,7 @@ class CaseController extends Controller
             ->when($request->unit,   fn($q) => $q->where('current_unit', $request->unit))
             ->when($request->type,   fn($q) => $q->where('case_type', $request->type))
             ->when($request->filled('requires_follow_up'), fn($q) => $q->where('requires_follow_up', $request->boolean('requires_follow_up')))
-            // Previously this only matched against the student's name/ID, never
-            // the case number itself - so typing a case number (e.g. "001")
-            // silently fell through to a student_id substring match instead,
-            // surfacing unrelated cases. Search both, grouped so it still ANDs
-            // correctly with the other filters above.
+            ->when($request->boolean('severe'), fn($q) => $q->where('is_severe', true))
             ->when($request->search, function ($q) use ($request) {
                 $search = $request->search;
                 $q->where(function ($qq) use ($search) {
@@ -168,6 +164,7 @@ class CaseController extends Controller
                 'student',
                 'counselor',
                 'previousCounselor',
+                'severeFlaggedBy',
                 'referrals.referredBy',
                 'sessionNotes.recordedBy',
                 'appointments.staff',
@@ -604,6 +601,41 @@ class CaseController extends Controller
 
         return response()->json($case);
     }
+
+     public function toggleSevere(Request $request, CaseFile $case)
+ {
+    $this->authorizeStaffAccess();
+    $this->authorizeCaseWriter($case);
+
+    if (!in_array($request->user()->role, ['admin', 'gcu_staff'], true)) {
+         abort(403, 'Only GCU staff can flag a case as severe.');
+     }
+ 
+     $validated = $request->validate([
+         'is_severe'     => ['required', 'boolean'],
+         'severe_reason' => ['nullable', 'string', 'max:500'],
+     ]);
+ 
+     $flagging = (bool) $validated['is_severe'];
+ 
+    $old = $case->toArray();
+
+     $case->is_severe         = $flagging;
+     $case->severe_reason     = $flagging ? ($validated['severe_reason'] ?? null) : null;
+     $case->severe_flagged_at = $flagging ? now() : null;
+     $case->severe_flagged_by = $flagging ? $request->user()->id : null;
+     $case->save();
+ 
+    AuditLog::record(
+        $flagging ? 'flagged_severe' : 'unflagged_severe',
+        ($flagging ? 'Flagged' : 'Unflagged') . " case {$case->case_number} " . ($flagging ? 'as' : 'from') . ' severe.',
+        $case,
+        $old,
+        $case->toArray()
+    );
+
+     return response()->json($case->load('severeFlaggedBy'));
+ }
 
     public function flagFollowUp(Request $request, CaseFile $case)
     {

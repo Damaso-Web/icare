@@ -472,7 +472,7 @@ class StudentController extends Controller
             $isSdu = (bool) $user?->isSDUHead();
 
             return response()->json([
-                'cases'           => $isSdu ? $student->cases()->where('current_unit', 'SDU')->with(['counselor', 'previousCounselor'])->latest()->get() : [],
+                'cases'           => $isSdu ? $student->cases()->where('current_unit', 'SDU')->with(['counselor', 'previousCounselor', 'severeFlaggedBy'])->latest()->get() : [],
                 'referrals'       => $referrals->latest()->get(),
                 'appointments'    => $isSdu ? $student->appointments()->where('unit', 'SDU')->with('staff')->latest()->get() : [],
                 'testing_records' => [],
@@ -480,7 +480,7 @@ class StudentController extends Controller
         }
 
         return response()->json([
-            'cases'           => $student->cases()->with(['counselor', 'previousCounselor'])->latest()->get(),
+            'cases'           => $student->cases()->with(['counselor', 'previousCounselor', 'severeFlaggedBy'])->latest()->get(),
             'referrals'       => $student->referrals()->notTmduOwned()->with('case:id,status')->latest()->get(),
             'appointments'    => $student->appointments()->where('unit', '!=', 'TMDU')->with('staff')->latest()->get(),
             'testing_records' => [],

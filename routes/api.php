@@ -168,6 +168,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::post('cases/{case}/flag-unreachable',            [CaseController::class, 'flagUnreachable']);
     Route::post('cases/{case}/flag-follow-up',               [CaseController::class, 'flagFollowUp']);
     Route::post('cases/{case}/resolve-follow-up',             [CaseController::class, 'resolveFollowUp']);
+    Route::patch('cases/{case}/severe',                       [CaseController::class, 'toggleSevere']);
     Route::post('cases/{case}/parent-conference-slip',        [CaseController::class, 'issueParentConferenceSlip']);
     Route::post('parent-conference-slips/{slip}/notes',       [CaseController::class, 'saveParentConferenceNotes']);
     Route::get('staff-roster',                                [UserController::class, 'roster']);

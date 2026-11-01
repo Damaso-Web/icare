@@ -550,39 +550,53 @@
                 </div>
               </template>
               <template v-else-if="isGCU">
-                <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided <span style="color:var(--red)">*</span> <span style="text-transform:none;letter-spacing:0;font-weight:500">(select at least one)</span></div>
-                <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
-                  <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
-                    <input type="checkbox" :value="item.key" v-model="feedbackForm.feedback_checklist" style="width:15px;height:15px;accent-color:var(--moss)"/>
-                    {{ item.label }}
-                    <input
-                      v-if="item.key === 'referred_other' && feedbackForm.feedback_checklist.includes('referred_other')"
-                      v-model="feedbackForm.feedback_referred_other_text"
-                      type="text"
-                      placeholder="for interventions..."
-                      style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
-                    />
-                    <input
-                      v-if="item.key === 'others' && feedbackForm.feedback_checklist.includes('others')"
-                      v-model="feedbackForm.feedback_others_text"
-                      type="text"
-                      placeholder="specify..."
-                      style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
-                    />
-                  </label>
+                <!-- Form is hidden by default, shows when showFeedbackForm is true -->
+                <div v-if="showFeedbackForm" style="display:flex;flex-direction:column;gap:10px">
+                  <div style="font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:8px">Intervention/s or Assistance Provided <span style="color:var(--red)">*</span> <span style="text-transform:none;letter-spacing:0;font-weight:500">(select at least one)</span></div>
+                  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px">
+                    <label v-for="item in FEEDBACK_CHECKLIST_ITEMS" :key="item.key" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);cursor:pointer">
+                      <input type="checkbox" :value="item.key" v-model="feedbackForm.feedback_checklist" style="width:15px;height:15px;accent-color:var(--moss)"/>
+                      {{ item.label }}
+                      <input
+                        v-if="item.key === 'referred_other' && feedbackForm.feedback_checklist.includes('referred_other')"
+                        v-model="feedbackForm.feedback_referred_other_text"
+                        type="text"
+                        placeholder="for interventions..."
+                        style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
+                      />
+                      <input
+                        v-if="item.key === 'others' && feedbackForm.feedback_checklist.includes('others')"
+                        v-model="feedbackForm.feedback_others_text"
+                        type="text"
+                        placeholder="specify..."
+                        style="flex:1;font-size:12px;padding:3px 6px;border:1px solid var(--cloud);border-radius:3px"
+                      />
+                    </label>
+                  </div>
+
+                  <label class="ifl">Remarks</label>
+                  <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..." maxlength="3000"></textarea>
+
+                  <div style="font-size:11px;color:var(--fog);margin-top:10px">
+                    Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
+                  </div>
+
+                  <div style="display:flex;gap:8px;margin-top:10px">
+                    <button class="ibtn ibtn-p ibtn-sm" @click="openFeedbackConfirm">
+                      <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                      Send to Referrer
+                    </button>
+                    <button class="ibtn ibtn-o ibtn-sm" @click="showFeedbackForm = false">Cancel</button>
+                  </div>
                 </div>
 
-                <label class="ifl">Remarks</label>
-                <textarea v-model="feedbackForm.feedback_notes" class="ifta" placeholder="Progress / outcome summary to send to the referrer..." maxlength="3000"></textarea>
-
-                <div style="font-size:11px;color:var(--fog);margin-top:10px">
-                  Attending OSS Personnel: <strong style="color:var(--ink)">{{ auth.user?.name }}</strong>
+                <!-- The button that reveals the form -->
+                <div v-else>
+                  <button class="ibtn ibtn-p ibtn-sm" @click="showFeedbackForm = true">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    Issue Feedback Slip
+                  </button>
                 </div>
-
-                <button class="ibtn ibtn-p ibtn-sm" style="margin-top:10px" @click="openFeedbackConfirm">
-                  <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-                  Send to Referrer
-                </button>
               </template>
               <template v-else>
                 <div v-if="!referral.feedback_slips?.length" style="font-size:13px;color:var(--stone)">No feedback has been shared yet.</div>
@@ -1312,9 +1326,9 @@
           <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
             {{ formatDate(followUpForm.appointment_date) }} · {{ formatTime12(followUpForm.start_time) }}–{{ formatTime12(followUpForm.end_time) }}
           </div>
-          <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="schedulingFollowUp" @click="saveFollowUp">
-              {{ schedulingFollowUp ? 'Scheduling...' : 'Yes, Schedule' }}
+              {{ schedulingFollowUp ? 'Scheduling...' : 'Yes' }}
             </button>
             <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showFollowUpConfirm = false" :disabled="schedulingFollowUp">Cancel</button>
           </div>
@@ -1331,9 +1345,9 @@
           <div style="font-size:13px;color:var(--stone);line-height:1.6;margin-bottom:18px">
             This will send the feedback slip for <strong>{{ referral.student?.last_name }}, {{ referral.student?.first_name }} {{ referral.student?.middle_name }}</strong> ({{ referral.student?.student_id }}) to the referrer. Please review what you've written before confirming.
           </div>
-          <div style="display:flex;gap:8px">
+            <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="sendingFeedback" @click="sendFeedback">
-              {{ sendingFeedback ? 'Sending...' : 'Yes, Send' }}
+              {{ sendingFeedback ? 'Sending...' : 'Yes' }}
             </button>
             <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showFeedbackConfirm = false" :disabled="sendingFeedback">Cancel</button>
           </div>
@@ -1659,9 +1673,9 @@
                 ⚠ {{ w }}
               </div>
             </div>
-            <div style="display:flex;gap:8px">
+              <div style="display:flex;gap:8px">
               <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="resolvingReferral" @click="resolveReferral">
-                {{ resolvingReferral ? 'Resolving...' : 'Resolve Referral' }}
+                {{ resolvingReferral ? 'Resolving...' : 'Yes' }}
               </button>
               <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="resolvingReferral" @click="showResolveReferralModal = false">Cancel</button>
             </div>
@@ -1867,9 +1881,9 @@
               <template v-if="callSlipTarget.request_status === 'awaiting_student'">The student has not picked a schedule yet. This will send a Call-Slip to the Dean's Secretary so they can follow up with the student. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
               <template v-else>This will escalate the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
             </div>
-            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button class="ibtn ibtn-p" :disabled="sendingCallSlip" @click="confirmCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes' }}</button>
               <button class="ibtn ibtn-o" :disabled="sendingCallSlip" @click="callSlipTarget = null">Cancel</button>
-              <button class="ibtn" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="sendingCallSlip" @click="confirmCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
             </div>
           </div>
         </div>
@@ -2306,6 +2320,8 @@ const feedbackForm = ref({
   feedback_ctrl_no: '',
 });
 
+const showFeedbackForm = ref(false);
+
 const followUpForm = ref({
   appointment_date: '', start_time: '', end_time: '', staff_user_id: '', notes: '',
 });
@@ -2569,13 +2585,8 @@ async function sendFeedback() {
   sendingFeedback.value = true;
   try {
     await referralAPI.sendFeedback(referral.value.id, feedbackForm.value);
-    // B249: re-fetch the referral from the server instead of merging only the
-    // response locally, so the "sent" record is guaranteed to reflect what
-    // was actually persisted rather than an optimistic local update.
     const fresh = await referralAPI.show(referral.value.id);
     referral.value = fresh.data;
-    // Each send is its own new history entry, not an edit of the last one -
-    // clear the compose form so the next entry starts blank.
     feedbackForm.value = {
       feedback_notes: '',
       feedback_checklist: [],
@@ -2584,6 +2595,7 @@ async function sendFeedback() {
       feedback_ctrl_no: '',
     };
     showFeedbackConfirm.value = false;
+    showFeedbackForm.value = false; // <--- ADD THIS LINE
     toast?.success('Feedback sent to referrer.');
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to send feedback.');
@@ -2801,8 +2813,15 @@ const canEditSubmittedReferral = computed(() => {
 const isReferrerOfThis = computed(() => !!auth.user && referral.value?.referred_by_user_id === auth.user.id);
 
 const deletingReferral = ref(false);
+
 async function deleteReferral() {
-  if (!confirm(`Delete referral ${referral.value.referral_code}? This cannot be undone.`)) return;
+  const ok = await confirmAction?.({
+    title: 'Delete Referral?',
+    message: `Delete referral ${referral.value.referral_code}? This cannot be undone.`,
+    confirmText: 'Yes, Delete Referral',
+  });
+  if (confirmAction && !ok) return;
+
   deletingReferral.value = true;
   try {
     await referralAPI.destroy(referral.value.id);
@@ -2854,9 +2873,17 @@ const canReviewVoid = computed(() => {
   if (!r?.void_requested_at) return false;
   return r.testing_record ? isTMDUStaff.value : (isGCU.value || isSDUHead.value);
 });
+
 const decidingVoid = ref(false);
+
 async function approveVoidRequest() {
-  if (!confirm('Approve this cancellation? The referral will be archived.')) return;
+  const ok = await confirmAction?.({
+    title: 'Approve Cancellation?',
+    message: 'Approve this cancellation request? The referral will be archived.',
+    confirmText: 'Yes, Approve & Archive',
+  });
+  if (confirmAction && !ok) return;
+
   decidingVoid.value = true;
   try {
     const res = await referralAPI.approveVoid(referral.value.id);
@@ -2929,25 +2956,23 @@ function onChangeStudentSearch() {
 }
 
 async function pickChangeStudent(s) {
-  if (!confirm(`Change this referral to ${s.last_name}, ${s.first_name} (${s.student_id})? This moves it onto that student's own Student Information File.`)) return;
+  const ok = await confirmAction?.({
+    title: 'Change Student?',
+    message: `Change this referral to ${s.last_name}, ${s.first_name} (${s.student_id})? This moves it onto that student's own Student Information File.`,
+    confirmText: 'Yes, Change Student',
+  });
+  if (confirmAction && !ok) return;
+
   reassigningStudent.value = true;
   changeStudentError.value = '';
   try {
     await referralAPI.reassignStudent(referral.value.id, { student_id: s.id });
-    // Reassigning moves the referral onto a different student's Case File
-    // entirely - reassignStudent()'s own response only returns the referral
-    // with its new student, not the case and all its nested data (sessions,
-    // appointments, interventions, sibling referrals...) that the rest of
-    // this page reads from referral.value.case. A full reload keeps those
-    // in sync instead of leaving them pointed at the old student's case.
     const fresh = await referralAPI.show(referral.value.id);
     referral.value = fresh.data;
     showChangeStudent.value = false;
     changeStudentQuery.value = '';
     changeStudentSuggestions.value = [];
     showChangeStudentDropdown.value = false;
-    // The Student Info fields below edit the student now on the referral -
-    // reload them so they don't still show the old student's details.
     const ns = referral.value.student || {};
     studentEditForm.value = {
       first_name:  ns.first_name || '',
@@ -3132,6 +3157,14 @@ function openCaseNoShowModal(a) {
 
 async function submitCaseNoShow(action) {
   if (!caseNoShowTarget.value || action === 'call_slip') return;
+
+  const ok = await confirmAction?.({
+    title: 'Mark as No-Show?',
+    message: `Mark this appointment as a no-show and ask the student to reschedule?`,
+    confirmText: 'Yes, Mark No-Show',
+  });
+  if (confirmAction && !ok) return;
+
   try {
     const res = await appointmentAPI.escalateNoShow(caseNoShowTarget.value.id, action);
     caseNoShowTarget.value.status = 'no_show';
@@ -3197,6 +3230,14 @@ async function confirmApptFromDetail() {
 
 async function checkInApptFromDetail() {
   if (!apptDetailTarget.value) return;
+
+  const ok = await confirmAction?.({
+    title: 'Mark as Attended?',
+    message: `Mark ${apptDetailTarget.value.student?.last_name}, ${apptDetailTarget.value.student?.first_name}'s appointment as attended? This cannot be undone.`,
+    confirmText: 'Yes, Mark Attended',
+  });
+  if (confirmAction && !ok) return;
+
   try {
     await appointmentAPI.checkIn(apptDetailTarget.value.id);
     toast?.success('Marked as attended.');
@@ -3213,6 +3254,14 @@ async function confirmApptCancel() {
     toast?.error('Please give a reason for cancelling.');
     return;
   }
+
+  const ok = await confirmAction?.({
+    title: 'Cancel Appointment?',
+    message: `Cancel this appointment? The student will be notified. This cannot be undone.`,
+    confirmText: 'Yes, Cancel',
+  });
+  if (confirmAction && !ok) return;
+
   try {
     await appointmentAPI.cancel(apptDetailTarget.value.id, { cancellation_reason: apptCancelReason.value });
     toast?.success('Appointment cancelled.');

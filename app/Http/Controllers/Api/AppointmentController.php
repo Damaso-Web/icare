@@ -914,6 +914,16 @@ public function checkConflictByStudent(Request $request)
         }
 
         $appointment->update($attrs);
+    
+        $referral = $appointment->referral ?: $appointment->case?->latestReferral;
+        if ($referral) {
+            if ($status === 'completed') {
+                $referral->advanceStatusTo('in_progress');
+            } elseif ($status === 'confirmed' || $status === 'pending') {
+                // If they revert it back, ensure the referral reflects the scheduled state
+                $referral->advanceStatusTo('scheduled');
+            }
+        }
 
         $who = match ($request->user()->role) {
             'tmdu_head' => 'TMDU Head',

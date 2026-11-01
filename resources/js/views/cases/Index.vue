@@ -27,6 +27,14 @@
         <option value="on_observation">On Observation</option>
         <option value="resolved">Resolved</option>
       </select>
+      <button
+      class="ibtn ibtn-sm"
+      :class="filters.severe ? '' : 'ibtn-o'"
+      :style="filters.severe ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : ''"
+      @click="filters.severe = !filters.severe; fetchCases()"
+    >
+    Severe Cases
+    </button>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
       <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; filters.status = ''; fetchCases()">
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
@@ -71,6 +79,7 @@
                   <span v-if="filters.archived && c.student?.is_active === false" class="ibadge" style="background:var(--cloud);color:var(--stone)">Deactivated</span>
                   <span v-else-if="filters.archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
                   <span v-if="reassignedAwayFromMe(c)" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Reassigned</span>
+                  <span v-if="c.is_severe" class="ibadge" style="background:var(--red-lt);color:var(--red)">Severe</span>
                 </div>
               </td>
               <!-- opened_date is stamped with today() at the moment the founding
@@ -127,12 +136,16 @@ function ctrlNo(c) {
 }
 const loading    = ref(true);
 const pagination = ref({});
-const filters    = ref({ search: '', status: '', archived: false });
+const filters    = ref({ search: '', status: '', archived: false, severe: false });
 
 async function fetchCases(page = 1, silent = false) {
   if (!silent) loading.value = true;
   try {
-    const res = await caseAPI.index({ ...filters.value, archived: filters.value.archived ? 1 : 0, page });
+    const res = await caseAPI.index({
+      ...filters.value,
+      archived: filters.value.archived ? 1 : 0,
+      severe:   filters.value.severe   ? 1 : 0,
+      page,    });
     cases.value      = res.data.data;
     pagination.value = res.data;
   } catch (e) {
@@ -148,7 +161,7 @@ function onSearchInput() {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', archived: filters.value.archived };
+  filters.value = { search: '', status: '', archived: filters.value.archived, severe: false };
   fetchCases();
 }
 
