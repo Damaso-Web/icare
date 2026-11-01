@@ -378,7 +378,9 @@ const roleLabel = computed(() => ({
   sdu_head:       'SDU Head',
   tmdu_staff:     'TMDU Staff',
   faculty:        'Faculty',
-  dean_secretary: 'Dean',
+  dean:           'Dean',
+  dean_secretary: "Dean's Secretary",
+  dept_chair:     'Department Chair',
   tmdu_head:      'TMDU Head',
   system_admin:   'System Admin',
 }[auth.user?.role] || auth.user?.role || '-'));

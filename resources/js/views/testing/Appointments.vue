@@ -39,6 +39,18 @@
 
         <!-- Filter Bar - no Unit filter here, this page is TMDU-only -->
         <div class="filter-bar">
+          <div class="sw" style="flex:1;min-width:220px;max-width:400px">
+            <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              v-model="filters.search"
+              type="text"
+              class="sin"
+              maxlength="50"
+              placeholder="Search by student name, ID, or appointment code..."
+              style="width:100%"
+              @input="onSearchInput"
+            />
+          </div>
           <select v-model="filters.status" class="fsm" @change="fetchAppointments">
             <option value="">All</option>
             <option value="pending">Pending</option>
@@ -363,7 +375,13 @@ const appointments = ref([]);
 const allAppointments = ref([]);
 const pagination = ref({});
 // B282: defaulted to 'pending' before, hiding every other status by default.
-const filters = ref({ status: '', date: '' });
+const filters = ref({ status: '', date: '', search: '' });
+
+let searchDebounce = null;
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => fetchAppointments(), 350);
+}
 
 const showRescheduleModal = ref(false);
 const rescheduleTarget    = ref(null);
@@ -589,7 +607,7 @@ async function submitReschedule() {
 function changePage(page) { fetchAppointments(page); }
 
 function resetFilters() {
-  filters.value = { status: '', date: '' };
+  filters.value = { status: '', date: '', search: '' };
   previewDate.value = null;
   fetchAppointments();
 }

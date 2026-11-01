@@ -36,9 +36,23 @@
       </div>
     </div>
 
-    <!-- Appointments List -->
+        <!-- Appointments List -->
     <div class="icard">
       <div class="icard-header"><span class="icard-title">All Appointments</span></div>
+      <div style="padding:14px 18px;border-bottom:1px solid var(--cloud);display:flex;gap:10px;flex-wrap:wrap">
+        <div class="sw" style="flex:1;min-width:220px;max-width:400px">
+          <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input
+            v-model="searchQuery"
+            type="text"
+            class="sin"
+            maxlength="50"
+            placeholder="Search by appointment code or type..."
+            style="width:100%"
+            @input="onSearchInput"
+          />
+        </div>
+      </div>
       <div v-if="loading" style="padding:30px;text-align:center">
         <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -85,6 +99,13 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 const loading = ref(true);
 const appointments = ref([]);
 const pendingAppointments = ref([]);
+const searchQuery = ref('');
+
+let searchDebounce = null;
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => fetchData(), 350);
+}
 
 function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('student_token')}` } };
@@ -107,7 +128,10 @@ function goToSchedule(appt) {
 async function fetchData(silent = false) {
   if (!silent) loading.value = true;
   try {
-    const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
+    const res = await axios.get(`${API_BASE}/student/dashboard`, {
+      ...authHeaders(),
+      params: { search: searchQuery.value || undefined }
+    });
     appointments.value = res.data.appointments || [];
     pendingAppointments.value = res.data.pending_appointments || (res.data.pending_appointment ? [res.data.pending_appointment] : []);
   } catch (e) {

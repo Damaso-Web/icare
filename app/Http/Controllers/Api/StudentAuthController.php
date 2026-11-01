@@ -252,8 +252,18 @@ class StudentAuthController extends Controller
             ->latest()
             ->get();
 
-    return response()->json([
-        'appointments'          => $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->latest()->get(),
+        return response()->json([
+        'appointments'          => $student->appointments()
+            ->with(['staff', 'referral', 'case.latestReferral'])
+            ->when($request->search, function ($q) use ($request) {
+                $q->where(function ($qq) use ($request) {
+                    $qq->where('appointment_code', 'like', "%{$request->search}%")
+                       ->orWhere('appointment_type', 'like', "%{$request->search}%")
+                       ->orWhereHas('referral', fn($r) => $r->where('referral_code', 'like', "%{$request->search}%"));
+                });
+            })
+            ->latest()
+            ->get(),
         'referrals'             => $student->referrals()->latest()->get(),
         'pending_appointments'  => $pendingAppointments,
         'pending_appointment'   => $pendingAppointments->first(),
