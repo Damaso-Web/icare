@@ -480,8 +480,22 @@ const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,
 
 const evidenceFiles  = ref([]);
 const affidavitFiles = ref([]);
+
 function onFilesSelected(event, category) {
   const files = Array.from(event.target.files || []);
+  
+  // Instantly check if any file is invalid
+  const bad = files.find(f => !/\.(pdf|jpg|jpeg|png|doc|docx)$/i.test(f.name) || f.size > 10 * 1024 * 1024);
+  
+  if (bad) {
+    error.value = `"${bad.name}" is not allowed. Please use PDF, JPG, PNG, DOC, or DOCX files up to 10MB.`;
+    event.target.value = ''; // Clear the invalid file
+    if (category === 'evidence') evidenceFiles.value = [];
+    else affidavitFiles.value = [];
+    return;
+  }
+
+  error.value = ''; // Clear previous errors
   if (category === 'evidence') evidenceFiles.value = files;
   else affidavitFiles.value = files;
   clearFieldError(category);

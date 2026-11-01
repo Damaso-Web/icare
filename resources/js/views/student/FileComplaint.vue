@@ -211,8 +211,21 @@ function goBack() {
 }
 
 function pick(event, list) {
-  list.splice(0, list.length, ...Array.from(event.target.files));
+  const files = Array.from(event.target.files);
+  const bad = files.find(f => !OK_EXT.includes((f.name.split('.').pop() || '').toLowerCase()) || f.size > MAX_BYTES);
+  
+  if (bad) {
+    error.value = `"${bad.name}" is not allowed. Please use PDF, JPG, PNG, DOC, or DOCX files up to 10MB.`;
+    event.target.value = ''; // Clear the invalid file from the input
+    list.splice(0, list.length); // Clear the list
+    return;
+  }
+  
+  error.value = ''; // Clear any previous errors
+  list.splice(0, list.length, ...files);
+  clearFieldError('proof'); // Clear the "no file attached" error if it was showing
 }
+
 function badFile(files) {
   return files.find(f => !OK_EXT.includes((f.name.split('.').pop() || '').toLowerCase()) || f.size > MAX_BYTES);
 }
