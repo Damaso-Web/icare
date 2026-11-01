@@ -79,16 +79,17 @@
                 <!-- Reused Search UI from Create Referral -->
                 <div class="sw" style="width: 100%;">
                   <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                  <input 
+                                    <input 
                     v-model="studentQuery" 
                     class="sin" 
+                    style="width: 100%;"
                     placeholder="Search student name or ID..." 
                     @input="searchStudents" 
                   />
                 </div>
 
                 <!-- Dropdown Results -->
-                <div v-if="studentQuery.length >= 2" style="position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--cloud); border-radius:var(--r-sm); box-shadow:var(--sh-lg); z-index:50; max-height:200px; overflow-y:auto;">
+                                <div v-if="studentQuery.length >= 1" style="position:absolute; top:calc(100% + 4px); left:0; right:0; background:#fff; border:1px solid var(--cloud); border-radius:var(--r-sm); box-shadow:var(--sh-lg); z-index:50; max-height:200px; overflow-y:auto;">
                   
                   <!-- Loading State -->
                   <div v-if="searchingStudents" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
@@ -200,17 +201,20 @@ function toggleChangeStudent() {
 
 function searchStudents() {
   clearTimeout(searchTimer);
-  if (studentQuery.value.length < 2) {
+  const q = studentQuery.value.trim();
+  if (q.length < 1) {
     studentResults.value = [];
     return;
   }
   searchTimer = setTimeout(async () => {
     searchingStudents.value = true;
     try {
-      // Reusing the same endpoint and scope as the Create Referral form
-      const res = await studentApi.index({ search: studentQuery.value, is_active: 1, scope: 'all' });
-      studentResults.value = (res.data.data || []).filter(s => s.id !== selected.value.student_id);
+      const res = await api.get('/students', { params: { search: q, is_active: 1, scope: 'all' } });
+      // Filter out the currently selected student so you don't see them in the list
+      const currentId = selected.value.student?.id || selected.value.student_id;
+      studentResults.value = (res.data.data || []).filter(s => s.id !== currentId);
     } catch (e) {
+      console.error("Search error:", e);
       studentResults.value = [];
     } finally {
       searchingStudents.value = false;
