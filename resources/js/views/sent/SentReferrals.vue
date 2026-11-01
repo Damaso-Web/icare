@@ -353,7 +353,27 @@ async function load(p = 1) {
     loading.value = false;
   }
 }
-onMounted(() => load());
+onMounted(async () => {
+  await load();
+  // Automatically open the modal if the URL has ?view=ID
+  if (route.query.view) {
+    const id = Number(route.query.view);
+    const existing = rows.value.find(r => r.id === id);
+    if (existing) {
+      selected.value = existing;
+      editing.value = false;
+    } else {
+      // If it's not on the current page, fetch it directly
+      try {
+        const res = await http.get(`/referrals/${id}`);
+        selected.value = res.data;
+        editing.value = false;
+      } catch (e) {
+        toast?.error('Could not load the referral details.');
+      }
+    }
+  }
+});
 </script>
 
 <style scoped>

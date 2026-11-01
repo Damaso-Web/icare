@@ -80,7 +80,7 @@
               v-for="r in dashboard.recent_referrals"
               :key="r.id"
               class="qr"
-              @click="$router.push({ name: 'referral-show', params: { id: r.id } })"
+              @click="auth.isDean || auth.isDeptChair || auth.user?.role === 'faculty' ? $router.push({ name: 'sent-referrals', query: { view: r.id } }) : $router.push({ name: 'referral-show', params: { id: r.id } })"
             >
               <div class="qav">{{ initials(r.student?.first_name, r.student?.last_name) }}</div>
               <div class="qi">
@@ -332,7 +332,11 @@ const loading   = ref(true);
 
 function goToReferral(c) {
   if (c.latest_referral?.id) {
-    router.push({ name: 'referral-show', params: { id: c.latest_referral.id } });
+    if (auth.isDean || auth.isDeptChair || auth.user?.role === 'faculty') {
+      router.push({ name: 'sent-referrals', query: { view: c.latest_referral.id } });
+    } else {
+      router.push({ name: 'referral-show', params: { id: c.latest_referral.id } });
+    }
   } else {
     toast?.error('No linked referral found for this case.');
   }

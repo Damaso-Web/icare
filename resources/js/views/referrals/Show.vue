@@ -2875,9 +2875,11 @@ async function deleteReferral() {
 
   deletingReferral.value = true;
   try {
-    await referralAPI.destroy(referral.value.id);
-    toast?.success('Referral deleted.');
-    router.push({ name: fromCases.value ? 'cases' : 'referrals' });
+      await referralAPI.destroy(referral.value.id);
+      toast?.success('Referral deleted.');
+      const isGcu = ['admin', 'gcu_staff', 'tmdu_staff'].includes(auth.user?.role);
+      const target = fromCases.value ? 'cases' : (isGcu ? 'referrals' : 'sent-referrals');
+      router.push({ name: target });
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to delete referral.');
   } finally {
@@ -2895,9 +2897,10 @@ async function archiveReferral() {
 
   try {
     await referralAPI.updateStatus(referral.value.id, { status: 'closed' });
-    // If your backend has a specific archive endpoint, use referralAPI.archive(referral.value.id) instead
     toast?.success('Referral cancelled and archived.');
-    router.push({ name: fromCases.value ? 'cases' : 'referrals' });
+    const isGcu = ['admin', 'gcu_staff', 'tmdu_staff'].includes(auth.user?.role);
+    const target = fromCases.value ? 'cases' : (isGcu ? 'referrals' : 'sent-referrals');
+    router.push({ name: target });
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to archive referral.');
   }
