@@ -1456,21 +1456,6 @@
             <div style="background:var(--blue-lt);border:1px solid var(--blue);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--blue)">
               You can change this referral until it is acknowledged.
             </div>
-            <div>
-              <label class="ifl">Concern / Reason for Referral</label>
-              <textarea v-model="referralEditForm.nature_of_concern" class="ifta" style="min-height:110px" maxlength="1000"></textarea>
-            </div>
-            <template v-if="referral.referral_type === 'disciplinary'">
-              <div>
-                <label class="ifl">Date of Incident</label>
-                <input v-model="referralEditForm.incident_date" type="date" class="ifi" style="width:100%" />
-              </div>
-              <div>
-                <label class="ifl">Incident Description</label>
-                <textarea v-model="referralEditForm.incident_description" class="ifta" style="min-height:80px" maxlength="2000"></textarea>
-              </div>
-            </template>
-
             <!-- Student info - fixes a typo or wrong detail the referrer just
                  entered themselves; same pre-acknowledgement window as the
                  rest of this form. Does not touch Student ID, College,
@@ -1557,6 +1542,14 @@
                   <option v-for="n in 10" :key="n" :value="String(n)">{{ n }}</option>
                 </select>
               </div>
+                            <div style="grid-column:1 / -1">
+                <label class="ifl">College</label>
+                <select v-model="studentEditForm.college" class="ifse" @change="studentEditForm.program = ''">
+                  <option value="">-</option>
+                  <option v-if="studentEditForm.college && !Object.keys(studentEditProgramsByCollege).includes(studentEditForm.college)" :value="studentEditForm.college">{{ studentEditForm.college }} (unrecognized)</option>
+                  <option v-for="c in Object.keys(studentEditProgramsByCollege)" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
               <div style="grid-column:1 / -1">
                 <label class="ifl">Program</label>
                 <select v-model="studentEditForm.program" class="ifse">
@@ -1566,6 +1559,22 @@
                 </select>
               </div>
             </div>
+
+            <!-- MOVED CONCERN SECTION HERE -->
+            <div style="margin-top: 10px;">
+              <label class="ifl">Concern / Reason for Referral</label>
+              <textarea v-model="referralEditForm.nature_of_concern" class="ifta" style="min-height:110px" maxlength="1000"></textarea>
+            </div>
+            <template v-if="referral.referral_type === 'disciplinary'">
+              <div>
+                <label class="ifl">Date of Incident</label>
+                <input v-model="referralEditForm.incident_date" type="date" class="ifi" style="width:100%" />
+              </div>
+              <div>
+                <label class="ifl">Incident Description</label>
+                <textarea v-model="referralEditForm.incident_description" class="ifta" style="min-height:80px" maxlength="2000"></textarea>
+              </div>
+            </template>
 
             <div v-if="referralEditError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ referralEditError }}</div>
           </div>
@@ -3054,6 +3063,7 @@ function openReferralEdit() {
     middle_name: s.middle_name || '',
     suffix:      s.suffix || '',
     sex:         s.sex || '',
+    college:     s.college || '',
     program:     s.program || '',
     year_level:  s.year_level ? String(s.year_level) : '',
   };
