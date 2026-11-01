@@ -1493,9 +1493,10 @@
               <label class="ifl">Search for the correct student</label>
               <div class="sw" style="width: 100%;">
                 <svg class="sw-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                <input
+                  <input
                   v-model="changeStudentQuery"
                   class="sin"
+                  style="width: 100%;"
                   placeholder="Search student name or ID..."
                   maxlength="100"
                   :disabled="reassigningStudent"
@@ -1505,7 +1506,7 @@
                 />
               </div>
               
-              <div v-if="changeStudentQuery.length >= 2" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto">
+              <div v-if="changeStudentQuery.length >= 1" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:200px;overflow-y:auto">
                 
                 <div v-if="searchingStudents" style="padding:14px; text-align:center; font-size:12px; color:var(--fog);">
                   Searching...
@@ -2961,15 +2962,18 @@ function onChangeStudentSearch() {
   changeStudentQuery.value = safeSearchInput(changeStudentQuery.value);
   changeStudentError.value = '';
   clearTimeout(changeStudentTimeout);
-  if (changeStudentQuery.value.length < 2) {
+  
+  const q = changeStudentQuery.value.trim();
+  if (q.length < 1) {
     changeStudentSuggestions.value = [];
     showChangeStudentDropdown.value = false;
     return;
   }
-    changeStudentTimeout = setTimeout(async () => {
+  
+  changeStudentTimeout = setTimeout(async () => {
     searchingStudents.value = true;
     try {
-      const res = await studentAPI.index({ search: changeStudentQuery.value, is_active: 1, scope: 'all' });
+      const res = await studentAPI.index({ search: q, is_active: 1, scope: 'all' });
       changeStudentSuggestions.value = (res.data.data || []).filter(s => s.id !== referral.value.student?.id);
       showChangeStudentDropdown.value = changeStudentSuggestions.value.length > 0;
     } catch (e) {
