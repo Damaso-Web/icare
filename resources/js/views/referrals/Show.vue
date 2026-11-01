@@ -230,8 +230,6 @@
                      only ask to void it (the button below instead). -->
                 <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
                 <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
-                <!-- ADD THIS NEW BUTTON -->
-                <button v-if="isGCU && !isResolved" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="archiveReferral">Cancel & Archive</button>
               </div>
             </div>
 
@@ -2887,24 +2885,6 @@ async function deleteReferral() {
   }
 }
 
-async function archiveReferral() {
-  const ok = await confirmAction?.({
-    title: 'Cancel & Archive Referral?',
-    message: `Are you sure you want to cancel this referral? It will be moved to the archive and marked as closed.`,
-    confirmText: 'Yes, Cancel & Archive',
-  });
-  if (confirmAction && !ok) return;
-
-  try {
-    await referralAPI.updateStatus(referral.value.id, { status: 'closed' });
-    toast?.success('Referral cancelled and archived.');
-    const isGcu = ['admin', 'gcu_staff', 'tmdu_staff'].includes(auth.user?.role);
-    const target = fromCases.value ? 'cases' : (isGcu ? 'referrals' : 'sent-referrals');
-    router.push({ name: target });
-  } catch (e) {
-    toast?.error(e.response?.data?.message || 'Failed to archive referral.');
-  }
-}
 
 // Once acknowledged, the referrer can no longer delete outright - they can
 // ask the owning unit to void it instead, until it's resolved/closed/archived.
