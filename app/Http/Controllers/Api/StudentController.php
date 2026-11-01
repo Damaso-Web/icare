@@ -26,11 +26,9 @@ class StudentController extends Controller
 
     public function index(Request $request)
     {
-        // "name_only" is opt-in: the Complaint form's complainee search passes
-        // this so staff can't look a student up (or see anyone else's match)
-        // by student ID there. Every other caller (Students list, Referral
-        // Create, etc.) is unaffected and still searches by ID too.
-        $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+                $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+
+        $skipScope = $request->scope === 'all';
 
         $applySearch = function ($q) use ($request, $nameOnly) {
             $terms = preg_split('/\s+/', trim((string) $request->search), -1, PREG_SPLIT_NO_EMPTY);
@@ -55,12 +53,12 @@ class StudentController extends Controller
             // complaint still needs its own approval workflow - that's a
             // separate feature and isn't built here; this only closes the
             // "search any student" gap.)
-            ->when($request->user()?->isDean(), fn($q) => $q->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college)))
+            ->when(!$skipScope && $request->user()?->isDean(), fn($q) => $q->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college)))
             // Bug (10/14/2026): same reasoning as the Dean's college scope
             // above, one level further - a Dept Chair's lookup (Refer a
             // Student, File a Complaint) is scoped to their own department,
             // so any ?college=/?program= they pass is ignored in favor of it.
-            ->when($request->user()?->isDeptChair(), fn($q) => $q
+            ->when(!$skipScope && $request->user()?->isDeptChair(), fn($q) => $q
                 ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
                 ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
             // Bug (10/25/2026, B626): a plain Faculty member's student lookup
@@ -68,7 +66,7 @@ class StudentController extends Controller
             // student university-wide - same reasoning as the Dean (B590)
             // and Dept Chair scopes above, one level further down: Faculty
             // is scoped to their own department within their own college.
-            ->when($request->user()?->role === 'faculty', fn($q) => $q
+            ->when(!$skipScope && $request->user()?->role === 'faculty', fn($q) => $q
                 ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
                 ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
             ->when(!$request->user()?->isDean() && !$request->user()?->isDeptChair() && $request->user()?->role !== 'faculty' && $request->college, fn($q) => $q->where('college', $request->college))
@@ -89,17 +87,11 @@ class StudentController extends Controller
             $results->getCollection()->transform(fn($s) => collect($s->toArray())->except('student_id')->all());
         }
 
-        // B636: a Dean/Dept Chair/Faculty search is scoped to their own
-        // college/department (B590/B618/B626 above), so a student outside
-        // that scope simply never matches the query and looks identical to
-        // one that doesn't exist at all - the generic "no matching student"
-        // message was then wrongly implying the student doesn't exist in the
-        // portal. When the scoped search comes back empty, re-run the same
-        // search term with the scope removed (existence only, no student
-        // data is returned) so the frontend can tell the two cases apart.
-        $isScoped = $request->user()?->isDean()
+        $isScoped = !$skipScope && (
+            $request->user()?->isDean()
             || $request->user()?->isDeptChair()
-            || $request->user()?->role === 'faculty';
+            || $request->user()?->role === 'faculty'
+        );
         $outOfScope = false;
         if ($isScoped && $request->search && $results->isEmpty()) {
             $outOfScope = Student::query()->when($request->search, $applySearch)->exists();

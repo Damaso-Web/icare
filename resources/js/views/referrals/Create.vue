@@ -575,7 +575,7 @@ function onStudentSearch() {
   studentOutOfScope.value = false;
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1 });
+      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1, scope: 'all' });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
       // B636: distinguishes "doesn't exist" from "exists, but outside your
@@ -673,7 +673,7 @@ function handleSubmit() {
 async function confirmSubmit() {
   loading.value = true;
   try {
-    const searchRes = await studentAPI.index({ search: form.value.student_id_input });
+    const searchRes = await studentAPI.index({ search: form.value.student_id_input, scope: 'all' });
     const found = searchRes.data.data?.find(
       s => s.student_id === form.value.student_id_input
     );

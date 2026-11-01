@@ -516,7 +516,7 @@ function onStudentSearch() {
   studentSearchLoading.value = true;
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1, name_only: 1 });
+      const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1, name_only: 1, scope: 'all' });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
       studentOutOfScope.value = !!res.data.out_of_scope;

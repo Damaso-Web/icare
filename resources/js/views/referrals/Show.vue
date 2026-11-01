@@ -2945,7 +2945,7 @@ function onChangeStudentSearch() {
   }
   changeStudentTimeout = setTimeout(async () => {
     try {
-      const res = await studentAPI.index({ search: changeStudentQuery.value, is_active: 1 });
+      const res = await studentAPI.index({ search: changeStudentQuery.value, is_active: 1, scope: 'all' });
       // Don't offer the student this referral is already about.
       changeStudentSuggestions.value = (res.data.data || []).filter(s => s.id !== referral.value.student?.id);
       showChangeStudentDropdown.value = changeStudentSuggestions.value.length > 0;

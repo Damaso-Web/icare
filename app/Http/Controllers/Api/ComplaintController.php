@@ -226,32 +226,7 @@ class ComplaintController extends Controller
             return response()->json(['message' => 'This student record is inactive.'], 422);
         }
 
-        // B590: a Dean files complaints for their own college - enforced
-        // here too, not only by what the search box returns.
-        $actor = $request->user();
-        if ($actor && method_exists($actor, 'isDean') && $actor->isDean()
-            && !in_array($student->college, \App\Support\CollegeName::equivalents($actor->college), true)) {
-            return response()->json(['message' => 'You can only file complaints against students enrolled in your own college.'], 403);
-        }
 
-        // Bug (10/14/2026): same reasoning as the Dean check above, scoped
-        // one level further - a Dept Chair files complaints for their own
-        // department only.
-        if ($actor && method_exists($actor, 'isDeptChair') && $actor->isDeptChair() && (
-            !in_array($student->college, \App\Support\CollegeName::equivalents($actor->college), true)
-            || !\App\Support\DepartmentScope::matches($student->program, $actor->department)
-        )) {
-            return response()->json(['message' => 'You can only file complaints against students enrolled in your own department.'], 403);
-        }
-
-        // Bug (10/29/2026): the student-portal complaint form
-        // (FileComplaint.vue) never asked for complainee_college/
-        // department/address at all - only the staff "File a Complaint"
-        // form (Create.vue) fills those in client-side from the selected
-        // student. $student is already loaded above for the Dean/Dept
-        // Chair scope checks, so default any of these three the request
-        // didn't send from that same record instead of leaving them null
-        // for every student-filed complaint.
         $validated['complainee_college'] = $validated['complainee_college'] ?? $student->college;
         $validated['complainee_address'] = $validated['complainee_address'] ?? $student->address;
         if (empty($validated['complainee_department'])) {

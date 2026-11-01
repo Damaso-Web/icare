@@ -234,40 +234,6 @@ class ReferralController extends Controller
             return response()->json(['message' => 'This student account is deactivated and cannot be referred. Please reactivate the student first.'], 422);
         }
 
-        // B590: a Dean refers for their own college - enforced here too, not
-        // only by what the search box returns, in case a student_id from
-        // outside their college reaches this endpoint some other way.
-        if ($user->isDean() && !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)) {
-            return response()->json(['message' => 'You can only refer students enrolled in your own college.'], 403);
-        }
-
-        // Bug (10/14/2026): a Dept Chair acts for their own department only -
-        // same reasoning as the Dean check above, scoped one level further
-        // (college AND program/department), and enforced here too in case a
-        // student_id from outside it reaches this endpoint some other way.
-        if ($user->isDeptChair() && (
-            !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
-            || !\App\Support\DepartmentScope::matches($student->program, $user->department)
-        )) {
-            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
-        }
-
-        // Bug (10/25/2026, B626): a plain Faculty member's "+ Refer Student"
-        // search could return (and this endpoint accept) any student
-        // university-wide - same reasoning as the Dept Chair check above,
-        // enforced here too in case a student_id from outside their
-        // department reaches this endpoint some other way. (isDeptChair()
-        // is excluded since that role is already covered above.)
-        if ($user->role === 'faculty' && (
-            !in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true)
-            || !\App\Support\DepartmentScope::matches($student->program, $user->department)
-        )) {
-            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
-        }
-
-        // A student has exactly one case file for life. New referral -> new
-        // case if they've never had one; existing referral -> attach to the
-        // case they already have (and reopen it if it had been resolved).
         $case = CaseFile::where('student_id', $student->id)->first();
         $isExisting = (bool) $case;
 
@@ -524,19 +490,10 @@ class ReferralController extends Controller
         $newStudent = Student::findOrFail($validated['student_id']);
         abort_unless($newStudent->is_active, 422, 'This student account is deactivated and cannot be referred. Please reactivate the student first.');
 
-        // Same department/college scoping store() enforces - a Dean/Dept
-        // Chair/Faculty referrer can only point this referral at a student
-        // within their own scope, even if a student_id from outside it
-        // reaches this endpoint some other way.
-        if ($user->isDean() && !in_array($newStudent->college, \App\Support\CollegeName::equivalents($user->college), true)) {
-            return response()->json(['message' => 'You can only refer students enrolled in your own college.'], 403);
-        }
-        if (($user->isDeptChair() || $user->role === 'faculty') && (
-            !in_array($newStudent->college, \App\Support\CollegeName::equivalents($user->college), true)
-            || !\App\Support\DepartmentScope::matches($newStudent->program, $user->department)
-        )) {
-            return response()->json(['message' => 'You can only refer students enrolled in your own department.'], 403);
-        }
+        // #5 (Open Student Search): "Change Student" now uses the same
+        // global picker as "+ Refer Student" - a referrer who picked the
+        // wrong student should be able to swap to any student, not only one
+        // in their own college/department.
 
         if ($newStudent->id === $referral->student_id) {
             return response()->json($referral->fresh()->load('student:id,student_id,first_name,last_name,middle_name,suffix,sex,college,program,year_level'));
