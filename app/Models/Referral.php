@@ -222,8 +222,12 @@ class Referral extends Model
         \App\Models\AuditLog::record('updated', "Referrer edited referral {$this->referral_code} before acknowledgement.", $this, $old, $this->toArray());
     }
 
-    public function canEditSif(): bool
+        public function canEditSif(): bool
     {
+        // If the status was manually pushed forward via Override Status, trust it.
+        if (in_array($this->status, ['in_progress', 'completed', 'closed'])) {
+            return true;
+        }
         return $this->status !== 'submitted' && $this->hasAttendedAppointment();
     }
 

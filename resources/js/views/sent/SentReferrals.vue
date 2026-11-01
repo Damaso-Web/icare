@@ -67,7 +67,25 @@
             </div>
           </template>
 
-          <template v-else>
+            <template v-else>
+            <!-- CHANGE STUDENT UI -->
+            <div>
+              <label class="ifl">Student</label>
+              <div v-if="!changeStudentMode" style="display:flex; justify-content:space-between; align-items:center; background:var(--snow); padding:10px 12px; border-radius:var(--r-sm);">
+                <span style="font-size:13.5px; color:var(--ink)">{{ selected.student ? `${selected.student.first_name} ${selected.student.last_name}` : '-' }}</span>
+                <button type="button" class="ibtn ibtn-o ibtn-sm" @click="toggleChangeStudent">Change Student</button>
+              </div>
+              <div v-else style="position:relative">
+                <input v-model="studentQuery" class="ifi" placeholder="Search by name or ID..." @input="searchStudents" />
+                <div v-if="studentResults.length" style="position:absolute; top:100%; left:0; right:0; background:#fff; border:1px solid var(--cloud); border-radius:var(--r-sm); box-shadow:var(--sh-lg); z-index:50; max-height:200px; overflow-y:auto; margin-top:4px;">
+                  <div v-for="s in studentResults" :key="s.id" style="padding:10px 14px; cursor:pointer; border-bottom:1px solid var(--cloud); font-size:13px" @click="pickStudent(s)">
+                    {{ s.last_name }}, {{ s.first_name }} <span style="font-family:var(--mono); font-size:11px; color:var(--fog)">({{ s.student_id }})</span>
+                  </div>
+                </div>
+                <button type="button" class="ibtn ibtn-g ibtn-sm" style="margin-top:8px" @click="changeStudentMode = false">Cancel Change</button>
+              </div>
+            </div>
+            
             <div>
               <label class="ifl">Service Requested</label>
               <select v-model="form.referral_type" class="ifse">
@@ -98,6 +116,7 @@
         <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
           <template v-if="!editing">
             <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
+            <button v-if="canEdit(selected)" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelReferral">Cancel Referral</button>
             <button class="ibtn ibtn-o" @click="close">Close</button>
           </template>
           <template v-else>

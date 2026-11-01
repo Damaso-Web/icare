@@ -230,6 +230,8 @@
                      only ask to void it (the button below instead). -->
                 <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
                 <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
+                <!-- ADD THIS NEW BUTTON -->
+                <button v-if="isGCU && !isResolved" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="archiveReferral">Cancel & Archive</button>
               </div>
             </div>
 
@@ -2831,6 +2833,24 @@ async function deleteReferral() {
     toast?.error(e.response?.data?.message || 'Failed to delete referral.');
   } finally {
     deletingReferral.value = false;
+  }
+}
+
+async function archiveReferral() {
+  const ok = await confirmAction?.({
+    title: 'Cancel & Archive Referral?',
+    message: `Are you sure you want to cancel this referral? It will be moved to the archive and marked as closed.`,
+    confirmText: 'Yes, Cancel & Archive',
+  });
+  if (confirmAction && !ok) return;
+
+  try {
+    await referralAPI.updateStatus(referral.value.id, { status: 'closed' });
+    // If your backend has a specific archive endpoint, use referralAPI.archive(referral.value.id) instead
+    toast?.success('Referral cancelled and archived.');
+    router.push({ name: fromCases.value ? 'cases' : 'referrals' });
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to archive referral.');
   }
 }
 
