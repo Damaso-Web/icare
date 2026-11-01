@@ -207,8 +207,8 @@ class ComplaintController extends Controller
             ],
             'description'            => ['required', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'certification_agreed'   => 'required|accepted',
-            'evidence.*'             => 'nullable|file|max:10240',
-            'affidavit.*'            => 'nullable|file|max:10240',
+            'evidence.*'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'affidavit.*'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ], [
             // B584: Address and Narration of Facts must not be numbers-only.
             'complainant_address.regex' => 'Please provide a valid address. Numbers alone are not allowed.',
