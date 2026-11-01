@@ -10,7 +10,18 @@
     </div>
 
     <div class="icard">
-      <ListFilters :model="filters" :selects="filterSelects" placeholder="Search referral no. or student..." @change="load(1)" />
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--cloud)">
+        <div style="flex:1;min-width:200px">
+          <ListFilters :model="filters" :selects="filterSelects" placeholder="Search referral no. or student..." @change="load(1)" />
+        </div>
+        <button 
+          class="ibtn ibtn-sm" 
+          :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" 
+          @click="filters.archived = !filters.archived; load(1)"
+        >
+          {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
+        </button>
+      </div>
       <div v-if="loading" style="padding:30px;text-align:center">
         <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -52,9 +63,10 @@
             <div class="sr-k">Student</div>
             <div class="sr-v">{{ selected.student ? `${selected.student.first_name} ${selected.student.last_name}` : '-' }}</div>
           </div>
-          <div>
+                    <div>
             <div class="sr-k">Status</div>
             <span class="ibadge" :class="'ibadge-' + selected.status">{{ title(selected.status) }}</span>
+            <span v-if="selected.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-left:6px">Archived</span>
           </div>
 
           <template v-if="!editing">
@@ -149,8 +161,12 @@
         </div>
         <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
           <template v-if="!editing">
-            <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
-            <button v-if="canEdit(selected)" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelReferral">Cancel Referral</button>
+            <!-- Only show Edit and Cancel if it is NOT archived -->
+            <template v-if="!selected.is_archived">
+              <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
+              <button v-if="canEdit(selected)" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelReferral">Cancel Referral</button>
+            </template>
+            
             <button class="ibtn ibtn-o" @click="close">Close</button>
           </template>
           <template v-else>
@@ -266,8 +282,9 @@ async function cancelReferral() {
   if (!ok) return;
 
   try {
-    await http.put(`${base}/${selected.value.id}`, { status: 'closed', is_archived: 1 });
-    toast?.success('Referral cancelled and archived.');
+    // Use the proper delete endpoint so the database actually removes it
+    await api.delete(`/referrals/${selected.value.id}`);
+    toast?.success('Referral cancelled and deleted.');
     close();
     load(page.value);
   } catch (e) {
@@ -324,7 +341,7 @@ async function save() {
 // B597: a dashboard metric card can link here with ?status=... (a single
 // value, or several joined by commas for a group like "in progress") to
 // land already filtered.
-const filters = reactive({ search: '', sort: 'newest', status: route.query.status || '', referral_type: '' });
+const filters = reactive({ search: '', sort: 'newest', status: route.query.status || '', referral_type: '', archived: false });
 const options = ref({ types: [], statuses: [], type_labels: {} });
 const filtered = computed(() => !!(filters.search || filters.status || filters.referral_type || filters.sort !== 'newest'));
 const filterSelects = computed(() => [
@@ -338,7 +355,7 @@ const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase
 async function load(p = 1) {
   loading.value = true;
   try {
-    const params = { page: p, sort: filters.sort };
+    const params = { page: p, sort: filters.sort, archived: filters.archived ? 1 : 0 };
     if (filters.search) params.search = filters.search;
     if (filters.status) params.status = filters.status;
     if (filters.referral_type) params.referral_type = filters.referral_type;

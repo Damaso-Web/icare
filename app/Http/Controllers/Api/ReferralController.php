@@ -150,17 +150,15 @@ class ReferralController extends Controller
     }
 
     // Referrals the signed-in account has sent (Sent Referrals page).
-    public function mine(Request $request)
+        public function mine(Request $request)
     {
         $user = $request->user();
 
-        // Decision (10/27/2026): Sent Referrals shows what the signed-in
-        // account personally submitted, same as Faculty/Dept Chair/SDU Head
-        // below - a Dean's college-wide view is the Referral Queue
-        // (index()/archived() above), which still uses visibleToDean().
-        // DashboardController::deanSecretaryVisibleReferrals() matches this
-        // so the Dean dashboard cards that link here stay in sync with it.
-        $base = Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
+        $base = Referral::where('referred_by_user_id', $user->id)
+            ->whereNull('complaint_id')
+            // If the "View Archived" button is clicked, show ONLY archived. 
+            // Otherwise, show everything (active + archived).
+            ->when($request->boolean('archived'), fn($q) => $q->where('is_archived', true));
 
         return self::sentList($base, $request);
     }
@@ -207,6 +205,16 @@ class ReferralController extends Controller
     public function updateMine(Request $request, $id)
     {
         $referral = Referral::where('referred_by_user_id', $request->user()->id)->whereNull('complaint_id')->findOrFail($id);
+
+        // Allow archiving/unarchiving directly from Sent Referrals
+        if ($request->has('is_archived')) {
+            $referral->update(['is_archived' => $request->boolean('is_archived')]);
+            // If the request ONLY contains is_archived (from the Cancel/Restore button), skip the edit validation
+            if (count($request->except('is_archived')) === 0) {
+                return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
+            }
+        }
+
         $referral->applyReferrerEdit($request);
         return response()->json($referral->load('student:id,student_id,first_name,last_name,college'));
     }
