@@ -133,7 +133,7 @@
 import { ref, reactive, computed, onMounted } from 'vue';
 import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
-import api, { studentApi } from '../../api/index';
+import api, { studentApi, referralAPI } from '../../api/index';
 
 const route = useRoute();
 const isStudent = !!route.meta.student;
@@ -149,6 +149,67 @@ const editing = ref(false);
 const saving = ref(false);
 const error = ref('');
 const form = ref({});
+
+// --- CHANGE STUDENT LOGIC ---
+const changeStudentMode = ref(false);
+const studentQuery = ref('');
+const studentResults = ref([]);
+let searchTimer = null;
+
+function toggleChangeStudent() {
+  changeStudentMode.value = !changeStudentMode.value;
+  studentQuery.value = '';
+  studentResults.value = [];
+}
+
+function searchStudents() {
+  clearTimeout(searchTimer);
+  if (studentQuery.value.length < 2) {
+    studentResults.value = [];
+    return;
+  }
+  searchTimer = setTimeout(async () => {
+    try {
+      const res = await api.get('/students', { params: { search: studentQuery.value, scope: 'all', is_active: 1 } });
+      studentResults.value = (res.data.data || []).filter(s => s.id !== selected.value.student_id);
+    } catch (e) {
+      studentResults.value = [];
+    }
+  }, 300);
+}
+
+async function pickStudent(s) {
+  try {
+    // The route is PUT, not POST!
+    await api.put(`/referrals/${selected.value.id}/reassign-student`, { student_id: s.id });
+    alert('Success! Referral moved to ' + s.first_name + ' ' + s.last_name);
+    
+    // Update the UI
+    selected.value.student = s;
+    const idx = rows.value.findIndex(x => x.id === selected.value.id);
+    if (idx >= 0) rows.value[idx].student = s;
+    
+    toggleChangeStudent();
+  } catch (e) {
+    alert('Error changing student: ' + (e.response?.data?.message || e.message));
+  }
+}
+
+// --- CANCEL REFERRAL LOGIC ---
+async function cancelReferral() {
+  let ok = window.confirm('Are you sure you want to cancel and archive this referral?');
+  if (!ok) return;
+
+  try {
+    // Since there is no DELETE route, we use the update route to close/archive it
+    await http.put(`${base}/${selected.value.id}`, { status: 'closed', is_archived: 1 });
+    alert('Referral cancelled and archived.');
+    close();
+    load(page.value);
+  } catch (e) {
+    alert('Error cancelling: ' + (e.response?.data?.message || e.message));
+  }
+}
 
 const ALL_TYPES = ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'];
 // A referral keeps to its own unit, so a GCU referral can only change to another GCU service.
