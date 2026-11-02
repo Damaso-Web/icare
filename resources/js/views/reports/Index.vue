@@ -782,7 +782,14 @@ const REPORT_TYPES = [
 ];
 const reportType = ref('year_end');
 // SDU has only two reports: its year-end (complaints) and the students it referred.
-const reportTabs = computed(() => unit.value === 'SDU' ? REPORT_TYPES.filter(t => ['year_end', 'referrals'].includes(t.value)) : REPORT_TYPES);
+// The SDU Head sees the second as "Referrals to GCU"; everyone else keeps "Referrals Reports".
+const reportTabs = computed(() => {
+  const types = unit.value === 'SDU'
+    ? REPORT_TYPES.filter(t => ['year_end', 'referrals'].includes(t.value))
+    : REPORT_TYPES;
+  if (auth.user?.role !== 'sdu_head') return types;
+  return types.map(t => t.value === 'referrals' ? { ...t, label: 'Referrals to GCU' } : t);
+});
 const currentReport = computed(() => {
   const t = REPORT_TYPES.find(x => x.value === reportType.value);
   // SDU's year-end report is its complaints.
