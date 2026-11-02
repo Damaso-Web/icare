@@ -14,7 +14,11 @@ class PublicSchedulingController extends Controller
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
             ->with(['student', 'case.latestReferral', 'slotHistory'])
-            ->firstOrFail();
+            ->first();
+
+        if (!$appointment) {
+            return response()->json(['message' => 'This scheduling link is invalid or has expired. Please ask GCU to issue a new one.'], 404);
+        }
 
         return response()->json([
             'appointment' => $appointment,
@@ -34,7 +38,11 @@ class PublicSchedulingController extends Controller
         // other two token-gated handlers.
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
-            ->firstOrFail();
+            ->first();
+
+        if (!$appointment) {
+            return response()->json(['available' => false, 'message' => 'This scheduling link is invalid or has expired. Please ask GCU to issue a new one.'], 404);
+        }
 
         $request->validate([
             'appointment_date' => 'required|date',
@@ -118,6 +126,12 @@ class PublicSchedulingController extends Controller
         // B642: same expired-token gap as checkAvailability() above.
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
+            ->first();
+
+        if (!$appointment) {
+            return response()->json(['message' => 'This scheduling link is invalid or has expired. Please ask GCU to issue a new one.'], 404);
+        } $appointment = Appointment::where('scheduling_token', $token)
+            ->where('token_expires_at', '>=', now())
             ->firstOrFail();
 
         $request->validate([
@@ -178,7 +192,11 @@ class PublicSchedulingController extends Controller
     {
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
-            ->firstOrFail();
+            ->first();
+
+        if (!$appointment) {
+            return response()->json(['message' => 'This scheduling link is invalid or has expired. Please ask GCU to issue a new one.'], 404);
+        }
 
         $request->validate([
             'appointment_date' => 'required|date',
