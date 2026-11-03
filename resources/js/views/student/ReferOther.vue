@@ -37,7 +37,12 @@
 
           <!-- Student search, live as you type - same ID-or-full-name lookup
                StudentIdLookup used, just shown as a type-ahead dropdown like
-               the main form instead of a separate "Find" button click. -->
+               the main form instead of a separate "Find" button click. Bug
+               (11/3/2026): the field used to disable itself once a student
+               was found, with a separate "Change" button to unlock it again
+               - the main form's own search field (referrals/Create.vue)
+               never disables; typing a new query is itself how you search
+               again. Matched that: always editable, no extra button. -->
           <div style="margin-bottom:14px;position:relative">
             <label class="ifl">Search Student (ID or Full Name) <span style="color:var(--red)">*</span></label>
             <input
@@ -45,12 +50,10 @@
               class="ifi"
               placeholder="e.g. 2302021 or Dela Cruz, Juan"
               maxlength="100"
-              :disabled="!!target"
               @input="onStudentSearch"
               @focus="showStudentDropdown = studentSuggestions.length > 0"
               autocomplete="off"
             />
-            <button v-if="target" type="button" class="ibtn ibtn-o ibtn-sm" style="margin-top:8px" @click="clearStudent">Change</button>
 
             <div
               v-if="showStudentDropdown && studentSuggestions.length > 0"
@@ -293,6 +296,15 @@ let studentSearchTimeout  = null;
 function onStudentSearch() {
   clearTimeout(studentSearchTimeout);
   searchError.value = '';
+  // Bug (11/3/2026): with the field no longer disabled after a match, typing
+  // over an already-selected student's name must itself drop that selection
+  // - otherwise the old target stayed selected underneath whatever the
+  // student typed next. Same behavior as the main form's own always-editable
+  // search field.
+  if (target.value) {
+    target.value = null;
+    fieldErrors.value = { ...fieldErrors.value, target: false };
+  }
   if (!studentSearchQuery.value.trim()) {
     studentSuggestions.value = [];
     showStudentDropdown.value = false;

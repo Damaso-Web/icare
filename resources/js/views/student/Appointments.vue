@@ -79,7 +79,12 @@
             {{ toTitleCase(a.appointment_type) }}
           </div>
           <div v-if="a.referral || a.case?.latest_referral" style="font-size:11px;color:var(--fog);margin-top:4px">For referral {{ (a.referral || a.case.latest_referral).referral_code }}</div>
-          <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:6px;display:inline-block">{{ toTitleCase(a.status) }}</span>
+          <span
+            class="ibadge"
+            :class="'ibadge-' + badgeKind(a)"
+            style="margin-top:6px;display:inline-block"
+            :title="isExpiredPending(a) ? 'The 7-day window to pick an appointment time has passed. Contact GCU for a new scheduling link.' : toTitleCase(a.status)"
+          >{{ badgeLabel(a) }}</span>
         </div>
       </div>
     </div>
@@ -118,6 +123,25 @@ function toTitleCase(str) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
+}
+
+// Bug (11/3/2026): same "Expired" distinction added to My Referrals - an
+// appointment still at its placeholder 'pending' status reads identically
+// here whether GCU just hasn't gotten to it, or its 7-day scheduling window
+// (token_expires_at) already lapsed. Unlike My Referrals, this list IS the
+// appointment itself, so no referral_id cross-reference is needed - just
+// check the row's own token_expires_at.
+function isExpiredPending(a) {
+  if (a.status !== 'pending') return false;
+  return !!a.token_expires_at && new Date(a.token_expires_at) < new Date();
+}
+
+function badgeKind(a) {
+  return isExpiredPending(a) ? 'expired' : a.status;
+}
+
+function badgeLabel(a) {
+  return isExpiredPending(a) ? 'Expired' : toTitleCase(a.status);
 }
 
 function goToSchedule(appt) {

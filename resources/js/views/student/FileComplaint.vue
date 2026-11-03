@@ -59,14 +59,12 @@
             v-model="studentSearchQuery"
             class="ifi"
             maxlength="100"
-            :disabled="!!target"
             placeholder="Student ID Number, or full name (e.g. Juan Dela Cruz)"
             :style="fieldErrors.target ? 'border-color:var(--red);border-width:1.5px' : ''"
             @input="onStudentSearch"
             @focus="showStudentDropdown = studentSuggestions.length > 0"
             autocomplete="off"
           />
-          <button v-if="target" type="button" class="ibtn ibtn-o ibtn-sm" style="margin-top:8px" @click="clearStudent">Change</button>
 
           <div
             v-if="showStudentDropdown && studentSuggestions.length > 0"
@@ -334,6 +332,15 @@ let studentSearchTimeout  = null;
 function onStudentSearch() {
   clearTimeout(studentSearchTimeout);
   searchError.value = '';
+  // Bug (11/3/2026): with the field no longer disabled after a match, typing
+  // over an already-selected student's name must itself drop that selection
+  // - otherwise the old target stayed selected underneath whatever the
+  // student typed next. Same behavior as the main form's own always-editable
+  // search field.
+  if (target.value) {
+    target.value = null;
+    fieldErrors.value = { ...fieldErrors.value, target: false };
+  }
   if (!studentSearchQuery.value.trim()) {
     studentSuggestions.value = [];
     showStudentDropdown.value = false;
@@ -361,14 +368,6 @@ function selectStudent(s) {
   showStudentDropdown.value = false;
   searchError.value = '';
   clearFieldError('target');
-}
-
-function clearStudent() {
-  target.value = null;
-  studentSearchQuery.value = '';
-  studentSuggestions.value = [];
-  showStudentDropdown.value = false;
-  searchError.value = '';
 }
 
 function pick(event, list) {
