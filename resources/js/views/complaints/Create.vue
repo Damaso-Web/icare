@@ -166,11 +166,14 @@
             type="date"
             class="ifi"
             :max="todayStr"
+            :min="oneYearAgoStr"
             :style="errorStyle('incident_date')"
             @input="clearFieldError('incident_date')"
             @blur="validateField('incident_date')"
             required
           />
+          <div v-if="incidentDateInFuture" style="color:var(--red);font-size:11px;margin-top:4px">The date of incident cannot be in the future.</div>
+          <div v-if="incidentDateTooOld" style="color:var(--red);font-size:11px;margin-top:4px">The date of incident cannot be more than one year in the past.</div>
         </div>
 
         <div style="margin-bottom:14px">
@@ -421,6 +424,11 @@ function clearFieldError(field) {
 // digits. Shown live as the user types (not only on submit).
 const addressNumbersOnly     = computed(() => !!form.value.complainant_address && !hasLetter(form.value.complainant_address));
 const descriptionNumbersOnly = computed(() => !!form.value.description && !hasLetter(form.value.description));
+// The backend also rejects an incident date more than one year in the past
+// (ComplaintController::file()'s `after_or_equal` rule) - caught here, live,
+// instead of only surfacing as a server error after submit.
+const incidentDateInFuture = computed(() => !!form.value.incident_date && form.value.incident_date > todayStr);
+const incidentDateTooOld   = computed(() => !!form.value.incident_date && form.value.incident_date < oneYearAgoStr);
 
 function validateField(field) {
   const isEmpty = {
@@ -428,7 +436,7 @@ function validateField(field) {
     complainant_address:   () => !form.value.complainant_address || !hasLetter(form.value.complainant_address),
     complainee_student_id: () => !form.value.complainee_student_id,
     violation_type:        () => !form.value.violation_type,
-    incident_date:         () => !form.value.incident_date,
+    incident_date:         () => !form.value.incident_date || form.value.incident_date > todayStr || form.value.incident_date < oneYearAgoStr,
     description:           () => !form.value.description || !hasLetter(form.value.description),
   }[field]?.();
 
@@ -470,9 +478,14 @@ const form = ref({
   description: '',
 });
 
-// Date of Incident cannot be in the future (local date, not UTC).
+// Date of Incident cannot be in the future, or more than a year in the past
+// (local date, not UTC) - matches ComplaintController::file()'s
+// before_or_equal:today / after_or_equal:1-year-ago rules.
 const _now = new Date();
 const todayStr = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+const _oneYearAgo = new Date(_now);
+_oneYearAgo.setFullYear(_oneYearAgo.getFullYear() - 1);
+const oneYearAgoStr = `${_oneYearAgo.getFullYear()}-${String(_oneYearAgo.getMonth() + 1).padStart(2, '0')}-${String(_oneYearAgo.getDate()).padStart(2, '0')}`;
 
 // B586: extensions + explicit MIME types, so Android/Chrome's file chooser
 // offers "Files" alongside Camera/Gallery instead of defaulting to the latter.
@@ -599,6 +612,7 @@ function openCertificationModal() {
     missing.push('Evidence or Affidavit of Witness (attach at least one file)');
   }
   if (form.value.incident_date && form.value.incident_date > todayStr) { errs.incident_date = true; missing.push('a Date of Incident that is not in the future'); }
+  if (form.value.incident_date && form.value.incident_date < oneYearAgoStr) { errs.incident_date = true; missing.push('a Date of Incident that is not more than one year in the past'); }
 
   fieldErrors.value = errs;
   if (missing.length) {
@@ -653,7 +667,11 @@ async function handleSubmit() {
     showCertModal.value = false;
     filedComplaint.value = res.data;
   } catch (e) {
-    modalError.value = e.response?.data?.message || 'Failed to submit complaint.';
+    // The server's validation failure puts the specific reason (e.g. the
+    // incident-date rules above) under `errors`, not `message` - `message`
+    // alone is just the generic "The given data was invalid."
+    const errs = e.response?.data?.errors;
+    modalError.value = (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || 'Failed to submit complaint.';
   } finally {
     loading.value = false;
   }

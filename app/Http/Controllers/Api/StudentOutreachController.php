@@ -66,12 +66,32 @@ class StudentOutreachController extends Controller
             return response()->json(['message' => 'No active student found. Enter the exact ID Number or the full name (first and last name).'], 404);
         }
 
+        // Bug (11/3/2026): the student-side Refer/Complaint forms only had a
+        // one-line "name · college · program" summary once a student was
+        // found, instead of the Student ID / Last / First / Middle / Suffix
+        // / Sex (and, for complaints, College / Department / Address)
+        // fields the main (staff-side) forms show. Same lookup result, just
+        // carrying the extra fields those forms display - this never
+        // exposes anything beyond the one student the caller already found
+        // by exact ID or full name.
         return ['matches' => $found->map(fn ($s) => [
-            'id'      => $s->id,
-            'name'    => trim($s->first_name . ' ' . $s->last_name),
-            'college' => $s->college,
-            'program' => $s->program,
-            'is_me'   => (int) $s->id === (int) $request->user('student')->id,
+            'id'          => $s->id,
+            'name'        => trim($s->first_name . ' ' . $s->last_name),
+            'student_id'  => $s->student_id,
+            'first_name'  => $s->first_name,
+            'last_name'   => $s->last_name,
+            'middle_name' => $s->middle_name,
+            'suffix'      => $s->suffix,
+            'sex'         => $s->sex,
+            'address'     => $s->address,
+            'college'     => $s->college,
+            'program'     => $s->program,
+            'year_level'  => $s->year_level,
+            'section'     => $s->section,
+            // Same match ComplaintController::file() falls back to
+            // server-side when complainee_department is left blank.
+            'department'  => \App\Models\Program::where('name', $s->program)->with('department')->first()?->department?->name,
+            'is_me'       => (int) $s->id === (int) $request->user('student')->id,
         ])->values()];
     }
 

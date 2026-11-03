@@ -50,7 +50,13 @@
           <div style="font-size:13.5px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
           <div style="font-size:12px;color:var(--stone);margin-top:2px">{{ toTitleCase(r.referral_type) }} · {{ formatDateTime(r.created_at) }}</div>
           <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone);margin-top:6px;display:inline-block">Archived</span>
-          <span v-else class="ibadge" :class="'ibadge-' + simplifiedStatus(r.status)" style="margin-top:6px;display:inline-block" :title="toTitleCase(r.status)">{{ simplifiedStatus(r.status) === 'closed' ? 'Closed' : 'Pending' }}</span>          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
+          <span
+            v-else
+            class="ibadge"
+            :class="'ibadge-' + badgeKind(r)"
+            style="margin-top:6px;display:inline-block"
+            :title="isExpiredPending(r) ? 'The 7-day window to pick an appointment time has passed. Contact GCU for a new scheduling link.' : toTitleCase(r.status)"
+          >{{ badgeLabel(r) }}</span>          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
         </div>
       </div>
     </div>
@@ -68,6 +74,9 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 
 const loading = ref(true);
 const referrals = ref([]);
+// Appointments still waiting on the student to pick a time - used only to
+// tell whether one of them has expired (see isExpiredPending below).
+const pendingAppointments = ref([]);
 
 // B543: Status options are built from the referrals actually on file, so
 // every stage a student's own referrals might be in is always filterable.
@@ -101,6 +110,35 @@ function formatDate(date) {
 // filterable; only the badge text/color is simplified here.
 function simplifiedStatus(status) {
   return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
+}
+
+// Bug (11/3/2026): a referral stuck at "Pending" looked identical whether
+// GCU just hadn't gotten to it yet, or the appointment slip they sent had
+// already blown past its 7-day scheduling window (same window
+// ensureSchedulingAppointment()/AppointmentController give every
+// "awaiting_student" appointment - see token_expires_at) - the student had
+// no way to tell "still waiting" from "this link won't work anymore,
+// contact GCU". Scoped to referral_id the same way the Override Status fix
+// is, with the same fallback for an appointment created before referral_id
+// was tracked: a referral_id match, or an unscoped (no referral_id)
+// appointment on the same case.
+function isExpiredPending(referral) {
+  if (simplifiedStatus(referral.status) === 'closed') return false;
+  const now = new Date();
+  return pendingAppointments.value.some(a => {
+    const matches = a.referral_id === referral.id || (!a.referral_id && a.case_id === referral.case_id);
+    return matches && a.token_expires_at && new Date(a.token_expires_at) < now;
+  });
+}
+
+function badgeKind(r) {
+  if (simplifiedStatus(r.status) === 'closed') return 'closed';
+  return isExpiredPending(r) ? 'expired' : 'pending';
+}
+
+function badgeLabel(r) {
+  if (simplifiedStatus(r.status) === 'closed') return 'Closed';
+  return isExpiredPending(r) ? 'Expired' : 'Pending';
 }
 
 function formatDateTime(date) {
@@ -146,6 +184,7 @@ async function fetchData(silent = false) {
   try {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     referrals.value = res.data.referrals || [];
+    pendingAppointments.value = res.data.pending_appointments || [];
   } catch (e) {
     if (!silent) console.error(e);
   } finally {

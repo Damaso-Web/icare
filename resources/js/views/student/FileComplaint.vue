@@ -1,23 +1,40 @@
+<!--
+  File a Complaint (student portal). Bug (11/3/2026): rebuilt to match the
+  main (staff-side) complaint form's fields and flow - a live search
+  dropdown instead of a "Find" button, plus Position/Role, Office, College,
+  Department and Address once the complainee is found - while keeping the
+  student-safe lookup() endpoint (exact ID or first+last name only; see
+  StudentOutreachController::lookup()) instead of the staff masterlist
+  search, and College/Department/Address shown read-only rather than as
+  selects backed by the staff-only /management/colleges /management/departments
+  endpoints (the backend already fills those in from the student's own
+  record regardless - see ComplaintController::file()).
+-->
 <template>
   <div class="fade-up">
-    <button type="button" class="ibtn ibtn-o" style="margin-bottom:12px" @click="goBack">&larr; Back</button>
-    <div class="ph" style="margin-bottom:20px">
-      <h1>File a Complaint</h1>
-      <p>Report an act of misconduct against a student. This is reviewed by the Student Discipline Unit.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px">
+      <button class="ibtn ibtn-o ibtn-sm" type="button" @click="goBack">
+        <svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      </button>
+      <div class="ph" style="margin:0">
+        <h1>File a Complaint</h1>
+        <p>Report an act of misconduct against a student. This is reviewed by the Student Discipline Unit.</p>
+      </div>
     </div>
     <div class="icard" style="max-width:680px;margin:0 auto">
-      <form @submit.prevent="openCertificationModal" style="padding:22px; display:flex; flex-direction:column; gap:14px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <form @submit.prevent="openCertificationModal" style="padding:22px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px">
           Complainant Information
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
 
-        <div>
-          <label class="ifl">Your Name</label>
+        <div style="margin-bottom:14px">
+          <label class="ifl">Name</label>
           <input class="ifi" :value="myName" readonly style="background:var(--snow);color:var(--stone);cursor:not-allowed" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">Taken from your account and cannot be edited.</div>
         </div>
-        <div>
-          <label class="ifl">Your Address <span style="color:var(--red)">*</span></label>
+        <div style="margin-bottom:14px">
+          <label class="ifl">Address <span style="color:var(--red)">*</span></label>
           <input
             v-model="form.complainant_address"
             class="ifi"
@@ -28,20 +45,95 @@
           />
           <div v-if="addressNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid address. Numbers alone are not allowed.</div>
         </div>
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
           Complainee Information
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
 
-        <StudentIdLookup v-model="target" :allow-self="false" />
-        
-        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-top:8px;margin-bottom:4px">
+        <!-- Student search, live as you type - same ID-or-full-name lookup
+             as the Refer a Student page, shown as a type-ahead dropdown
+             like the main form. -->
+        <div style="margin-bottom:14px;position:relative">
+          <label class="ifl">Search Student <span style="color:var(--red)">*</span></label>
+          <input
+            v-model="studentSearchQuery"
+            class="ifi"
+            maxlength="100"
+            :disabled="!!target"
+            placeholder="Student ID Number, or full name (e.g. Juan Dela Cruz)"
+            :style="fieldErrors.target ? 'border-color:var(--red);border-width:1.5px' : ''"
+            @input="onStudentSearch"
+            @focus="showStudentDropdown = studentSuggestions.length > 0"
+            autocomplete="off"
+          />
+          <button v-if="target" type="button" class="ibtn ibtn-o ibtn-sm" style="margin-top:8px" @click="clearStudent">Change</button>
+
+          <div
+            v-if="showStudentDropdown && studentSuggestions.length > 0"
+            style="position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);box-shadow:var(--sh-lg);z-index:50;max-height:220px;overflow-y:auto;margin-top:4px"
+          >
+            <div
+              v-for="s in studentSuggestions"
+              :key="s.id"
+              style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--cloud);transition:background .1s"
+              @mouseover="$event.currentTarget.style.background='var(--foam)'"
+              @mouseleave="$event.currentTarget.style.background='#fff'"
+              @click="selectStudent(s)"
+            >
+              <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ s.last_name }}, {{ s.first_name }} {{ s.middle_name }}</div>
+              <div style="font-size:11px;color:var(--fog);font-family:var(--mono)">{{ s.student_id }} · {{ s.college || '-' }}</div>
+            </div>
+          </div>
+          <div v-if="target" style="font-size:11px;color:var(--moss);margin-top:4px">✓ Existing student found</div>
+          <div v-else-if="searchError" style="font-size:11px;color:var(--red);margin-top:4px">{{ searchError }}</div>
+          <div v-else style="margin-top:4px;font-size:11px;color:var(--fog)">Type the exact Student ID Number, or the first and last name.</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>
+            <label class="ifl">Position / Role</label>
+            <input v-model="form.complainee_position" class="ifi" maxlength="255" placeholder="e.g. Org Officer, if applicable" @input="form.complainee_position = String(form.complainee_position ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,&()\- ]/g, '')" />
+          </div>
+          <div>
+            <label class="ifl">Office</label>
+            <input v-model="form.complainee_office" class="ifi" maxlength="255" placeholder="e.g. Student Council Office, if applicable" @input="form.complainee_office = String(form.complainee_office ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,&()\- ]/g, '')" />
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
+          <div>
+            <label class="ifl">College</label>
+            <input class="ifi" :value="target?.college" placeholder="Select college..." readonly style="background:var(--snow);color:var(--stone)" />
+            <div v-if="target?.college" style="font-size:11px;color:var(--stone);margin-top:4px">Taken from the selected student's record.</div>
+          </div>
+          <div>
+            <label class="ifl">Department</label>
+            <input class="ifi" :value="target?.department" placeholder="Select department..." readonly style="background:var(--snow);color:var(--stone)" />
+            <div v-if="target?.department" style="font-size:11px;color:var(--stone);margin-top:4px">Matched from the student's program.</div>
+            <div v-else-if="target" style="font-size:11px;color:var(--stone);margin-top:4px">No matching department found for this student's program.</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:14px">
+          <label class="ifl">Address if known</label>
+          <input
+            class="ifi"
+            :value="target?.address"
+            placeholder="Complainee's address..."
+            readonly
+            disabled
+            style="background:var(--snow);color:var(--slate);cursor:default"
+            :title="target ? 'Taken from the student\'s record.' : 'Search and select a student to fill this in.'"
+          />
+        </div>
+
+        <div style="font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--fog);display:flex;align-items:center;gap:8px;margin-bottom:14px;margin-top:8px">
           Complaint Details
           <div style="flex:1;height:1px;background:var(--cloud)"></div>
         </div>
 
-        <div>
-          <label class="ifl">Act of Misconduct <span style="color:var(--red)">*</span></label>
+        <div style="margin-bottom:14px">
+          <label class="ifl">Specific Act of Misconduct <span style="color:var(--red)">*</span></label>
           <select
             v-model="form.violation_type"
             class="ifse"
@@ -49,31 +141,32 @@
             @change="clearFieldError('violation_type')"
             @blur="validateField('violation_type')"
           >
-            <option value="" disabled>Select...</option>
+            <option value="" disabled>Select act of misconduct...</option>
             <option v-for="o in violationTypes" :key="o.value" :value="o.value">{{ o.label }}</option>
           </select>
         </div>
-        <div>
+        <div style="margin-bottom:14px">
           <label class="ifl">Date of Incident <span style="color:var(--red)">*</span></label>
           <input
             v-model="form.incident_date"
             type="date"
             class="ifi"
             :max="today"
-            :style="(fieldErrors.incident_date || dateBlockedMsg || isWeekend) ? 'border-color:var(--red);border-width:1.5px' : ''"
+            :min="oneYearAgo"
+            :style="fieldErrors.incident_date ? 'border-color:var(--red);border-width:1.5px' : ''"
             @input="validateField('incident_date')"
             @change="validateField('incident_date')"
           />
           <div v-if="incidentDateInFuture" style="color:var(--red);font-size:11px;margin-top:4px">The date of incident cannot be in the future.</div>
-          <div v-if="isWeekend" style="color:var(--red);font-size:11px;margin-top:4px">Weekends are not allowed. Please select a weekday.</div>
-          <div v-if="dateBlockedMsg" style="color:var(--red);font-size:11px;margin-top:4px">{{ dateBlockedMsg }}</div>
+          <div v-if="incidentDateTooOld" style="color:var(--red);font-size:11px;margin-top:4px">The date of incident cannot be more than one year in the past.</div>
         </div>
-        <div>
-          <label class="ifl">Narration of Facts <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(at least 10 characters)</span></label>
+        <div style="margin-bottom:14px">
+          <label class="ifl">Narration of Relevant and Material Facts <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(at least 10, max 1000 characters)</span></label>
           <textarea
             v-model="form.description"
             class="ifta"
             style="min-height:130px"
+            placeholder="Describe what happened, when, where, and how, in as much detail as possible..."
             maxlength="1000"
             :style="fieldErrors.description ? 'border-color:var(--red);border-width:1.5px' : ''"
             @input="clearFieldError('description')"
@@ -82,21 +175,23 @@
           <div style="font-size:11px;color:var(--fog);margin-top:4px">{{ form.description.length }}/1000</div>
           <div v-if="descriptionNumbersOnly" style="color:var(--red);font-size:11px;margin-top:4px">Please provide a valid narration of facts. Numbers alone are not allowed.</div>
         </div>
-        
-        <div>
+
+        <div style="margin-bottom:14px">
           <label class="ifl">Evidence <span style="color:var(--fog);font-weight:400">(PDF, JPG, PNG; up to 10 MB)</span></label>
-          <input type="file" multiple @change="pick($event, evidence); clearFieldError('proof')" />
+          <input type="file" multiple :accept="FILE_ACCEPT" @change="pick($event, evidence); clearFieldError('proof')" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">At least one Evidence or Affidavit of Witness file is required.</div>
           <div v-if="evidence.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ evidence.length }} file(s) selected</div>
         </div>
-        <div>
+        <div style="margin-bottom:14px">
           <label class="ifl">Affidavit of Witness <span style="color:var(--fog);font-weight:400">(PDF, JPG, PNG; up to 10 MB)</span></label>
-          <input type="file" multiple @change="pick($event, affidavit); clearFieldError('proof')" />
+          <input type="file" multiple :accept="FILE_ACCEPT" @change="pick($event, affidavit); clearFieldError('proof')" />
+          <div style="font-size:11px;color:var(--stone);margin-top:4px">At least one Evidence or Affidavit of Witness file is required.</div>
           <div v-if="affidavit.length" style="font-size:11px;color:var(--stone);margin-top:4px">{{ affidavit.length }} file(s) selected</div>
           <div v-if="fieldErrors.proof" style="color:var(--red);font-size:11px;margin-top:4px">Please attach at least one Evidence file or at least one Affidavit of Witness file.</div>
         </div>
-        
-        <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ error }}</div>
-        
+
+        <div v-if="error" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px;margin-bottom:14px">{{ error }}</div>
+
         <div style="display:flex;justify-content:flex-end;gap:9px;margin-top:8px">
           <button type="submit" class="ibtn ibtn-p" :disabled="sending">{{ sending ? 'Submitting...' : 'Submit Complaint' }}</button>
           <button type="button" class="ibtn ibtn-g" :disabled="sending" @click="goBack">Cancel</button>
@@ -156,10 +251,8 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { studentApi } from '../../api/index';
-import StudentIdLookup from '../../components/StudentIdLookup.vue';
 import ComplaintPrintModal from '../../components/ComplaintPrintModal.vue';
 import { hasLetter } from '../../utils/validators';
-import { useBlockedDates } from '../../utils/blockedDates';
 
 const router = useRouter();
 
@@ -167,6 +260,14 @@ let me = {};
 try { me = JSON.parse(localStorage.getItem('student') || '{}'); } catch (e) { me = {}; }
 const myName = computed(() => `${me.first_name || ''} ${me.last_name || ''}`.trim());
 const today = new Date().toISOString().slice(0, 10);
+// The backend also rejects an incident date more than one year in the past
+// (ComplaintController::file()'s `after_or_equal` rule, shared by the main
+// form) - caught here, live, instead of only surfacing after submit.
+const oneYearAgo = (() => {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 1);
+  return d.toISOString().slice(0, 10);
+})();
 
 const target = ref(null);
 const violationTypes = ref([]);
@@ -174,8 +275,12 @@ const evidence = ref([]);
 const affidavit = ref([]);
 const OK_EXT = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'];
 const MAX_BYTES = 10 * 1024 * 1024;
+// B586 (matches the main complaint form): extensions alone make some
+// Android/Chrome versions fall back to a camera/gallery-only picker with no
+// "Files" option. Pairing each extension with its real MIME type fixes it.
+const FILE_ACCEPT = '.pdf,.jpg,.jpeg,.png,.doc,.docx,application/pdf,image/jpeg,image/png,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const form = ref({ complainant_address: '', violation_type: '', incident_date: '', description: '' });
+const form = ref({ complainant_address: '', violation_type: '', incident_date: '', description: '', complainee_position: '', complainee_office: '' });
 const sending = ref(false);
 const error = ref('');
 const modalError = ref('');
@@ -186,15 +291,6 @@ const showCertModal = ref(false);
 const certificationChecked = ref(false);
 const signatureCertified = ref(false);
 
-// Blocked dates
-const { load: loadBlocked, messageFor: blockedMessageFor } = useBlockedDates('student');
-const dateBlockedMsg = computed(() => blockedMessageFor(form.value.incident_date));
-const isWeekend = computed(() => {
-  if (!form.value.incident_date) return false;
-  const d = new Date(form.value.incident_date + 'T00:00:00');
-  return d.getDay() === 0 || d.getDay() === 6;
-});
-
 // Field validation
 const fieldErrors = ref({});
 function clearFieldError(field) {
@@ -204,7 +300,7 @@ function validateField(field) {
   const isInvalid = {
     complainant_address: () => !form.value.complainant_address.trim() || !hasLetter(form.value.complainant_address),
     violation_type:       () => !form.value.violation_type,
-    incident_date:        () => !form.value.incident_date || form.value.incident_date > today || isWeekend.value || !!dateBlockedMsg.value,
+    incident_date:        () => !form.value.incident_date || form.value.incident_date > today || form.value.incident_date < oneYearAgo,
     description:          () => !form.value.description.trim() || !hasLetter(form.value.description),
   }[field]?.();
   fieldErrors.value = { ...fieldErrors.value, [field]: !!isInvalid };
@@ -213,9 +309,9 @@ function validateField(field) {
 const addressNumbersOnly     = computed(() => !!form.value.complainant_address.trim() && !hasLetter(form.value.complainant_address));
 const descriptionNumbersOnly = computed(() => !!form.value.description.trim() && !hasLetter(form.value.description));
 const incidentDateInFuture   = computed(() => !!form.value.incident_date && form.value.incident_date > today);
+const incidentDateTooOld     = computed(() => !!form.value.incident_date && form.value.incident_date < oneYearAgo);
 
 onMounted(async () => {
-  loadBlocked();
   try {
     const res = await studentApi.get('/student/outreach/options');
     violationTypes.value = res.data.violation_types || [];
@@ -227,17 +323,65 @@ function goBack() {
   else router.push({ name: 'student-refer-choice' });
 }
 
+// ---- Complainee search (live, debounced) - same lookup() endpoint the
+// Refer a Student page uses, shown the same way. ----
+const studentSearchQuery  = ref('');
+const studentSuggestions  = ref([]);
+const showStudentDropdown = ref(false);
+const searchError         = ref('');
+let studentSearchTimeout  = null;
+
+function onStudentSearch() {
+  clearTimeout(studentSearchTimeout);
+  searchError.value = '';
+  if (!studentSearchQuery.value.trim()) {
+    studentSuggestions.value = [];
+    showStudentDropdown.value = false;
+    return;
+  }
+  studentSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await studentApi.post('/student/outreach/lookup', { student_id: studentSearchQuery.value.trim() });
+      const matches = (res.data.matches || []).filter(m => !m.is_me);
+      studentSuggestions.value = matches;
+      showStudentDropdown.value = matches.length > 0;
+      if (!matches.length) searchError.value = 'You cannot choose yourself here.';
+      else if (matches.length === 1) selectStudent(matches[0]);
+    } catch (e) {
+      studentSuggestions.value = [];
+      showStudentDropdown.value = false;
+      searchError.value = e.response?.data?.message || 'Could not look that student up. Please try again.';
+    }
+  }, 350);
+}
+
+function selectStudent(s) {
+  target.value = s;
+  studentSearchQuery.value = `${s.last_name}, ${s.first_name}`;
+  showStudentDropdown.value = false;
+  searchError.value = '';
+  clearFieldError('target');
+}
+
+function clearStudent() {
+  target.value = null;
+  studentSearchQuery.value = '';
+  studentSuggestions.value = [];
+  showStudentDropdown.value = false;
+  searchError.value = '';
+}
+
 function pick(event, list) {
   const files = Array.from(event.target.files);
   const bad = files.find(f => !OK_EXT.includes((f.name.split('.').pop() || '').toLowerCase()) || f.size > MAX_BYTES);
-  
+
   if (bad) {
     error.value = `"${bad.name}" is not allowed. Please use PDF, JPG, PNG, DOC, or DOCX files up to 10MB.`;
     event.target.value = ''; // Clear the invalid file from the input
     list.splice(0, list.length); // Clear the list
     return;
   }
-  
+
   error.value = ''; // Clear any previous errors
   list.splice(0, list.length, ...files);
   clearFieldError('proof'); // Clear the "no file attached" error if it was showing
@@ -251,9 +395,10 @@ function openCertificationModal() {
   error.value = '';
   modalError.value = '';
   const f = form.value;
-  if (!target.value) { error.value = 'Find the student by their ID Number or full name first.'; return; }
+  if (!target.value) { fieldErrors.value = { ...fieldErrors.value, target: true }; error.value = 'Find the student by their ID Number or full name first.'; return; }
   if (!f.complainant_address.trim() || !f.violation_type || !f.incident_date || !f.description.trim()) {
     fieldErrors.value = {
+      ...fieldErrors.value,
       complainant_address: !f.complainant_address.trim(),
       violation_type: !f.violation_type,
       incident_date: !f.incident_date,
@@ -262,9 +407,14 @@ function openCertificationModal() {
     error.value = 'Please fill out all required fields.';
     return;
   }
-  if (f.incident_date > today || isWeekend.value || dateBlockedMsg.value) {
+  if (f.incident_date > today) {
     fieldErrors.value = { ...fieldErrors.value, incident_date: true };
-    error.value = 'The date of incident cannot be in the future, on a weekend, or a holiday.';
+    error.value = 'The date of incident cannot be in the future.';
+    return;
+  }
+  if (f.incident_date < oneYearAgo) {
+    fieldErrors.value = { ...fieldErrors.value, incident_date: true };
+    error.value = 'The date of incident cannot be more than one year in the past.';
     return;
   }
   if (f.description.trim().length < 10) { error.value = 'Please describe the facts in at least 10 characters.'; return; }
@@ -292,6 +442,8 @@ async function handleSubmit() {
   const fd = new FormData();
   fd.append('complainee_student_id', target.value.id);
   fd.append('complainant_address', form.value.complainant_address.trim());
+  if (form.value.complainee_position.trim()) fd.append('complainee_position', form.value.complainee_position.trim());
+  if (form.value.complainee_office.trim()) fd.append('complainee_office', form.value.complainee_office.trim());
   fd.append('violation_type', form.value.violation_type);
   fd.append('incident_date', form.value.incident_date);
   fd.append('description', form.value.description.trim());

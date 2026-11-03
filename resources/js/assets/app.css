@@ -116,6 +116,7 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 .ibadge-closed{background:var(--cloud);color:var(--stone)}
 .ibadge-open{background:var(--mist);color:var(--moss)}
 .ibadge-pending{background:var(--amber-lt);color:var(--amber)}
+.ibadge-expired{background:var(--red-lt);color:var(--red)}
 .ibadge-cancelled{background:var(--red-lt);color:var(--red)}
 .ibadge-no_show{background:#fde8d7;color:#b4541a}
 .ibadge-rescheduled{background:var(--blue-lt);color:var(--blue)}
