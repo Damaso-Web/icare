@@ -122,7 +122,11 @@ describe('plainText + hasLetter', () => {
 describe('referralSourceFor', () => {
   it('maps a role to its referral source office', () => {
     expect(referralSourceFor('sdu_head').value).toBe('sdu');
-    expect(referralSourceFor('dept_chair').value).toBe('faculty');
+    // Was 'faculty' before 11/4/2026 - Dept Chair referrals now get their
+    // own distinct source instead of being folded into Faculty (see
+    // ReferralController::sourceForRole()).
+    expect(referralSourceFor('dept_chair').value).toBe('dept_chair');
+    expect(referralSourceFor('dept_chair').label).toBe('Department Chair');
     expect(referralSourceFor('tmdu_staff').label).toContain('Testing and Measurement');
   });
 

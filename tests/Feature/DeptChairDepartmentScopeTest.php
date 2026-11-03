@@ -59,9 +59,14 @@ class DeptChairDepartmentScopeTest extends TestCase
         $other = $this->student('2700004', 'College of Information Sciences', 'BS Computer Science');
         Sanctum::actingAs($chair);
 
-        $this->postJson('/api/referrals', [
+        $res = $this->postJson('/api/referrals', [
             'student_id' => $other->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',
         ])->assertCreated();
+
+        // Was 'faculty' before 11/4/2026 - a Dept Chair's referral now gets
+        // its own distinct referrer_source instead of being folded into
+        // Faculty, so Reports can break it out as "Department Chair".
+        $this->assertSame('dept_chair', $res->json('referrer_source'));
     }
 
     public function test_dept_chair_can_refer_a_student_in_their_own_department(): void

@@ -140,8 +140,14 @@ class ReferralController extends Controller
     /** The referral source that goes with an account's role (the office it files from). */
     public static function sourceForRole(?string $role): string
     {
+        // B#, 11/4/2026: dept_chair used to fold into 'faculty' here, so
+        // every Dept Chair referral counted as a plain Faculty referral in
+        // Reports - even though ReportController::SOURCE_LABELS already had
+        // a 'Department Chair' label waiting to be used. Leaving dept_chair
+        // out of this map (rather than mapping it to itself) lets the final
+        // ?? ($role ?: 'faculty') fallback return 'dept_chair' as-is, same
+        // as any other role with no special-case mapping below.
         return [
-            'dept_chair' => 'faculty',
             'sdu_head'   => 'sdu',
             'tmdu_staff' => 'tmdu',
             'tmdu_head'  => 'tmdu',

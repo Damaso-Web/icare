@@ -1384,11 +1384,12 @@ const profileDetailGroups = computed(() => {
 
 function formatReferralSource(source) {
   const labels = {
-    faculty: 'Faculty Referral',
-    sdu:     'SDU Referral',
-    self:    'Self-Referral',
-    dean:    "Dean's Office",
-    parent:  'Parent / Guardian',
+    faculty:    'Faculty Referral',
+    dept_chair: 'Department Chair Referral',
+    sdu:        'SDU Referral',
+    self:       'Self-Referral',
+    dean:       "Dean's Office",
+    parent:     'Parent / Guardian',
   };
   return labels[source] || source || '-';
 }

@@ -129,7 +129,7 @@ const SOURCE_BY_ROLE = {
   tmdu_head:      { value: 'tmdu',           label: 'Testing and Measurement Development Unit (TMDU)' },
   tmdu_staff:     { value: 'tmdu',           label: 'Testing and Measurement Development Unit (TMDU)' },
   faculty:        { value: 'faculty',        label: 'Faculty' },
-  dept_chair:     { value: 'faculty',        label: 'Faculty' },
+  dept_chair:     { value: 'dept_chair',     label: 'Department Chair' },
   dean:           { value: 'dean',           label: "Dean's Office" },
   dean_secretary: { value: 'dean',           label: "Dean's Office" },
 };
