@@ -234,13 +234,25 @@ class StudentProfileManagementTest extends TestCase
     // swallowed by {student} route-model-binding and 404).
     public function test_missing_client_no_lists_only_active_students_with_a_case_and_no_number(): void
     {
-        $withCase    = Student::factory()->create(['sif_client_no' => null]);
-        CaseFile::factory()->create(['student_id' => $withCase->id]);
-        $noCase      = Student::factory()->create(['sif_client_no' => null]);
+        // Opening a case now auto-assigns a number (see CaseFile::booted()),
+        // so every student below has it reset to null right after, to
+        // simulate a record from before that existed - exactly the kind of
+        // gap this endpoint and the bulk-assign tool are for. Done via a
+        // query-builder update, not ->forceFill()->save(): these instances'
+        // in-memory attribute is still the stale pre-case null, so a save()
+        // would see no change from the case's own auto-assign and no-op.
         $alreadySet  = Student::factory()->create(['sif_client_no' => 50]);
         CaseFile::factory()->create(['student_id' => $alreadySet->id]);
+
+        $withCase    = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $withCase->id]);
+        Student::whereKey($withCase->id)->update(['sif_client_no' => null]);
+
+        $noCase      = Student::factory()->create(['sif_client_no' => null]);
+
         $inactive    = Student::factory()->create(['sif_client_no' => null, 'is_active' => false]);
         CaseFile::factory()->create(['student_id' => $inactive->id]);
+        Student::whereKey($inactive->id)->update(['sif_client_no' => null]);
 
         $this->actingAs($this->gcuStaff());
         $res = $this->getJson('/api/students/missing-client-no')->assertOk();
@@ -276,6 +288,11 @@ class StudentProfileManagementTest extends TestCase
         CaseFile::factory()->create(['student_id' => $a->id]);
         $b = Student::factory()->create(['sif_client_no' => null]);
         CaseFile::factory()->create(['student_id' => $b->id]);
+        // Query-builder update, not ->forceFill()->save(): these instances'
+        // in-memory attribute is still the stale pre-case null, so a save()
+        // here would see no change from the case's own auto-assign and
+        // silently no-op.
+        Student::whereIn('id', [$a->id, $b->id])->update(['sif_client_no' => null]);
         $this->actingAs($this->gcuStaff());
 
         $this->postJson('/api/students/bulk-client-no', ['updates' => [
@@ -292,6 +309,10 @@ class StudentProfileManagementTest extends TestCase
         Student::factory()->create(['sif_client_no' => 30]);
         $a = Student::factory()->create(['sif_client_no' => null]);
         CaseFile::factory()->create(['student_id' => $a->id]);
+        // Query-builder update, not $a->forceFill()->save(): $a's in-memory
+        // attribute is still the stale pre-case null, so a save() here would
+        // see no change from the case's own auto-assign and silently no-op.
+        Student::whereKey($a->id)->update(['sif_client_no' => null]);
         $this->actingAs($this->gcuStaff());
 
         $this->postJson('/api/students/bulk-client-no', ['updates' => [
@@ -299,6 +320,28 @@ class StudentProfileManagementTest extends TestCase
         ]])->assertStatus(422);
 
         $this->assertNull($a->fresh()->sif_client_no);
+    }
+
+    // Auto-assign (11/4/2026): opening a student's first case gives them the
+    // next free Ctrl No. automatically, so new students stay consistent
+    // without staff having to run the bulk-assign tool to catch up.
+    public function test_opening_a_case_auto_assigns_the_next_ctrl_no(): void
+    {
+        Student::factory()->create(['sif_client_no' => 7]);
+        $student = Student::factory()->create(['sif_client_no' => null]);
+
+        CaseFile::factory()->create(['student_id' => $student->id]);
+
+        $this->assertSame(8, $student->fresh()->sif_client_no);
+    }
+
+    public function test_opening_a_case_does_not_overwrite_an_existing_ctrl_no(): void
+    {
+        $student = Student::factory()->create(['sif_client_no' => 42]);
+
+        CaseFile::factory()->create(['student_id' => $student->id]);
+
+        $this->assertSame(42, $student->fresh()->sif_client_no);
     }
 
     // #41/#42/#45: combined case/referral/appointment/testing history,

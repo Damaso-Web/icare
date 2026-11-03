@@ -85,23 +85,19 @@ class Referral extends Model
                 $referral->year_level = Student::where('id', $referral->student_id)->value('year_level');
             }
 
-            // The Referral Slip's (QF-OSS-01) own Ctrl No. - e.g. "26-1" - is
-            // the basis for the referral code, the same way the Ctrl No. is
-            // the basis for a case's case_number. Falls back to the old
-            // REF-{year}-#### scheme if no active document header is set up
-            // yet, so creation never breaks on a fresh install.
-            // Built in PHP rather than with CONCAT/SUBSTRING-AS-UNSIGNED SQL,
-            // which MySQL supports but the sqlite connection used in tests
-            // does not.
-            $ctrlSetting = DocumentSetting::where('document_code', 'QF-OSS-01')
-                ->where('is_active', true)
-                ->first(['ctrl_no_year', 'ctrl_no_term']);
-
-            $ctrlNo = ($ctrlSetting && $ctrlSetting->ctrl_no_year && $ctrlSetting->ctrl_no_term)
-                ? "{$ctrlSetting->ctrl_no_year}-{$ctrlSetting->ctrl_no_term}"
-                : null;
-
-            $prefix = $ctrlNo ?: 'REF-' . now()->year;
+            // B#, 11/4/2026: this used to follow the Referral Slip's
+            // (QF-OSS-01) own Ctrl No. (e.g. "26-1-0069") when one was set
+            // up in Management, the same way a case's case_number follows
+            // the SIF's Ctrl No. - but that made referral codes and SIF
+            // Ctrl No.s land on the exact same "YY-T-####" shape, which read
+            // as the same number in lists like Sent Referrals. Always using
+            // the plain REF-{year}-#### scheme (previously only a fallback
+            // for when no Ctrl No. was configured) keeps referral codes
+            // visibly their own thing everywhere they're shown, for every
+            // role. Built in PHP rather than with CONCAT/SUBSTRING-AS-UNSIGNED
+            // SQL, which MySQL supports but the sqlite connection used in
+            // tests does not.
+            $prefix = 'REF-' . now()->year;
 
             $lastNumber = static::withTrashed()
                 ->where('referral_code', 'like', "{$prefix}-%")

@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 
 class CaseFile extends Model
 {
@@ -77,6 +78,27 @@ class CaseFile extends Model
             $studentIdNumber = Student::whereKey($case->student_id)->value('student_id');
             $case->case_number = 'CASE-' . ($studentIdNumber ?: $case->student_id);
             $case->status_changed_at = now();
+        });
+
+        // Every student with a case needs a Ctrl No. for their Student
+        // Information File. Assigning the next free one here - the one
+        // place every case gets created, whatever flow started it - keeps
+        // it consistent automatically, instead of relying on staff to
+        // notice and catch up through the bulk-assign tool afterward.
+        static::created(function (CaseFile $case) {
+            DB::transaction(function () use ($case) {
+                $student = Student::whereKey($case->student_id)->lockForUpdate()->first();
+                if (!$student || !is_null($student->sif_client_no)) {
+                    return;
+                }
+                $next = (int) (Student::lockForUpdate()->max('sif_client_no') ?? 0) + 1;
+                $student->forceFill(['sif_client_no' => $next])->save();
+                AuditLog::record(
+                    'updated',
+                    "Auto-assigned SIF client no. {$next} to {$student->student_id} (first case opened).",
+                    $student
+                );
+            });
         });
 
         // Centralized so every status change - wherever it happens - resets

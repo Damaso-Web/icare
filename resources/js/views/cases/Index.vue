@@ -36,14 +36,6 @@
     Severe Cases
     </button>
       <button class="ibtn ibtn-o ibtn-sm" @click="resetFilters">Reset</button>
-      <!-- B#, 11/4/2026: the only place to set a student's Ctrl No. is the
-           individual SIF page (students/Show.vue), one at a time. This lets
-           GCU catch up on the whole backlog of "No Ctrl No. yet" files in
-           one pass instead of opening each one. -->
-      <button v-if="!filters.archived" class="ibtn ibtn-o ibtn-sm" @click="openBulkCtrlNo">
-        <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Assign Ctrl No.
-      </button>
       <button class="ibtn ibtn-sm" :class="filters.archived ? 'ibtn-p' : 'ibtn-o'" style="margin-left:auto" @click="filters.archived = !filters.archived; filters.status = ''; fetchCases()">
         {{ filters.archived ? 'Viewing Archived' : 'View Archived' }}
       </button>
@@ -114,69 +106,6 @@
       </div>
     </div>
 
-    <!-- Bulk Assign Ctrl No. - every active student with a case but no
-         client no. yet, in one list, each with an editable suggested number
-         instead of opening every SIF individually. -->
-    <div v-if="bulkCtrlOpen" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeBulkCtrlNo">
-      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:620px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
-        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Assign Ctrl No.</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="closeBulkCtrlNo">✕</button>
-        </div>
-        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
-          <div v-if="bulkCtrlLoading" style="text-align:center;padding:30px">
-            <div style="width:22px;height:22px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
-          </div>
-          <template v-else-if="!bulkCtrlRows.length">
-            <div class="empty-state">
-              <h3>Nothing to assign</h3>
-              <p>Every active student with a case already has a Ctrl No.</p>
-            </div>
-          </template>
-          <template v-else>
-            <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
-              {{ bulkCtrlRows.length }} student(s) have no Ctrl No. yet. Numbers below are suggested in order - edit any of them before saving, as long as each stays unique.
-            </div>
-            <div v-if="bulkCtrlError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">
-              {{ bulkCtrlError }}
-            </div>
-            <div style="max-height:360px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
-              <table class="itable">
-                <thead>
-                  <tr><th style="width:60px">Row</th><th>Student</th><th style="width:150px">Ctrl No.</th></tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(row, i) in bulkCtrlRows" :key="row.id">
-                    <td style="font-size:12px">{{ i + 1 }}</td>
-                    <td style="font-size:12.5px">{{ row.last_name }}, {{ row.first_name }} {{ row.middle_name }}<div style="font-family:var(--mono);font-size:10.5px;color:var(--fog)">{{ row.student_id }}</div></td>
-                    <td>
-                      <div style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:12px">
-                        <span>{{ ctrlPrefix || '-' }}-</span>
-                        <input
-                          v-model="row.draft"
-                          class="ifi"
-                          style="width:90px;padding:4px 8px;font-family:var(--mono)"
-                          maxlength="6"
-                          inputmode="numeric"
-                          @input="row.draft = String(row.draft ?? '').replace(/\D/g, '')"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </template>
-        </div>
-        <div v-if="bulkCtrlRows.length" style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
-          <button class="ibtn ibtn-p" :disabled="bulkCtrlSaving" @click="saveBulkCtrlNo">
-            <span v-if="bulkCtrlSaving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
-            {{ bulkCtrlSaving ? 'Saving...' : `Save ${bulkCtrlRows.length} Ctrl No.` }}
-          </button>
-          <button class="ibtn ibtn-o" :disabled="bulkCtrlSaving" @click="closeBulkCtrlNo">Cancel</button>
-        </div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -245,64 +174,6 @@ function initials(first, last) {
 
 function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
-}
-
-// ---- Bulk Assign Ctrl No. ----
-const bulkCtrlOpen    = ref(false);
-const bulkCtrlLoading = ref(false);
-const bulkCtrlSaving  = ref(false);
-const bulkCtrlError   = ref('');
-const bulkCtrlRows    = ref([]); // [{ id, student_id, first_name, middle_name, last_name, draft }]
-
-async function openBulkCtrlNo() {
-  bulkCtrlOpen.value  = true;
-  bulkCtrlError.value = '';
-  bulkCtrlLoading.value = true;
-  try {
-    const res = await studentAPI.missingClientNo();
-    const nextNumber = res.data?.next_number || 1;
-    bulkCtrlRows.value = (res.data?.students || []).map((s, i) => ({
-      ...s,
-      draft: String(nextNumber + i),
-    }));
-  } catch (e) {
-    bulkCtrlError.value = e.response?.data?.message || 'Could not load the list.';
-  } finally {
-    bulkCtrlLoading.value = false;
-  }
-}
-
-function closeBulkCtrlNo() {
-  if (bulkCtrlSaving.value) return;
-  bulkCtrlOpen.value = false;
-  bulkCtrlRows.value = [];
-  bulkCtrlError.value = '';
-}
-
-async function saveBulkCtrlNo() {
-  if (bulkCtrlSaving.value) return;
-  bulkCtrlError.value = '';
-
-  const updates = [];
-  for (const row of bulkCtrlRows.value) {
-    const n = Number(row.draft);
-    if (!row.draft || !Number.isInteger(n) || n < 1) {
-      bulkCtrlError.value = `${row.last_name}, ${row.first_name}'s Ctrl No. must be a number.`;
-      return;
-    }
-    updates.push({ student_id: row.id, sif_client_no: n });
-  }
-
-  bulkCtrlSaving.value = true;
-  try {
-    await studentAPI.bulkUpdateClientNo({ updates });
-    closeBulkCtrlNo();
-    fetchCases(pagination.value?.current_page || 1);
-  } catch (e) {
-    bulkCtrlError.value = e.response?.data?.message || 'Could not save these Ctrl No. - nothing was changed.';
-  } finally {
-    bulkCtrlSaving.value = false;
-  }
 }
 
 onMounted(() => {
