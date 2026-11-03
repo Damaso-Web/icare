@@ -37,8 +37,14 @@ services:
       - key: DB_USERNAME
         sync: false
       # ---- Forgot password: link inside the email points here ----
+      # Bug (11/3/2026): this blueprint pointed at an old/abandoned Netlify
+      # subdomain (icouldhavecared.netlify.app) - if that's also what's set
+      # in Render's actual dashboard env var, every password-reset email
+      # has been linking to a dead site. Corrected to the real, currently-
+      # live frontend (confirmed by Adrian), matching config/app.php's own
+      # production fallback and config/cors.php's allowed origin.
       - key: FRONTEND_URL
-        value: https://icouldhavecared.netlify.app
+        value: https://iwouldhavecanhavecaredalot.netlify.app
       # ---- Persistent file storage ----
       # Render's own disk is wiped on every deploy, so documents, OR photos,
       # and PAR reports are stored on Cloudinary instead (see
@@ -49,23 +55,27 @@ services:
       # a value in this repo at all.
       - key: CLOUDINARY_URL
         sync: false  # cloudinary://<api_key>:<api_secret>@<cloud_name> - set in Render's dashboard only
-      # ---- Outgoing email: Gmail SMTP (needs a Google App Password) ----
-      # NOTE: Render's free web services block outbound ports 25/465/587, so
-      # Gmail will time out there. On a paid instance it works as-is. On the
-      # free tier, use Brevo instead: MAIL_HOST=smtp-relay.brevo.com, MAIL_PORT=2525.
+      # ---- Outgoing email: Brevo SMTP ----
+      # Bug (11/3/2026): this blueprint documented Gmail SMTP, but the
+      # actual deployment uses Brevo (confirmed by Adrian) - Render's free
+      # web services block outbound ports 25/465/587, which Gmail needs, so
+      # Brevo (port 2525) is what's really configured in Render's
+      # dashboard. Corrected here to match reality instead of leaving a
+      # blueprint that silently documents the wrong provider - same class
+      # of mismatch already fixed once for `env: docker` above.
       - key: MAIL_MAILER
         value: smtp
       - key: MAIL_HOST
-        value: smtp.gmail.com
+        value: smtp-relay.brevo.com
       - key: MAIL_PORT
-        value: 587
+        value: 2525
       - key: MAIL_ENCRYPTION
         value: tls
       - key: MAIL_USERNAME
-        sync: false   # your Gmail address
+        sync: false   # your Brevo SMTP login (not your Brevo account email necessarily - see Brevo's SMTP & API settings page)
       - key: MAIL_PASSWORD
-        sync: false   # the 16-character App Password, not your Gmail password
+        sync: false   # your Brevo SMTP key, not your Brevo account password
       - key: MAIL_FROM_ADDRESS
-        sync: false   # same as MAIL_USERNAME
+        sync: false   # the sender address verified in Brevo
       - key: MAIL_FROM_NAME
         value: iCARE
