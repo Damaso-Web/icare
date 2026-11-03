@@ -230,7 +230,11 @@ class ComplaintController extends Controller
         $validated['complainee_college'] = $validated['complainee_college'] ?? $student->college;
         $validated['complainee_address'] = $validated['complainee_address'] ?? $student->address;
         if (empty($validated['complainee_department'])) {
-            $linkedDepartment = \App\Models\Program::where('name', $student->program)->with('department')->first()?->department?->name;
+            // Bug (11/3/2026): this only checked the direct Program->department
+            // link, so a program never explicitly linked (or added before the
+            // link existed) left the department blank even when its name
+            // obviously matched one - see DepartmentScope::resolve().
+            $linkedDepartment = \App\Support\DepartmentScope::resolve($student->program, $student->college)?->name;
             if ($linkedDepartment) {
                 $validated['complainee_department'] = $linkedDepartment;
             }

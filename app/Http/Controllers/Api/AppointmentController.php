@@ -952,6 +952,15 @@ public function checkConflictByStudent(Request $request)
             abort(422, 'This appointment is not waiting for a schedule to be picked.');
         }
 
+        // Bug (11/3/2026): the student-side UI already labels a scheduling
+        // slip "Expired" once its 7-day token_expires_at window lapses, but
+        // nothing here actually enforced that - a student could still
+        // submit a date/time through this endpoint after the deadline. Make
+        // the backend the source of truth the UI label was only describing.
+        if ($appointment->token_expires_at && $appointment->token_expires_at->isPast()) {
+            abort(422, 'This scheduling link has expired. Please contact GCU for a new one.');
+        }
+
         // Bug (10/30/2026): unlike store() above, this never had
         // after_or_equal:today - staff using "Schedule Now" could set a past
         // date and the request went through with no error at all.

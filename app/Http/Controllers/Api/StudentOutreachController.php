@@ -88,9 +88,11 @@ class StudentOutreachController extends Controller
             'program'     => $s->program,
             'year_level'  => $s->year_level,
             'section'     => $s->section,
-            // Same match ComplaintController::file() falls back to
-            // server-side when complainee_department is left blank.
-            'department'  => \App\Models\Program::where('name', $s->program)->with('department')->first()?->department?->name,
+            // Same two-tier lookup (direct Program link, falling back to
+            // equals-or-contains against the student's own college's
+            // departments) ComplaintController::file() uses server-side
+            // when complainee_department is left blank - see DepartmentScope.
+            'department'  => \App\Support\DepartmentScope::resolve($s->program, $s->college)?->name,
             'is_me'       => (int) $s->id === (int) $request->user('student')->id,
         ])->values()];
     }
