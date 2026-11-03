@@ -81,13 +81,20 @@
         </div>
       </div>
 
-      <!-- Scheduling window expired - view only, student can no longer pick
-           a time themselves. Staff (GCU/Admin) can still override-schedule
-           this from their own side even past expiry; this is strictly the
-           student's own self-service link going read-only. -->
+      <!-- Scheduling window expired - the student's original pick-a-time
+           link (needsScheduling && !isExpired below) no longer works since
+           PublicSchedulingController::submit() checks token_expires_at. Per
+           team decision (11/3/2026), the student isn't left stuck waiting on
+           staff though: "Request Reschedule" (showActions block below, now
+           also shown when isExpired) hits requestRescheduleByStudent(),
+           which already accepts status 'pending' and issues a fresh
+           scheduling_token + token_expires_at - same self-service flow as a
+           confirmed appointment, just reopening this one's window instead of
+           creating a new appointment. Staff can still override-schedule from
+           their own side too (AppointmentController::scheduleForStudent()). -->
       <div v-if="needsScheduling && isExpired && !scheduleSuccess" class="icard" style="margin-bottom:20px;border:2px solid var(--red)">
         <div class="icard-body" style="font-size:13px;color:var(--red)">
-          ⏱ This scheduling link has expired. It is now view-only - please contact the office (GCU) so they can schedule it for you.
+          ⏱ This scheduling link has expired. Click <strong>Request Reschedule</strong> below to get a new scheduling link, or contact the office (GCU) if you need help.
         </div>
       </div>
 
@@ -172,8 +179,19 @@
         </div>
       </div>
 
-      <!-- Reschedule / Cancel - only when confirmed or no-show -->
-      <div v-if="showActions" class="icard">
+      <!-- Same-day cutoff - Request Reschedule is hidden below once it's
+           the day of a confirmed appointment (11/3/2026 decision). -->
+      <div v-if="isPastRescheduleCutoff && !scheduleSuccess" class="icard" style="margin-bottom:20px;border:2px solid var(--amber)">
+        <div class="icard-body" style="font-size:13px;color:var(--amber)">
+          ⚠ Reschedule requests are no longer accepted on the day of your appointment. Please contact the office (GCU) directly if you need to change this.
+        </div>
+      </div>
+
+      <!-- Reschedule / Cancel - when confirmed or no-show, or when the
+           student's own scheduling window has expired (11/3/2026: lets the
+           student self-service a new link instead of being stuck waiting
+           on staff - see the expired notice above). -->
+      <div v-if="canRequestReschedule" class="icard">
         <div class="icard-body" style="display:flex;flex-direction:column;gap:12px">
           <div v-if="rescheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px">{{ rescheduleError }}</div>
           <div v-if="appointment.status === 'no_show'" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--amber)">
@@ -332,6 +350,27 @@ const isExpired = computed(() =>
 
 const showActions = computed(() =>
   ['confirmed', 'no_show'].includes(appointment.value.status)
+);
+
+// requestRescheduleByStudent() (backend) already allows status 'pending',
+// which is what an expired awaiting-student placeholder sits in - this just
+// surfaces the button for that case too, so expiry isn't a dead end.
+//
+// Decision (11/3/2026): block last-minute self-service reschedules - once
+// it's the day of a CONFIRMED appointment, the button is hidden and the
+// student has to contact the office directly (backend enforces the same
+// cutoff independently). Doesn't apply to 'no_show' (that date has already
+// passed - nothing "last-minute" about it) or the expired-link case (no
+// real slot yet to protect).
+const isPastRescheduleCutoff = computed(() => {
+  if (appointment.value.status !== 'confirmed' || !appointment.value.appointment_date) return false;
+  const apptDate = new Date(appointment.value.appointment_date.split('T')[0] + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return apptDate <= today;
+});
+const canRequestReschedule = computed(() =>
+  (showActions.value && !isPastRescheduleCutoff.value) || isExpired.value
 );
 
 const reasonHasLetters = computed(() => /\p{L}/u.test(rescheduleReason.value));

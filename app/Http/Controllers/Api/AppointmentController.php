@@ -561,6 +561,24 @@ class AppointmentController extends Controller
             return response()->json(['message' => 'This appointment can no longer be rescheduled.'], 422);
         }
 
+        // Decision (11/3/2026): no more last-minute bailing - once it's the
+        // day of a CONFIRMED appointment (or later), the student can no
+        // longer request a reschedule themselves and must contact the
+        // office directly. Deliberately scoped to 'confirmed' only:
+        // - 'no_show' already means that date has passed, so this same
+        //   check would block every no-show reschedule outright and break
+        //   that flow entirely.
+        // - 'pending'/awaiting_student (including the expired-link case
+        //   AppointmentShow.vue now also sends here) has no real slot yet -
+        //   appointment_date there is just the internal placeholder from
+        //   ReferralController::ensureSchedulingAppointment(), nothing to
+        //   protect against a last-minute change.
+        if ($appointment->status === 'confirmed'
+            && $appointment->appointment_date
+            && $appointment->appointment_date->copy()->startOfDay()->lte(now()->startOfDay())) {
+            return response()->json(['message' => 'Reschedule requests are no longer accepted on the day of your appointment. Please contact the office (GCU) directly.'], 422);
+        }
+
         $request->validate(['reason' => ['required', 'string', 'max:1000', 'regex:/\p{L}/u']], ['reason.regex' => 'Please explain the reason in words, not numbers only.']);
 
         $newCount = $appointment->reschedule_count + 1;
