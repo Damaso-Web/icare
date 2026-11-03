@@ -2,7 +2,7 @@
   <div class="fade-up">
     <!-- Page Header -->
     <div class="ph" style="margin-bottom:20px">
-      <h1>{{ isFacultyView ? 'Faculty Profile' : 'User Management' }}</h1>
+      <h1>{{ isFacultyLabel ? 'Faculty Profile' : 'User Management' }}</h1>
       <p>{{ isFacultyView ? 'View and manage faculty member accounts.' : pageIntro }}</p>
     </div>
 
@@ -62,7 +62,7 @@
         @click="openCreate"
       >
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        {{ isFacultyView ? 'Add Faculty' : 'Add Employee' }}
+        {{ isFacultyLabel ? 'Add Faculty' : 'Add Employee' }}
       </button>
     </div>
 
@@ -213,7 +213,7 @@
     <div v-if="showModal && canManage" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showModal = false">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? ((isFacultyView || userForm.role === 'faculty') ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">{{ isEditing ? ((isFacultyLabel || userForm.role === 'faculty') ? 'Edit Faculty Profile' : 'Edit Employee Profile') : (isFacultyLabel ? 'Add Faculty' : 'Add Employee') }}</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div>
@@ -366,7 +366,7 @@
           <div style="display:flex;justify-content:flex-end;gap:8px;padding-top:4px">
             <button class="ibtn ibtn-p" :disabled="isUserFormUnchanged" @click="goToUserPreview">
               <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
-              {{ isEditing ? 'Save Changes' : (isFacultyView ? 'Add Faculty' : 'Add Employee') }}
+              {{ isEditing ? 'Save Changes' : (isFacultyLabel ? 'Add Faculty' : 'Add Employee') }}
             </button>
             <button
               v-if="!isEditing"
@@ -386,7 +386,7 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:520px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">
-            {{ isEditing ? 'Confirm Changes' : (isFacultyView ? 'Confirm New Faculty' : 'Confirm New Employee') }}
+            {{ isEditing ? 'Confirm Changes' : (isFacultyLabel ? 'Confirm New Faculty' : 'Confirm New Employee') }}
           </div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
@@ -405,13 +405,13 @@
             <div v-if="!isEditing && userForm.password" style="padding-top:4px;border-top:1px dashed var(--cloud);margin-top:4px">
               <strong>Temporary Password:</strong>
               <span style="font-family:var(--mono);color:var(--forest)">{{ userForm.password }}</span>
-              <div style="font-size:11px;color:var(--stone);margin-top:2px">Share this with the {{ isFacultyView ? 'faculty member' : 'employee' }}.</div>
+              <div style="font-size:11px;color:var(--stone);margin-top:2px">Share this with the {{ isFacultyLabel ? 'faculty member' : 'employee' }}.</div>
             </div>
           </div>
 
           <div style="display:flex;justify-content:flex-end;gap:8px">
             <button class="ibtn ibtn-p" @click="confirmUserSubmit">
-              {{ isEditing ? 'Confirm & Save' : (isFacultyView ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
+              {{ isEditing ? 'Confirm & Save' : (isFacultyLabel ? 'Confirm & Add Faculty' : 'Confirm & Add Employee') }}
             </button>
             <button class="ibtn ibtn-o" @click="showUserPreview = false">Go Back &amp; Edit</button>
           </div>
@@ -423,7 +423,7 @@
     <div v-if="showImportModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="closeImportModal">
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
-          <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyView ? 'Faculty' : 'Employee' }} Masterlist</div>
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload {{ isFacultyLabel ? 'Faculty' : 'Employee' }} Masterlist</div>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
 
@@ -431,7 +431,7 @@
             <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
               Download the template below, fill it in, then upload it here.
             </div>
-            <a :href="isFacultyView ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
+            <a :href="isFacultyLabel ? '/templates/faculty_masterlist_template.xlsx' : '/templates/employee_masterlist_template.xlsx'" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Download Template
             </a>
@@ -466,6 +466,7 @@
                   <th style="width:50px">Row</th>
                   <th>Name</th>
                   <th>Email</th>
+                  <th>College / Department</th>
                   <th style="width:100px">Status</th>
                   <th>Reason</th>
                 </tr>
@@ -475,6 +476,7 @@
                   <td style="font-size:12px">{{ item.row }}</td>
                   <td style="font-size:12px">{{ item.name || '-' }}</td>
                   <td style="font-family:var(--mono);font-size:12px">{{ item.email || '-' }}</td>
+                  <td style="font-size:11px;line-height:1.5">{{ item.college || '-' }}<br /><span style="color:var(--stone)">{{ item.department || '-' }}</span></td>
                   <td>
                     <span v-if="!item.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
                     <span v-else-if="item.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
@@ -837,6 +839,17 @@ const userForm = ref({
 });
 
 const isFacultyView = computed(() => route.name === 'faculty-directory');
+// Bug (11/3/2026): a Dean's "Faculty" sidebar item intentionally routes to
+// THIS page (see MainLayout.vue) rather than the dedicated /faculty route
+// Dept Chair uses - so isFacultyView above, which only checks for that other
+// route's name, can never be true while this component is mounted for a
+// Dean. Every "Faculty" vs "Employee" label below was quietly always
+// showing the Employee wording to a Dean as a result (e.g. "Add Employee").
+// This covers the Dean's case for those labels only - it deliberately does
+// NOT touch the role filter/select or the default new-record role/list
+// filter above and below, which were already correct for Dean on their own
+// (addableRoles() already limits Dean to faculty/dept_chair there).
+const isFacultyLabel = computed(() => isFacultyView.value || auth.user?.role === 'dean');
 // The Dean's college as it appears in the official list (older accounts were
 // saved with other spellings).
 const deanCollege = computed(() => isDeanActor.value ? matchCollege(auth.user?.college, colleges.value) : '');

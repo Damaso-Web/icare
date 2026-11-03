@@ -127,6 +127,13 @@ class FacultyController extends UserController
         return [$request->input('college'), $requestedDepartment];
     }
 
+    // departmentBelongsToCollege() is inherited from UserController. This
+    // class's own store()/update()/scopeImportRow() below are only what a
+    // Dept Chair actually uses (their own sidebar "Faculty" item routes
+    // here) - a Dean's "Faculty" sidebar item instead routes to the shared
+    // /users page, backed by UserController's own store()/update()/
+    // scopeImportRow(), which carry the matching checks directly.
+
     public function index(Request $request)
     {
         $query = $this->scoped($request)
@@ -168,6 +175,14 @@ class FacultyController extends UserController
 
         [$college, $department] = $this->forcedPlacement($request, $validated['department'] ?? null);
         abort_if(empty($college) || empty($department), 422, 'College and department are required.');
+
+        // A Dept Chair's department is already guaranteed consistent above
+        // (it's their own account's department, under their own college).
+        // A Dean picks the department freely, so it must actually belong to
+        // the college being forced onto this record.
+        if ($request->user()->isDean() && !$this->departmentBelongsToCollege($department, $college)) {
+            abort(422, "'{$department}' is not a department under {$college}.");
+        }
 
         // One chair per department: the previous chair goes back to faculty.
         if ($role === 'dept_chair') {
@@ -212,6 +227,13 @@ class FacultyController extends UserController
         // A Dept Chair can't move people to another department.
         if ($request->user()->isDeptChair()) {
             unset($validated['department']);
+        } elseif ($request->user()->isDean() && array_key_exists('department', $validated) && !empty($validated['department'])) {
+            // Same check as store(): a Dean's chosen department must
+            // actually belong to this faculty member's (the Dean's own)
+            // college.
+            if (!$this->departmentBelongsToCollege($validated['department'], $request->user()->college)) {
+                abort(422, "'{$validated['department']}' is not a department under {$request->user()->college}.");
+            }
         }
 
         $old = $user->toArray();
@@ -345,6 +367,8 @@ class FacultyController extends UserController
             $row['college'] = $actor->college;
             if (empty($row['department'])) {
                 $reasons[] = 'Department is required.';
+            } elseif (!$this->departmentBelongsToCollege($row['department'], $row['college'])) {
+                $reasons[] = "'{$row['department']}' is not a department under {$row['college']}.";
             }
         } elseif (empty($row['college']) || empty($row['department'])) {
             $reasons[] = 'College and Department are required.';

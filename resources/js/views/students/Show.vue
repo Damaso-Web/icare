@@ -151,7 +151,7 @@
                 </thead>
                 <tbody>
                   <tr
-                    v-for="r in filteredReferrals"
+                    v-for="r in pagedReferrals"
                     :key="r.id"
                     style="cursor:pointer"
                     @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })"
@@ -165,6 +165,11 @@
                 </tbody>
               </table>
             </div>
+            <div v-if="referralsTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--cloud)">
+              <button class="ibtn ibtn-o ibtn-sm" :disabled="referralsPage === 1" @click="referralsPage--">Prev</button>
+              <span style="font-size:11.5px;color:var(--fog)">Page {{ referralsPage }} of {{ referralsTotalPages }}</span>
+              <button class="ibtn ibtn-o ibtn-sm" :disabled="referralsPage === referralsTotalPages" @click="referralsPage++">Next</button>
+            </div>
           </div>
 
           <!-- Related Concerns Comparison - group referrals by type to spot recurrence/escalation.
@@ -173,7 +178,7 @@
           <div class="icard" v-if="visibleReferrals.length > 1">
             <div class="icard-header"><span class="icard-title">Related Concerns Comparison</span></div>
             <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
-              <div v-for="group in concernGroups" :key="group.type">
+              <div v-for="group in pagedConcernGroups" :key="group.type">
                 <div
                   style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0"
                   @click="toggleConcernGroup(group.type)"
@@ -194,14 +199,24 @@
                       <tr><th>Date Submitted</th><th>Concern</th><th>Status</th></tr>
                     </thead>
                     <tbody>
-                      <tr v-for="r in group.referrals" :key="r.id" style="cursor:pointer" @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">
+                      <tr v-for="r in pagedGroupReferrals(group)" :key="r.id" style="cursor:pointer" @click="$router.push({ name: 'referral-show', params: { id: r.id }, query: referralCtx })">
                         <td style="font-size:12px;white-space:nowrap">{{ formatDate(r.created_at) }}</td>
                         <td style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.nature_of_concern || '-' }}</td>
                         <td><span class="ibadge" :class="'ibadge-' + r.status">{{ toTitleCase(r.status) }}</span></td>
                       </tr>
                     </tbody>
                   </table>
+                  <div v-if="concernGroupTotalPages(group) > 1" style="padding:8px 0 0;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                    <button class="ibtn ibtn-o ibtn-sm" :disabled="concernGroupPage(group.type) === 1" @click="setConcernGroupPage(group.type, concernGroupPage(group.type) - 1)">Prev</button>
+                    <span style="font-size:11.5px;color:var(--fog)">Page {{ concernGroupPage(group.type) }} of {{ concernGroupTotalPages(group) }}</span>
+                    <button class="ibtn ibtn-o ibtn-sm" :disabled="concernGroupPage(group.type) === concernGroupTotalPages(group)" @click="setConcernGroupPage(group.type, concernGroupPage(group.type) + 1)">Next</button>
+                  </div>
                 </div>
+              </div>
+              <div v-if="concernGroupsTotalPages > 1" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding-top:4px;border-top:1px solid var(--cloud)">
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="concernGroupsPage === 1" @click="concernGroupsPage--">Prev</button>
+                <span style="font-size:11.5px;color:var(--fog)">Page {{ concernGroupsPage }} of {{ concernGroupsTotalPages }}</span>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="concernGroupsPage === concernGroupsTotalPages" @click="concernGroupsPage++">Next</button>
               </div>
             </div>
           </div>
@@ -306,10 +321,15 @@
 
               <div v-if="statusHistory.length">
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:6px">Account History</div>
-            <div v-for="ev in statusHistory" :key="ev.id" style="border-left:3px solid var(--cloud);padding:2px 0 2px 10px;margin-bottom:8px;font-size:12px;color:var(--slate);line-height:1.5">
+            <div v-for="ev in pagedStatusHistory" :key="ev.id" style="border-left:3px solid var(--cloud);padding:2px 0 2px 10px;margin-bottom:8px;font-size:12px;color:var(--slate);line-height:1.5">
               <strong>{{ ev.action === 'deactivated' ? 'Deactivated' : 'Reactivated' }}</strong>: {{ ev.reason_label }}<span v-if="ev.note"> - {{ ev.note }}</span>
               <div v-if="ev.previous_reason_label" style="color:var(--stone)">Originally deactivated: {{ ev.previous_reason_label }}<span v-if="ev.previous_at"> on {{ new Date(ev.previous_at).toLocaleDateString() }}</span></div>
               <div style="color:var(--fog)">{{ ev.actor_name || 'Admin' }} &middot; {{ new Date(ev.created_at).toLocaleString() }}</div>
+            </div>
+            <div v-if="accountHistoryTotalPages > 1" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:2px">
+              <button class="ibtn ibtn-o ibtn-sm" :disabled="accountHistoryPage === 1" @click="accountHistoryPage--">Prev</button>
+              <span style="font-size:11.5px;color:var(--fog)">Page {{ accountHistoryPage }} of {{ accountHistoryTotalPages }}</span>
+              <button class="ibtn ibtn-o ibtn-sm" :disabled="accountHistoryPage === accountHistoryTotalPages" @click="accountHistoryPage++">Next</button>
             </div>
           </div>
 
@@ -750,7 +770,7 @@
 
 <script setup>
 import { useDiscardGuard } from '../../utils/discardGuard';
-import { ref, computed, onMounted, inject } from 'vue';
+import { ref, computed, watch, onMounted, inject } from 'vue';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import { studentAPI, caseAPI, userAPI } from '../../api/index';
@@ -1072,6 +1092,25 @@ const filteredReferrals = computed(() => {
   return refs.filter(r => r.referral_code?.toLowerCase().includes(q));
 });
 
+// Referrals list is paged client-side, 5 at a time - same approach as the
+// Session Notes/Follow-up Session pagination on referrals/Show.vue and
+// cases/Show.vue, no separate paginated endpoint needed here.
+const REFERRALS_PER_PAGE = 5;
+const referralsPage = ref(1);
+const referralsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredReferrals.value.length / REFERRALS_PER_PAGE))
+);
+const pagedReferrals = computed(() => {
+  const start = (referralsPage.value - 1) * REFERRALS_PER_PAGE;
+  return filteredReferrals.value.slice(start, start + REFERRALS_PER_PAGE);
+});
+watch(referralsTotalPages, (total) => {
+  if (referralsPage.value > total) referralsPage.value = total;
+});
+// A new search narrows the list, so always jump back to page 1 for it
+// instead of possibly landing on a now out-of-range page.
+watch(referralSearch, () => { referralsPage.value = 1; });
+
 const concernGroups = computed(() => {
   const refs = visibleReferrals.value;
   const groups = {};
@@ -1085,6 +1124,41 @@ const concernGroups = computed(() => {
     .filter(g => g.referrals.length > 0)
     .sort((a, b) => b.referrals.length - a.referrals.length);
 });
+
+// The list of concern groups itself is also paged client-side, 3 at a
+// time - separate from each individual group's own referrals pagination
+// below (a student can have many distinct concern types).
+const CONCERN_GROUPS_PER_PAGE = 3;
+const concernGroupsPage = ref(1);
+const concernGroupsTotalPages = computed(() =>
+  Math.max(1, Math.ceil(concernGroups.value.length / CONCERN_GROUPS_PER_PAGE))
+);
+const pagedConcernGroups = computed(() => {
+  const start = (concernGroupsPage.value - 1) * CONCERN_GROUPS_PER_PAGE;
+  return concernGroups.value.slice(start, start + CONCERN_GROUPS_PER_PAGE);
+});
+watch(concernGroupsTotalPages, (total) => {
+  if (concernGroupsPage.value > total) concernGroupsPage.value = total;
+});
+
+// Each expanded Related Concerns Comparison group is paged client-side too,
+// 3 at a time - one page counter per concern type, same shape as
+// expandedConcernGroups above.
+const CONCERN_GROUP_PER_PAGE = 3;
+const concernGroupPages = ref({});
+function concernGroupPage(type) {
+  return concernGroupPages.value[type] || 1;
+}
+function concernGroupTotalPages(group) {
+  return Math.max(1, Math.ceil(group.referrals.length / CONCERN_GROUP_PER_PAGE));
+}
+function pagedGroupReferrals(group) {
+  const start = (concernGroupPage(group.type) - 1) * CONCERN_GROUP_PER_PAGE;
+  return group.referrals.slice(start, start + CONCERN_GROUP_PER_PAGE);
+}
+function setConcernGroupPage(type, page) {
+  concernGroupPages.value = { ...concernGroupPages.value, [type]: page };
+}
 
 const SDU_TYPES = ['disciplinary'];
 const TMDU_TYPES = ['psychological_testing'];
@@ -1151,6 +1225,20 @@ function formatDate(date) {
 }
 
 const statusHistory = ref([]);
+
+// Account History is paged client-side too, 2 at a time.
+const ACCOUNT_HISTORY_PER_PAGE = 2;
+const accountHistoryPage = ref(1);
+const accountHistoryTotalPages = computed(() =>
+  Math.max(1, Math.ceil(statusHistory.value.length / ACCOUNT_HISTORY_PER_PAGE))
+);
+const pagedStatusHistory = computed(() => {
+  const start = (accountHistoryPage.value - 1) * ACCOUNT_HISTORY_PER_PAGE;
+  return statusHistory.value.slice(start, start + ACCOUNT_HISTORY_PER_PAGE);
+});
+watch(accountHistoryTotalPages, (total) => {
+  if (accountHistoryPage.value > total) accountHistoryPage.value = total;
+});
 
 onMounted(async () => {
   // Ctrl No. prefix, loaded alongside the page so the case name is right from the start.

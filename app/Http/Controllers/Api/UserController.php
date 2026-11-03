@@ -36,6 +36,29 @@ class UserController extends Controller
             : array_values(array_diff($all, ['system_admin']));
     }
 
+    // Decision (11/3/2026): a Dean's college is forced everywhere below, but
+    // nothing checked that the department they typed/uploaded actually
+    // belongs to that college (e.g. a CTE Dean could end up with a faculty
+    // record stamped College=CTE, Department="Computer Science"). Checked
+    // against the real Department/College DB relationship (seeded by
+    // ManagementDataSeeder, not a hardcoded list here) so this stays correct
+    // if departments are ever added/renamed later. Shared with the subclass
+    // FacultyController, whose own Dean-scoping goes through the same check.
+    protected function departmentBelongsToCollege(?string $department, ?string $collegeName): bool
+    {
+        if (empty($department) || empty($collegeName)) {
+            return false;
+        }
+        $college = \App\Models\College::where('name', $collegeName)->first();
+        // Nothing seeded to check against (e.g. test fixtures/legacy data
+        // using a bare college name that doesn't match any real College
+        // row) - don't block on a check we have no real data for.
+        if (!$college || !$college->departments()->exists()) {
+            return true;
+        }
+        return $college->departments()->whereRaw('LOWER(name) = LOWER(?)', [trim($department)])->exists();
+    }
+
     /** Employee ID must be unique; the message names the actual problem instead of a generic one. */
     protected static function employeeIdUnique(?int $ignoreId = null): \Closure
     {
@@ -134,6 +157,12 @@ class UserController extends Controller
         }
         if (in_array($validated['role'], ['faculty', 'dept_chair'], true)) {
             abort_if(empty($validated['college']) || empty($validated['department']), 422, 'Choose the college and department.');
+            // Only a Dean's department is actually unverified here - a plain
+            // Admin picks college freely too, so there's nothing to check it
+            // against (no college/actor relationship is being forced).
+            if ($request->user()->isDean() && !$this->departmentBelongsToCollege($validated['department'], $validated['college'])) {
+                abort(422, "'{$validated['department']}' is not a department under {$validated['college']}.");
+            }
         }
         $validated['unit'] = self::UNIT_FOR_ROLE[$validated['role']] ?? null;
 
@@ -185,6 +214,10 @@ class UserController extends Controller
     // A Dean's accounts stay in the Dean's college.
     if ($request->user()->isDean()) {
         unset($validated['college']);
+        if (array_key_exists('department', $validated) && !empty($validated['department'])
+            && !$this->departmentBelongsToCollege($validated['department'], $user->college)) {
+            abort(422, "'{$validated['department']}' is not a department under {$user->college}.");
+        }
     }
     if (isset($validated['role']) && isset(self::UNIT_FOR_ROLE[$validated['role']])) {
         $validated['unit'] = self::UNIT_FOR_ROLE[$validated['role']];
@@ -661,6 +694,12 @@ class UserController extends Controller
             if ($existing && $existing->college !== $row['college']) {
                 $reasons[] = 'This email belongs to an account in another college that this Dean cannot change.';
             }
+            // Department isn't required here (an existing upload flow relies
+            // on that), but if one WAS given, it must actually belong to the
+            // college being forced onto this row.
+            if (!empty($row['department']) && !$this->departmentBelongsToCollege($row['department'], $row['college'])) {
+                $reasons[] = "'{$row['department']}' is not a department under {$row['college']}.";
+            }
             return [$row, $reasons];
         }
         return [$row, []];
@@ -761,6 +800,12 @@ class UserController extends Controller
                 'email'        => $row['email'] ?? '',
                 'name'         => trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')),
                 'role'         => $row['role'] ?? '',
+                // Added so the preview table can show what college/department
+                // each row will actually be saved with - scopeImportRow()
+                // above may have forced or rejected these, so this reflects
+                // the real outcome, not just what the uploaded file said.
+                'college'      => $row['college'] ?? '',
+                'department'   => $row['department'] ?? '',
                 'is_duplicate' => $isDuplicate,
                 'valid'        => empty($reasons),
                 'reasons'      => $reasons,

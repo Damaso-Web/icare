@@ -337,7 +337,7 @@
           <template v-if="!result">
             <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
               CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Department</span>.
-              Everyone is added as <strong>Faculty</strong> of {{ isChair ? auth.user?.department : auth.user?.college }}. Download the template below, fill it in, then upload it here.
+              Everyone is added as <strong>Faculty</strong> of <strong>{{ auth.user?.college }}</strong><span v-if="isChair"> / {{ auth.user?.department }}</span><span v-else>, in whichever Department the file specifies (must belong to {{ auth.user?.college }})</span>. Download the template below, fill it in, then upload it here.
             </div>
             <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -356,13 +356,14 @@
               <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
                 <table class="itable">
                   <thead>
-                    <tr><th style="width:46px">Row</th><th>Name</th><th>Email</th><th style="width:90px">Status</th><th style="width:150px">Action</th></tr>
+                    <tr><th style="width:46px">Row</th><th>Name</th><th>Email</th><th>College / Department</th><th style="width:90px">Status</th><th style="width:150px">Action</th></tr>
                   </thead>
                   <tbody>
                     <tr v-for="(r, i) in preview" :key="i">
                       <td style="font-size:12px">{{ r.row }}</td>
                       <td style="font-size:12px">{{ r.name }}</td>
                       <td style="font-family:var(--mono);font-size:12px">{{ r.email }}</td>
+                      <td style="font-size:11px;line-height:1.5">{{ r.college || '-' }}<br /><span style="color:var(--stone)">{{ r.department || '-' }}</span></td>
                       <td>
                         <span v-if="!r.valid" class="ibadge" style="background:var(--red-lt);color:var(--red)">Invalid</span>
                         <span v-else-if="r.is_duplicate" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">Duplicate</span>
