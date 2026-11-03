@@ -305,13 +305,25 @@
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Student</div>
               <div style="font-size:13px;color:var(--ink)">{{ form.last_name }}, {{ form.first_name }} {{ form.middle_name }} <span style="color:var(--fog)">({{ form.student_id_input }})</span></div>
             </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
-              <div style="font-size:13px;color:var(--ink)">{{ form.college }}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
-              <div style="font-size:13px;color:var(--ink)">{{ form.program }}</div>
+            <!-- College/Program need their own nested grid, separate from
+                 the grid-column:span 2 items above/below. The mobile stylesheet
+                 (app.css, [style*="grid-template-columns"] override) forces
+                 every inline grid to a single column on narrow screens, and a
+                 single-column grid that also contains span-2 items creates an
+                 implicit second column to satisfy the span - leaving these two
+                 plain (non-spanning) items placed in that near-0-width implicit
+                 column instead of stacking, so their text rendered on top of
+                 each other. Nesting them in their own span-2 cell keeps their
+                 2-col/1-col collapse independent of the outer grid's items. -->
+            <div style="grid-column:span 2;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">College</div>
+                <div style="font-size:13px;color:var(--ink)">{{ form.college }}</div>
+              </div>
+              <div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Program</div>
+                <div style="font-size:13px;color:var(--ink)">{{ form.program }}</div>
+              </div>
             </div>
             <div style="grid-column:span 2">
               <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Service Requested</div>
@@ -705,8 +717,16 @@ async function confirmSubmit() {
         // visible) instead of the Dashboard, so the user doesn't have to
         // navigate there manually to confirm it went through.
         router.push({ name: 'sent-referrals' });
-      } else {
+      } else if (['admin', 'gcu_staff', 'tmdu_staff'].includes(auth.user?.role)) {
         router.push({ name: 'referrals' });
+      } else {
+        // Bug (11/3/2026): referral submitting is also open to sdu_head,
+        // tmdu_head and system_admin, but the 'referrals' route only allows
+        // admin/gcu_staff/tmdu_staff - sending every other role there sent
+        // them to /unauthorized right after a successful submit. Everyone
+        // not in that allowlist lands on Sent Referrals instead, same as
+        // the faculty/dean branch above.
+        router.push({ name: 'sent-referrals' });
       }
     }, 1500);
 

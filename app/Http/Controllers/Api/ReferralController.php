@@ -1052,7 +1052,36 @@ class ReferralController extends Controller
                 'end_time'         => 'required|date_format:H:i|after:start_time',
             ]);
 
+            $oldStatus = $referral->status;
+
+            // Bug (11/3/2026): this used to look up ANY appointment on the
+            // whole case with request_status 'awaiting_student', not scoped
+            // to this referral's own referral_id - on a case with more than
+            // one referral (a student referred more than once), it could
+            // silently grab and reschedule an unrelated sibling referral's
+            // placeholder instead of creating/using this one's own, while
+            // THIS referral's status only appeared to change to "scheduled"
+            // because of scheduleForStudent()'s case->latestReferral side
+            // effect, which is only actually this referral when it also
+            // happens to be the case's most recently created one. Scoped to
+            // referral_id now, same as ensureSchedulingAppointment()/
+            // acknowledge() scope their own lookups. And since a referral
+            // that was never acknowledged (straight Submitted -> Scheduled)
+            // has no placeholder of its own yet, acknowledge it and create
+            // one first - same as the normal Acknowledge action does - so
+            // the one-step override still ends up with a real appointment
+            // tied to THIS referral, not whichever one the old lookup found.
+            if (!$referral->acknowledged_at) {
+                $referral->update([
+                    'acknowledged_at'         => now(),
+                    'acknowledged_by_user_id' => $request->user()->id,
+                ]);
+                $this->ensureSchedulingAppointment($referral->fresh(), $request->user());
+                $referral->refresh();
+            }
+
             $appointment = $referral->case?->appointments()
+                ->where('referral_id', $referral->id)
                 ->where('request_status', 'awaiting_student')
                 ->whereNotIn('status', ['cancelled', 'completed'])
                 ->latest()
@@ -1063,7 +1092,12 @@ class ReferralController extends Controller
 
             app(AppointmentController::class)->scheduleForStudent($request, $appointment);
 
-            AuditLog::record('status_overridden', "GCU Head changed referral {$referral->referral_code} from {$referral->status} to scheduled, setting the appointment date and time. Reason: {$data['reason']}", $referral, ['status' => $referral->status], ['status' => 'scheduled']);
+            // Set directly rather than relying on scheduleForStudent()'s
+            // case->latestReferral side effect (see the bug note above) -
+            // we now know exactly which referral this override is for.
+            $referral->update(['status' => 'scheduled']);
+
+            AuditLog::record('status_overridden', "GCU Head changed referral {$referral->referral_code} from {$oldStatus} to scheduled, setting the appointment date and time. Reason: {$data['reason']}", $referral, ['status' => $oldStatus], ['status' => 'scheduled']);
 
             return response()->json(['message' => 'Referral status updated and appointment scheduled.', 'referral' => $referral->fresh()]);
         }

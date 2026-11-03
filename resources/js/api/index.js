@@ -275,13 +275,8 @@ export const caseAPI = {
     deleteIntervention:   (interventionId) => api.delete(`/interventions/${interventionId}`),
 };
 
-export const caseHandoffAPI = {
-    confirm: (id) => api.post(`/case-handoffs/${id}/confirm`),
-};
-
 export const caseInterventionAPI = {
     store: (caseId, data) => api.post(`/cases/${caseId}/interventions`, data),
-    markCompleted: (id) => api.post(`/case-interventions/${id}/complete`),
 };
 
 export const sessionNoteAPI = {

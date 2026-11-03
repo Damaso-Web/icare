@@ -397,7 +397,7 @@
                 ⚠ Acknowledge referral first
               </div>
                 <button
-                v-if="!justReferredToTmdu"
+                v-if="!justReferredToTmdu && tmduEligibleReferral"
                 class="ibtn ibtn-blue"
                 style="width:100%;justify-content:center"
                 @click="referToTmdu"
@@ -405,7 +405,7 @@
                 <svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 Refer to TMDU
               </button>
-              <div v-else style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
+              <div v-else-if="justReferredToTmdu" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                 ✓ Already referred to TMDU
               </div>
               <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="openHandoffModal">
@@ -935,7 +935,7 @@ import { ref, computed, watch, onMounted, inject } from 'vue';
 import { toTitleCase, formatTime12 } from '../../utils/validators';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import { caseAPI, sessionNoteAPI, appointmentAPI, caseHandoffAPI, userAPI, caseInterventionAPI, referralAPI } from '../../api/index';
+import { caseAPI, sessionNoteAPI, appointmentAPI, userAPI, caseInterventionAPI, referralAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 
 const route  = useRoute();
@@ -1058,7 +1058,7 @@ async function submitParentConferenceSlip() {
 
 async function markInterventionCompleted(iv) {
   try {
-    const res = await caseInterventionAPI.markCompleted(iv.id);
+    const res = await caseAPI.completeIntervention(iv.id);
     Object.assign(iv, res.data);
     toast?.success('Marked as completed.');
   } catch (e) {
@@ -1215,15 +1215,43 @@ async function closeCase() {
   }
 }
 
+// CaseController::referToTmdu() requires a referral_id for the specific
+// Case Referral Slip being escalated, and that referral must pass
+// Referral::canEditSif() (acknowledged - status !== 'submitted' - AND has
+// an attended appointment). Mirrored here so the button only appears, and
+// only sends a referral_id, when the case actually has one that qualifies -
+// the most recently created one, same tie-break the backend's own "re-click
+// reuses the open escalation" logic keys off. A referral already of type
+// psychological_testing is itself a prior TMDU escalation, not a source to
+// escalate again, so it's excluded from consideration.
+const tmduEligibleReferral = computed(() => {
+  const referrals = caseFile.value.referrals || [];
+  const appointments = caseFile.value.appointments || [];
+  const hasAttendedAppointment = (referral) => appointments.some(a =>
+    a.status === 'completed' && (a.referral_id === referral.id || (!a.referral_id && a.case_id === caseFile.value.id))
+  );
+  const eligible = referrals.filter(r =>
+    r.referral_type !== 'psychological_testing' && r.status !== 'submitted' && hasAttendedAppointment(r)
+  );
+  if (!eligible.length) return null;
+  // referrals() is loaded ordered by created_at ascending, so the last
+  // eligible entry is the most recent.
+  return eligible[eligible.length - 1];
+});
+
 async function referToTmdu() {
+  if (!tmduEligibleReferral.value) return;
   try {
-    await caseAPI.referToTmdu(caseFile.value.id, { reason: 'Referred for psychological assessment.' });
+    await caseAPI.referToTmdu(caseFile.value.id, {
+      reason: 'Referred for psychological assessment.',
+      referral_id: tmduEligibleReferral.value.id,
+    });
     caseFile.value.current_unit = 'TMDU';
     caseFile.value.status       = 'awaiting_testing';
     justReferredToTmdu.value    = true;
     toast?.success('Case referred to TMDU.');
   } catch (e) {
-    toast?.error('Failed to refer to TMDU.');
+    toast?.error(e.response?.data?.message || 'Failed to refer to TMDU.');
   }
 }
 
@@ -1265,7 +1293,7 @@ async function submitHandoff() {
 
 async function confirmHandoffReceipt(handoff) {
   try {
-    await caseHandoffAPI.confirm(handoff.id);
+    await caseAPI.acknowledgeHandoff(caseFile.value.id, handoff.id);
     handoff.acknowledged = true;
     toast?.success('Receipt confirmed.');
   } catch (e) {
