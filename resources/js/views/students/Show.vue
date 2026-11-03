@@ -231,15 +231,22 @@
             <div class="icard-header"><span class="icard-title">Student Information</span></div>
 
             <!-- SIF document header - Case Files view only. Revision No. /
-                 Effectivity / Year-Term come from Management (QF-OSS-GCU-01).
-                 The client no. at the end of the Ctrl No. is per student and
-                 editable here by GCU. -->
+                 Effectivity / Year-Term come from Management (QF-OSS-GCU-01);
+                 this part is deliberately hidden (doc-header-hidden, B#
+                 10/25/2026 - pure document-formality display, not needed
+                 day to day). -->
             <div v-if="fromCases" class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);font-size:11px;color:var(--stone);display:grid;grid-template-columns:1fr 1fr;gap:2px 10px">
               <div><strong>Document Code:</strong> QF-OSS-GCU-01</div>
               <div style="text-align:right"><strong>Effectivity:</strong> {{ formatDocDate(sifDoc.effectivity_date) }}</div>
               <div><strong>Revision No.:</strong> {{ sifDoc.revision_no || '01' }}</div>
-              <div></div>
-              <div class="ctrl-row">
+            </div>
+            <!-- Ctrl No. row - kept OUT of the doc-header-hidden block above
+                 (unlike the rest of that header, this isn't just display: the
+                 client no. is editable here by GCU, and that was the only
+                 place to set it, so it would otherwise be unreachable in the
+                 app with the header hidden). -->
+            <div v-if="fromCases" style="padding:10px 18px;border-bottom:1px solid var(--cloud);background:var(--snow);font-size:11px;color:var(--stone)">
+              <div class="ctrl-row" style="margin-top:0;padding-top:0;border-top:none">
                 <span class="ctrl-label">Ctrl No.</span>
                 <template v-if="!editingClientNo">
                   <span class="ctrl-value" :class="{ unset: !hasCtrlNo }">{{ sifCtrlNo }}</span>

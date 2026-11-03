@@ -228,6 +228,79 @@ class StudentProfileManagementTest extends TestCase
             ->assertJson(['message' => 'This file is archived and view only. The Control Number can no longer be changed.']);
     }
 
+    // Bulk Ctrl No. assignment (11/4/2026): the /api/students/missing-client-no
+    // route is registered before the students/{student} show route - this also
+    // guards against that registration order regressing (it would otherwise be
+    // swallowed by {student} route-model-binding and 404).
+    public function test_missing_client_no_lists_only_active_students_with_a_case_and_no_number(): void
+    {
+        $withCase    = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $withCase->id]);
+        $noCase      = Student::factory()->create(['sif_client_no' => null]);
+        $alreadySet  = Student::factory()->create(['sif_client_no' => 50]);
+        CaseFile::factory()->create(['student_id' => $alreadySet->id]);
+        $inactive    = Student::factory()->create(['sif_client_no' => null, 'is_active' => false]);
+        CaseFile::factory()->create(['student_id' => $inactive->id]);
+
+        $this->actingAs($this->gcuStaff());
+        $res = $this->getJson('/api/students/missing-client-no')->assertOk();
+
+        $ids = collect($res->json('students'))->pluck('id');
+        $this->assertTrue($ids->contains($withCase->id));
+        $this->assertFalse($ids->contains($noCase->id));
+        $this->assertFalse($ids->contains($alreadySet->id));
+        $this->assertFalse($ids->contains($inactive->id));
+        $this->assertSame(51, $res->json('next_number'));
+    }
+
+    public function test_bulk_update_client_no_saves_every_row_when_all_are_valid(): void
+    {
+        $a = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $a->id]);
+        $b = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $b->id]);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson('/api/students/bulk-client-no', ['updates' => [
+            ['student_id' => $a->id, 'sif_client_no' => 10],
+            ['student_id' => $b->id, 'sif_client_no' => 11],
+        ]])->assertOk()->assertJson(['updated' => 2]);
+
+        $this->assertSame(10, $a->fresh()->sif_client_no);
+        $this->assertSame(11, $b->fresh()->sif_client_no);
+    }
+
+    public function test_bulk_update_client_no_is_all_or_nothing_on_a_duplicate_within_the_batch(): void
+    {
+        $a = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $a->id]);
+        $b = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $b->id]);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson('/api/students/bulk-client-no', ['updates' => [
+            ['student_id' => $a->id, 'sif_client_no' => 20],
+            ['student_id' => $b->id, 'sif_client_no' => 20],
+        ]])->assertStatus(422);
+
+        $this->assertNull($a->fresh()->sif_client_no);
+        $this->assertNull($b->fresh()->sif_client_no);
+    }
+
+    public function test_bulk_update_client_no_rejects_a_number_already_used_outside_the_batch(): void
+    {
+        Student::factory()->create(['sif_client_no' => 30]);
+        $a = Student::factory()->create(['sif_client_no' => null]);
+        CaseFile::factory()->create(['student_id' => $a->id]);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson('/api/students/bulk-client-no', ['updates' => [
+            ['student_id' => $a->id, 'sif_client_no' => 30],
+        ]])->assertStatus(422);
+
+        $this->assertNull($a->fresh()->sif_client_no);
+    }
+
     // #41/#42/#45: combined case/referral/appointment/testing history,
     // scoped per role.
     public function test_history_gives_gcu_staff_the_students_full_record(): void

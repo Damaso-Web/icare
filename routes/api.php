@@ -77,6 +77,13 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     // Looking a student up stays open to every staff role (Refer Student needs
     // it); changing student records is limited to the roles that own the
     // Students module, enforced here and not just by the frontend.
+    // Bulk Ctrl No. assignment - lets GCU fill in several students' client
+    // numbers in one pass instead of opening each Student Information File.
+    // Registered BEFORE the students/{student} show route below: both are
+    // GET with one segment after "students", so if this came after, Laravel
+    // would match "missing-client-no" as the {student} route-model-binding
+    // parameter instead of reaching this route.
+    Route::get('students/missing-client-no', [StudentController::class, 'missingClientNo'])->middleware('role:admin,gcu_staff');
     Route::apiResource('students', StudentController::class)->only(['index', 'show']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
@@ -85,6 +92,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         Route::post('students/import', [StudentController::class, 'import']);
         Route::post('students/{student}/remind-forms', [StudentController::class, 'remindForms']);
         Route::patch('students/{student}/client-no', [StudentController::class, 'updateClientNo']);
+        Route::post('students/bulk-client-no',   [StudentController::class, 'bulkUpdateClientNo']);
         // Activating and deactivating a student account is for the GCU Head (admin) only.
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive'])->middleware('role:admin');
         Route::get('students/{student}/status-history', [StudentController::class, 'statusHistory']);

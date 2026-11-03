@@ -224,7 +224,9 @@ export const studentAPI = {
     viewTempPassword: (id)    => api.get(`/students/${id}/temp-password`),
     resetPassword:    (id, data) => api.post(`/students/${id}/reset-password`, data),
     passwordInfo:     (id)    => api.get(`/students/${id}/password-info`),
-    updateClientNo:   (id, data) => api.patch(`/students/${id}/client-no`, data),
+    updateClientNo:    (id, data) => api.patch(`/students/${id}/client-no`, data),
+    missingClientNo:   ()         => api.get('/students/missing-client-no'),
+    bulkUpdateClientNo: (data)    => api.post('/students/bulk-client-no', data),
     remindForms:      (id)       => api.post(`/students/${id}/remind-forms`),
     documentSettings: (code)  => api.get(`/document-settings/${code}`),
 };

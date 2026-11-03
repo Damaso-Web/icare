@@ -985,4 +985,85 @@ class StudentController extends Controller
 
         return response()->json(['sif_client_no' => $student->sif_client_no]);
     }
+
+    // The list the Bulk Ctrl No. assignment modal fills in: every active
+    // student who actually has a case (so an SIF exists for them) but has
+    // no client no. yet - the "non-bold" rows on Student Information Files.
+    public function missingClientNo(Request $request)
+    {
+        $students = Student::query()
+            ->whereNull('sif_client_no')
+            ->where('is_active', true)
+            ->whereHas('cases')
+            ->orderBy('created_at')
+            ->get(['id', 'student_id', 'first_name', 'middle_name', 'last_name']);
+
+        return response()->json([
+            'students'    => $students,
+            // So the bulk-assign screen can suggest sequential numbers
+            // (next_number, next_number+1, ...) instead of leaving every
+            // row blank for the staff member to look up by hand.
+            'next_number' => (int) (Student::max('sif_client_no') ?? 0) + 1,
+        ]);
+    }
+
+    // Bulk version of updateClientNo() above - lets GCU assign several
+    // students' Control Numbers in one pass instead of opening each SIF
+    // individually. All-or-nothing: every row is checked before anything is
+    // saved, so a batch never ends up half-applied.
+    public function bulkUpdateClientNo(Request $request)
+    {
+        $data = $request->validate([
+            'updates'                 => ['required', 'array', 'min:1'],
+            'updates.*.student_id'    => ['required', 'integer'],
+            'updates.*.sif_client_no' => ['required', 'integer', 'min:1', 'max:999999'],
+        ]);
+        $updates = $data['updates'];
+
+        // No two rows in this same batch may claim the same number.
+        $seen = [];
+        foreach ($updates as $row) {
+            $n = $row['sif_client_no'];
+            if (isset($seen[$n])) {
+                $msg = 'Client number ' . str_pad((string) $n, 6, '0', STR_PAD_LEFT) . ' is assigned to more than one row here.';
+                return response()->json(['message' => $msg], 422);
+            }
+            $seen[$n] = true;
+        }
+
+        $studentIds = array_column($updates, 'student_id');
+        $students   = Student::whereIn('id', $studentIds)->get()->keyBy('id');
+
+        foreach ($updates as $row) {
+            $student = $students->get($row['student_id']);
+            if (!$student) {
+                return response()->json(['message' => "Student #{$row['student_id']} was not found."], 422);
+            }
+            $latest = $student->cases()->latest('id')->first();
+            if ($student->is_active === false || ($latest && $latest->status === 'closed')) {
+                $msg = "{$student->first_name} {$student->last_name}'s file is archived and view only. The Control Number can no longer be changed.";
+                return response()->json(['message' => $msg], 422);
+            }
+            // "Taken by another student" has to look outside this batch - every
+            // row here is about to get a new number, so a row's OWN current
+            // (soon-to-be-replaced) number must never trip this check.
+            $taken = Student::where('sif_client_no', $row['sif_client_no'])->whereNotIn('id', $studentIds)->first();
+            if ($taken) {
+                $msg = 'Client number ' . str_pad((string) $row['sif_client_no'], 6, '0', STR_PAD_LEFT) . " is already used by another student ({$taken->student_id}).";
+                return response()->json(['message' => $msg], 422);
+            }
+        }
+
+        DB::transaction(function () use ($updates, $students) {
+            foreach ($updates as $row) {
+                $student = $students->get($row['student_id']);
+                $old = $student->sif_client_no;
+                $student->sif_client_no = $row['sif_client_no'];
+                $student->save();
+                AuditLog::record('updated', "Set SIF client no. for {$student->student_id} from " . ($old ?? 'blank') . ' to ' . $student->sif_client_no . ' (bulk assign).', $student);
+            }
+        });
+
+        return response()->json(['updated' => count($updates)]);
+    }
 }
