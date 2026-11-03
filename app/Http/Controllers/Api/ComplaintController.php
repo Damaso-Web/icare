@@ -207,8 +207,16 @@ class ComplaintController extends Controller
             ],
             'description'            => ['required', 'string', 'max:2000', 'regex:' . \App\Support\PlainText::REQUIRES_LETTER_REGEX],
             'certification_agreed'   => 'required|accepted',
-            'evidence.*'             => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
-            'affidavit.*'            => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            // Bug (11/3/2026): storeByStudent() already validates/accepts
+            // doc/docx evidence and affidavit files with its own looser
+            // mimes list before handing the request to file() - but file()
+            // then re-validates the SAME request with this narrower
+            // pdf/jpg/jpeg/png-only list, silently rejecting a .docx
+            // affidavit the student-side validation had just accepted.
+            // Matches storeByStudent()'s own $fileRule so a file validated
+            // once isn't re-rejected here.
+            'evidence.*'             => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
+            'affidavit.*'            => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:10240',
         ], [
             // B584: Address and Narration of Facts must not be numbers-only.
             'complainant_address.regex' => 'Please provide a valid address. Numbers alone are not allowed.',
@@ -222,6 +230,13 @@ class ComplaintController extends Controller
         }
 
         $student = Student::findOrFail($validated['complainee_student_id']);
+
+        // Bug (11/3/2026, reverted same day): a department/college scope
+        // check was briefly added here. Team decision: Dean/Dept Chair/
+        // Faculty accounts are explicitly allowed to file a complaint
+        // against any student university-wide - not limited to their own
+        // college/department. No scope check belongs here.
+
         if (! $student->is_active) {
             return response()->json(['message' => 'This student record is inactive.'], 422);
         }

@@ -28,8 +28,6 @@ class StudentController extends Controller
     {
                 $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
 
-        $skipScope = $request->scope === 'all';
-
         $applySearch = function ($q) use ($request, $nameOnly) {
             $terms = preg_split('/\s+/', trim((string) $request->search), -1, PREG_SPLIT_NO_EMPTY);
             $q->where(function ($outer) use ($terms, $nameOnly) {
@@ -44,32 +42,16 @@ class StudentController extends Controller
             });
         };
 
+        // Bug (11/3/2026, reverted same day): B590/B618/B626 had scoped a
+        // Dean/Dept Chair/Faculty search (and the referral/complaint it
+        // feeds) to their own college/department. Team decision: that's
+        // wrong for this system - a faculty member may teach students from
+        // other colleges, so no role is limited to their own college or
+        // department when searching, referring, or filing a complaint.
+        // Every role can search the full masterlist now.
         $query = Student::query()
             ->when($request->search, $applySearch)
-            // B590: a Dean's student lookup (Refer Student, File a Complaint)
-            // is scoped to their own college - they act for their college,
-            // not the whole university, so any ?college= they pass is
-            // ignored in favor of their own. (A real cross-college referral/
-            // complaint still needs its own approval workflow - that's a
-            // separate feature and isn't built here; this only closes the
-            // "search any student" gap.)
-            ->when(!$skipScope && $request->user()?->isDean(), fn($q) => $q->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college)))
-            // Bug (10/14/2026): same reasoning as the Dean's college scope
-            // above, one level further - a Dept Chair's lookup (Refer a
-            // Student, File a Complaint) is scoped to their own department,
-            // so any ?college=/?program= they pass is ignored in favor of it.
-            ->when(!$skipScope && $request->user()?->isDeptChair(), fn($q) => $q
-                ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
-                ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
-            // Bug (10/25/2026, B626): a plain Faculty member's student lookup
-            // (the "+ Refer Student" search) could search and select ANY
-            // student university-wide - same reasoning as the Dean (B590)
-            // and Dept Chair scopes above, one level further down: Faculty
-            // is scoped to their own department within their own college.
-            ->when(!$skipScope && $request->user()?->role === 'faculty', fn($q) => $q
-                ->whereIn('college', \App\Support\CollegeName::equivalents($request->user()->college))
-                ->where(fn($p) => \App\Support\DepartmentScope::whereProgramMatches($p, $request->user()->department)))
-            ->when(!$request->user()?->isDean() && !$request->user()?->isDeptChair() && $request->user()?->role !== 'faculty' && $request->college, fn($q) => $q->where('college', $request->college))
+            ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
 
@@ -87,17 +69,7 @@ class StudentController extends Controller
             $results->getCollection()->transform(fn($s) => collect($s->toArray())->except('student_id')->all());
         }
 
-        $isScoped = !$skipScope && (
-            $request->user()?->isDean()
-            || $request->user()?->isDeptChair()
-            || $request->user()?->role === 'faculty'
-        );
-        $outOfScope = false;
-        if ($isScoped && $request->search && $results->isEmpty()) {
-            $outOfScope = Student::query()->when($request->search, $applySearch)->exists();
-        }
-
-        return response()->json(array_merge($results->toArray(), ['out_of_scope' => $outOfScope]));
+        return response()->json($results->toArray());
     }
 
     public function store(Request $request)
@@ -193,34 +165,9 @@ class StudentController extends Controller
         'medical_notes',
     ];
 
-    // B641 (10/30/2026): index() scopes a Dean/Dept Chair/Faculty search to
-    // their own college/department (B590/B618/B626), but this direct
-    // GET /api/students/{id} had no such check at all - any Dean, Dept
-    // Chair, or plain Faculty account could open ANY student's full
-    // profile (including the SIF fields below) just by guessing/knowing an
-    // ID, bypassing the search scope entirely. Reuses the exact same scope
-    // rule as index() so there's one source of truth.
-    private function authorizeCollegeScope(Student $student): void
-    {
-        $user = request()->user();
-        if (!$user) return;
-
-        if ($user->isDean()) {
-            abort_unless(in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true), 403, 'This student is outside your college.');
-            return;
-        }
-
-        if ($user->isDeptChair() || $user->role === 'faculty') {
-            $inCollege = in_array($student->college, \App\Support\CollegeName::equivalents($user->college), true);
-            $inProgram = \App\Support\DepartmentScope::matches($student->program, $user->department);
-            abort_unless($inCollege && $inProgram, 403, 'This student is outside your department.');
-        }
-    }
-
     public function show(Student $student)
     {
         $this->authorizeTmduScope($student);
-        $this->authorizeCollegeScope($student);
 
         $data = $student->toArray();
         if (request()->user()?->isTMDUStaff()) {
@@ -427,10 +374,11 @@ class StudentController extends Controller
         $user = request()->user();
 
         // Authorize before writing an audit event or returning any related
-        // records. The list endpoint is college/department scoped, so the
-        // direct history endpoint must enforce the same boundary as show().
+        // records. (Bug 11/3/2026, reverted same day: this used to also
+        // call authorizeCollegeScope() here, matching the list/show
+        // college/department scope - removed along with it everywhere
+        // else, same team decision.)
         $this->authorizeTmduScope($student);
-        $this->authorizeCollegeScope($student);
 
         // The Student Profile page always loads this, and it is what returns
         // the student's referrals, cases, appointments and testing records -
@@ -982,21 +930,13 @@ class StudentController extends Controller
             'last_name'  => 'required|string',
         ]);
 
-        $user = $request->user();
         $existingQuery = Student::where('first_name', $request->first_name)
             ->where('last_name', $request->last_name)
             ->when($request->filled('middle_name'), fn($q) => $q->where('middle_name', $request->middle_name));
 
-        // Match the same scope used by student search. The duplicate-name
-        // helper should not become a side door for enumerating students from
-        // another college or department.
-        if ($user?->isDean()) {
-            $existingQuery->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
-        } elseif ($user?->isDeptChair() || $user?->role === 'faculty') {
-            $existingQuery->whereIn('college', \App\Support\CollegeName::equivalents($user->college))
-                ->where(fn ($q) => \App\Support\DepartmentScope::whereProgramMatches($q, $user->department));
-        }
-
+        // Bug (11/3/2026, reverted same day): this used to match the same
+        // college/department scope as student search - removed along with
+        // it, same team decision (see index()'s own comment).
         $existing = $existingQuery->first();
 
         return response()->json([

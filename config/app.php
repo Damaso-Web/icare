@@ -58,9 +58,21 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
-    // Where the Vue frontend lives (used in links inside emails, e.g. password reset).
-    // If FRONTEND_URL is missing in production, fall back to the live site - never the backend address.
-    'frontend_url' => env('FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://bsu-oss-imightcare-4b7cce.netlify.app' : env('APP_URL', 'http://localhost')),
+    // Where the Vue frontend lives (used in links inside emails, e.g. password
+    // reset, and in scheduling links sent to students). If FRONTEND_URL is
+    // missing in production, fall back to the live site - never the backend
+    // address.
+    // Bug (11/3/2026): this fallback was still pointing at an old Netlify
+    // domain (bsu-oss-imightcare-4b7cce) that no longer matches the site's
+    // actual URL. FRONTEND_URL is not set anywhere in .env.example either,
+    // so if it was never set explicitly as an env var on the host, this
+    // hardcoded fallback is what every password-reset and scheduling link
+    // actually used - silently pointing students and staff at a dead site.
+    // Keep this in sync with config/cors.php's allowed_origins whenever the
+    // frontend's Netlify URL changes, and set FRONTEND_URL explicitly as an
+    // env var on the backend host so this fallback is never actually relied
+    // upon in production.
+    'frontend_url' => env('FRONTEND_URL', env('APP_ENV') === 'production' ? 'https://iwouldhavecanhavecaredalot.netlify.app' : env('APP_URL', 'http://localhost')),
 
     'asset_url' => env('ASSET_URL'),
 

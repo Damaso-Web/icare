@@ -94,14 +94,17 @@
                   <div v-if="a.referral?.referral_code" style="font-size:11px;color:var(--blue);font-family:var(--mono);background:var(--blue-lt);padding:1px 6px;border-radius:4px">{{ a.referral.referral_code }}</div>
                   <div v-if="a.case?.case_number" style="font-size:11px;color:var(--moss);font-family:var(--mono);background:var(--mist);padding:1px 6px;border-radius:4px">{{ a.case.case_number }}</div>
                 </div>
-                <div v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
+                <div v-if="isApptExpired(a)" style="font-size:11.5px;color:var(--red);margin-top:2px">
+                  Student's scheduling link has expired - use Schedule Now to set it manually.
+                </div>
+                <div v-else-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled'" style="font-size:11.5px;color:var(--amber);margin-top:2px">
                   {{ a.reschedule_reason ? 'Reschedule Needed - Waiting for Student' : 'Waiting for Student to Pick a Schedule' }}
                 </div>
                 <div v-else style="font-size:11.5px;color:var(--stone);margin-top:2px">
                   {{ toTitleCase(a.appointment_type) }} · {{ fmt12(a.start_time) }} – {{ fmt12(a.end_time) }} · {{ a.staff?.name || 'TBA' }}
                 </div>
                 <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap">
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ statusText(a) }}</span>
+                  <span class="ibadge" :class="apptBadgeClass(a)">{{ statusText(a) }}</span>
                   <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()">{{ a.unit }}</span>
                   <!-- The status badge already says "Awaiting Student"; this one only adds that it is a reschedule. -->
                   <span v-if="a.request_status === 'awaiting_student' && a.status !== 'cancelled' && a.reschedule_reason" class="ibadge" style="background:var(--amber-lt);color:var(--amber)">
@@ -225,7 +228,7 @@
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:16px;font-weight:600;color:var(--ink)">{{ detailTarget.student?.last_name }}, {{ detailTarget.student?.first_name }}</span>
               <span v-if="detailTarget.referral?.referral_code" style="font-size:11px;color:var(--blue);font-family:var(--mono);background:var(--blue-lt);padding:1px 6px;border-radius:4px">{{ detailTarget.referral.referral_code }}</span>
-              <span class="ibadge" :class="'ibadge-' + detailTarget.status">{{ statusText(detailTarget) }}</span>
+              <span class="ibadge" :class="apptBadgeClass(detailTarget)">{{ statusText(detailTarget) }}</span>
               <span v-if="detailTarget.rescheduled_from_id || detailTarget.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue)">Rescheduled</span>
               <span v-if="callSlipLabel(detailTarget)" class="ibadge ibadge-callslip" :title="callSlipTitle(detailTarget)">{{ callSlipLabel(detailTarget) }}</span>
               <span v-if="detailTarget.holiday_conflict_label" class="ibadge" style="background:var(--red-lt);color:var(--red)">{{ detailTarget.holiday_conflict_label }}</span>
@@ -1127,7 +1130,21 @@ function getDay(date)   { return new Date(date).getDate(); }
 
 // A student-picked schedule is still "pending" until staff confirm it; say so
 // instead of showing a bare "Pending" (B292).
+//
+// Bug (11/3/2026): once the student's 7-day scheduling_token window lapses,
+// this still read "Awaiting Student" with no indication the student's own
+// link no longer works - staff had no visible signal to know a manual
+// "Schedule Now" override (still allowed past expiry) was actually needed.
+// Same token_expires_at check as the student-side pages.
+function isApptExpired(a) {
+  return a.status === 'pending' && a.request_status === 'awaiting_student' &&
+    !!a.token_expires_at && new Date(a.token_expires_at) < new Date();
+}
+function apptBadgeClass(a) {
+  return isApptExpired(a) ? 'ibadge-expired' : 'ibadge-' + a.status;
+}
 function statusText(a) {
+  if (isApptExpired(a)) return 'Expired';
   if (a.status === 'pending' && a.request_status === 'pending_confirmation') return 'Awaiting Confirmation';
   if (a.status === 'pending' && a.request_status === 'awaiting_student') return 'Awaiting Student';
   return toTitleCase(a.status);

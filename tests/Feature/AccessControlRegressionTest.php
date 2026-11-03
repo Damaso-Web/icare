@@ -147,9 +147,14 @@ class AccessControlRegressionTest extends TestCase
     }
 
     // -----------------------------------------------------------------
-    // 3) StudentController::show had no college/department scope - a Dean,
-    //    Dept Chair, or Faculty account could open any student's full
-    //    profile directly by ID. Fixed in StudentController (B641).
+    // 3) StudentController::show originally had no college/department
+    //    scope, then had one added (B641), then that scope was reverted
+    //    university-wide (11/3/2026, team decision: a faculty/staff member
+    //    may teach or deal with students from other colleges/departments,
+    //    so no role is limited to their own college or department for
+    //    searching, viewing, referring, or filing a complaint). These
+    //    assert the current, intentional behavior: any staff role can open
+    //    any student's profile regardless of college/department.
     // -----------------------------------------------------------------
 
     private function student(string $id, string $college, string $program): Student
@@ -160,22 +165,22 @@ class AccessControlRegressionTest extends TestCase
         ]);
     }
 
-    public function test_faculty_cannot_open_a_student_profile_outside_their_department(): void
+    public function test_faculty_can_open_a_student_profile_outside_their_department(): void
     {
         $faculty = User::factory()->create(['role' => 'faculty', 'college' => 'College of Information Sciences', 'department' => 'BS Information Technology']);
         $other = $this->student('2900001', 'College of Information Sciences', 'BS Computer Science');
         Sanctum::actingAs($faculty);
 
-        $this->getJson("/api/students/{$other->id}")->assertStatus(403);
+        $this->getJson("/api/students/{$other->id}")->assertOk();
     }
 
-    public function test_dean_cannot_open_a_student_profile_outside_their_college(): void
+    public function test_dean_can_open_a_student_profile_outside_their_college(): void
     {
         $dean = User::factory()->create(['role' => 'dean', 'college' => 'College of Information Sciences']);
         $other = $this->student('2900002', 'College of Business', 'BS Accountancy');
         Sanctum::actingAs($dean);
 
-        $this->getJson("/api/students/{$other->id}")->assertStatus(403);
+        $this->getJson("/api/students/{$other->id}")->assertOk();
     }
 
     public function test_faculty_can_open_a_student_profile_in_their_own_department(): void

@@ -9,10 +9,12 @@ use Laravel\Sanctum\Sanctum;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-// Bug (10/25/2026, B626): a plain Faculty member's "+ Refer Student" search
-// could search and select any student university-wide - mirrors
-// DeptChairDepartmentScopeTest (college AND program/department must match),
-// one role up from the Chair.
+// B626 (10/25/2026) scoped a plain Faculty member's student search/referral
+// to their own department. Reverted (11/3/2026): team decision - a faculty
+// member may teach students from other colleges/departments, so this is
+// not restricted. These now assert the opposite of what they originally
+// did: a Faculty member can search and refer a student from ANY
+// department/college.
 class FacultyDepartmentScopeTest extends TestCase
 {
     use RefreshDatabase;
@@ -34,7 +36,7 @@ class FacultyDepartmentScopeTest extends TestCase
         ]);
     }
 
-    public function test_faculty_student_search_only_returns_their_own_department(): void
+    public function test_faculty_student_search_is_not_restricted_by_department(): void
     {
         $faculty = $this->faculty();
         $mine = $this->student('2800001', 'College of Information Sciences', 'BS Information Technology');
@@ -42,14 +44,14 @@ class FacultyDepartmentScopeTest extends TestCase
         $otherCollege = $this->student('2800003', 'College of Business', 'BS Information Technology');
         Sanctum::actingAs($faculty);
 
-        $res = $this->getJson('/api/students?search=Cruz&college=College of Business')->assertOk();
+        $res = $this->getJson('/api/students?search=Cruz')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($mine->id, $ids);
-        $this->assertNotContains($otherProgram->id, $ids);
-        $this->assertNotContains($otherCollege->id, $ids);
+        $this->assertContains($otherProgram->id, $ids);
+        $this->assertContains($otherCollege->id, $ids);
     }
 
-    public function test_faculty_cannot_refer_a_student_outside_their_department(): void
+    public function test_faculty_can_refer_a_student_outside_their_department(): void
     {
         Notification::fake();
         $faculty = $this->faculty();
@@ -58,7 +60,7 @@ class FacultyDepartmentScopeTest extends TestCase
 
         $this->postJson('/api/referrals', [
             'student_id' => $other->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',
-        ])->assertStatus(403);
+        ])->assertCreated();
     }
 
     public function test_faculty_can_refer_a_student_in_their_own_department(): void

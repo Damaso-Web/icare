@@ -27,7 +27,7 @@
         <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
           <div>
             <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-            <span class="ibadge" :class="'ibadge-' + appointment.status">{{ toTitleCase(appointment.status) }}</span>
+            <span class="ibadge" :class="isExpired ? 'ibadge-expired' : 'ibadge-' + appointment.status">{{ isExpired ? 'Expired' : toTitleCase(appointment.status) }}</span>
             <span v-if="appointment.rescheduled_from_id || appointment.times_rescheduled > 0" class="ibadge" style="background:var(--blue-lt);color:var(--blue);margin-left:5px">Rescheduled</span>
           </div>
           <div>
@@ -44,7 +44,7 @@
                  above, in the amber "You're rescheduling..." notice), so
                  that case still shows it normally. -->
             <div v-if="needsScheduling && !appointment.reschedule_reason" style="font-size:13px;color:var(--stone);font-style:italic">
-              Not yet scheduled - choose your preferred date and time below.
+              {{ isExpired ? 'This scheduling window has expired - view only.' : 'Not yet scheduled - choose your preferred date and time below.' }}
             </div>
             <div v-else style="font-size:13px;color:var(--ink)">{{ formatDate(appointment.appointment_date) }} · {{ fmt12(appointment.start_time) }} - {{ fmt12(appointment.end_time) }}</div>
           </div>
@@ -81,8 +81,18 @@
         </div>
       </div>
 
-      <!-- Choose Your Appointment Time (only when awaiting student) -->
-      <div v-if="needsScheduling && !scheduleSuccess" class="icard" style="margin-bottom:20px">
+      <!-- Scheduling window expired - view only, student can no longer pick
+           a time themselves. Staff (GCU/Admin) can still override-schedule
+           this from their own side even past expiry; this is strictly the
+           student's own self-service link going read-only. -->
+      <div v-if="needsScheduling && isExpired && !scheduleSuccess" class="icard" style="margin-bottom:20px;border:2px solid var(--red)">
+        <div class="icard-body" style="font-size:13px;color:var(--red)">
+          ⏱ This scheduling link has expired. It is now view-only - please contact the office (GCU) so they can schedule it for you.
+        </div>
+      </div>
+
+      <!-- Choose Your Appointment Time (only when awaiting student and still within the window) -->
+      <div v-if="needsScheduling && !isExpired && !scheduleSuccess" class="icard" style="margin-bottom:20px">
         <div class="icard-header"><span class="icard-title">Choose Your Appointment Time</span></div>
         <div style="padding:20px;display:flex;flex-direction:column;gap:14px">
           <div v-if="appointment.reschedule_reason" style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--amber)">
@@ -304,6 +314,20 @@ const referralSource = computed(() =>
 const needsScheduling = computed(() =>
   appointment.value.request_status === 'awaiting_student' &&
   !!appointment.value.scheduling_token
+);
+
+// Bug (11/3/2026): this page let a student go through the whole
+// "Choose Your Appointment Time" flow and submit even after their 7-day
+// scheduling_token window had lapsed - the submit would eventually be
+// rejected by PublicSchedulingController::submit() (it already checks
+// token_expires_at), but the UI never told the student up front, and
+// still labeled the appointment "Pending" instead of "Expired". Same
+// isExpiredPending check already used on the My Appointments list
+// (student/Appointments.vue).
+const isExpired = computed(() =>
+  needsScheduling.value &&
+  !!appointment.value.token_expires_at &&
+  new Date(appointment.value.token_expires_at) < new Date()
 );
 
 const showActions = computed(() =>

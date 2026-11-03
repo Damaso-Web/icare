@@ -60,16 +60,24 @@
           <h3>No appointments yet</h3>
         </div>
         <div v-else>
-          <div v-for="a in appointments.slice(0, 3)" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+          <div
+            v-for="a in appointments.slice(0, 3)"
+            :key="a.id"
+            style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+            @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })"
+          >
             <!-- An appointment still awaiting the student's own schedule
                  pick (see the "pending appointment request" banner above)
                  is a real DB row with a placeholder date/time - it never
                  had a real one, so don't show it as if it did. -->
-            <div v-if="a.request_status === 'awaiting_student'" style="font-size:13px;font-weight:600;color:var(--stone);font-style:italic">
+            <div v-if="a.request_status === 'awaiting_student' && !isExpiredAppointment(a)" style="font-size:13px;font-weight:600;color:var(--stone);font-style:italic">
               Awaiting your schedule selection
             </div>
+            <div v-else-if="isExpiredAppointment(a)" style="font-size:13px;font-weight:600;color:var(--stone);font-style:italic">
+              Scheduling window expired
+            </div>
             <div v-else style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDateShort(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
-            <span class="ibadge" :class="'ibadge-' + a.status" style="margin-top:4px;display:inline-block">{{ toTitleCase(a.status) }}</span>
+            <span class="ibadge" :class="apptBadgeKind(a)" style="margin-top:4px;display:inline-block">{{ apptBadgeLabel(a) }}</span>
           </div>
         </div>
       </div>
@@ -80,9 +88,14 @@
           <h3>No referrals yet</h3>
         </div>
         <div v-else>
-          <div v-for="r in referrals.slice(0, 3)" :key="r.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+          <div
+            v-for="r in referrals.slice(0, 3)"
+            :key="r.id"
+            style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
+            @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
+          >
             <div style="font-size:13px;font-weight:600;color:var(--ink);font-family:var(--mono)">{{ r.referral_code }}</div>
-            <span class="ibadge" :class="'ibadge-' + r.status" style="margin-top:4px;display:inline-block">{{ toTitleCase(r.status) }}</span>
+            <span class="ibadge" :class="referralBadgeKind(r)" style="margin-top:4px;display:inline-block">{{ referralBadgeLabel(r) }}</span>
           </div>
         </div>
       </div>
@@ -127,6 +140,45 @@ function authHeaders() {
 function toTitleCase(str) {
   if (!str) return '';
   return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu|Oss|Sif|Par)\b/g, m => m.toUpperCase());
+}
+
+// Bug (11/3/2026): the Recent Appointments / Recent Referrals widgets here
+// just showed the raw status (e.g. "Cancelled") with no idea that the
+// 7-day scheduling window had lapsed, unlike the dedicated My Appointments
+// and My Referrals pages which already distinguish "Expired" from a plain
+// "Pending"/raw status - same isExpiredPending pattern as
+// student/Appointments.vue and student/Referrals.vue, reused here so the
+// dashboard agrees with those pages instead of showing something stale or
+// misleading at a glance.
+function isExpiredAppointment(a) {
+  if (a.status !== 'pending') return false;
+  return !!a.token_expires_at && new Date(a.token_expires_at) < new Date();
+}
+function apptBadgeKind(a) {
+  return isExpiredAppointment(a) ? 'ibadge-expired' : 'ibadge-' + a.status;
+}
+function apptBadgeLabel(a) {
+  return isExpiredAppointment(a) ? 'Expired' : toTitleCase(a.status);
+}
+
+function simplifiedStatus(status) {
+  return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
+}
+function isExpiredReferral(referral) {
+  if (simplifiedStatus(referral.status) === 'closed') return false;
+  const now = new Date();
+  return pendingAppointments.value.some(a => {
+    const matches = a.referral_id === referral.id || (!a.referral_id && a.case_id === referral.case_id);
+    return matches && a.token_expires_at && new Date(a.token_expires_at) < now;
+  });
+}
+function referralBadgeKind(r) {
+  if (simplifiedStatus(r.status) === 'closed') return 'ibadge-closed';
+  return isExpiredReferral(r) ? 'ibadge-expired' : 'ibadge-pending';
+}
+function referralBadgeLabel(r) {
+  if (simplifiedStatus(r.status) === 'closed') return 'Closed';
+  return isExpiredReferral(r) ? 'Expired' : 'Pending';
 }
 
 function formatDate(date) {

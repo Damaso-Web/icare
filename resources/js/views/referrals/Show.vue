@@ -1162,13 +1162,16 @@
                          request_status is still 'awaiting_student'. Showing
                          that placeholder date as if it were real made it
                          look like an appointment was already set. -->
-                    <div v-if="a.request_status === 'awaiting_student'" style="font-size:11px;color:var(--amber);margin-top:2px">
+                    <div v-if="isApptExpired(a)" style="font-size:11px;color:var(--red);margin-top:2px">
+                      Student's scheduling link expired - Schedule Now to set it manually
+                    </div>
+                    <div v-else-if="a.request_status === 'awaiting_student'" style="font-size:11px;color:var(--amber);margin-top:2px">
                       Waiting for Student to Pick a Schedule
                     </div>
                     <div v-else style="font-size:11px;color:var(--stone);margin-top:2px">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }}</div>
                     <span class="ibadge" :class="'unit-' + a.unit?.toLowerCase()" style="margin-top:4px;display:inline-block">{{ a.unit }}</span>
                   </div>
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
+                  <span class="ibadge" :class="isApptExpired(a) ? 'ibadge-expired' : 'ibadge-' + a.status">{{ isApptExpired(a) ? 'Expired' : toTitleCase(a.status) }}</span>
                 </div>
                 <div style="font-size:11px;color:var(--fog)">With {{ a.staff?.name || '-' }}</div>
                 <button v-if="isGCU && a.status === 'confirmed'" class="ibtn ibtn-sm" style="background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber);align-self:flex-start" @click.stop="openCaseNoShowModal(a)">No-Show</button>
@@ -1776,7 +1779,7 @@
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Status</div>
-                <span class="ibadge" :class="'ibadge-' + apptDetailTarget.status">{{ toTitleCase(apptDetailTarget.status) }}</span>
+                <span class="ibadge" :class="isApptExpired(apptDetailTarget) ? 'ibadge-expired' : 'ibadge-' + apptDetailTarget.status">{{ isApptExpired(apptDetailTarget) ? 'Expired' : toTitleCase(apptDetailTarget.status) }}</span>
               </div>
               <div>
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Date</div>
@@ -3295,6 +3298,16 @@ const apptRescheduleReason = ref('');
 // appointment, same as if they'd picked it themselves.
 const apptScheduleForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const apptScheduling = ref(false);
+
+// Bug (11/3/2026): staff had no visible signal that a student's own
+// scheduling link had already lapsed (vs. just "still waiting for
+// student") - same token_expires_at check as the student-side pages and
+// appointments/Index.vue. "Schedule Now" above still works past expiry -
+// this only changes what the badge/label say, not what staff can do.
+function isApptExpired(a) {
+  return a?.status === 'pending' && a?.request_status === 'awaiting_student' &&
+    !!a?.token_expires_at && new Date(a.token_expires_at) < new Date();
+}
 
 function openApptDetail(a) {
   apptDetailTarget.value = a;

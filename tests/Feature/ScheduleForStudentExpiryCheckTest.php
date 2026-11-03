@@ -10,10 +10,13 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
-// Scratch verification for the 11/3/2026 fix to
-// AppointmentController::scheduleForStudent(): it must now reject
-// scheduling once the appointment's token_expires_at has passed, instead of
-// silently accepting a date/time for an already-"Expired" slip.
+// Scratch verification for the 11/3/2026 fix (and same-day revert) to
+// AppointmentController::scheduleForStudent(): token_expires_at lapsing
+// blocks the STUDENT's own self-service link (PublicSchedulingController::
+// submit() already enforces that separately), but this endpoint is the
+// staff-only override (role:admin,gcu_staff) - GCU/Admin must retain the
+// ability to manually schedule an appointment even after the student's
+// window has expired.
 class ScheduleForStudentExpiryCheckTest extends TestCase
 {
     use RefreshDatabase;
@@ -42,7 +45,7 @@ class ScheduleForStudentExpiryCheckTest extends TestCase
         ]);
     }
 
-    public function test_scheduling_is_rejected_once_the_token_has_expired(): void
+    public function test_staff_can_still_schedule_an_expired_appointment(): void
     {
         $appointment = $this->placeholder(now()->subDay()->toDateTimeString());
 
@@ -53,9 +56,8 @@ class ScheduleForStudentExpiryCheckTest extends TestCase
                 'end_time' => '10:00',
             ]);
 
-        $res->assertStatus(422);
-        $res->assertJsonFragment(['message' => 'This scheduling link has expired. Please contact GCU for a new one.']);
-        $this->assertSame('awaiting_student', $appointment->fresh()->request_status);
+        $res->assertStatus(200);
+        $this->assertSame('pending_confirmation', $appointment->fresh()->request_status);
     }
 
     public function test_scheduling_still_succeeds_while_the_token_is_still_valid(): void

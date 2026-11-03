@@ -70,13 +70,6 @@
             @blur="validateField('complainee_student_id')"
           />
           <div v-if="studentSearchLoading" style="font-size:11px;color:var(--stone);margin-top:4px">Searching...</div>
-          <!-- B636: a Dean/Dept Chair account acts only for their own
-               college/department - if the student exists but sits outside
-               that scope, say so specifically instead of implying they
-               don't exist in the portal at all. -->
-          <div v-else-if="studentSearchQuery.length >= 2 && !showStudentDropdown && !studentSuggestions.length && studentOutOfScope" style="font-size:11px;color:var(--red);margin-top:4px">
-            No matching student found under your college or department. Only students currently enrolled under your college can be selected for referrals or complaints.
-          </div>
           <div v-else-if="studentSearchQuery.length >= 2 && !showStudentDropdown && !studentSuggestions.length" style="font-size:11px;color:var(--red);margin-top:4px">
             No matching student found. Double-check the name.
           </div>
@@ -458,9 +451,6 @@ const studentSuggestions   = ref([]);
 const showStudentDropdown  = ref(false);
 const studentSearchLoading = ref(false);
 const studentFound         = ref(false);
-// B636: true when the search matched a real student outside the account's
-// own college/department scope, not when nothing matches at all.
-const studentOutOfScope    = ref(false);
 const selectedStudent      = ref(null);
 let studentSearchTimeout = null;
 
@@ -525,7 +515,6 @@ function onStudentSearch() {
   studentSearchQuery.value = onlyLetters(studentSearchQuery.value);
   clearTimeout(studentSearchTimeout);
   studentFound.value = false;
-  studentOutOfScope.value = false;
   form.value.complainee_student_id = null;
   selectedStudent.value = null;
   // Any change to the search box drops the previously filled student details.
@@ -546,7 +535,6 @@ function onStudentSearch() {
       const res = await studentAPI.index({ search: studentSearchQuery.value, is_active: 1, name_only: 1, scope: 'all' });
       studentSuggestions.value = res.data.data || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
-      studentOutOfScope.value = !!res.data.out_of_scope;
     } catch (e) {
       studentSuggestions.value = [];
     } finally {

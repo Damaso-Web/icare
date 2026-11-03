@@ -346,15 +346,24 @@ function onStudentSearch() {
     showStudentDropdown.value = false;
     return;
   }
+  // Bug (11/3/2026): same race as ReferOther.vue's onStudentSearch() - an
+  // earlier, shorter in-flight lookup() request (e.g. "santos" alone, too
+  // few tokens to fuzzy-match) can resolve AFTER a later, longer one
+  // ("santos reynaldo", which succeeds), leaving a stale error message
+  // sitting above an otherwise valid results dropdown. Ignore a response
+  // if the search box has moved on from the query it was sent for.
+  const queryAtRequestTime = studentSearchQuery.value.trim();
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentApi.post('/student/outreach/lookup', { student_id: studentSearchQuery.value.trim() });
+      const res = await studentApi.post('/student/outreach/lookup', { student_id: queryAtRequestTime });
+      if (studentSearchQuery.value.trim() !== queryAtRequestTime) return;
       const matches = (res.data.matches || []).filter(m => !m.is_me);
       studentSuggestions.value = matches;
       showStudentDropdown.value = matches.length > 0;
       if (!matches.length) searchError.value = 'You cannot choose yourself here.';
-      else if (matches.length === 1) selectStudent(matches[0]);
+      else { searchError.value = ''; if (matches.length === 1) selectStudent(matches[0]); }
     } catch (e) {
+      if (studentSearchQuery.value.trim() !== queryAtRequestTime) return;
       studentSuggestions.value = [];
       showStudentDropdown.value = false;
       searchError.value = e.response?.data?.message || 'Could not look that student up. Please try again.';

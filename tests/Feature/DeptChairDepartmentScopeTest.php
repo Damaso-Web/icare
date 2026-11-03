@@ -9,10 +9,13 @@ use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-// Bug (10/14/2026): a Dept Chair's student lookup (and the referral/
-// complaint it feeds) is scoped to their own department - mirrors
-// DeanCollegeScopeTest (B590), one level further: college AND program
-// (shown to the Chair as "Department") must both match.
+// B618 (10/14/2026) scoped a Dept Chair's student search/referral/complaint
+// to their own department. Reverted (11/3/2026): team decision - a faculty/
+// staff member may teach or deal with students from other departments, so
+// no role is limited to their own department when searching the masterlist,
+// referring a student, or filing a complaint. These now assert the
+// opposite of what they originally did: a Dept Chair can search, refer,
+// and file a complaint against a student from ANY department.
 class DeptChairDepartmentScopeTest extends TestCase
 {
     use RefreshDatabase;
@@ -34,7 +37,7 @@ class DeptChairDepartmentScopeTest extends TestCase
         ]);
     }
 
-    public function test_dept_chair_student_search_only_returns_their_own_department(): void
+    public function test_dept_chair_student_search_is_not_restricted_by_department(): void
     {
         $chair = $this->chair();
         $mine = $this->student('2700001', 'College of Information Sciences', 'BS Information Technology');
@@ -42,15 +45,14 @@ class DeptChairDepartmentScopeTest extends TestCase
         $otherCollege = $this->student('2700003', 'College of Business', 'BS Information Technology');
         Sanctum::actingAs($chair);
 
-        // Even trying to force another department/college via query params is ignored.
-        $res = $this->getJson('/api/students?search=Cruz&college=College of Business')->assertOk();
+        $res = $this->getJson('/api/students?search=Cruz')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($mine->id, $ids);
-        $this->assertNotContains($otherProgram->id, $ids);
-        $this->assertNotContains($otherCollege->id, $ids);
+        $this->assertContains($otherProgram->id, $ids);
+        $this->assertContains($otherCollege->id, $ids);
     }
 
-    public function test_dept_chair_cannot_refer_a_student_outside_their_department(): void
+    public function test_dept_chair_can_refer_a_student_outside_their_department(): void
     {
         Notification::fake();
         $chair = $this->chair();
@@ -59,7 +61,7 @@ class DeptChairDepartmentScopeTest extends TestCase
 
         $this->postJson('/api/referrals', [
             'student_id' => $other->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',
-        ])->assertStatus(403);
+        ])->assertCreated();
     }
 
     public function test_dept_chair_can_refer_a_student_in_their_own_department(): void
@@ -74,7 +76,7 @@ class DeptChairDepartmentScopeTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_dept_chair_cannot_file_a_complaint_against_a_student_outside_their_department(): void
+    public function test_dept_chair_can_file_a_complaint_against_a_student_outside_their_department(): void
     {
         Notification::fake();
         \Illuminate\Support\Facades\Storage::fake('public');
@@ -90,6 +92,6 @@ class DeptChairDepartmentScopeTest extends TestCase
             'description' => 'A believable account of what happened.',
             'certification_agreed' => '1',
             'evidence' => [$file('e.pdf')], 'affidavit' => [$file('a.pdf')],
-        ])->assertStatus(403);
+        ])->assertCreated();
     }
 }

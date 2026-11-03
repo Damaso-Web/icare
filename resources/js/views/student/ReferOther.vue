@@ -310,13 +310,29 @@ function onStudentSearch() {
     showStudentDropdown.value = false;
     return;
   }
+  // Bug (11/3/2026): typing "santos reynaldo" fires a lookup() request after
+  // "santos" alone (1 token - too few for the fuzzy name match, so it 404s)
+  // and another after the full "santos reynaldo" (2 tokens - finds matches).
+  // clearTimeout() only cancels a timer that hasn't fired yet; it can't
+  // cancel a request that's already in flight, and the success handler
+  // never cleared a previously-set searchError - so the earlier "santos"
+  // request's 404 could resolve AFTER the later, correct search and leave
+  // its stale "No active student found" message sitting above an otherwise
+  // valid results dropdown. Captures which query this particular request is
+  // for, and ignores the response entirely if the search box has moved on
+  // to something else by the time it comes back - whichever order the two
+  // requests actually resolve in.
+  const queryAtRequestTime = studentSearchQuery.value.trim();
   studentSearchTimeout = setTimeout(async () => {
     try {
-      const res = await studentApi.post('/student/outreach/lookup', { student_id: studentSearchQuery.value.trim() });
+      const res = await studentApi.post('/student/outreach/lookup', { student_id: queryAtRequestTime });
+      if (studentSearchQuery.value.trim() !== queryAtRequestTime) return;
       studentSuggestions.value = res.data.matches || [];
       showStudentDropdown.value = studentSuggestions.value.length > 0;
+      searchError.value = '';
       if (studentSuggestions.value.length === 1) selectStudent(studentSuggestions.value[0]);
     } catch (e) {
+      if (studentSearchQuery.value.trim() !== queryAtRequestTime) return;
       studentSuggestions.value = [];
       showStudentDropdown.value = false;
       searchError.value = e.response?.data?.message || 'Could not look that student up. Please try again.';

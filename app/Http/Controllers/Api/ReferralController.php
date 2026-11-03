@@ -238,6 +238,13 @@ class ReferralController extends Controller
         $user = $request->user();
         $student = Student::findOrFail($validated['student_id']);
 
+        // Bug (11/3/2026, reverted same day): a department/college scope
+        // check was briefly added here. Team decision: Dean/Dept Chair/
+        // Faculty accounts are explicitly allowed to refer any student
+        // university-wide - a faculty member may teach students from other
+        // colleges, so referring is not limited to their own
+        // college/department. No scope check belongs here.
+
         if (!$student->is_active) {
             return response()->json(['message' => 'This student account is deactivated and cannot be referred. Please reactivate the student first.'], 422);
         }

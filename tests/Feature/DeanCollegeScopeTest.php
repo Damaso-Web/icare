@@ -9,9 +9,13 @@ use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
-// B590: a Dean's student lookup (and the referral/complaint it feeds) is
-// scoped to their own college - they manage their own college's students,
-// not the whole university.
+// B590 (10/13/2026) scoped a Dean's student search/referral/complaint to
+// their own college. Reverted (11/3/2026): team decision - a faculty/staff
+// member may teach or deal with students from other colleges, so no role
+// is limited to their own college when searching the masterlist, referring
+// a student, or filing a complaint. These now assert the opposite of what
+// they originally did: a Dean can search, refer, and file a complaint
+// against a student from ANY college.
 class DeanCollegeScopeTest extends TestCase
 {
     use RefreshDatabase;
@@ -24,18 +28,17 @@ class DeanCollegeScopeTest extends TestCase
         ]);
     }
 
-    public function test_dean_student_search_only_returns_their_own_college(): void
+    public function test_dean_student_search_is_not_restricted_by_college(): void
     {
         $dean = User::factory()->create(['role' => 'dean', 'college' => 'College of Information Sciences']);
         $mine = $this->student('2600001', 'College of Information Sciences');
         $other = $this->student('2600002', 'College of Business');
         Sanctum::actingAs($dean);
 
-        // Even trying to force another college via the query param is ignored.
-        $res = $this->getJson('/api/students?search=Cruz&college=College of Business')->assertOk();
+        $res = $this->getJson('/api/students?search=Cruz')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($mine->id, $ids);
-        $this->assertNotContains($other->id, $ids);
+        $this->assertContains($other->id, $ids);
     }
 
     public function test_other_staff_student_search_is_not_restricted_by_college(): void
@@ -51,7 +54,7 @@ class DeanCollegeScopeTest extends TestCase
         $this->assertContains($b->id, $ids);
     }
 
-    public function test_dean_cannot_refer_a_student_outside_their_college(): void
+    public function test_dean_can_refer_a_student_outside_their_college(): void
     {
         Notification::fake();
         $dean = User::factory()->create(['role' => 'dean', 'college' => 'College of Information Sciences']);
@@ -60,7 +63,7 @@ class DeanCollegeScopeTest extends TestCase
 
         $this->postJson('/api/referrals', [
             'student_id' => $other->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Needs someone to talk to.',
-        ])->assertStatus(403);
+        ])->assertCreated();
     }
 
     public function test_dean_can_refer_a_student_in_their_own_college(): void
@@ -75,7 +78,7 @@ class DeanCollegeScopeTest extends TestCase
         ])->assertCreated();
     }
 
-    public function test_dean_cannot_file_a_complaint_against_a_student_outside_their_college(): void
+    public function test_dean_can_file_a_complaint_against_a_student_outside_their_college(): void
     {
         Notification::fake();
         \Illuminate\Support\Facades\Storage::fake('public');
@@ -91,6 +94,6 @@ class DeanCollegeScopeTest extends TestCase
             'description' => 'A believable account of what happened.',
             'certification_agreed' => '1',
             'evidence' => [$file('e.pdf')], 'affidavit' => [$file('a.pdf')],
-        ])->assertStatus(403);
+        ])->assertCreated();
     }
 }
