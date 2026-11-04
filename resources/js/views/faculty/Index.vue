@@ -208,7 +208,7 @@
             <div>
               <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
               <input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" :style="emailProblem ? 'border-color:var(--red);border-width:1.5px' : ''" />
-              <div v-if="emailProblem" style="font-size:11px;color:var(--red);margin-top:4px">Please enter a valid email address.</div>
+              <div v-if="emailProblem" style="font-size:11px;color:var(--red);margin-top:4px">{{ emailProblem }}</div>
             </div>
             <div v-if="needsCollegePick && !editing">
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
@@ -331,7 +331,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:760px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Faculty</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="closeUpload">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <template v-if="!result">
@@ -401,8 +400,14 @@
             </template>
           </template>
         </div>
+        <div v-if="!result && preview.length && blocksOnCollegeScopeMismatch" style="padding:0 22px;font-size:12px;color:var(--red);text-align:center">
+          {{ invalidPreviewCount }} row{{ invalidPreviewCount === 1 ? '' : 's' }} {{ invalidPreviewCount === 1 ? 'is' : 'are' }} outside your college/department and can't be uploaded here. Remove {{ invalidPreviewCount === 1 ? 'it' : 'them' }} or choose a different file.
+        </div>
+        <div v-else-if="!result && preview.length && invalidPreviewCount > 0" style="padding:0 22px;font-size:12px;color:var(--amber);text-align:center">
+          {{ invalidPreviewCount }} invalid row{{ invalidPreviewCount === 1 ? '' : 's' }} will be skipped.
+        </div>
         <div style="padding:14px 22px;border-top:1px solid var(--cloud);display:flex;justify-content:flex-end;gap:8px">
-          <button v-if="!result && preview.length" class="ibtn ibtn-p" :disabled="saving" @click="confirmUpload">
+          <button v-if="!result && preview.length" class="ibtn ibtn-p" :disabled="saving || blocksOnCollegeScopeMismatch" @click="confirmUpload">
             <span v-if="saving" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
             {{ saving ? 'Uploading...' : 'Confirm Upload' }}
           </button>
@@ -421,8 +426,11 @@ import ReasonDialog from '../../components/ReasonDialog.vue';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { EMPLOYEE_DEACTIVATE_REASONS, reactivationReasonsFor } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
-import { safeSearchInput, blockSpecialKeypress, onlyLetters, onlyDigits, capitalizeFirst, isValidPHContact, isValidEmail } from '../../utils/validators';
+import { safeSearchInput, blockSpecialKeypress, onlyLetters, onlyDigits, capitalizeFirst, isValidPHContact } from '../../utils/validators';
 import { matchCollege } from '../../utils/colleges';
+// Catches a likely typo in the domain (e.g. "name@bsu.edu.phh") as the Dept
+// Chair/Dean types it - same check used on the student-facing forms.
+import { emailProblem as checkEmailTypo } from '../../utils/emailCheck';
 
 const auth  = useAuthStore();
 const toast = inject('toast', null);
@@ -520,6 +528,21 @@ function askFromView(kind, text) { const u = viewTarget.value; viewTarget.value 
 const formOpen = ref(false);
 const editing = ref(null);
 const saving = ref(false);
+// B#, 11/4/2026: an invalid row already gets 'skip' forced on it (see
+// onFile() below) and has no decision dropdown to change that, so Confirm
+// Upload was always safe either way. It's now actually greyed out, but only
+// when EVERY invalid row is a college/department SCOPE mismatch (a row
+// outside the Dept Chair's/Dean's own college - see
+// UserController::scopeImportRow(), which this inherits). An ordinary bad
+// row (bad email, missing name, etc.) still just gets quietly skipped like
+// before, same policy as the Dean's Employee/Faculty masterlist
+// (users/Index.vue) and the Student masterlist (students/Index.vue).
+const invalidPreviewCount = computed(() => preview.value.filter(r => !r.valid).length);
+const COLLEGE_SCOPE_MISMATCH = /is not a department under|belongs to an account in another college/i;
+const blocksOnCollegeScopeMismatch = computed(() => {
+  const invalid = preview.value.filter(r => !r.valid);
+  return invalid.length > 0 && invalid.every(r => (r.reasons || []).length > 0 && r.reasons.every(x => COLLEGE_SCOPE_MISMATCH.test(x)));
+});
 const formError = ref('');
 const blank = () => ({ first_name: '', last_name: '', middle_name: '', suffix: '', email: '', employee_id: '', contact_number: '', department: '', college: '', role: 'faculty' });
 const form = ref(blank());
@@ -536,8 +559,9 @@ function openForm(u) {
 
 // Contact number is optional, but when given it must be 09 + 9 digits.
 const contactProblem = computed(() => !!form.value?.contact_number && !isValidPHContact(form.value.contact_number));
-// B: live email format check, as the user types - same rule as submit, just shown earlier.
-const emailProblem = computed(() => !!form.value?.email && !isValidEmail(form.value.email));
+// B: live email format/typo check, as the user types - same rule as submit,
+// just shown earlier. '' when the email is fine (or empty).
+const emailProblem = computed(() => (form.value?.email ? checkEmailTypo(form.value.email) : ''));
 
 // Bug (10/24/2026, B638): Employee ID and name were only checked for a
 // duplicate at submit time - checked live instead, as the Dean/Dept Chair
@@ -575,7 +599,7 @@ async function saveForm() {
   const f = form.value;
   if (contactProblem.value) { formError.value = 'Contact number must start with 09 and be 11 digits long.'; return; }
   if (!f.first_name || !f.last_name || !f.email) { formError.value = 'First name, last name and email are required.'; return; }
-  if (emailProblem.value) { formError.value = 'Please enter a valid email address.'; return; }
+  if (emailProblem.value) { formError.value = emailProblem.value; return; }
   if (employeeIdDuplicate.value) { formError.value = 'Employee ID already exists. Please enter a unique Employee ID.'; return; }
   if (nameDuplicate.value) { formError.value = 'A faculty member with this name already exists.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }

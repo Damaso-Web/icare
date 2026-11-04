@@ -829,7 +829,6 @@
       <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:560px;overflow:hidden;box-shadow:var(--sh-lg);max-height:90vh;overflow-y:auto">
         <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#fff;z-index:1">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">Upload Student Masterlist</div>
-          <button class="ibtn ibtn-g ibtn-sm" @click="closeImportModal">✕</button>
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
 
@@ -855,6 +854,7 @@
               </div>
               <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="previewError = ''">Choose Different File</button>
             </div>
+            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="closeImportModal">Cancel</button>
           </template>
 
           <template v-else>
@@ -915,23 +915,38 @@
               Showing {{ previewVisibleCount }} of {{ sortedPreviewRows.length }} rows - scroll for more
             </div>
 
+            <!-- B#, 11/4/2026: see the matching note in users/Index.vue -
+                 only blocked when EVERY invalid row is a college/department
+                 scope mismatch. That scoping doesn't exist on the Student
+                 masterlist, so this normally stays the quiet, non-blocking
+                 heads-up it always was. -->
+            <div v-if="blocksOnCollegeScopeMismatch" style="font-size:12px;color:var(--red);text-align:center">
+              {{ importSummary.invalid }} row{{ importSummary.invalid === 1 ? '' : 's' }} {{ importSummary.invalid === 1 ? 'is' : 'are' }} outside your college/department and can't be uploaded here. Remove {{ importSummary.invalid === 1 ? 'it' : 'them' }} or choose a different file.
+            </div>
+            <div v-else-if="importSummary.invalid > 0" style="font-size:12px;color:var(--amber);text-align:center">
+              {{ importSummary.invalid }} invalid row{{ importSummary.invalid === 1 ? '' : 's' }} will be skipped.
+            </div>
+
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ importing ? 'Uploading...' : 'Update Existing' }}
               </button>
-              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="openImportConfirm('skip')" :disabled="importing">
+              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="openImportConfirm('skip')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 Keep Existing Information
               </button>
             </div>
             <div v-else style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="openImportConfirm('create')" :disabled="importing">
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="openImportConfirm('create')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ importing ? 'Uploading...' : 'Confirm Upload' }}
               </button>
             </div>
 
-            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="resetImportFlow">Choose Different File</button>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="resetImportFlow">Choose Different File</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="closeImportModal">Cancel</button>
+            </div>
           </template>
 
         </div>
@@ -1097,7 +1112,11 @@ import { useAuthStore } from '../../stores/auth';
 import ReasonDialog from '../../components/ReasonDialog.vue';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { STUDENT_DEACTIVATE_REASONS, studentReactivationReasonsFor, studentDeactivateLabel } from '../../constants/accountReasons';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, isValidEmail, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
+// Catches a likely typo in the domain (e.g. "student@gmial.com") as the
+// Admin/Dean types it, the same check already used on the student's own
+// self-registration and account-edit forms (resources/js/utils/emailCheck.js).
+import { emailProblem as checkEmailTypo } from '../../utils/emailCheck';
 
 const toast   = inject('toast');
 
@@ -1219,8 +1238,9 @@ const editErrors = computed(() => {
   const f = editForm.value;
   const errs = {};
 
-  if (f.email && !isValidEmail(f.email)) {
-    errs.email = 'Please enter a valid email address.';
+  if (f.email) {
+    const problem = checkEmailTypo(f.email);
+    if (problem) errs.email = problem;
   }
 
   if (f.contact_number) {
@@ -1299,7 +1319,7 @@ function openEditConfirm() {
   for (const [key, label] of requiredFields) {
     if (!editForm.value[key]) { errs[key] = true; missing.push(label); }
   }
-  if (editForm.value.email && !isValidEmail(editForm.value.email)) errs.email = true;
+  if (editForm.value.email && checkEmailTypo(editForm.value.email)) errs.email = true;
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) errs.contact_number = true;
   if (editForm.value.guardian_contact && !isValidPHContact(editForm.value.guardian_contact)) errs.guardian_contact = true;
 
@@ -1309,9 +1329,12 @@ function openEditConfirm() {
     editError.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
-  if (editForm.value.email && !isValidEmail(editForm.value.email)) {
-    editError.value = 'Please enter a valid email address.';
-    return;
+  if (editForm.value.email) {
+    const problem = checkEmailTypo(editForm.value.email);
+    if (problem) {
+      editError.value = problem;
+      return;
+    }
   }
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) {
     editError.value = 'Contact number must start with 09 and be 11 digits long.';
@@ -1364,8 +1387,9 @@ const addErrors = computed(() => {
   const f = addForm.value;
   const errs = {};
 
-  if (f.email && !isValidEmail(f.email)) {
-    errs.email = 'Please enter a valid email address.';
+  if (f.email) {
+    const problem = checkEmailTypo(f.email);
+    if (problem) errs.email = problem;
   }
 
   if (f.contact_number) {
@@ -1425,7 +1449,7 @@ function validateAddForm() {
   for (const [key] of requiredFields) {
     if (!addForm.value[key]) errs[key] = true;
   }
-  if (addForm.value.email && !isValidEmail(addForm.value.email)) errs.email = true;
+  if (addForm.value.email && checkEmailTypo(addForm.value.email)) errs.email = true;
   if (addForm.value.contact_number && !isValidPHContact(addForm.value.contact_number)) errs.contact_number = true;
   if (addForm.value.guardian_contact && !isValidPHContact(addForm.value.guardian_contact)) errs.guardian_contact = true;
   if (addForm.value.contact_number && addForm.value.guardian_contact &&
@@ -1437,7 +1461,7 @@ function validateAddForm() {
 
   const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
   if (missing.length) return 'Please make sure to fill in necessary fields.';
-  if (!isValidEmail(addForm.value.email)) return 'Please enter a valid email address.';
+  { const emailIssue = checkEmailTypo(addForm.value.email); if (emailIssue) return emailIssue; }
   if (!isValidPHContact(addForm.value.contact_number)) return 'Contact number must start with 09 and be 11 digits long.';
   if (!isValidPHContact(addForm.value.guardian_contact)) return 'Guardian contact number must start with 09 and be 11 digits long.';
   if (addForm.value.guardian_contact === addForm.value.contact_number) {
@@ -1595,6 +1619,19 @@ const importSummary = computed(() => {
   };
 });
 
+// B#, 11/4/2026: see the matching note in users/Index.vue - only a college/
+// department SCOPE mismatch blocks Confirm Upload entirely. The Student
+// masterlist doesn't actually have that kind of scoping (any role can add a
+// student from any college), so this will normally never be true here - an
+// ordinary invalid row (bad email, missing guardian contact, etc.) just
+// shows a quiet heads-up and gets skipped on confirm like before.
+const COLLEGE_SCOPE_MISMATCH = /is not a department under|belongs to an account in another college/i;
+const invalidRows = computed(() => (previewData.value.preview || []).filter(i => !i.valid));
+const blocksOnCollegeScopeMismatch = computed(() =>
+  invalidRows.value.length > 0 &&
+  invalidRows.value.every(i => (i.reasons || []).length > 0 && i.reasons.every(r => COLLEGE_SCOPE_MISMATCH.test(r)))
+);
+
 // Bug (10/30/2026, speed): the preview table used to render every row from
 // the file in one go - on a masterlist of a few thousand students that's
 // thousands of <tr>s in one scrollable box, which visibly freezes the
@@ -1713,8 +1750,9 @@ async function saveStudent() {
     return;
   }
 
-  if (!isValidEmail(addForm.value.email)) {
-    addError.value = 'Please enter a valid email address.';
+  const addEmailIssue = checkEmailTypo(addForm.value.email);
+  if (addEmailIssue) {
+    addError.value = addEmailIssue;
     return;
   }
 
@@ -1877,7 +1915,7 @@ async function saveEditedStudent() {
   for (const [key] of requiredFields) {
     if (!editForm.value[key]) errs[key] = true;
   }
-  if (editForm.value.email && !isValidEmail(editForm.value.email)) errs.email = true;
+  if (editForm.value.email && checkEmailTypo(editForm.value.email)) errs.email = true;
   if (editForm.value.contact_number && !isValidPHContact(editForm.value.contact_number)) errs.contact_number = true;
   if (editForm.value.guardian_contact && !isValidPHContact(editForm.value.guardian_contact)) errs.guardian_contact = true;
   editFieldErrors.value = errs;
@@ -1888,8 +1926,9 @@ async function saveEditedStudent() {
     return;
   }
 
-  if (!isValidEmail(editForm.value.email)) {
-    editError.value = 'Please enter a valid email address.';
+  const editEmailIssue = checkEmailTypo(editForm.value.email);
+  if (editEmailIssue) {
+    editError.value = editEmailIssue;
     return;
   }
 

@@ -1,4 +1,4 @@
-// Checks that a personal email looks complete, not just "has a dot".
+// Checks that a personal (or staff) email looks complete, not just "has a dot".
 const PROVIDERS = {
   gmail: ['gmail.com'],
   yahoo: ['yahoo.com', 'yahoo.com.ph'],
@@ -8,6 +8,12 @@ const PROVIDERS = {
   live: ['live.com'],
   proton: ['proton.me'],
   protonmail: ['protonmail.com'],
+  // B#, 11/4/2026: staff/faculty accounts are typed as name@bsu.edu.ph on the
+  // Add Student/Add Employee/Add Faculty forms. Listing it here reuses the
+  // same "first label matches a known provider, but the rest of the domain
+  // doesn't" logic below to catch "@bsu.edu.p", "@bsu.ed.ph", "@bsu.com",
+  // etc. without needing a separate typo table entry for each one.
+  bsu: ['bsu.edu.ph'],
 };
 const TYPOS = { 'gmial.com': 'gmail.com', 'gmai.com': 'gmail.com', 'gamil.com': 'gmail.com', 'gmail.con': 'gmail.com', 'yaho.com': 'yahoo.com', 'yahoo.con': 'yahoo.com', 'hotmial.com': 'hotmail.com' };
 

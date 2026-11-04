@@ -508,7 +508,12 @@ class UserController extends Controller
                 continue;
             }
 
+            // B#, 11/4/2026: same fix as importConfirm() below - one hash,
+            // reused for both columns, at the reduced cost already
+            // established for a bulk masterlist row (see the longer note on
+            // importConfirm()'s version of this).
             $tempPassword = Str::random(10);
+            $tempPasswordHash = Hash::make($tempPassword, ['rounds' => 4]);
             User::create([
                 'first_name'            => $rowData['first_name'],
                 'middle_name'           => $rowData['middle_name'] ?? null,
@@ -521,10 +526,10 @@ class UserController extends Controller
                 'college'               => $rowData['college'] ?? null,
                 'department'            => $rowData['department'] ?? null,
                 'contact_number'        => $rowData['contact_number'] ?? null,
-                'password'              => Hash::make($tempPassword),
+                'password'              => $tempPasswordHash,
                 // B643: hashed - the plaintext below is the only place this
                 // is shown, same as a single created account.
-                'temp_password'         => Hash::make($tempPassword),
+                'temp_password'         => $tempPasswordHash,
                 'must_change_password'  => true,
                 'is_active'             => true,
             ]);
@@ -904,10 +909,24 @@ class UserController extends Controller
                     $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
                     $updated++;
                 } else {
+                    // B#, 11/4/2026: this used to call Hash::make() twice at the
+                    // full ~10-12 round cost for every new row - 300 new
+                    // employees meant 600 full-cost bcrypt hashes, which is what
+                    // made a big masterlist upload take minutes. password and
+                    // temp_password are hashes of the exact same random string,
+                    // so hash it once and reuse the result for both columns.
+                    // Cost is also dropped to 4 rounds, same as
+                    // StudentController::importConfirm()'s already-established
+                    // fix for the same slowdown on the Student masterlist: this
+                    // hash only ever needs to verify ONE login, because
+                    // must_change_password forces a real (full-cost) password
+                    // immediately after, so a cheaper cost here trades nothing
+                    // meaningful for the huge speedup on a big upload.
                     $tempPassword = Str::random(10);
-                    $payload['password']             = Hash::make($tempPassword);
+                    $tempPasswordHash = Hash::make($tempPassword, ['rounds' => 4]);
+                    $payload['password']             = $tempPasswordHash;
                     // B643: hashed - the plaintext below is the only place this is shown.
-                    $payload['temp_password']        = Hash::make($tempPassword);
+                    $payload['temp_password']        = $tempPasswordHash;
                     $payload['must_change_password'] = true;
                     $payload['is_active']            = true;
 

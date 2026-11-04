@@ -498,23 +498,38 @@
               Showing {{ previewVisibleCount }} of {{ sortedPreviewRows.length }} rows - scroll for more
             </div>
 
+            <!-- B#, 11/4/2026: only blocked when EVERY invalid row is a
+                 college/department scope mismatch (see
+                 blocksOnCollegeScopeMismatch above) - an ordinary bad row
+                 (bad email, missing name, etc.) still just gets a quiet
+                 heads-up here and is skipped on confirm like before. -->
+            <div v-if="blocksOnCollegeScopeMismatch" style="font-size:12px;color:var(--red);text-align:center">
+              {{ importSummary.invalid }} row{{ importSummary.invalid === 1 ? '' : 's' }} {{ importSummary.invalid === 1 ? 'is' : 'are' }} outside your college/department and can't be uploaded here. Remove {{ importSummary.invalid === 1 ? 'it' : 'them' }} or choose a different file.
+            </div>
+            <div v-else-if="importSummary.invalid > 0" style="font-size:12px;color:var(--amber);text-align:center">
+              {{ importSummary.invalid }} invalid row{{ importSummary.invalid === 1 ? '' : 's' }} will be skipped.
+            </div>
+
             <div v-if="previewData.duplicates > 0" style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing">
+              <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="openImportConfirm('update')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ importing ? 'Uploading...' : 'Update Existing' }}
               </button>
-              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="openImportConfirm('skip')" :disabled="importing">
+              <button class="ibtn" style="flex:1;justify-content:center;background:var(--cloud);color:var(--stone)" @click="openImportConfirm('skip')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 Keep Existing Information
               </button>
             </div>
             <div v-else style="display:flex;gap:8px">
-              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="openImportConfirm('create')" :disabled="importing">
+              <button class="ibtn ibtn-p" style="width:100%;justify-content:center" @click="openImportConfirm('create')" :disabled="importing || blocksOnCollegeScopeMismatch">
                 <span v-if="importing" style="width:14px;height:14px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></span>
                 {{ importing ? 'Uploading...' : 'Confirm Upload' }}
               </button>
             </div>
 
-            <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="resetImportFlow">Choose Different File</button>
+            <div style="display:flex;gap:8px">
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="resetImportFlow">Choose Different File</button>
+              <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="closeImportModal">Cancel</button>
+            </div>
           </template>
 
         </div>
@@ -636,7 +651,12 @@ import { useAuthStore } from '../../stores/auth';
 import { ROLE_ORDER, ROLE_LABELS, addableRoles } from '../../utils/roles';
 import { matchCollege } from '../../utils/colleges';
 import { useRouter } from 'vue-router';
-import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidEmail, isValidPHContact, safeSearchInput, blockSpecialKeypress , titleCaseName } from '../../utils/validators';
+import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress , titleCaseName } from '../../utils/validators';
+// Catches a likely typo in the domain (e.g. "name@bsu.edu.phh") as the
+// Admin/Dean types it - the same check used on the student-facing forms
+// (resources/js/utils/emailCheck.js), extended with a "bsu" provider entry
+// so a mistyped BSU domain gets caught the same way a mistyped gmail.com does.
+import { emailProblem as checkEmailTypo } from '../../utils/emailCheck';
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 function authHeaders() {
@@ -859,8 +879,9 @@ const userErrors = computed(() => {
   const f = userForm.value;
   const errs = {};
 
-  if (f.email && !isValidEmail(f.email)) {
-    errs.email = 'Please enter a valid email address.';
+  if (f.email) {
+    const problem = checkEmailTypo(f.email);
+    if (problem) errs.email = problem;
   }
 
   if (f.contact_number) {
@@ -907,6 +928,21 @@ const importSummary = computed(() => {
     invalid:    items.filter(i => !i.valid).length,
   };
 });
+
+// B#, 11/4/2026: only a college/department SCOPE mismatch (a Dean uploading
+// faculty for a department that isn't under their own college - see
+// UserController::scopeImportRow()) blocks Confirm Upload entirely. An
+// ordinary invalid row (a bad email, a missing name, a role this actor can't
+// assign) still just gets silently skipped on confirm, same as before - this
+// is specifically about catching "I uploaded the wrong college's file"
+// before it goes through, not about holding the whole batch hostage to one
+// unrelated typo.
+const COLLEGE_SCOPE_MISMATCH = /is not a department under|belongs to an account in another college/i;
+const invalidRows = computed(() => (previewData.value.preview || []).filter(i => !i.valid));
+const blocksOnCollegeScopeMismatch = computed(() =>
+  invalidRows.value.length > 0 &&
+  invalidRows.value.every(i => (i.reasons || []).length > 0 && i.reasons.every(r => COLLEGE_SCOPE_MISMATCH.test(r)))
+);
 
 // Matches the Students masterlist import: a few thousand <tr> rows
 // rendered at once froze the page, so the table keeps its usual scrollbar
@@ -1077,7 +1113,7 @@ function validateUserForm() {
   req('college', 'College', ['faculty', 'dean_secretary', 'dean', 'dept_chair'].includes(userForm.value.role));
   req('department', 'Department', ['faculty', 'dean_secretary', 'dept_chair'].includes(userForm.value.role));
 
-  if (userForm.value.email && !isValidEmail(userForm.value.email)) errs.email = true;
+  if (userForm.value.email && checkEmailTypo(userForm.value.email)) errs.email = true;
   if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) errs.contact_number = true;
 
   fieldErrors.value = errs;
@@ -1095,9 +1131,12 @@ function goToUserPreview() {
     formError.value = `Please fill in: ${missing.join(', ')}.`;
     return;
   }
-  if (userForm.value.email && !isValidEmail(userForm.value.email)) {
-    formError.value = 'Please enter a valid email address.';
-    return;
+  if (userForm.value.email) {
+    const problem = checkEmailTypo(userForm.value.email);
+    if (problem) {
+      formError.value = problem;
+      return;
+    }
   }
   if (userForm.value.contact_number && !isValidPHContact(userForm.value.contact_number)) {
     formError.value = 'Contact number must start with 09 and be 11 digits long.';

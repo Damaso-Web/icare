@@ -803,13 +803,17 @@ class StudentController extends Controller
             // the Student ID). Hashed at cost 4 so a big masterlist stays fast;
             // the password is random, and the student must change it at first
             // login (which is then hashed at the full cost).
+            // B#, 11/4/2026: password and temp_password are hashes of the exact
+            // same string, so hash it once here too and reuse it - no reason to
+            // pay for the (admittedly cheap, at rounds=>4) hash twice per row.
             $tempPassword = Str::random(10);
+            $tempPasswordHash = Hash::make($tempPassword, ['rounds' => 4]);
             $inserts[] = array_merge($payload, [
                 'student_id'            => $rowData['student_id'],
-                'password'              => Hash::make($tempPassword, ['rounds' => 4]),
+                'password'              => $tempPasswordHash,
                 // B643: never any individual reveal for an imported row either -
                 // hashed like every other write path.
-                'temp_password'         => Hash::make($tempPassword, ['rounds' => 4]),
+                'temp_password'         => $tempPasswordHash,
                 'must_change_password'  => true,
                 'is_active'             => true,
                 'created_at'            => $now,
