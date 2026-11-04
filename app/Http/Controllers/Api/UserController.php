@@ -44,19 +44,41 @@ class UserController extends Controller
     // ManagementDataSeeder, not a hardcoded list here) so this stays correct
     // if departments are ever added/renamed later. Shared with the subclass
     // FacultyController, whose own Dean-scoping goes through the same check.
+    // B#, 11/4/2026: called once per row from scopeImportRow() during a Dean's
+    // Faculty masterlist upload - with no caching, that meant up to 2 fresh
+    // DB queries PER ROW (college lookup + department exists check). Fine
+    // for one row on the "+ Add Employee" form, but on a real multi-hundred
+    // or multi-thousand row masterlist that's thousands of extra remote DB
+    // round trips in a single request, reported as uploads "taking a long
+    // time". A Dean's own upload always forces the SAME college on every
+    // row (scopeImportRow sets $row['college'] = the actor's own college,
+    // never the file's), so the valid-department list for that college is
+    // identical across every row - loaded and cached here once per college
+    // name per request instead of once per row.
+    protected static array $departmentsByCollegeCache = [];
+
     protected function departmentBelongsToCollege(?string $department, ?string $collegeName): bool
     {
         if (empty($department) || empty($collegeName)) {
             return false;
         }
-        $college = \App\Models\College::where('name', $collegeName)->first();
-        // Nothing seeded to check against (e.g. test fixtures/legacy data
-        // using a bare college name that doesn't match any real College
-        // row) - don't block on a check we have no real data for.
-        if (!$college || !$college->departments()->exists()) {
+
+        $cacheKey = strtolower(trim($collegeName));
+        if (!array_key_exists($cacheKey, self::$departmentsByCollegeCache)) {
+            $college = \App\Models\College::where('name', $collegeName)->first();
+            // Nothing seeded to check against (e.g. test fixtures/legacy data
+            // using a bare college name that doesn't match any real College
+            // row) - don't block on a check we have no real data for.
+            self::$departmentsByCollegeCache[$cacheKey] = (!$college || !$college->departments()->exists())
+                ? true
+                : $college->departments()->pluck('name')->map(fn($n) => strtolower(trim($n)))->all();
+        }
+
+        $cached = self::$departmentsByCollegeCache[$cacheKey];
+        if ($cached === true) {
             return true;
         }
-        return $college->departments()->whereRaw('LOWER(name) = LOWER(?)', [trim($department)])->exists();
+        return in_array(strtolower(trim($department)), $cached, true);
     }
 
     /** Employee ID must be unique; the message names the actual problem instead of a generic one. */
@@ -693,15 +715,48 @@ class UserController extends Controller
         // the same way the single "+ Add Employee" form is (see store()/
         // update() above) - role itself is already limited to faculty/
         // dept_chair by assignableRoles() via validateImportRow().
+        //
+        // B#, 11/4/2026: this used to FORCE $row['college'] to the Dean's
+        // own college unconditionally, no matter what the uploaded file
+        // actually said. That meant uploading the wrong file - a different
+        // college's masterlist, by mistake or otherwise - was silently
+        // "corrected" instead of refused: every row got quietly relabeled
+        // into this Dean's college, which could then fail the department
+        // check below in confusing ways (or, worse, succeed and create
+        // faculty records under the wrong college with no signal anything
+        // was off). A safeguard that silently rewrites bad input instead of
+        // rejecting it isn't really a safeguard. Reported directly: a CIS
+        // masterlist uploaded to a CTE Dean's account came back relabeled
+        // CTE for every row instead of being flagged.
+        //
+        // Now: a blank College column (the normal case - the official
+        // template doesn't even include one, since every row is assumed to
+        // already be this Dean's college) still defaults to the Dean's own
+        // college, that's a convenience default, not a cross-college claim.
+        // A College value that already matches the Dean's own (case/spacing
+        // aside) is normalized to the canonical string, which isn't an
+        // override either - it's the same college. Only a GENUINELY
+        // different College value is rejected, and it is kept exactly as
+        // the file wrote it (not silently swapped) so the preview shows the
+        // real mismatch instead of a "fixed" value that hides it.
         if (request()->user()?->isDean()) {
             $reasons = [];
-            $row['college'] = request()->user()->college;
+            $deanCollege = request()->user()->college;
+            $fileCollege = trim((string) ($row['college'] ?? ''));
+
+            if ($fileCollege === '' || strcasecmp($fileCollege, $deanCollege) === 0) {
+                $row['college'] = $deanCollege;
+            } else {
+                $reasons[] = "This row's College ('{$fileCollege}') does not match your own college ({$deanCollege}). A Dean can only upload faculty for their own college - double-check this is the right file.";
+                return [$row, $reasons];
+            }
+
             if ($existing && $existing->college !== $row['college']) {
                 $reasons[] = 'This email belongs to an account in another college that this Dean cannot change.';
             }
             // Department isn't required here (an existing upload flow relies
             // on that), but if one WAS given, it must actually belong to the
-            // college being forced onto this row.
+            // Dean's own college.
             if (!empty($row['department']) && !$this->departmentBelongsToCollege($row['department'], $row['college'])) {
                 $reasons[] = "'{$row['department']}' is not a department under {$row['college']}.";
             }

@@ -336,7 +336,7 @@
           <template v-if="!result">
             <div style="background:var(--snow);border-radius:var(--r-sm);padding:12px 14px;font-size:12px;color:var(--stone);line-height:1.6">
               CSV or Excel with columns: Last Name, First Name, Middle Name, Suffix, Email, Employee ID, Contact Number<span v-if="!isChair">, Department</span>.
-              Everyone is added as <strong>Faculty</strong> of <strong>{{ auth.user?.college }}</strong><span v-if="isChair"> / {{ auth.user?.department }}</span><span v-else>, in whichever Department the file specifies (must belong to {{ auth.user?.college }})</span>. Download the template below, fill it in, then upload it here.
+              Everyone is added as <strong>Faculty</strong> of <strong>{{ auth.user?.college }}</strong><span v-if="isChair"> / {{ auth.user?.department }}</span><span v-else>, in whichever Department the file specifies (must belong to {{ auth.user?.college }})</span>. If a row includes its own College column and it's a different college, that row is rejected, not changed. Download the template below, fill it in, then upload it here.
             </div>
             <a href="/templates/faculty_masterlist_template.xlsx" download class="ibtn ibtn-o" style="width:100%;justify-content:center">
               <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

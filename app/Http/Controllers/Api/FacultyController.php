@@ -361,8 +361,26 @@ class FacultyController extends UserController
         $row['role'] = $existing && $existing->role === 'dept_chair' ? 'dept_chair' : 'faculty';
 
         if ($actor->isDeptChair()) {
-            $row['college']    = $actor->college;
-            $row['department'] = $actor->department;
+            // B#, 11/4/2026: same fix as the Dean's upload below - a
+            // mismatched College/Department used to be silently
+            // overwritten into the Dept Chair's own college/department
+            // with no explanation. Now a genuine mismatch is REJECTED
+            // (the row's own file value is kept as-is in the preview,
+            // not swapped), while a blank value (the real template has
+            // no College/Department columns at all) still safely defaults
+            // to the Dept Chair's own college/department, and a value
+            // that already matches is just normalized to the same casing.
+            $fileCollege    = trim((string) ($row['college'] ?? ''));
+            $fileDepartment = trim((string) ($row['department'] ?? ''));
+
+            if ($fileCollege !== '' && strcasecmp($fileCollege, $actor->college) !== 0) {
+                $reasons[] = "This row's College ('{$fileCollege}') does not match your own college ({$actor->college}). A Department Chair can only upload faculty for their own department.";
+            } elseif ($fileDepartment !== '' && strcasecmp($fileDepartment, $actor->department) !== 0) {
+                $reasons[] = "This row's Department ('{$fileDepartment}') does not match your own department ({$actor->department}). A Department Chair can only upload faculty for their own department.";
+            } else {
+                $row['college']    = $actor->college;
+                $row['department'] = $actor->department;
+            }
         } elseif ($actor->isDean()) {
             $row['college'] = $actor->college;
             if (empty($row['department'])) {

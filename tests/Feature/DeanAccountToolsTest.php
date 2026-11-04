@@ -32,17 +32,32 @@ class DeanAccountToolsTest extends TestCase
         Sanctum::actingAs($dean);
 
         $file = $this->csv([
-            // the row's own College column is ignored - forced to the Dean's college
-            ['Santos', 'Mia', '', '', 'mia.santos@bsu.edu.ph', 'faculty', 'F-200', 'College of Business', '', ''],
+            // a blank College column (the real template has no College
+            // column at all) still defaults to the Dean's own college
+            ['Santos', 'Mia', '', '', 'mia.santos@bsu.edu.ph', 'faculty', 'F-200', '', '', ''],
+            // B#, 11/4/2026: a DIFFERENT college is now REJECTED, not
+            // silently relabeled into the Dean's own college - reported as
+            // a bug when a CIS masterlist uploaded to a CTE Dean's account
+            // came back silently relabeled CTE for every row with no
+            // explanation. The row's own (mismatched) College value is kept
+            // as-is in the preview, not swapped.
+            ['Reyes', 'Ana', '', '', 'ana.reyes@bsu.edu.ph', 'faculty', 'F-202', 'College of Business', '', ''],
             // a role outside faculty/dept_chair is rejected for a Dean's upload
             ['Cruz', 'Jun', '', '', 'jun.cruz@bsu.edu.ph', 'admin', 'F-201', '', '', ''],
         ]);
 
         $res = $this->postJson('/api/users/import-preview', ['file' => $file])->assertOk();
+        $preview = $res->json('preview');
+        $this->assertTrue($preview[0]['valid']);
+        $this->assertFalse($preview[1]['valid']);
+        $this->assertStringContainsString('College of Business', $preview[1]['reasons'][0]);
+        $this->assertSame('College of Business', $preview[1]['college']);
+
         $token = $res->json('token');
-        $this->postJson('/api/users/import-confirm', ['token' => $token, 'decisions' => [0 => 'create', 1 => 'create']])->assertOk();
+        $this->postJson('/api/users/import-confirm', ['token' => $token, 'decisions' => [0 => 'create', 1 => 'create', 2 => 'create']])->assertOk();
 
         $this->assertSame('College of Information Sciences', User::where('email', 'mia.santos@bsu.edu.ph')->value('college'));
+        $this->assertNull(User::where('email', 'ana.reyes@bsu.edu.ph')->first());
         $this->assertNull(User::where('email', 'jun.cruz@bsu.edu.ph')->first());
     }
 
