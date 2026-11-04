@@ -730,6 +730,24 @@ class UserController extends Controller
             return response()->json(['preview' => [], 'total' => 0, 'duplicates' => 0, 'token' => '']);
         }
 
+        // B#, 11/4/2026: uploading a STUDENT masterlist here (wrong page)
+        // used to just fail every single row with "Role is required" - true,
+        // but not useful, since the real problem is "wrong file", not
+        // "missing data". employeeHeaderMap() has no mapping for Student-only
+        // columns (Student ID, Year Level, Section, Guardian ...), so they
+        // pass through parseFile() unmapped, under their own raw header text
+        // - if a couple of those show up as keys and not one row has Role
+        // filled in, that's the Student template, not this one. Caught here,
+        // before generating a wall of per-row "Role is required" errors.
+        $studentOnlyMarkers = ['student id', 'year level', 'section', 'guardian last name', 'guardian first name'];
+        $hasStudentMarkers = count(array_intersect($studentOnlyMarkers, array_keys($rows[0] ?? []))) >= 2;
+        $anyRoleFilled = collect($rows)->contains(fn($r) => trim((string) ($r['role'] ?? '')) !== '');
+        if ($hasStudentMarkers && !$anyRoleFilled) {
+            return response()->json([
+                'message' => 'This file looks like a Student masterlist, not an Employee masterlist - it has Student-only columns (Student ID, Year Level, etc.) and no Role column. Please upload it from the Students page instead.',
+            ], 422);
+        }
+
         $validRoles = $this->assignableRoles();
 
         $emails = collect($rows)
@@ -751,9 +769,18 @@ class UserController extends Controller
         $fileIds = collect($rows)->pluck('employee_id')->filter(fn($v) => trim((string) $v) !== '')->map(fn($v) => trim((string) $v))->unique()->values()->all();
         $byEmployeeId = User::whereIn('employee_id', $fileIds)->get()->keyBy('employee_id');
         $firstNames = collect($rows)->map(fn($r) => mb_strtolower(trim((string) ($r['first_name'] ?? ''))))->filter()->unique()->values()->all();
-        $nameKey = fn($f, $l) => mb_strtolower(trim((string) $f)) . '|' . mb_strtolower(trim((string) $l));
+        // B#, 11/4/2026: this used to key on first+last only, with no middle
+        // name - two genuinely different employees who happen to share a
+        // common first+last name combination (not unusual with common
+        // Filipino names on a large masterlist) got hard-blocked as
+        // "Possible duplicate" against each other, reported as "any part of
+        // their full name" triggering a false match. Middle name is now
+        // part of the key, same fix as StudentController::importPreview()'s
+        // equivalent name_matches logic - two rows/records only match when
+        // all three agree.
+        $nameKey = fn($f, $m, $l) => mb_strtolower(trim((string) $f)) . '|' . mb_strtolower(trim((string) $m)) . '|' . mb_strtolower(trim((string) $l));
         $byFullName = User::whereIn(\DB::raw('lower(first_name)'), $firstNames)->get()
-            ->groupBy(fn($u) => $nameKey($u->first_name, $u->last_name));
+            ->groupBy(fn($u) => $nameKey($u->first_name, $u->middle_name, $u->last_name));
         $seenEmail = []; $seenId = []; $seenName = [];
 
         foreach ($rows as $i => $row) {
@@ -764,13 +791,13 @@ class UserController extends Controller
 
             $rowEmail = mb_strtolower(trim((string) ($row['email'] ?? '')));
             $rowId    = trim((string) ($row['employee_id'] ?? ''));
-            $rowName  = $nameKey($row['first_name'] ?? '', $row['last_name'] ?? '');
+            $rowName  = $nameKey($row['first_name'] ?? '', $row['middle_name'] ?? '', $row['last_name'] ?? '');
             $sameEmailUser = $existingUsers->get($row['email'] ?? '');
 
             if ($rowId !== '' && ($idUser = $byEmployeeId->get($rowId)) && (!$sameEmailUser || $sameEmailUser->id !== $idUser->id)) {
                 $reasons[] = "Duplicate Employee ID: {$rowId} already belongs to {$idUser->name}.";
             }
-            if ($rowName !== '|' && ($nameUsers = $byFullName->get($rowName)) && !$nameUsers->contains(fn($u) => $sameEmailUser && $u->id === $sameEmailUser->id)) {
+            if ($rowName !== '||' && ($nameUsers = $byFullName->get($rowName)) && !$nameUsers->contains(fn($u) => $sameEmailUser && $u->id === $sameEmailUser->id)) {
                 $reasons[] = 'Possible duplicate: full name matches existing employee ' . $nameUsers->first()->name . ' (' . $nameUsers->first()->email . ').';
             }
             if ($rowEmail !== '' && isset($seenEmail[$rowEmail])) {
@@ -779,12 +806,12 @@ class UserController extends Controller
             if ($rowId !== '' && isset($seenId[$rowId])) {
                 $reasons[] = "Duplicate Employee ID within the file (same as row {$seenId[$rowId]}).";
             }
-            if ($rowName !== '|' && isset($seenName[$rowName])) {
+            if ($rowName !== '||' && isset($seenName[$rowName])) {
                 $reasons[] = "Duplicate Full Name within the file (same as row {$seenName[$rowName]}).";
             }
             if ($rowEmail !== '')    { $seenEmail[$rowEmail] ??= $i + 2; }
             if ($rowId !== '')       { $seenId[$rowId] ??= $i + 2; }
-            if ($rowName !== '|')    { $seenName[$rowName] ??= $i + 2; }
+            if ($rowName !== '||')   { $seenName[$rowName] ??= $i + 2; }
 
             if ($isDuplicate) {
                 $duplicateCount++;
@@ -803,7 +830,15 @@ class UserController extends Controller
             $preview[] = [
                 'row'          => $i + 2,
                 'email'        => $row['email'] ?? '',
+                // B#, 11/4/2026: kept alongside first/middle/last below for
+                // anything still reading the combined form - the preview
+                // table itself now shows the three separately (see
+                // users/Index.vue and faculty/Index.vue) so staff can tell
+                // apart two people who share a first+last name.
                 'name'         => trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')),
+                'first_name'   => $row['first_name'] ?? '',
+                'middle_name'  => $row['middle_name'] ?? '',
+                'last_name'    => $row['last_name'] ?? '',
                 'role'         => $row['role'] ?? '',
                 // Added so the preview table can show what college/department
                 // each row will actually be saved with - scopeImportRow()

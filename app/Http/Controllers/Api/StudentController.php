@@ -574,19 +574,53 @@ class StudentController extends Controller
             ? collect()
             : Student::whereIn('student_id', $existingIds)->pluck('student_id')->flip();
 
-        // Students already in the system with the same first and last name as a
-        // row (ignoring case), so a re-typed ID can't quietly create a twin (B410).
-        $nameKey = fn($first, $last) => strtolower(trim((string) $first)) . '|' . strtolower(trim((string) $last));
-        $fileNames = collect($rows)->map(fn($r) => $nameKey($r['first_name'] ?? '', $r['last_name'] ?? ''))->filter(fn($k) => $k !== '|')->unique()->values();
+        // Students already in the system with the same first, middle and last
+        // name as a row (ignoring case), so a re-typed ID can't quietly
+        // create a twin (B410).
+        //
+        // B#, 11/4/2026: this used to key on first+last only, with no middle
+        // name at all - common Filipino given/family names meant two
+        // genuinely different students (distinguishable only by middle
+        // name) routinely got flagged "Same name" against each other on a
+        // large masterlist, which was reported as "any part of their full
+        // name" triggering a match. Middle name is now part of the key, so
+        // two rows/records only match when all three agree - a row with no
+        // middle name on file still won't false-match an existing student
+        // who has one, or vice versa, which is an intentional trade-off:
+        // fewer false positives, at the cost of not catching a middle-name
+        // typo as a "same person" match. The underlying Student ID duplicate
+        // check above (is_duplicate) is unaffected either way.
+        $nameKey = fn($first, $middle, $last) => strtolower(trim((string) $first)) . '|' . strtolower(trim((string) $middle)) . '|' . strtolower(trim((string) $last));
+        $fileNames = collect($rows)->map(fn($r) => $nameKey($r['first_name'] ?? '', $r['middle_name'] ?? '', $r['last_name'] ?? ''))->filter(fn($k) => $k !== '||')->unique()->values();
         // Narrowed with LOWER/TRIM (supported by both MySQL and the sqlite
         // connection used in tests) instead of CONCAT, which sqlite lacks;
-        // the exact pairing is then matched in PHP via nameKey/only().
+        // the exact first+middle+last combination is then matched in PHP
+        // via nameKey/only() below.
         $firstNamesLower = collect($rows)->map(fn($r) => strtolower(trim((string) ($r['first_name'] ?? ''))))->filter()->unique()->values();
         $lastNamesLower  = collect($rows)->map(fn($r) => strtolower(trim((string) ($r['last_name'] ?? ''))))->filter()->unique()->values();
+        // B#, 11/4/2026 (THE 500 on real uploads): ->get() returns an
+        // Eloquent Collection, and ->groupBy() on an Eloquent Collection
+        // keeps returning that same class for the outer, grouped result -
+        // even though its "items" are now nested Collections-of-students,
+        // not Student models. Eloquent\Collection::only() overrides the
+        // base Collection::only() to mean "only these model PRIMARY KEYS"
+        // instead of "only these array keys" - it tries to call ->getKey()
+        // on every item to check, and a nested Collection has no getKey()
+        // method, which is exactly the crash reported: "Method
+        // Illuminate\Database\Eloquent\Collection::getKey does not exist."
+        // This never showed up in testing because the test suite's smaller
+        // fixture masterlists apparently never hit this exact line with a
+        // real duplicate-name candidate; a real multi-hundred-row masterlist
+        // (any file with actual data to group) hit it every time.
+        // ->toBase() demotes the outer collection to a plain
+        // Illuminate\Support\Collection before groupBy() runs, so the result
+        // keeps the base class all the way down and ->only() does the
+        // array-key filtering it was actually meant to do here.
         $byName = $fileNames->isEmpty() ? collect() : Student::whereIn(DB::raw('LOWER(TRIM(first_name))'), $firstNamesLower->all())
             ->whereIn(DB::raw('LOWER(TRIM(last_name))'), $lastNamesLower->all())
-            ->get(['student_id', 'first_name', 'last_name'])
-            ->groupBy(fn($st) => $nameKey($st->first_name, $st->last_name))
+            ->get(['student_id', 'first_name', 'middle_name', 'last_name'])
+            ->toBase()
+            ->groupBy(fn($st) => $nameKey($st->first_name, $st->middle_name, $st->last_name))
             ->only($fileNames->all());
 
         $preview = [];
@@ -600,15 +634,27 @@ class StudentController extends Controller
                 $reasons[] = "Email Address is repeated in the file (same as row {$seenEmails[$em]})";
             }
             if ($em !== '') { $seenEmails[$em] ??= $rowData['__row'] ?? ($i + 2); }
-            $nameMatches = $isDuplicate ? [] : ($byName[$nameKey($rowData['first_name'] ?? '', $rowData['last_name'] ?? '')] ?? collect())
+            $nameMatches = $isDuplicate ? [] : ($byName[$nameKey($rowData['first_name'] ?? '', $rowData['middle_name'] ?? '', $rowData['last_name'] ?? '')] ?? collect())
                 ->filter(fn($st) => $st->student_id !== ($rowData['student_id'] ?? null))
-                ->map(fn($st) => ['student_id' => $st->student_id, 'name' => trim($st->first_name . ' ' . $st->last_name)])
+                ->map(fn($st) => ['student_id' => $st->student_id, 'name' => trim($st->first_name . ' ' . $st->middle_name . ' ' . $st->last_name)])
                 ->values()->all();
 
             $preview[] = [
                 'name_matches' => $nameMatches,
                 'row'          => $rowData['__row'] ?? ($i + 2),
                 'student_id'   => $rowData['student_id'] ?? null,
+                // B#, 11/4/2026: the preview table was never actually sent a
+                // name or email to show - 'name'/'email' were referenced in
+                // students/Index.vue's table but never populated here, so
+                // those columns silently rendered "-" for every row. Added
+                // here, split into first/middle/last (not one combined
+                // field) so staff can tell apart two people sharing a
+                // first+last name, same reasoning as the name-match fix
+                // above.
+                'first_name'   => $rowData['first_name'] ?? '',
+                'middle_name'  => $rowData['middle_name'] ?? '',
+                'last_name'    => $rowData['last_name'] ?? '',
+                'email'        => $rowData['email'] ?? '',
                 'is_duplicate' => $isDuplicate,
                 'valid'        => empty($reasons),
                 'reasons'      => $reasons,

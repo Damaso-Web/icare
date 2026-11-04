@@ -864,12 +864,14 @@
               ⚠ Some Student IDs already exist. Choose how to handle all duplicates below.
             </div>
 
-           <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)" @scroll="onPreviewScroll">
-            <table class="itable">
+           <div style="max-height:340px;overflow:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)" @scroll="onPreviewScroll">
+            <table class="itable" style="min-width:760px">
               <thead>
                 <tr>
-                  <th style="width:50px">Row</th>
-                  <th>Name</th>
+                  <th style="width:46px">Row</th>
+                  <th style="width:120px">Last Name</th>
+                  <th style="width:120px">First Name</th>
+                  <th style="width:120px">Middle Name</th>
                   <th>Email</th>
                   <th style="width:110px">Student ID</th>
                   <th style="width:100px">Status</th>
@@ -879,7 +881,9 @@
               <tbody>
                 <tr v-for="item in visiblePreviewRows" :key="item.row">
                   <td style="font-size:12px">{{ item.row }}</td>
-                  <td style="font-size:12px">{{ item.name || '-' }}</td>
+                  <td style="font-size:12px;white-space:nowrap">{{ item.last_name || '-' }}</td>
+                  <td style="font-size:12px;white-space:nowrap">{{ item.first_name || '-' }}</td>
+                  <td style="font-size:12px;white-space:nowrap">{{ item.middle_name || '-' }}</td>
                   <td style="font-size:12px">{{ item.email || '-' }}</td>
                   <td style="font-family:var(--mono);font-size:12px">{{ item.student_id || '-' }}</td>
                   <td>

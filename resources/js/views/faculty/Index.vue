@@ -352,15 +352,17 @@
 
             <template v-if="preview.length">
               <div style="font-size:13px;color:var(--stone)">{{ preview.length }} record(s) found</div>
-              <div style="max-height:340px;overflow-y:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
-                <table class="itable">
+              <div style="max-height:340px;overflow:auto;border:1px solid var(--cloud);border-radius:var(--r-sm)">
+                <table class="itable" style="min-width:860px">
                   <thead>
-                    <tr><th style="width:46px">Row</th><th>Name</th><th>Email</th><th>College / Department</th><th style="width:90px">Status</th><th style="width:150px">Action</th></tr>
+                    <tr><th style="width:46px">Row</th><th style="width:120px">Last Name</th><th style="width:120px">First Name</th><th style="width:120px">Middle Name</th><th>Email</th><th>College / Department</th><th style="width:90px">Status</th><th style="width:150px">Action</th></tr>
                   </thead>
                   <tbody>
                     <tr v-for="(r, i) in preview" :key="i">
                       <td style="font-size:12px">{{ r.row }}</td>
-                      <td style="font-size:12px">{{ r.name }}</td>
+                      <td style="font-size:12px;white-space:nowrap">{{ r.last_name || '-' }}</td>
+                      <td style="font-size:12px;white-space:nowrap">{{ r.first_name || '-' }}</td>
+                      <td style="font-size:12px;white-space:nowrap">{{ r.middle_name || '-' }}</td>
                       <td style="font-family:var(--mono);font-size:12px">{{ r.email }}</td>
                       <td style="font-size:11px;line-height:1.5">{{ r.college || '-' }}<br /><span style="color:var(--stone)">{{ r.department || '-' }}</span></td>
                       <td>
