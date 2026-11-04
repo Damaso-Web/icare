@@ -334,11 +334,17 @@ async function cancelReferral() {
   }
 }
 
-const ALL_TYPES = ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'];
+// Bug (11/5/2026): 'psychological_testing' was missing from this list, so
+// it never showed as a choice when editing an ordinary GCU referral - even
+// though it's one of the choices GCU's own referral Create form offers.
+// It's just a Service Requested tag on a GCU referral (see Referral::
+// sameUnitTypes()'s comment), not its own unit - only 'disciplinary' (SDU)
+// actually is. Kept in sync with the backend list.
+const ALL_TYPES = ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting', 'psychological_testing'];
 // A referral keeps to its own unit, so a GCU referral can only change to another GCU service.
 const typeChoices = computed(() => {
   const t = selected.value?.referral_type;
-  return t === 'disciplinary' || t === 'psychological_testing' ? [t] : ALL_TYPES;
+  return t === 'disciplinary' ? [t] : ALL_TYPES;
 });
 // The sender may correct it until GCU acknowledges it.
 const canEdit = r => r && r.status === 'submitted' && !r.acknowledged_at && !r.is_archived;

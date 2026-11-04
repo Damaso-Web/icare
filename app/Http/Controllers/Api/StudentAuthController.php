@@ -25,6 +25,40 @@ class StudentAuthController extends Controller
     private const YEAR_REGEX  = '/^[0-9]{4}$/';
     private const AGE_REGEX   = '/^[0-9]{1,3}$/';
 
+    // Bug (11/5/2026): a Feedback Slip (feedback_notes/feedback_checklist/
+    // etc.) is GCU/TMDU's internal note about the case - never something a
+    // student should see, in any referral, anywhere in their account. These
+    // columns live directly on the referrals row (not just the loaded
+    // feedbackSlips relation already excluded below), so a plain
+    // $referral->toArray() still carried them to the student in every
+    // response that returned a referral at all. Hidden here, per response,
+    // rather than on the Referral model itself - staff-side pages
+    // (referrals/Show.vue's Feedback Slip panel) still need to read these
+    // same columns.
+    private const FEEDBACK_SLIP_FIELDS = [
+        'feedback_notes', 'feedback_checklist', 'feedback_referred_other_text',
+        'feedback_others_text', 'feedback_ctrl_no', 'feedback_sent_at', 'feedback_sent_by_user_id',
+    ];
+
+    /** Strips the Feedback Slip columns off a single referral (or a referral loaded on an appointment/case). */
+    private function hideFeedbackSlip($referral): void
+    {
+        $referral?->makeHidden(self::FEEDBACK_SLIP_FIELDS);
+    }
+
+    /** Same, but for a collection of referrals. */
+    private function hideFeedbackSlipFromMany($referrals): void
+    {
+        $referrals?->each(fn ($r) => $r->makeHidden(self::FEEDBACK_SLIP_FIELDS));
+    }
+
+    /** Strips it off an appointment's ->referral and ->case->latestReferral, if loaded. */
+    private function hideFeedbackSlipFromAppointment($appointment): void
+    {
+        $this->hideFeedbackSlip($appointment?->referral);
+        $this->hideFeedbackSlip($appointment?->case?->latestReferral);
+    }
+
     public function login(Request $request)
     {
         $request->validate([
@@ -251,6 +285,7 @@ class StudentAuthController extends Controller
             ->whereNotIn('status', ['cancelled'])
             ->latest()
             ->get();
+        $pendingAppointments->each(fn ($a) => $this->hideFeedbackSlipFromAppointment($a));
 
         // B#, 11/4/2026: counts of the referrals the STUDENT THEMSELVES sent
         // (is_self_referred - see ReferSelf.vue), not every referral tied to
@@ -267,18 +302,26 @@ class StudentAuthController extends Controller
             'received'  => (clone $selfReferrals)->whereIn('status', ['acknowledged', 'scheduled', 'in_progress', 'referred_tmdu', 'referred_external'])->count(),
             'completed' => (clone $selfReferrals)->whereIn('status', ['completed', 'closed'])->count(),
         ],
-        'appointments'          => $student->appointments()
-            ->with(['staff', 'referral', 'case.latestReferral'])
-            ->when($request->search, function ($q) use ($request) {
-                $q->where(function ($qq) use ($request) {
-                    $qq->where('appointment_code', 'like', "%{$request->search}%")
-                       ->orWhere('appointment_type', 'like', "%{$request->search}%")
-                       ->orWhereHas('referral', fn($r) => $r->where('referral_code', 'like', "%{$request->search}%"));
-                });
-            })
-            ->latest()
-            ->get(),
-        'referrals'             => $student->referrals()->latest()->get(),
+        'appointments'          => (function () use ($student, $request) {
+            $appts = $student->appointments()
+                ->with(['staff', 'referral', 'case.latestReferral'])
+                ->when($request->search, function ($q) use ($request) {
+                    $q->where(function ($qq) use ($request) {
+                        $qq->where('appointment_code', 'like', "%{$request->search}%")
+                           ->orWhere('appointment_type', 'like', "%{$request->search}%")
+                           ->orWhereHas('referral', fn($r) => $r->where('referral_code', 'like', "%{$request->search}%"));
+                    });
+                })
+                ->latest()
+                ->get();
+            $appts->each(fn ($a) => $this->hideFeedbackSlipFromAppointment($a));
+            return $appts;
+        })(),
+        'referrals'             => (function () use ($student) {
+            $referrals = $student->referrals()->latest()->get();
+            $this->hideFeedbackSlipFromMany($referrals);
+            return $referrals;
+        })(),
         'pending_appointments'  => $pendingAppointments,
         'pending_appointment'   => $pendingAppointments->first(),
         'parent_conference_slips' => $this->studentParentConferenceSlips($student),
@@ -525,10 +568,15 @@ public function referSelf(Request $request)
 public function showReferral(Request $request, $id)
 {
     $student = $request->user('student');
-    // admissionIssuedBy / feedbackSlips.sentBy - so the student's own copy
-    // of an issued Admission Slip or sent Feedback Slip can show who issued
-    // or sent it, same as the staff-side referral page.
-    $referral = $student->referrals()->with(['case', 'student', 'admissionIssuedBy', 'feedbackSlips.sentBy'])->findOrFail($id);
+    // admissionIssuedBy - so the student's own copy of an issued Admission
+    // Slip can show who issued it, same as the staff-side referral page.
+    //
+    // Bug (11/5/2026): feedbackSlips.sentBy was also eager-loaded here,
+    // which put the Feedback Slip itself in the student's hands - a
+    // Feedback Slip is GCU/TMDU's internal note about the case, never
+    // something the student should see anywhere in their own account.
+    $referral = $student->referrals()->with(['case', 'student', 'admissionIssuedBy'])->findOrFail($id);
+    $this->hideFeedbackSlip($referral);
 
     $pendingAppointment = $student->appointments()
         ->where('request_status', 'awaiting_student')
@@ -552,6 +600,7 @@ public function showAppointment(Request $request, $id)
 {
     $student = $request->user('student');
     $appointment = $student->appointments()->with(['staff', 'referral', 'case.latestReferral'])->findOrFail($id);
+    $this->hideFeedbackSlipFromAppointment($appointment);
     return response()->json($appointment);
 }
 
@@ -573,6 +622,7 @@ public function testingRecords(Request $request)
         $r->setAttribute('par_filename', $r->documents()
             ->where('document_type', 'psychological_assessment_report')
             ->latest('id')->value('original_filename'));
+        $this->hideFeedbackSlip($r->referral);
     });
 
     return response()->json($records);
@@ -593,6 +643,9 @@ public function showTestingRecord(Request $request, $id)
             'is_confidential', 'uploaded_by_user_id', 'created_at',
         ]), 'referral'])
         ->findOrFail($id);
+
+    $this->hideFeedbackSlip($record->referral);
+    $this->hideFeedbackSlip($record->case?->latestReferral);
 
     return response()->json($record);
 }
