@@ -180,13 +180,29 @@ class Referral extends Model
         return $this->status === 'submitted' && ! $this->acknowledged_at && ! $this->is_archived;
     }
 
-    /** Referral types that stay with the same unit (GCU / SDU / TMDU) as this one. */
+    /**
+     * Referral types that stay with the same unit (GCU / SDU) as this one.
+     *
+     * Bug (11/5/2026): 'psychological_testing' had its own exclusive bucket
+     * here, as if picking it made this a TMDU-unit referral on its own -
+     * but it isn't. Per ReferralController::acknowledge()'s own comment,
+     * "Psychological Testing" picked here is just a Service Requested tag
+     * on an ordinary GCU referral (used SWS-wide for counting/filtering);
+     * it only becomes a real TMDU testing cycle once GCU explicitly refers
+     * the case to TMDU (CaseController::referToTmdu()), which creates its
+     * own separate sibling Referral with its own TestingRecord. So editing
+     * a GCU referral should be able to switch into/out of "Psychological
+     * Testing" exactly like any of the other 6 GCU service types - this
+     * excluded it, so GCU's own referral Create form offered it as a
+     * choice, but once submitted it could never be corrected to or from
+     * that type again. Only 'disciplinary' (SDU - Acts of Misconduct) is a
+     * genuinely different unit/workflow and stays its own exclusive bucket.
+     */
     public function sameUnitTypes(): array
     {
         return match ($this->referral_type) {
-            'disciplinary'          => ['disciplinary'],
-            'psychological_testing' => ['psychological_testing'],
-            default                 => ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'withdrawal', 'readmission', 'shifting'],
+            'disciplinary' => ['disciplinary'],
+            default        => ['class_attendance', 'counseling', 'academic_deficiency', 'leave_of_absence', 'readmission', 'withdrawal', 'shifting', 'psychological_testing'],
         };
     }
 

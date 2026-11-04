@@ -73,6 +73,31 @@ class SentListFiltersTest extends TestCase
         $this->assertEqualsCanonicalizing(['pending', 'under_review', 'resolved'], $c->json('filter_options.statuses'));
     }
 
+    // Bug (11/5/2026): "Acts of Misconduct" always showed in the Sent
+    // Referrals Type filter, but a disciplinary referral always carries a
+    // complaint_id and so never actually appears in that list (it's
+    // excluded by complaint_id IS NULL and shows on Sent Complaints
+    // instead) - picking it was a guaranteed dead end. Checked for both the
+    // staff and student Sent Referrals lists, which share this same
+    // filter-building code (ReferralController::sentList()).
+    public function test_sent_referrals_type_filter_excludes_disciplinary(): void
+    {
+        \App\Models\ReferralFormOption::create(['category' => 'referral_type', 'value' => 'counseling', 'label' => 'Counseling', 'sort_order' => 1]);
+        \App\Models\ReferralFormOption::create(['category' => 'referral_type', 'value' => 'disciplinary', 'label' => 'Acts of Misconduct', 'sort_order' => 2]);
+
+        $sdu = User::factory()->create(['role' => 'sdu_head', 'is_active' => true]);
+        Sanctum::actingAs($sdu);
+        $staffResult = $this->getJson('/api/my/referrals')->assertOk();
+        $this->assertContains('counseling', $staffResult->json('filter_options.types'));
+        $this->assertNotContains('disciplinary', $staffResult->json('filter_options.types'));
+
+        $student = $this->student('2300002', 'Mika');
+        Sanctum::actingAs($student, [], 'student');
+        $studentResult = $this->getJson('/api/student/outreach/referrals')->assertOk();
+        $this->assertContains('counseling', $studentResult->json('filter_options.types'));
+        $this->assertNotContains('disciplinary', $studentResult->json('filter_options.types'));
+    }
+
     // B#, 11/4/2026: "Referred TMDU" and "Referred External" are removed
     // from the Sent Referrals status filter dropdown - even for a referral
     // that actually has one of those statuses right now.

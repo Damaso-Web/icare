@@ -63,7 +63,7 @@ class CallSlipController extends Controller
             'call_slip_notes' => $request->notes,
         ]);
 
-        AuditLog::record('call_slip_contacted', "Dean's Secretary contacted student for appointment {$appointment->appointment_code}.", $appointment);
+        AuditLog::record('call_slip_contacted', "College Dean contacted student for appointment {$appointment->appointment_code}.", $appointment);
 
         return response()->json($appointment);
     }
@@ -80,7 +80,7 @@ class CallSlipController extends Controller
             'call_slip_stage'   => 'rescheduled',
         ]);
 
-        AuditLog::record('call_slip_reschedule', "Dean's Secretary requested reschedule for appointment {$appointment->appointment_code}.", $appointment);
+        AuditLog::record('call_slip_reschedule', "College Dean requested reschedule for appointment {$appointment->appointment_code}.", $appointment);
 
         return response()->json(['message' => 'Reschedule request sent to student.', 'appointment' => $appointment]);
     }

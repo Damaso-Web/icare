@@ -24,11 +24,23 @@ class PublicSchedulingController extends Controller
         // below - show the referral this scheduling link's appointment is
         // actually for, not whichever referral happens to be newest on the
         // case.
+        $referral = $appointment->referral ?: $appointment->case?->latestReferral;
+
+        // This link is opened by the student directly - the Feedback Slip
+        // (feedback_notes/feedback_checklist/etc.) is GCU/TMDU's internal
+        // note about the case and must never reach them here either. Same
+        // fields hidden the same way as every student-facing referral in
+        // StudentAuthController.
+        $referral?->makeHidden([
+            'feedback_notes', 'feedback_checklist', 'feedback_referred_other_text',
+            'feedback_others_text', 'feedback_ctrl_no', 'feedback_sent_at', 'feedback_sent_by_user_id',
+        ]);
+
         return response()->json([
             'appointment' => $appointment,
             'previous_slots' => $this->previousSlots($appointment),
             'student'     => $appointment->student,
-            'referral'    => $appointment->referral ?: $appointment->case?->latestReferral,
+            'referral'    => $referral,
         ]);
     }
 

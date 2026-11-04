@@ -135,7 +135,7 @@
             Pursuant to the Data Privacy Act of 2012 and the BSU Data Privacy Policy, authorized personnel are legally obligated to maintain the absolute confidentiality of all student records, referrals, and case files accessed through the iCARE system.
           </p>
           <p>
-            As an authorized user (Admin, GCU, SDU, TMDU, Faculty, or Dean's Secretary), you acknowledge that the information within this system is highly sensitive.
+            As an authorized user (Admin, GCU, SDU, TMDU, Faculty, or College Dean), you acknowledge that the information within this system is highly sensitive.
           </p>
           <p>By proceeding, you formally agree to the following terms:</p>
           <ol>

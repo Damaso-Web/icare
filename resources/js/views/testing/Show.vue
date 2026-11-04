@@ -617,7 +617,7 @@
               Choose how to handle it:
             </div>
             <div v-if="callSlipConfirming" style="border:1px solid #f0a8a8;background:var(--red-lt);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:10px">
-              <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
+              <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the College Dean. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
               <div style="display:flex;gap:8px">
                 <button class="ibtn" style="flex:1;justify-content:center;background:#fff;color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">{{ submittingNoShow ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
                 <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="submittingNoShow" @click="callSlipConfirming = false">Go Back</button>
@@ -625,7 +625,7 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <button v-if="!callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
-              <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="callSlipConfirming = true">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="callSlipConfirming = true">Issue Call Slip (Escalate to College Dean)</button>
               <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
             </div>
           </div>

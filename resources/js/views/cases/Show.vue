@@ -94,7 +94,7 @@
             <!-- Unreachable Banner -->
             <div v-if="caseFile.student_unreachable" style="margin:0 16px 16px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:10px 14px;font-size:13px;color:var(--amber);display:flex;align-items:center;gap:8px">
               <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              Student flagged as unreachable. Dean's Secretary has been notified.
+              Student flagged as unreachable. College Dean has been notified.
             </div>
           </div>
 
@@ -910,7 +910,7 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
             <div style="background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px 14px;font-size:13px;color:var(--amber)">
-              ⚠ This will notify the Dean's Secretary of {{ caseFile.student?.college }} that the student is unreachable.
+              ⚠ This will notify the College Dean of {{ caseFile.student?.college }} that the student is unreachable.
             </div>
             <div>
               <label class="ifl">Notes / Reason</label>
@@ -1306,7 +1306,7 @@ async function flagUnreachable() {
     await caseAPI.flagUnreachable(caseFile.value.id, { notes: unreachableNotes.value });
     caseFile.value.student_unreachable = true;
     showUnreachableModal.value         = false;
-    toast?.success("Student flagged as unreachable. Dean's Secretary has been notified.");
+    toast?.success("Student flagged as unreachable. College Dean has been notified.");
   } catch (e) {
     toast?.error('Failed to flag student as unreachable.');
   }
@@ -1316,7 +1316,7 @@ async function escalateNoShow(appointment) {
   try {
     await appointmentAPI.escalateNoShow(appointment.id);
     appointment.no_show_escalated = true;
-    toast?.success("No-show escalated to Dean's Secretary.");
+    toast?.success("No-show escalated to College Dean.");
   } catch (e) {
     toast?.error('Failed to escalate no-show.');
   }

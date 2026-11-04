@@ -307,7 +307,7 @@
         </div>
         <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
           <div style="font-size:13px;color:var(--slate);line-height:1.6">
-            This will mark <strong>{{ noShowTarget?.student?.last_name }}, {{ noShowTarget?.student?.first_name }}</strong>'s appointment as a no-show and escalate it to the Dean's Secretary.
+            This will mark <strong>{{ noShowTarget?.student?.last_name }}, {{ noShowTarget?.student?.first_name }}</strong>'s appointment as a no-show and escalate it to the College Dean.
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow">
@@ -550,7 +550,7 @@ async function submitNoShow() {
     await appointmentAPI.escalateNoShow(noShowTarget.value.id, 'call_slip');
     noShowTarget.value.status = 'no_show';
     noShowTarget.value.no_show_escalated = true;
-    toast?.success("Marked as no-show and escalated to Dean's Secretary.");
+    toast?.success("Marked as no-show and escalated to College Dean.");
     showNoShowModal.value = false;
     fetchAllAppointments();
   } catch (e) {

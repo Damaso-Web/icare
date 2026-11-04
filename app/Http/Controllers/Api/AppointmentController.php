@@ -62,7 +62,9 @@ class AppointmentController extends Controller
     public function index(Request $request)
     {
         $user = $request->user();
-        $perPage = $request->input('per_page', 20);
+        // B#, 11/5/2026: matches the page size change already made to the
+        // Referral Queue and Sent Referrals/Complaints lists (20 -> 10).
+        $perPage = $request->input('per_page', 10);
 
         return response()->json(
             Appointment::with(['student', 'staff', 'case.latestReferral', 'referral', 'createdBy'])
@@ -365,8 +367,21 @@ class AppointmentController extends Controller
         // - not straight to 'in_progress'. 'in_progress' is reserved for the
         // student actually attending (set in checkIn() below). Forward-only
         // via advanceStatusTo(), so this can't undo a later status.
-        if ($appointment->case?->latestReferral) {
-            $appointment->case->latestReferral->advanceStatusTo('scheduled');
+        //
+        // Bug (11/5/2026): this used $appointment->case->latestReferral,
+        // the case's MOST RECENT referral - not necessarily the one this
+        // appointment actually belongs to. A case can have more than one
+        // referral (e.g. an older Class Attendance referral plus a newer,
+        // unrelated one), so confirming THIS appointment was wrongly
+        // advancing whatever referral happened to be newest on the case -
+        // sometimes one that had never even been acknowledged yet, jumping
+        // it straight to "Scheduled" with no staff action on it at all.
+        // Same fix as overrideStatus() below: prefer the appointment's own
+        // linked referral, falling back to the case's latest only for
+        // legacy appointments with no referral_id set.
+        $referralToAdvance = $appointment->referral ?: $appointment->case?->latestReferral;
+        if ($referralToAdvance) {
+            $referralToAdvance->advanceStatusTo('scheduled');
         }
 
         AuditLog::record('confirmed', "Confirmed appointment {$appointment->appointment_code}.", $appointment);
@@ -857,8 +872,8 @@ public function checkConflictByStudent(Request $request)
 
         if ($callSlip) {
             $this->notifyDeanSecretaries($appointment, new NoShowEscalationNotification($appointment));
-            AuditLog::record('no_show_escalated', "No-show for appointment {$appointment->appointment_code}; GCU issued a Call Slip, escalated to Dean's Secretary.", $appointment);
-            $message = "Marked as no-show and escalated to Dean's Secretary via Call Slip.";
+            AuditLog::record('no_show_escalated', "No-show for appointment {$appointment->appointment_code}; GCU issued a Call Slip, escalated to the College Dean.", $appointment);
+            $message = 'Marked as no-show and escalated to the College Dean via Call Slip.';
         } else {
             AuditLog::record('no_show_marked', "Marked no-show for appointment {$appointment->appointment_code}; GCU chose to ask the student to reschedule.", $appointment);
             $message = 'Marked as no-show. Ask the student to reschedule.';
@@ -873,7 +888,7 @@ public function checkConflictByStudent(Request $request)
     // Call Slip for a referral that was acknowledged but whose student never
     // picked a schedule (request_status still 'awaiting_student'). Nothing was
     // missed yet, so unlike escalateNoShow this does NOT mark a no-show or
-    // bump the case's no_show_count - it only asks the Dean's Secretary to
+    // bump the case's no_show_count - it only asks the College Dean to
     // follow up with the student.
     public function sendCallSlipUnscheduled(Request $request, Appointment $appointment)
     {
@@ -896,7 +911,7 @@ public function checkConflictByStudent(Request $request)
         AuditLog::record('call_slip_unscheduled', "GCU sent a Call Slip for appointment {$appointment->appointment_code}: student has not picked a schedule.", $appointment);
 
         return response()->json([
-            'message'     => "Call Slip sent to the Dean's Secretary.",
+            'message'     => 'Call Slip sent to the College Dean.',
             'appointment' => $appointment->load('case'),
         ]);
     }
@@ -1058,8 +1073,14 @@ public function checkConflictByStudent(Request $request)
             'status'           => 'pending',
         ]);
 
-        if ($appointment->case?->latestReferral) {
-            $appointment->case->latestReferral->update(['status' => 'scheduled']);
+        // Bug (11/5/2026): same case-vs-appointment referral mismatch as
+        // confirm() above - target the appointment's own referral, not
+        // whichever referral happens to be newest on the case. Also guarded
+        // with canMoveStatusTo() now instead of a raw update(), so this
+        // can't undo a referral that's already moved further along.
+        $referralToSchedule = $appointment->referral ?: $appointment->case?->latestReferral;
+        if ($referralToSchedule && $referralToSchedule->canMoveStatusTo('scheduled')) {
+            $referralToSchedule->update(['status' => 'scheduled']);
         }
 
         AuditLog::record('scheduled_by_staff',

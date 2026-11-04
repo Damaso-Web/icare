@@ -26,11 +26,16 @@
         <option value="1">Active</option>
         <option value="0">Inactive</option>
       </select>
-      <select v-if="!isFacultyView" v-model="filters.role" class="fsm" @change="fetchUsers">
+      <!-- B#, 11/5/2026: TMDU Head's own list is already scoped to tmdu_staff
+           only (scopeManaged()) - addableRoles('tmdu_head') is a single
+           value too, so "All Roles" offered nothing to actually filter by.
+           Same reasoning for "All Colleges": TMDU staff accounts don't carry
+           a college, so that filter was always a no-op for this account. -->
+      <select v-if="!isFacultyView && !auth.isTMDUHead" v-model="filters.role" class="fsm" @change="fetchUsers">
         <option value="">All Roles</option>
         <option v-for="o in filterRoleOptions" :key="o.value" :value="o.value">{{ o.label }}</option>
       </select>
-      <select v-if="!isDeanActor" v-model="filters.college" class="fsm" @change="fetchUsers">
+      <select v-if="!isDeanActor && !auth.isTMDUHead" v-model="filters.college" class="fsm" @change="fetchUsers">
         <option value="">All Colleges</option>
         <option v-for="c in colleges" :key="c" :value="c">{{ c }}</option>
       </select>

@@ -187,7 +187,16 @@ class ReferralController extends Controller
         // Every service GCU offers and every status a referral can have, not only the ones already in use (B490).
         $serviceOptions = \App\Models\ReferralFormOption::where('category', 'referral_type')->orderBy('sort_order')->get(['value', 'label']);
         $usedTypes      = (clone $base)->distinct()->pluck('referral_type')->all();
-        $types = $serviceOptions->pluck('value')->merge($usedTypes)->unique()->filter()->values()->all();
+        // Bug (11/5/2026): "Acts of Misconduct" (disciplinary) always showed
+        // in this Type filter even though it can never actually match
+        // anything here - every disciplinary referral is created with a
+        // complaint_id (see ComplaintController::store()), and $base above
+        // already excludes those (->whereNull('complaint_id')) since they
+        // belong on Sent Complaints instead. Dropped from the filter so it
+        // doesn't offer a choice that's a guaranteed dead end. Shared by
+        // both the staff and student Sent Referrals lists.
+        $types = $serviceOptions->pluck('value')->merge($usedTypes)->unique()->filter()
+            ->reject(fn($t) => $t === 'disciplinary')->values()->all();
         // B#, 11/4/2026: "Referred TMDU" and "Referred External" are removed
         // from the Status filter dropdown per request - updateStatus() above
         // still accepts both as real status values (a referral can still

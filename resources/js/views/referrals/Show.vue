@@ -54,14 +54,17 @@
                  same as "Schedule Now". -->
             <div v-if="refOverride.status === 'scheduled'" style="display:flex;flex-direction:column;gap:8px;background:var(--foam);border-radius:var(--r-sm);padding:10px 12px">
               <label class="ifl">Appointment Date &amp; Time <span style="color:var(--red)">*</span></label>
-              <!-- B#, 11/5/2026: at min-width:100px the native time input's
-                   AM/PM segment got clipped - widened instead of letting it
-                   wrap to its own line, so date + both times still read on
-                   one row. -->
-              <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <input v-model="refOverride.appointment_date" type="date" class="ifi" style="flex:1;min-width:140px" />
-                <input v-model="refOverride.start_time" type="time" class="ifi" style="flex:1;min-width:130px" />
-                <input v-model="refOverride.end_time" type="time" class="ifi" style="flex:1;min-width:130px" />
+              <!-- B#, 11/5/2026: all three on one flex-wrap row (date + both
+                   times) didn't actually fit this modal's width, so the time
+                   inputs kept wrapping one-per-line, stacked awkwardly under
+                   the date. Date now gets its own full-width row, and the
+                   two times share a row of their own underneath - always
+                   beside each other, with no wrap risk since it's just the
+                   two of them split evenly. -->
+              <input v-model="refOverride.appointment_date" type="date" class="ifi" style="width:100%" />
+              <div style="display:flex;gap:8px">
+                <input v-model="refOverride.start_time" type="time" class="ifi" style="flex:1;min-width:0" />
+                <input v-model="refOverride.end_time" type="time" class="ifi" style="flex:1;min-width:0" />
               </div>
             </div>
             <div>
@@ -1753,7 +1756,7 @@
             </div>
             <div style="display:flex;flex-direction:column;gap:8px">
               <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitCaseNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
-              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" v-if="!caseNoShowTarget?.no_show_escalated" @click="requestCallSlip(caseNoShowTarget)">Issue Call Slip (Escalate to Dean's Secretary)</button>
+              <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" v-if="!caseNoShowTarget?.no_show_escalated" @click="requestCallSlip(caseNoShowTarget)">Issue Call Slip (Escalate to College Dean)</button>
               <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Never Mind</button>
             </div>
           </div>
@@ -1933,8 +1936,8 @@
           </div>
           <div style="padding:22px;display:flex;flex-direction:column;gap:16px">
             <div style="font-size:13px;color:var(--slate);line-height:1.6">
-              <template v-if="callSlipTarget.request_status === 'awaiting_student'">The student has not picked a schedule yet. This will send a Call-Slip to the Dean's Secretary so they can follow up with the student. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
-              <template v-else>This will escalate the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
+              <template v-if="callSlipTarget.request_status === 'awaiting_student'">The student has not picked a schedule yet. This will send a Call-Slip to the College Dean so they can follow up with the student. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
+              <template v-else>This will escalate the appointment to the College Dean. A Call-Slip can only be sent <strong>once</strong> and cannot be undone. Continue?</template>
             </div>
               <div style="display:flex;gap:8px;justify-content:flex-end">
               <button class="ibtn ibtn-p" :disabled="sendingCallSlip" @click="confirmCallSlip">{{ sendingCallSlip ? 'Sending...' : 'Yes' }}</button>

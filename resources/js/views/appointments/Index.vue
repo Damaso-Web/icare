@@ -366,7 +366,7 @@
         </div>
         <div style="padding:20px 22px;display:flex;flex-direction:column;gap:16px">
           <div style="font-size:13px;color:var(--ink);line-height:1.55">
-            This asks the Dean's Secretary to follow up with
+            This asks the College Dean to follow up with
             <strong>{{ detailTarget.student?.first_name }} {{ detailTarget.student?.last_name }}</strong>,
             who has not picked a schedule yet. It does not mark a no-show.
           </div>
@@ -467,7 +467,7 @@
             Choose how to handle it:
           </div>
           <div v-if="callSlipConfirming" style="border:1px solid #f0a8a8;background:var(--red-lt);border-radius:var(--r-sm);padding:14px;display:flex;flex-direction:column;gap:10px">
-            <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the Dean's Secretary. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
+            <div style="font-size:13px;color:var(--ink);line-height:1.5"><strong>Send Call-Slip?</strong> This escalates the appointment to the College Dean. A Call-Slip can only be sent <strong>once</strong> and cannot be undone.</div>
             <div style="display:flex;gap:8px">
               <button class="ibtn" style="flex:1;justify-content:center;background:#fff;color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="submitNoShow('call_slip')">{{ submittingNoShow ? 'Sending...' : 'Yes, Send Call-Slip' }}</button>
               <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="submittingNoShow" @click="callSlipConfirming = false">Go Back</button>
@@ -807,7 +807,7 @@ function callSlipLabel(a) {
 }
 function callSlipTitle(a) {
   const when = a?.no_show_escalated_at ? new Date(a.no_show_escalated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-  return `A Call Slip was sent to the Dean's Secretary${when ? ' on ' + when : ''}.`;
+  return `A Call Slip was sent to the College Dean${when ? ' on ' + when : ''}.`;
 }
 
 // The status override is folded away each time a different appointment is opened.
