@@ -130,20 +130,39 @@ class AppointmentController extends Controller
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
                 // visibility on GCU appointments, not just their own caseload.
-                // B#, 11/5/2026: Awaiting Confirmation (status=pending,
-                // request_status=pending_confirmation) is the one row type
-                // that always needs a staff decision before anything else
-                // can happen to it, so it now sorts above even Confirmed.
-                // Below that: Confirmed, then everything else still
-                // awaiting something (awaiting_student/no_show/
-                // rescheduled/cancelled), then Completed last. Within each
-                // group, rows now sort by appointment date/time ascending
-                // (soonest first) instead of newest-created first - staff
-                // care about what's coming up next, not what was most
-                // recently booked.
-                ->orderByRaw("CASE WHEN status = 'pending' AND request_status = 'pending_confirmation' THEN 0 WHEN status = 'confirmed' THEN 1 WHEN status = 'completed' THEN 3 ELSE 2 END")
-                ->orderBy('appointment_date')
-                ->orderBy('start_time')
+                // B#, 11/5/2026: explicit group order, dropped the
+                // appointment-date secondary sort tried earlier the same
+                // day (back to newest-created first within each group).
+                // Awaiting Confirmation always needs a staff decision
+                // before anything else can happen to it, so it sorts above
+                // even Confirmed. "Expired" (Awaiting Student whose
+                // scheduling link already lapsed - see isApptExpired() in
+                // appointments/Index.vue) is its own group, separate from
+                // the still-live Awaiting Student rows, matching the
+                // Status filter dropdown's own Expired option.
+                // Order: Awaiting Confirmation, Confirmed, Awaiting
+                // Student (not expired), No-Show, Rescheduled, Expired,
+                // Cancelled, Completed.
+                // now()'s string form is bound in, not inlined as SQL
+                // NOW() - sqlite (used in tests) has no NOW() function, and
+                // a bound value also keeps the whole page's ranking stable
+                // against the same instant instead of drifting mid-query.
+                ->orderByRaw("
+                    CASE
+                        WHEN status = 'pending' AND request_status = 'pending_confirmation' THEN 0
+                        WHEN status = 'confirmed' THEN 1
+                        WHEN status = 'pending' AND request_status = 'awaiting_student'
+                             AND NOT (token_expires_at IS NOT NULL AND token_expires_at < ?) THEN 2
+                        WHEN status = 'no_show' THEN 3
+                        WHEN status = 'rescheduled' THEN 4
+                        WHEN status = 'pending' AND request_status = 'awaiting_student'
+                             AND token_expires_at IS NOT NULL AND token_expires_at < ? THEN 5
+                        WHEN status = 'cancelled' THEN 6
+                        WHEN status = 'completed' THEN 7
+                        ELSE 8
+                    END
+                ", [now(), now()])
+                ->orderByDesc('created_at')
                 ->paginate($perPage)
         );
     }
