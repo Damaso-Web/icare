@@ -35,10 +35,6 @@
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>
       </select>
-      <select v-model="filters.type" class="fsm" @change="fetchReferrals">
-        <option value="">All Services</option>
-        <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
-      </select>
       <select v-model="filters.sort" class="fsm" @change="fetchReferrals">
         <option value="desc">Date: Newest First</option>
         <option value="asc">Date: Oldest First</option>
@@ -142,9 +138,14 @@ const pagination = ref({});
 // unfiltered list, and never SDU's (disciplinary referrals live elsewhere).
 // B#, 11/4/2026: the GCU/TMDU dropdown itself is removed per request - GCU
 // and TMDU-pending referrals now show together with no toggle needed (SDU's
-// Acts of Misconduct still never surface here; see availableServices below
-// and ReferralController::index()'s unconditional exclusion).
-const filters = ref({ search: '', status: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
+// Acts of Misconduct still never surface here; see
+// ReferralController::index()'s unconditional exclusion).
+// B#, 11/5/2026: the "All Services" (type) filter is removed too, per
+// request - `type` is dropped from this object entirely, and
+// fetchReferrals() spreads this whole object into the request, so it's
+// simply never sent anymore (ReferralController::index() still supports a
+// `type` param for any other caller, untouched).
+const filters = ref({ search: '', status: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
 
 // Dean: the programs of their own college (Management > Programs).
 const auth = useAuthStore();
@@ -166,34 +167,6 @@ function authHeaders() {
   return { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } };
 }
 
-// Wellness Services (GCU / TMDU) still come from the referral_type form
-// options; Acts of Misconduct (SDU) now come from Management too instead of
-// being a hardcoded list here.
-const wellnessOptionsRaw = ref([]);
-const disciplinaryOptions = ref([]);
-
-async function fetchFilterOptions() {
-  try {
-    const [typeRes, miscRes] = await Promise.all([
-      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'referral_type' } }),
-      axios.get(`${API_BASE}/management/form-options`, { ...authHeaders(), params: { category: 'act_of_misconduct' } }),
-    ]);
-    wellnessOptionsRaw.value = typeRes.data;
-    disciplinaryOptions.value = miscRes.data;
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-// GCU vs TMDU is now a real tag set per-service in Management, not guessed.
-// B#, 11/4/2026: no longer filtered by a selected unit (the dropdown is
-// gone) - both GCU- and TMDU-tagged services show together in this "All
-// Services" filter; SDU-tagged ones (Acts of Misconduct) are still left out,
-// same as before.
-const availableServices = computed(() =>
-  wellnessOptionsRaw.value.filter(o => o.unit === 'GCU' || o.unit === 'TMDU')
-);
-
 function onSearchInput() {
   filters.value.search = safeSearchInput(filters.value.search);
   fetchReferrals();
@@ -213,7 +186,7 @@ async function fetchReferrals(page = 1, silent = false) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
+  filters.value = { search: '', status: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
   fetchReferrals();
 }
 
@@ -233,7 +206,6 @@ onMounted(() => {
   // Arriving from a Dashboard card (?status=submitted) shows exactly what the card counted.
   if (typeof route.query.status === 'string') filters.value.status = route.query.status;
   fetchReferrals();
-  fetchFilterOptions();
   fetchDeanOptions();
 });
 

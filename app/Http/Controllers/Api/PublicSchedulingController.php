@@ -13,18 +13,22 @@ class PublicSchedulingController extends Controller
     {
         $appointment = Appointment::where('scheduling_token', $token)
             ->where('token_expires_at', '>=', now())
-            ->with(['student', 'case.latestReferral', 'slotHistory'])
+            ->with(['student', 'case.latestReferral', 'referral', 'slotHistory'])
             ->first();
 
         if (!$appointment) {
             return response()->json(['message' => 'This scheduling link is invalid or has expired. Please ask GCU to issue a new one.'], 404);
         }
 
+        // Bug (11/5/2026): same case-vs-appointment mismatch as submit()
+        // below - show the referral this scheduling link's appointment is
+        // actually for, not whichever referral happens to be newest on the
+        // case.
         return response()->json([
             'appointment' => $appointment,
             'previous_slots' => $this->previousSlots($appointment),
             'student'     => $appointment->student,
-            'referral'    => $appointment->case?->latestReferral,
+            'referral'    => $appointment->referral ?: $appointment->case?->latestReferral,
         ]);
     }
 
@@ -250,8 +254,21 @@ class PublicSchedulingController extends Controller
             'status'           => 'pending',
         ]);
 
-        if ($appointment->case?->latestReferral) {
-            $appointment->case->latestReferral->update(['status' => 'scheduled']);
+        // Bug (11/5/2026): this used $appointment->case->latestReferral -
+        // the case's most recently created referral, not necessarily the
+        // one this scheduling link/appointment actually belongs to. A case
+        // can carry more than one referral (e.g. an older Class Attendance
+        // referral plus a newer, unrelated referral); a student using THIS
+        // appointment's own link was wrongly advancing whatever referral
+        // happened to be newest on the case - sometimes one nobody had
+        // acknowledged yet - straight to "Scheduled" with no staff action
+        // on it. Target the appointment's own linked referral instead,
+        // falling back to the case's latest only for legacy appointments
+        // with no referral_id, and don't downgrade/overwrite a referral
+        // that's already moved further along.
+        $referralToSchedule = $appointment->referral ?: $appointment->case?->latestReferral;
+        if ($referralToSchedule && $referralToSchedule->canMoveStatusTo('scheduled')) {
+            $referralToSchedule->update(['status' => 'scheduled']);
         }
 
         AuditLog::record('scheduled', "Student self-scheduled appointment {$appointment->appointment_code}.", $appointment);

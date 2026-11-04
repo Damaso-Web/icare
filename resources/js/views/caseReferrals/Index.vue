@@ -58,6 +58,15 @@
           </tbody>
         </table>
       </div>
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">
+          Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
+        </span>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="fetchItems(false, pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="fetchItems(false, pagination.current_page + 1)">Next</button>
+        </div>
+      </div>
     </div>
 
     <!-- Floating modal: the filled-out, uneditable form -->
@@ -87,6 +96,7 @@ const loading = ref(true);
 const search = ref('');
 const status = ref('');
 const selected = ref(null);
+const pagination = ref({});
 
 // The list is grouped by student: one row per student, expandable to that
 // student's case referrals (newest first).
@@ -134,11 +144,12 @@ function resetFilters() {
   fetchItems();
 }
 
-async function fetchItems(silent = false) {
+async function fetchItems(silent = false, page = 1) {
   if (!silent) loading.value = true;
   try {
-    const res = await caseReferralAPI.index({ search: search.value || undefined, status: status.value || undefined, per_page: 200 });
+    const res = await caseReferralAPI.index({ search: search.value || undefined, status: status.value || undefined, per_page: 10, page });
     items.value = res.data.data || res.data;
+    pagination.value = res.data;
   } catch (e) {
     if (!silent) console.error(e);
   } finally {
@@ -146,7 +157,8 @@ async function fetchItems(silent = false) {
   }
 }
 
-onMounted(fetchItems);
-// Keeps the list current without a manual reload.
-useAutoRefresh(() => fetchItems(true), 25000);
+onMounted(() => fetchItems());
+// Keeps the list current without a manual reload. Stays on whatever page is
+// currently open instead of silently jumping back to page 1.
+useAutoRefresh(() => fetchItems(true, pagination.value?.current_page || 1), 25000);
 </script>

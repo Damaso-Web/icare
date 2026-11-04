@@ -67,6 +67,15 @@
             </div>
           </div>
         </div>
+        <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:12px;color:var(--stone)">
+            Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}
+          </span>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="fetchRecords(false, pagination.current_page - 1)">Prev</button>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="fetchRecords(false, pagination.current_page + 1)">Next</button>
+          </div>
+        </div>
       </div>
 
       <!-- Stats -->
@@ -107,14 +116,25 @@ function reassignedAwayFromMe(t) {
 const filterStatus = ref('');
 const loading      = ref(true);
 const records      = ref([]);
+const pagination   = ref({});
+// B#, 11/5/2026: these tiles used to be counted off `records` directly,
+// which only ever held one page - harmless at the old silent page-1-of-20,
+// wrong once this list is properly paginated at 5. Counted server-side now
+// (see TestingRecordController::index()'s status_counts) off every
+// matching record, not just the current page.
+const statusCounts = ref({});
 
-const pendingCount = computed(() => records.value.filter(r => r.status === 'pending').length);
+const pendingCount = computed(() => statusCounts.value.pending || 0);
 
-const stats = computed(() => [
-  { label: 'Pending',     value: records.value.filter(r => r.status === 'pending').length, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
-  { label: 'In Progress', value: records.value.filter(r => ['scheduled', 'test_administered', 'awaiting_results'].includes(r.status)).length, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
-  { label: 'Completed',   value: records.value.filter(r => r.status === 'test_results_issued').length, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
-]);
+const stats = computed(() => {
+  const c = statusCounts.value;
+  const inProgress = (c.scheduled || 0) + (c.test_administered || 0) + (c.awaiting_results || 0);
+  return [
+    { label: 'Pending',     value: c.pending || 0, iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>' },
+    { label: 'In Progress', value: inProgress, iconBg: 'var(--blue-lt)',  iconColor: 'var(--blue)',  icon: '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>' },
+    { label: 'Completed',   value: c.test_results_issued || 0, iconBg: 'var(--mist)', iconColor: 'var(--moss)', icon: '<polyline points="20 6 9 17 4 12"/>' },
+  ];
+});
 
 // Retains legacy status values (fee_form_pending/or_submitted/par_scheduled)
 // in the mapping only so an older record that still carries one displays
@@ -149,11 +169,16 @@ function statusLabel(status) {
   }[status] || toTitleCase(status);
 }
 
-async function fetchRecords(silent = false) {
+async function fetchRecords(silent = false, page = 1) {
   if (!silent) loading.value = true;
   try {
-    const res = await testingAPI.index({ status: filterStatus.value, student_id: route.query.student_id || undefined });
+    const res = await testingAPI.index({
+      status: filterStatus.value, student_id: route.query.student_id || undefined,
+      per_page: 5, page,
+    });
     records.value = res.data.data || res.data;
+    pagination.value = res.data;
+    statusCounts.value = res.data.status_counts || {};
   } catch (e) {
     if (!silent) console.error(e);
   } finally {
@@ -177,6 +202,7 @@ function formatDate(date) {
 onMounted(() => {
   fetchRecords();
 });
-// Keeps the testing queue current without a manual reload.
-useAutoRefresh(() => fetchRecords(true), 25000);
+// Keeps the testing queue current without a manual reload. Stays on
+// whatever page is currently open instead of silently jumping back to 1.
+useAutoRefresh(() => fetchRecords(true, pagination.value?.current_page || 1), 25000);
 </script>

@@ -724,7 +724,11 @@ class UserController extends Controller
         if (empty($row['role'])) {
             $reasons[] = 'Role is required.';
         } elseif (!in_array($row['role'], $validRoles)) {
-            $reasons[] = "Invalid role '{$row['role']}'.";
+            // B#, 11/5/2026: showed the raw enum value ('tmdu_staff',
+            // 'dept_chair') on the upload preview instead of the same
+            // reader-friendly label used everywhere else a role is shown
+            // (see User::roleLabel()).
+            $reasons[] = "Invalid role '" . User::roleLabel($row['role']) . "'.";
         }
 
         return $reasons;
@@ -745,7 +749,7 @@ class UserController extends Controller
                 $row['role'] = 'tmdu_staff';
             }
             if (($row['role'] ?? '') !== 'tmdu_staff') {
-                $reasons[] = 'The TMDU Head can only upload TMDU Staff (role: tmdu_staff).';
+                $reasons[] = 'The TMDU Head can only upload TMDU Staff (role: ' . User::roleLabel('tmdu_staff') . ').';
             }
             if ($existing && $existing->role !== 'tmdu_staff') {
                 $reasons[] = 'This email belongs to another account that the TMDU Head cannot change.';

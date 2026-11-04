@@ -280,6 +280,13 @@ class TestingRecordWorkflowTest extends TestCase
             'assigned_tester_user_id' => $tester->id, 'status' => 'scheduled',
             'testing_date' => \Carbon\Carbon::parse('next monday'),
         ]);
+        Appointment::create([
+            'case_id' => $record->case_id, 'referral_id' => $record->referral_id,
+            'student_id' => $record->student_id, 'staff_user_id' => $tester->id, 'created_by_user_id' => $tester->id,
+            'appointment_type' => 'psychological_testing', 'unit' => 'TMDU',
+            'appointment_date' => \Carbon\Carbon::parse('next monday'), 'start_time' => '09:00', 'end_time' => '10:00',
+            'status' => 'completed', 'request_status' => 'completed', 'checked_in' => true,
+        ]);
 
         $this->actingAs($tester)
             ->postJson("/api/testing-records/{$record->id}/administer-tests", [
@@ -289,6 +296,47 @@ class TestingRecordWorkflowTest extends TestCase
         $record->refresh();
         $this->assertSame('test_administered', $record->status);
         $this->assertSame(['WISC-V', 'Bender-Gestalt'], $record->tests_administered);
+    }
+
+    // Bug (11/5/2026): tests administered could previously be saved with no
+    // attendance check at all, even if the student never showed up to the
+    // test-taking appointment.
+    public function test_administer_tests_is_blocked_when_student_was_not_marked_attended(): void
+    {
+        $tester = $this->tmduStaff();
+        $record = $this->testingRecord([
+            'assigned_tester_user_id' => $tester->id, 'status' => 'scheduled',
+            'testing_date' => \Carbon\Carbon::parse('next monday'),
+        ]);
+        Appointment::create([
+            'case_id' => $record->case_id, 'referral_id' => $record->referral_id,
+            'student_id' => $record->student_id, 'staff_user_id' => $tester->id, 'created_by_user_id' => $tester->id,
+            'appointment_type' => 'psychological_testing', 'unit' => 'TMDU',
+            'appointment_date' => \Carbon\Carbon::parse('next monday'), 'start_time' => '09:00', 'end_time' => '10:00',
+            'status' => 'confirmed', 'request_status' => 'confirmed', 'checked_in' => false,
+        ]);
+
+        $this->actingAs($tester)
+            ->postJson("/api/testing-records/{$record->id}/administer-tests", [
+                'tests_administered' => ['WISC-V', 'Bender-Gestalt'],
+            ])->assertStatus(422);
+
+        $this->assertSame('scheduled', $record->fresh()->status);
+    }
+
+    // Same block when there is no test-taking appointment at all yet.
+    public function test_administer_tests_is_blocked_with_no_test_appointment(): void
+    {
+        $tester = $this->tmduStaff();
+        $record = $this->testingRecord([
+            'assigned_tester_user_id' => $tester->id, 'status' => 'scheduled',
+        ]);
+
+        $this->actingAs($tester)
+            ->postJson("/api/testing-records/{$record->id}/administer-tests", [
+                'tests_administered' => ['WISC-V'],
+                'testing_date'       => \Carbon\Carbon::parse('next monday')->toDateString(),
+            ])->assertStatus(422);
     }
 
     // #schedulePar: requires the student to have actually attended the test-taking appointment.

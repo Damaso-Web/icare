@@ -52,7 +52,7 @@
 import { ref, reactive, computed, onMounted, nextTick } from 'vue';
 import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
-import api, { studentAPI } from '../../api/index';
+import api, { studentApi } from '../../api/index';
 import ComplaintPrintModal from '../../components/ComplaintPrintModal.vue';
 import { useAutoRefresh } from '../../utils/useAutoRefresh';
 

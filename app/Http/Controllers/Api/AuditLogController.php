@@ -139,20 +139,6 @@ class AuditLogController extends Controller
 
     public const EXPORT_HEADERS = ['Timestamp', 'User', 'Role', 'Action', 'Description', 'IP Address'];
 
-    private const ROLE_LABELS = [
-        'admin'          => 'Admin / GCU Head',
-        'gcu_staff'      => 'GCU Staff',
-        'sdu_head'       => 'SDU Head',
-        'tmdu_staff'     => 'TMDU Staff',
-        'faculty'        => 'Faculty',
-        'dean'           => 'Dean',
-        'dept_chair'     => 'Department Chair',
-        'dean_secretary' => 'Dean',
-        'tmdu_head'      => 'TMDU Head',
-        'system_admin'   => 'System Admin',
-        'student'        => 'Student',
-    ];
-
     /**
      * The log rows as they are printed in both exports, in readable words:
      * roles and actions by name ("GCU Staff", "Login Failed") and field
@@ -165,7 +151,7 @@ class AuditLogController extends Controller
         return $logs->map(fn($log) => [
             $log->created_at?->format('M j, Y g:i A') ?? '',
             $log->user_name ?: '-',
-            self::ROLE_LABELS[$log->user_role] ?? $words($log->user_role),
+            \App\Models\User::roleLabel($log->user_role) ?: $words($log->user_role),
             $words($log->action),
             $this->readable($log->description),
             $log->ip_address ?? '',

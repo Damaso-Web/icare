@@ -180,7 +180,26 @@ class TestingRecordController extends Controller
                    });
             }));
 
-        return response()->json($query->latest()->paginate(20));
+        // B#, 11/5/2026: hardcoded to 20 with no per_page support - the
+        // frontend never sent a page param either, so this silently showed
+        // only the newest 20 records with no way to reach anything older.
+        // Now accepts per_page like the other list endpoints (clamped the
+        // same way CaseReferralController does).
+        $perPage = min(max((int) $request->input('per_page', 20), 1), 200);
+
+        // The sidebar's Pending/In Progress/Completed stat tiles used to be
+        // counted client-side off whatever page happened to be loaded -
+        // harmless back when that was silently always-page-1-of-20, but
+        // genuinely wrong once this list is properly paginated at a smaller
+        // page size (a 5-per-page view would show "2 pending" even with 40
+        // actually pending). Counted here instead, off the same filtered
+        // query before pagination narrows it to one page.
+        $statusCounts = (clone $query)->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status');
+
+        $response = $query->latest()->paginate($perPage)->toArray();
+        $response['status_counts'] = $statusCounts;
+
+        return response()->json($response);
     }
 
     // Loads everything the Testing Record Details page needs in one call:
@@ -467,6 +486,20 @@ class TestingRecordController extends Controller
     public function administerTests(Request $request, TestingRecord $testingRecord)
     {
         $this->ensureTesterAssigned($testingRecord, $request);
+
+        // Bug (11/5/2026): this had no attendance check at all - tests
+        // could be recorded as administered even if the student never
+        // showed up to the scheduled test-taking appointment. schedulePar()
+        // already guards on this same check; apply it here too, one step
+        // earlier, so "administered" can't be saved before the student is
+        // actually marked attended (AppointmentController::checkIn()).
+        $testAppointment = $this->recordAppointments($testingRecord, 'psychological_testing')
+            ->whereNotIn('status', ['cancelled'])
+            ->latest()
+            ->first();
+        if (!$testAppointment || !$testAppointment->checked_in) {
+            abort(422, 'The student must be marked attended for the scheduled test-taking appointment before tests administered can be recorded.');
+        }
 
         $validated = $request->validate([
             'tests_administered' => 'required|array|min:1',
