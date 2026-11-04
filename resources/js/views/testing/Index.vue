@@ -94,6 +94,7 @@ import { useRoute } from 'vue-router';
 import { testingAPI } from '../../api/index';
 import { toTitleCase } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const route        = useRoute();
 const auth         = useAuthStore();
@@ -148,15 +149,15 @@ function statusLabel(status) {
   }[status] || toTitleCase(status);
 }
 
-async function fetchRecords() {
-  loading.value = true;
+async function fetchRecords(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await testingAPI.index({ status: filterStatus.value, student_id: route.query.student_id || undefined });
     records.value = res.data.data || res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -176,4 +177,6 @@ function formatDate(date) {
 onMounted(() => {
   fetchRecords();
 });
+// Keeps the testing queue current without a manual reload.
+useAutoRefresh(() => fetchRecords(true), 25000);
 </script>

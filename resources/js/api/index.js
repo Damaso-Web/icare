@@ -404,6 +404,7 @@ export const userAPI = {
     importPreview: (formData) => api.post('/users/import-preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } }),
     importConfirm: (data)     => api.post('/users/import-confirm', data),
     viewTempPassword: (id)    => api.get(`/users/${id}/temp-password`),
+    checkDuplicate: (params)  => api.get('/users/check-duplicate', { params }),
     // Non-admin staff roster for the Reassign / Transfer dropdowns.
     roster:        (params)   => api.get('/staff-roster', { params }),
 };

@@ -329,6 +329,12 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     // Dean (faculty and chairs of their college). UserController limits who
     // each of them can see and change.
     Route::middleware('role:admin,tmdu_head,dean,dean_secretary')->group(function () {
+        // B#, 11/4/2026: declared before apiResource('users', ...) below -
+        // same reason as appointments/availability (B648): a route added
+        // after the resource's {user} show route gets swallowed by it
+        // instead, with "check-duplicate" bound as the {user} id and
+        // 404ing.
+        Route::get('users/check-duplicate', [UserController::class, 'checkDuplicate']);
         Route::apiResource('users', UserController::class);
         Route::post('users/{user}/toggle-active',  [UserController::class, 'toggleActive']);
         Route::get('users/{user}/open-work',       [UserController::class, 'openWork']);
@@ -441,6 +447,7 @@ Route::middleware(['auth:student', 'actor:student', 'password.fresh'])->group(fu
     Route::post('student/outreach/referrals',   [\App\Http\Controllers\Api\StudentOutreachController::class, 'refer']);
     Route::get('student/outreach/referrals',    [\App\Http\Controllers\Api\StudentOutreachController::class, 'sentReferrals']);
     Route::put('student/outreach/referrals/{id}', [\App\Http\Controllers\Api\StudentOutreachController::class, 'updateSent']);
+    Route::post('student/outreach/referrals/{id}/request-cancellation', [\App\Http\Controllers\Api\StudentOutreachController::class, 'requestCancellation']);
     Route::post('student/outreach/complaints',  [ComplaintController::class, 'storeByStudent']);
     Route::get('student/outreach/complaints',   [ComplaintController::class, 'mineByStudent']);
     Route::get('student/outreach/complaints/{complaint}', [ComplaintController::class, 'showMineByStudent']);

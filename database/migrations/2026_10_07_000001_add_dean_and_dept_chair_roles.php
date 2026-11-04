@@ -49,6 +49,14 @@ return new class extends Migration
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
         )->sql;
 
+        // B#, 11/4/2026: see 2026_09_23_000005's identical comment - this
+        // table rebuild also drops every index on "users" (both unique
+        // constraints included) without recreating them, in SQLite only.
+        // Captured here, replayed after the rename below.
+        $indexSqls = array_column(DB::select(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'users' AND sql IS NOT NULL"
+        ), 'sql');
+
         // Build the replacement under a TEMPORARY name first, rather than
         // renaming the real "users" table away. Renaming "users" itself
         // would trigger SQLite's automatic (and here, unwanted) rewrite of
@@ -85,5 +93,9 @@ return new class extends Migration
         DB::statement('DROP TABLE users');
         DB::statement('ALTER TABLE users_role_rebuild_new RENAME TO users');
         DB::statement('PRAGMA foreign_keys = ON');
+
+        foreach ($indexSqls as $indexSql) {
+            DB::statement($indexSql);
+        }
     }
 };

@@ -70,16 +70,20 @@ class AppointmentController extends Controller
                 ->when($request->unit,        fn($q) => $q->where('unit', $request->unit))
                 ->when($request->status, function ($q) use ($request) {
                     if ($request->status === 'pending') {
-                        // B#, 11/4/2026: "Awaiting Confirmation", "Awaiting
-                        // Student" and "Expired" are all status='pending'
-                        // underneath - only request_status (and, for Expired,
-                        // token_expires_at) tells them apart. A plain
-                        // `where('status','pending')` swept up all three, so
-                        // picking "Pending" in the dropdown also showed every
-                        // Rescheduled and Expired row. Narrowed to just the
-                        // ones actually awaiting staff confirmation -
-                        // Rescheduled/Expired have their own filter values.
-                        $q->where('status', 'pending')->where('request_status', 'pending_confirmation');
+                        // B#, 11/4/2026 (reverted same day): "Awaiting
+                        // Confirmation", "Awaiting Student" and "Expired" are
+                        // all status='pending' underneath. This briefly
+                        // narrowed "Pending" to just Awaiting Confirmation,
+                        // since Rescheduled/Expired got their own filter
+                        // values - but Awaiting Student rows ARE pending too
+                        // (nothing's been confirmed or scheduled yet), and
+                        // leaving them out of "Pending" just hid them from
+                        // the one filter a staff member would actually think
+                        // to use for "what's still waiting on something".
+                        // Back to the plain status match; Rescheduled/
+                        // Expired remain available as their own, narrower
+                        // filter values for anyone who wants just those.
+                        $q->where('status', 'pending');
                     } elseif ($request->status === 'rescheduled') {
                         // Same overlap, the other direction: this matched
                         // every awaiting_student row regardless of whether
@@ -124,12 +128,15 @@ class AppointmentController extends Controller
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
                 // visibility on GCU appointments, not just their own caseload.
-                // B628 (10/30/2026): group order is Confirmed, then everything
-                // still awaiting action (pending/awaiting_student/no_show/
-                // rescheduled/cancelled), then Completed last - so a completed
-                // appointment automatically sinks to the bottom of the list
-                // instead of just being sorted by recency alongside active ones.
-                ->orderByRaw("CASE WHEN status = 'confirmed' THEN 0 WHEN status = 'completed' THEN 2 ELSE 1 END")
+                // B#, 11/4/2026: group order used to be Confirmed first, then
+                // everything still awaiting action, then Completed last -
+                // Confirmed sorted first because it needed no further
+                // action. Flipped per request: rows still awaiting
+                // something (pending/awaiting_student/no_show/rescheduled/
+                // cancelled) are what staff actually need to act on, so
+                // those belong on top; Confirmed (already handled) sinks
+                // below them, and Completed still sinks lowest of all.
+                ->orderByRaw("CASE WHEN status = 'completed' THEN 2 WHEN status = 'confirmed' THEN 1 ELSE 0 END")
                 ->orderByDesc('created_at')
                 ->paginate($perPage)
         );

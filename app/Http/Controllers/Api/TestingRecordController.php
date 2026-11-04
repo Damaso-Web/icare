@@ -197,10 +197,20 @@ class TestingRecordController extends Controller
             'tester',
             'previousTester',
             'case',
-            'documents',
+            // B#, 11/4/2026: `content` (base64 file bytes, can be several
+            // MB) is hidden from JSON via each model's $hidden, but that
+            // doesn't stop select(*) from pulling it off the DB on every
+            // Testing Record view. Neither of these relations' bytes are
+            // read here or on the frontend - the file is served
+            // separately through its own dedicated download route.
+            'documents' => fn($q) => $q->select([
+                'id', 'documentable_type', 'documentable_id', 'original_filename',
+                'document_type', 'mime_type', 'file_size', 'description',
+                'is_confidential', 'uploaded_by_user_id', 'created_at',
+            ]),
             'referral.complaint.complainee',
             'referral.complaint.filedBy',
-            'referral.complaint.attachments',
+            'referral.complaint.attachments' => fn($q) => $q->select(['id', 'complaint_id', 'category', 'original_filename', 'mime_type']),
             'referral.case',
             // Testing Action / Appointments panel on the Testing Record
             // Details page - every appointment sharing this record's case_id
@@ -717,6 +727,26 @@ class TestingRecordController extends Controller
             'report_sent_to_gcu' => true,
             'report_sent_at'     => now(),
         ]);
+
+        // B#, 11/5/2026: nothing in this record's whole lifecycle
+        // (scheduleTesting, requestTesting, etc.) ever touched the TMDU-owned
+        // Referral this testing record is actually filed under
+        // ($testingRecord->referral - the Case Referral Slip, see
+        // CaseController::escalateToTmdu()) - only TestingRecord::status
+        // moved. The referral itself could pick up 'scheduled' as a side
+        // effect of an unrelated appointment (AppointmentController sets it
+        // via case->latestReferral whenever any appointment on the case gets
+        // booked - this referral is usually the case's newest one once TMDU
+        // is involved) but then just sat there forever, stuck below
+        // "Completed" everywhere that referral's own status is read: the
+        // student's My Referrals list/detail page, the Dashboard, etc. - even
+        // though TMDU had already finished and released the PAR. Now that
+        // the PAR is actually out, the referral is done too.
+        $referral = $testingRecord->referral;
+        if ($referral && $referral->canMoveStatusTo('completed')) {
+            $referral->update(['status' => 'completed']);
+            AuditLog::record('status_changed', "Referral {$referral->referral_code} marked Completed: PAR released to GCU.", $referral);
+        }
 
         // Link the uploaded PAR to both the testing record and its referral,
         // so it shows up wherever either one is viewed. Prefer the referral

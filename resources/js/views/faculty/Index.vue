@@ -198,7 +198,7 @@
                 :style="nameDuplicate ? 'border-color:var(--red);border-width:1.5px' : ''"
                 @input="form.first_name = capitalizeFirst(onlyLetters(form.first_name)); queueDuplicateCheck()" />
             </div>
-            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = capitalizeFirst(onlyLetters(form.middle_name))" /></div>
+            <div><label class="ifl">Middle Name</label><input v-model="form.middle_name" class="ifi" placeholder="Santos" maxlength="50" @input="form.middle_name = capitalizeFirst(onlyLetters(form.middle_name)); queueDuplicateCheck()" /></div>
             <div><label class="ifl">Suffix</label>
               <select v-model="form.suffix" class="ifse">
                 <option value="">None</option>
@@ -207,8 +207,9 @@
               </select></div>
             <div>
               <label class="ifl">Email Address <span style="color:var(--red)">*</span></label>
-              <input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" :style="emailProblem ? 'border-color:var(--red);border-width:1.5px' : ''" />
+              <input v-model="form.email" type="email" class="ifi" placeholder="name@bsu.edu.ph" :style="(emailProblem || emailDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''" @input="queueDuplicateCheck()" />
               <div v-if="emailProblem" style="font-size:11px;color:var(--red);margin-top:4px">{{ emailProblem }}</div>
+              <div v-else-if="emailDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">This email address is already in use.</div>
             </div>
             <div v-if="needsCollegePick && !editing">
               <label class="ifl">College <span style="color:var(--red)">*</span></label>
@@ -247,7 +248,7 @@
           <div v-if="formError" style="color:var(--red);font-size:12px;margin-top:10px">{{ formError }}</div>
         </div>
         <div class="ffoot">
-          <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem || employeeIdDuplicate || nameDuplicate" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
+          <button class="ibtn ibtn-p" :disabled="saving || emailProblem || contactProblem || employeeIdDuplicate || nameDuplicate || emailDuplicate" @click="saveForm">{{ saving ? 'Saving...' : 'Save' }}</button>
 <button class="ibtn ibtn-o" @click="formOpen = false">Cancel</button>
         </div>
       </div>
@@ -433,6 +434,7 @@ import { matchCollege } from '../../utils/colleges';
 // Catches a likely typo in the domain (e.g. "name@bsu.edu.phh") as the Dept
 // Chair/Dean types it - same check used on the student-facing forms.
 import { emailProblem as checkEmailTypo } from '../../utils/emailCheck';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const auth  = useAuthStore();
 const toast = inject('toast', null);
@@ -470,8 +472,8 @@ let timer = null;
 
 function onSearch() { search.value = safeSearchInput(search.value); clearTimeout(timer); timer = setTimeout(() => { page.value = 1; fetchItems(); }, 300); }
 
-async function fetchItems() {
-  loading.value = true;
+async function fetchItems(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const [sortBy, sortDir] = sortOption.value.split(':');
     const res = await facultyAPI.index({
@@ -487,9 +489,9 @@ async function fetchItems() {
     pageFrom.value = res.data.from || 0;
     pageTo.value = res.data.to || 0;
   } catch (e) {
-    toast?.error(e.response?.data?.message || 'Could not load faculty.');
+    if (!silent) toast?.error(e.response?.data?.message || 'Could not load faculty.');
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -555,6 +557,7 @@ function openForm(u) {
   formError.value = '';
   employeeIdDuplicate.value = false;
   nameDuplicate.value = false;
+  emailDuplicate.value = false;
   form.value = u ? { ...blank(), ...u } : blank();
   formOpen.value = true;
 }
@@ -569,8 +572,13 @@ const emailProblem = computed(() => (form.value?.email ? checkEmailTypo(form.val
 // duplicate at submit time - checked live instead, as the Dean/Dept Chair
 // types, the same way the email format is checked above. Debounced so it
 // doesn't fire an API call on every keystroke.
+// B#, 11/4/2026: Middle Name (folded into the name check) and Email are
+// now checked live too - they used to be checked only at submit time
+// (Email, as part of saveForm()'s own uniqueness error) or not at all
+// (Middle Name).
 const employeeIdDuplicate = ref(false);
 const nameDuplicate       = ref(false);
+const emailDuplicate      = ref(false);
 let duplicateCheckTimeout = null;
 
 function queueDuplicateCheck() {
@@ -579,16 +587,23 @@ function queueDuplicateCheck() {
     const f = form.value;
     const params = { ignore_id: editing.value?.id || undefined };
     if (f.employee_id) params.employee_id = f.employee_id;
-    if (f.first_name && f.last_name) { params.first_name = f.first_name; params.last_name = f.last_name; }
-    if (!params.employee_id && !params.first_name) {
+    if (f.first_name && f.last_name) {
+      params.first_name = f.first_name;
+      params.last_name = f.last_name;
+      if (f.middle_name) params.middle_name = f.middle_name;
+    }
+    if (f.email) params.email = f.email;
+    if (!params.employee_id && !params.first_name && !params.email) {
       employeeIdDuplicate.value = false;
       nameDuplicate.value = false;
+      emailDuplicate.value = false;
       return;
     }
     try {
       const res = await facultyAPI.checkDuplicate(params);
       employeeIdDuplicate.value = params.employee_id ? !!res.data.employee_id_exists : false;
       nameDuplicate.value       = params.first_name  ? !!res.data.name_exists        : false;
+      emailDuplicate.value      = params.email       ? !!res.data.email_exists       : false;
     } catch (e) {
       // A failed check never blocks typing - submit still re-checks for real.
     }
@@ -604,6 +619,7 @@ async function saveForm() {
   if (emailProblem.value) { formError.value = emailProblem.value; return; }
   if (employeeIdDuplicate.value) { formError.value = 'Employee ID already exists. Please enter a unique Employee ID.'; return; }
   if (nameDuplicate.value) { formError.value = 'A faculty member with this name already exists.'; return; }
+  if (emailDuplicate.value) { formError.value = 'This email address is already in use.'; return; }
   if (needsCollegePick.value && !editing.value && !f.college) { formError.value = 'Please select a college.'; return; }
   if (!isChair.value && !f.department) { formError.value = 'Please select a department.'; return; }
   saving.value = true;
@@ -736,6 +752,9 @@ async function confirmUpload() {
 }
 
 onMounted(() => { fetchItems(); fetchDepartments(); });
+// Keeps the list current without a manual reload. Skipped while a form
+// is open so it can't reorder the table behind an in-progress add/edit.
+useAutoRefresh(() => { if (!formOpen.value && !uploadOpen.value) fetchItems(true); }, 25000);
 </script>
 
 <style scoped>

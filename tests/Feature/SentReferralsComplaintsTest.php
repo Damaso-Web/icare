@@ -249,4 +249,50 @@ class SentReferralsComplaintsTest extends TestCase
             }
         }
     }
+
+    // B#, 11/4/2026: a student can request cancellation of a self-sent
+    // referral once it's acknowledged, up through 'scheduled' - same rule,
+    // same shared flow, as a staff referrer's request-void.
+    public function test_student_sender_can_request_cancellation_once_acknowledged(): void
+    {
+        Notification::fake();
+        $me = $this->student('2300012', 'Me');
+        $friend = $this->student('2300013', 'Friend');
+        Sanctum::actingAs($me, [], 'student');
+        $id = $this->postJson('/api/student/outreach/referrals', [
+            'student_id' => $friend->id, 'referral_type' => 'counseling', 'nature_of_concern' => 'Original concern text.',
+        ])->assertCreated()->json('id');
+
+        // Not yet acknowledged - cancel directly instead, not a request.
+        $this->postJson("/api/student/outreach/referrals/{$id}/request-cancellation", ['reason' => 'No longer needed, 10+ chars.'])
+            ->assertStatus(422);
+
+        Referral::whereKey($id)->update(['acknowledged_at' => now(), 'status' => 'scheduled']);
+        $this->postJson("/api/student/outreach/referrals/{$id}/request-cancellation", ['reason' => 'No longer needed, 10+ chars.'])
+            ->assertOk();
+        $this->assertNotNull(Referral::find($id)->void_requested_at);
+
+        // Already pending - refused again.
+        $this->postJson("/api/student/outreach/referrals/{$id}/request-cancellation", ['reason' => 'Second try, 10+ chars.'])
+            ->assertStatus(422);
+    }
+
+    // B#, 11/4/2026: once a unit has moved a referral to 'in_progress' or a
+    // branch exit, cancellation can no longer be requested by whoever sent
+    // it (staff or student) - it's already being acted on.
+    public function test_request_cancellation_is_refused_past_scheduled(): void
+    {
+        Notification::fake();
+        $referrer = User::factory()->create(['role' => 'faculty', 'is_active' => true]);
+        $student = $this->student('2300014', 'Past');
+        foreach (['in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed', 'cancelled'] as $status) {
+            $ref = Referral::factory()->create([
+                'referred_by_user_id' => $referrer->id, 'student_id' => $student->id,
+                'acknowledged_at' => now(), 'status' => $status,
+            ]);
+            Sanctum::actingAs($referrer);
+            $this->postJson("/api/referrals/{$ref->id}/request-void", ['reason' => 'Past scheduled, 10+ chars.'])
+                ->assertStatus(422);
+        }
+    }
 }

@@ -13,6 +13,21 @@ use Illuminate\Http\Request;
 // TMDU owns the slip itself - nothing here can change it.
 class CaseReferralController extends Controller
 {
+    // B#, 11/4/2026: `content` (base64 file bytes, can be several MB) is
+    // hidden from JSON via the Document model's $hidden, but select(*)
+    // still pulls it off the DB every time this loads - and payload()
+    // only ever reads document_type/id/original_filename off the PAR
+    // document. The file itself is served through its own dedicated
+    // download route, which queries the single row fresh.
+    private static function testingRecordDocumentsLight(): array
+    {
+        return ['testingRecord.documents' => fn($q) => $q->select([
+            'id', 'documentable_type', 'documentable_id', 'original_filename',
+            'document_type', 'mime_type', 'file_size', 'description',
+            'is_confidential', 'uploaded_by_user_id', 'created_at',
+        ])];
+    }
+
     // Bug (10/24/2026, B624): a gcu_staff counselor could see every
     // student's TMDU testing results, not just their own caseload - only
     // the GCU Head (admin) is meant to have unit-wide visibility here,
@@ -70,7 +85,10 @@ class CaseReferralController extends Controller
     {
         $user = $request->user();
         $query = Referral::tmduOwned()
-            ->with(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral'])
+            ->with(array_merge(
+                ['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.sourceReferral'],
+                self::testingRecordDocumentsLight()
+            ))
             ->when($user->role === 'gcu_staff', fn($q) => $q->whereHas('case', fn($c) => $c->where('primary_counselor_id', $user->id)))
             ->when($request->status, fn($q) => $q->whereHas('testingRecord', fn($t) => $t->where('status', $request->status)))
             ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
@@ -94,7 +112,10 @@ class CaseReferralController extends Controller
         abort_unless($referral->isTmduOwned(), 404);
         $this->authorizeOwnCaseload($referral->loadMissing('case'));
 
-        $referral->load(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral']);
+        $referral->load(array_merge(
+            ['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.sourceReferral'],
+            self::testingRecordDocumentsLight()
+        ));
         AuditLog::record('viewed', "Viewed Case Referral {$referral->referral_code}.", $referral);
 
         return response()->json($this->payload($referral));
@@ -108,7 +129,10 @@ class CaseReferralController extends Controller
 
         $slip = Referral::tmduOwned()
             ->whereHas('testingRecord', fn($t) => $t->where('source_referral_id', $referral->id))
-            ->with(['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.documents', 'testingRecord.sourceReferral'])
+            ->with(array_merge(
+                ['student', 'referredBy', 'case', 'testingRecord.tester', 'testingRecord.sourceReferral'],
+                self::testingRecordDocumentsLight()
+            ))
             ->latest()
             ->first();
 

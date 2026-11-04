@@ -871,12 +871,17 @@ const docUnits = computed(() => isAdmin.value
   : [{ key: 'GCU', label: 'GCU' }, { key: 'TMDU', label: 'TMDU' }]);
 const docUnit = ref('GCU');
 
+// B#, 11/4/2026: the "Disciplinary Services" tab button is removed from
+// this list per request - its content block (activeTab === 'disciplinary'
+// below), the TAB_CATEGORY mapping and everything else behind it are left
+// in place untouched. Nothing currently switches activeTab to
+// 'disciplinary' with the button gone, so that content is simply
+// unreachable through the UI now, not deleted.
 const tabs = [
   { key: 'colleges',     label: 'Colleges' },
   { key: 'programs',     label: 'Programs' },
   { key: 'departments',  label: 'Departments' },
   { key: 'wellness',     label: 'Wellness Services' },
-  { key: 'disciplinary', label: 'Disciplinary Services' },
   { key: 'sources',      label: 'Referral Sources' },
   { key: 'calendar',     label: 'School Calendar' },
   { key: 'documents',    label: 'Document Headers' },

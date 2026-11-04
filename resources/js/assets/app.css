@@ -118,10 +118,25 @@ html,body{ height:100%; font-family:var(--font); font-size:14px; color:var(--ink
 .ibadge-pending{background:var(--amber-lt);color:var(--amber)}
 .ibadge-expired{background:var(--red-lt);color:var(--red)}
 .ibadge-cancelled{background:var(--red-lt);color:var(--red)}
+.ibadge-cancellation_request{background:var(--red-lt);color:var(--red)}
 .ibadge-no_show{background:#fde8d7;color:#b4541a}
 .ibadge-rescheduled{background:var(--blue-lt);color:var(--blue)}
 .ibadge-callslip{background:#f3e8ff;color:#6b21a8}
 .ibadge-awaiting_testing,.ibadge-awaiting_external{background:#f3e8ff;color:#6b21a8}
+/* B#, 11/5/2026: these statuses are real values coming back from the API
+   (Referral.status can be referred_tmdu/referred_external - branch exits
+   out of the normal pipeline; Complaint.status is under_review, not the
+   retired in_review; TestingRecord.status has its own multi-step pipeline)
+   but had no matching .ibadge-<status> rule, so :class="'ibadge-'+status"
+   rendered an unstyled/blank tag wherever a view binds the class straight
+   off the raw status instead of going through its own labeled mapping. */
+.ibadge-referred_tmdu,.ibadge-referred_external{background:#f3e8ff;color:#6b21a8}
+.ibadge-under_review{background:var(--blue-lt);color:var(--blue)}
+.ibadge-fee_form_pending{background:var(--amber-lt);color:var(--amber)}
+.ibadge-or_submitted{background:var(--blue-lt);color:var(--blue)}
+.ibadge-test_administered{background:var(--mist);color:var(--moss)}
+.ibadge-awaiting_results{background:var(--amber-lt);color:var(--amber)}
+.ibadge-test_results_issued{background:var(--mist);color:var(--moss)}
 .ibadge-on_hold,.ibadge-on_observation{background:var(--amber-lt);color:var(--amber)}
 .ibadge-resolved{background:var(--mist);color:var(--moss)}
 /* Status of a Student Incident Report */

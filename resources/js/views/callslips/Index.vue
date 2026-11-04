@@ -83,6 +83,7 @@ import { formatTime12 } from '../../utils/validators';
 import { ref, computed, onMounted, inject } from 'vue';
 import { callSlipAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const toast = inject('toast');
 const auth  = useAuthStore();
@@ -115,15 +116,15 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-async function fetchCallSlips() {
-  loading.value = true;
+async function fetchCallSlips(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await callSlipAPI.index();
     callSlips.value = res.data.data || [];
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -169,4 +170,6 @@ async function reschedule(a) {
 }
 
 onMounted(() => fetchCallSlips());
+// Keeps the list current without a manual reload.
+useAutoRefresh(() => fetchCallSlips(true), 25000);
 </script>

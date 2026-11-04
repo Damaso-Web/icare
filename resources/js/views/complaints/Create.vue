@@ -150,6 +150,25 @@
             <option value="" disabled hidden>Select act of misconduct...</option>
             <option v-for="opt in violationTypeOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
           </select>
+          <!-- B#, 11/4/2026: "Other Form of Misconduct" on its own said
+               nothing about what actually happened - this asks for it
+               directly, the same way the single-line fields elsewhere on
+               this form do, capped well under violation_type's own 255-char
+               column limit so "Other Form of Misconduct: <this>" always
+               fits. -->
+          <div v-if="form.violation_type === 'Other Form of Misconduct'" style="margin-top:10px">
+            <label class="ifl">Please specify the act of misconduct <span style="color:var(--red)">*</span> <span style="color:var(--fog);font-weight:400">(max 150 characters)</span></label>
+            <input
+              v-model="otherMisconductDetail"
+              class="ifi"
+              maxlength="150"
+              placeholder="Describe the specific act of misconduct..."
+              :style="errorStyle('violation_type_other')"
+              @input="clearFieldError('violation_type_other')"
+              @blur="validateField('violation_type_other')"
+            />
+            <div style="font-size:11px;color:var(--fog);margin-top:4px;text-align:right">{{ otherMisconductDetail.length }}/150</div>
+          </div>
         </div>
 
         <div style="margin-bottom:14px">
@@ -429,6 +448,8 @@ function validateField(field) {
     complainant_address:   () => !form.value.complainant_address || !hasLetter(form.value.complainant_address),
     complainee_student_id: () => !form.value.complainee_student_id,
     violation_type:        () => !form.value.violation_type,
+    violation_type_other:  () => form.value.violation_type === 'Other Form of Misconduct'
+      && (!otherMisconductDetail.value.trim() || !hasLetter(otherMisconductDetail.value)),
     incident_date:         () => !form.value.incident_date || form.value.incident_date > todayStr || form.value.incident_date < oneYearAgoStr,
     description:           () => !form.value.description || !hasLetter(form.value.description),
   }[field]?.();
@@ -467,6 +488,12 @@ const form = ref({
   incident_date: '',
   description: '',
 });
+
+// B#, 11/4/2026: kept separate from `form` (whose entries are submitted
+// as-is via Object.entries in handleSubmit) rather than being its own form
+// field, since it isn't sent under its own name - it's folded into
+// violation_type's actual submitted value, right before submit, below.
+const otherMisconductDetail = ref('');
 
 // Date of Incident cannot be in the future, or more than a year in the past
 // (local date, not UTC) - matches ComplaintController::file()'s
@@ -591,6 +618,9 @@ function openCertificationModal() {
   if (!form.value.complainant_address)   { errs.complainant_address = true;   missing.push('Complainant Address'); }
   if (!form.value.complainee_student_id) { errs.complainee_student_id = true; missing.push('Complainee'); }
   if (!form.value.violation_type)        { errs.violation_type = true;        missing.push('Specific Act of Misconduct'); }
+  if (form.value.violation_type === 'Other Form of Misconduct' && !otherMisconductDetail.value.trim()) {
+    errs.violation_type_other = true; missing.push('the specific Act of Misconduct (please specify)');
+  }
   if (!form.value.incident_date)         { errs.incident_date = true;         missing.push('Date of Incident'); }
   if (!form.value.description)           { errs.description = true;          missing.push('Narration of Facts'); }
   // Bug (10/29/2026): Evidence and Affidavit of Witness are an either/or -
@@ -619,6 +649,11 @@ function openCertificationModal() {
     error.value = 'Please provide a valid narration of facts. Numbers alone are not allowed.';
     return;
   }
+  if (form.value.violation_type === 'Other Form of Misconduct' && !hasLetter(otherMisconductDetail.value)) {
+    fieldErrors.value = { ...fieldErrors.value, violation_type_other: true };
+    error.value = 'Please specify the act of misconduct. Numbers alone are not allowed.';
+    return;
+  }
 
    certificationChecked.value = false;
   signatureCertified.value = false;
@@ -643,6 +678,15 @@ async function handleSubmit() {
     Object.entries(form.value).forEach(([key, value]) => {
       if (value !== null && value !== undefined) payload.append(key, value);
     });
+    // B#, 11/4/2026: violation_type is still a single string column (no
+    // migration needed) - "Other Form of Misconduct" alone said nothing
+    // useful, so the actual typed specifics are folded into it here,
+    // after the generic Object.entries loop above, overwriting the plain
+    // label already appended for that key. Still well under the column's
+    // 255-char limit (27-char prefix + this field's own 150-char cap).
+    if (form.value.violation_type === 'Other Form of Misconduct' && otherMisconductDetail.value.trim()) {
+      payload.set('violation_type', `Other Form of Misconduct: ${otherMisconductDetail.value.trim()}`);
+    }
     payload.append('certification_agreed', '1');
     evidenceFiles.value.forEach(f => payload.append('evidence[]', f));
     affidavitFiles.value.forEach(f => payload.append('affidavit[]', f));

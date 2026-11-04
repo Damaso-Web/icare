@@ -45,8 +45,12 @@
               <td>{{ r.student ? `${r.student.last_name}, ${r.student.first_name}` : '-' }}</td>
               <td>{{ title(r.referral_type) }}</td>
               <td>
-                <!-- If archived, show ONLY the Archived badge. Otherwise show the normal status. -->
+                <!-- If archived, show ONLY the Archived badge. A pending
+                     cancellation request takes over the tag next (B#,
+                     11/4/2026) - the raw status underneath hasn't changed
+                     yet, but what's pending is what matters here. -->
                 <span v-if="r.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+                <span v-else-if="r.void_requested_at" class="ibadge ibadge-cancellation_request">Cancellation Request</span>
                 <span v-else class="ibadge" :class="'ibadge-' + r.status">{{ title(r.status) }}</span>
               </td>
               <td style="font-size:12px;white-space:nowrap">{{ fmt(r.created_at) }}</td>
@@ -74,8 +78,11 @@
           </div>
           <div>
             <div class="sr-k">Status</div>
-            <!-- If archived, show ONLY the Archived badge. Otherwise show the normal status. -->
+            <!-- If archived, show ONLY the Archived badge. A pending
+                 cancellation request takes over the tag next - see the
+                 table row above for why. -->
             <span v-if="selected.is_archived" class="ibadge" style="background:var(--cloud);color:var(--stone)">Archived</span>
+            <span v-else-if="selected.void_requested_at" class="ibadge ibadge-cancellation_request">Cancellation Request</span>
             <span v-else class="ibadge" :class="'ibadge-' + selected.status">{{ title(selected.status) }}</span>
           </div>
 
@@ -86,6 +93,11 @@
             </div>
             <div v-if="canEdit(selected)" style="font-size:12px;color:var(--stone);background:var(--snow);border-radius:var(--r-sm);padding:8px 12px">
               GCU has not acknowledged this referral yet, so you can still edit it.
+            </div>
+            <!-- B#, 11/4/2026: shown to the sender while a request they
+                 made is awaiting a decision from the handling unit. -->
+            <div v-if="selected.void_requested_at" style="font-size:12px;color:var(--amber);background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:8px 12px">
+              Cancellation requested{{ selected.void_reason ? `: "${selected.void_reason}"` : '' }}. Waiting on the handling unit's decision.
             </div>
           </template>
 
@@ -175,14 +187,40 @@
             <template v-if="!selected.is_archived">
               <button v-if="canEdit(selected)" class="ibtn ibtn-p" @click="startEdit">Edit Referral</button>
               <button v-if="canEdit(selected)" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="cancelReferral">Cancel Referral</button>
+              <!-- B#, 11/4/2026: once GCU/SDU/TMDU has acknowledged or
+                   scheduled it, it can no longer be cancelled outright -
+                   only requested, until it moves past 'scheduled'. -->
+              <button v-if="canRequestCancellation(selected)" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openCancelModal">Request Cancellation</button>
             </template>
-            
+
             <button class="ibtn ibtn-o" @click="close">Close</button>
           </template>
           <template v-else>
             <button class="ibtn ibtn-p" :disabled="saving" @click="save">{{ saving ? 'Saving...' : 'Save Changes' }}</button>
             <button class="ibtn ibtn-o" :disabled="saving" @click="editing = false">Cancel</button>
           </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- B#, 11/4/2026: Request Cancellation - asks the handling unit to
+         approve/deny cancelling an already acknowledged/scheduled
+         referral, mirrored from referrals/Show.vue's own void-request
+         modal so staff and students get the same flow here. -->
+    <div v-if="showCancelModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="showCancelModal = false">
+      <div class="icard" style="width:100%;max-width:440px">
+        <div style="padding:16px 20px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Request Cancellation</div>
+          <button class="ibtn ibtn-g ibtn-sm" @click="showCancelModal = false">✕</button>
+        </div>
+        <div style="padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+          <label class="ifl">Reason <span style="color:var(--fog);font-weight:400">(at least 10 characters)</span></label>
+          <textarea v-model="cancelReason" class="ifta" style="min-height:100px" maxlength="1000" placeholder="e.g. no longer needed, issue already resolved directly..."></textarea>
+          <div v-if="cancelError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:8px 12px;border-radius:var(--r-sm);font-size:12px">{{ cancelError }}</div>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid var(--cloud);display:flex;gap:8px">
+          <button class="ibtn ibtn-p" style="flex:1;justify-content:center" :disabled="requestingCancel" @click="submitCancelRequest">{{ requestingCancel ? 'Submitting...' : 'Submit Request' }}</button>
+          <button class="ibtn ibtn-o" style="flex:1;justify-content:center" :disabled="requestingCancel" @click="showCancelModal = false">Cancel</button>
         </div>
       </div>
     </div>
@@ -194,6 +232,7 @@ import { ref, reactive, computed, onMounted, inject } from 'vue';
 import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
 import api, { studentApi, referralAPI } from '../../api/index';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const route = useRoute();
 const toast = inject('toast');
@@ -303,6 +342,49 @@ const typeChoices = computed(() => {
 });
 // The sender may correct it until GCU acknowledges it.
 const canEdit = r => r && r.status === 'submitted' && !r.acknowledged_at && !r.is_archived;
+// B#, 11/4/2026: once acknowledged, the sender can no longer cancel it
+// directly (canEdit above) - they can only ask the handling unit to
+// cancel it, and only up through 'scheduled' (mirrors the backend's
+// Referral::canRequestCancellation()).
+const canRequestCancellation = r => r && !!r.acknowledged_at && !r.is_archived && !r.void_requested_at
+  && !['in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed', 'cancelled'].includes(r.status);
+
+const showCancelModal = ref(false);
+const cancelReason = ref('');
+const cancelError = ref('');
+const requestingCancel = ref(false);
+function openCancelModal() {
+  cancelReason.value = '';
+  cancelError.value = '';
+  showCancelModal.value = true;
+}
+async function submitCancelRequest() {
+  if (cancelReason.value.trim().length < 10) {
+    cancelError.value = 'Please explain why in at least 10 characters.';
+    return;
+  }
+  requestingCancel.value = true;
+  cancelError.value = '';
+  try {
+    // Staff and student use different endpoints (the shared sentList()
+    // read is one route, but the staff void-request action lives at
+    // /referrals/{id}/request-void while the student one is scoped
+    // under their own /student/outreach/referrals base).
+    const url = isStudent
+      ? `${base}/${selected.value.id}/request-cancellation`
+      : `/referrals/${selected.value.id}/request-void`;
+    const res = await http.post(url, { reason: cancelReason.value.trim() });
+    const idx = rows.value.findIndex(x => x.id === selected.value.id);
+    if (idx >= 0) rows.value[idx] = { ...rows.value[idx], ...res.data };
+    selected.value = { ...selected.value, ...res.data };
+    showCancelModal.value = false;
+    toast?.success('Cancellation request submitted.');
+  } catch (e) {
+    cancelError.value = e.response?.data?.message || 'Failed to submit the request.';
+  } finally {
+    requestingCancel.value = false;
+  }
+}
 
 function close() { selected.value = null; editing.value = false; }
 function startEdit() {
@@ -355,8 +437,8 @@ const filterSelects = computed(() => [
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
 const title = s => (s ? s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).replace(/\b(Sdu|Gcu|Tmdu)\b/g, m => m.toUpperCase()) : '');
 
-async function load(p = 1) {
-  loading.value = true;
+async function load(p = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = { page: p, sort: filters.sort, archived: filters.archived ? 1 : 0 };
     if (filters.search) params.search = filters.search;
@@ -367,12 +449,23 @@ async function load(p = 1) {
     rows.value = res.data.data || [];
     page.value = res.data.current_page || 1;
     last.value = res.data.last_page || 1;
+    // Keep an open detail view in sync too (e.g. its status or a pending
+    // cancellation request changes while the sender is looking at it).
+    if (selected.value && !editing.value) {
+      const fresh = rows.value.find(x => x.id === selected.value.id);
+      if (fresh) selected.value = fresh;
+    }
   } catch (e) {
-    rows.value = [];
+    if (!silent) rows.value = [];
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
+// Keeps the list (and an open detail view) current without a manual
+// reload - e.g. the status moves, or a cancellation request gets a
+// decision, while the sender is on this page.
+useAutoRefresh(() => load(page.value, true), 25000);
+
 onMounted(async () => {
   await load();
   // Automatically open the modal if the URL has ?view=ID

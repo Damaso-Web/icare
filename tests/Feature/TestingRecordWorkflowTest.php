@@ -466,4 +466,52 @@ class TestingRecordWorkflowTest extends TestCase
                 'assessment_summary' => 'Resubmit attempt.', 'recommendations' => 'n/a',
             ])->assertStatus(422);
     }
+
+    // B#, 11/5/2026: the TMDU-owned Referral this testing record is filed
+    // under (referral_id) used to sit wherever it was left (e.g.
+    // "Scheduled", picked up as a side effect of some unrelated appointment
+    // on the case) forever - nothing moved it to Completed once TMDU
+    // actually finished and released the PAR, so the student kept seeing a
+    // stale status on My Referrals/the referral detail page even though
+    // TMDU's own side already showed it done.
+    public function test_send_to_gcu_marks_the_linked_referral_completed(): void
+    {
+        $this->fakeCloudinary();
+        $tester = $this->tmduStaff();
+        $referral = \App\Models\Referral::factory()->create(['status' => 'scheduled']);
+        $record = $this->testingRecord([
+            'assigned_tester_user_id' => $tester->id, 'status' => 'awaiting_results',
+            'referral_id' => $referral->id, 'student_id' => $referral->student_id, 'case_id' => $referral->case_id,
+        ]);
+        $this->parReleaseAppointment($record, $tester)->update(['status' => 'completed']);
+
+        $this->actingAs($tester)
+            ->postJson("/api/testing-records/{$record->id}/send-to-gcu", [
+                'assessment_summary' => 'Summary.', 'recommendations' => 'Recommendations.',
+            ])->assertOk();
+
+        $this->assertSame('completed', $referral->fresh()->status);
+    }
+
+    // A referral already at a terminal/branch state (e.g. already closed by
+    // some other action) should not be force-moved - canMoveStatusTo()
+    // already guards this everywhere else a referral's status changes.
+    public function test_send_to_gcu_does_not_reopen_an_already_closed_referral(): void
+    {
+        $this->fakeCloudinary();
+        $tester = $this->tmduStaff();
+        $referral = \App\Models\Referral::factory()->create(['status' => 'closed']);
+        $record = $this->testingRecord([
+            'assigned_tester_user_id' => $tester->id, 'status' => 'awaiting_results',
+            'referral_id' => $referral->id, 'student_id' => $referral->student_id, 'case_id' => $referral->case_id,
+        ]);
+        $this->parReleaseAppointment($record, $tester)->update(['status' => 'completed']);
+
+        $this->actingAs($tester)
+            ->postJson("/api/testing-records/{$record->id}/send-to-gcu", [
+                'assessment_summary' => 'Summary.', 'recommendations' => 'Recommendations.',
+            ])->assertOk();
+
+        $this->assertSame('closed', $referral->fresh()->status);
+    }
 }

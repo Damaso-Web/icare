@@ -266,12 +266,24 @@ class Referral extends Model
     // Moves active referrals out of the queue and into the archive (used when a
     // student is deactivated or their case file is completed/closed). TMDU's own
     // Case Referral Slips are left alone - they live in TMDU's queue.
+    //
+    // B#, 11/4/2026: used to update() each referral one at a time in the
+    // loop below (N separate UPDATE statements for N referrals) - now a
+    // single bulk UPDATE. The per-referral audit entries stay (each is a
+    // genuine, individually meaningful "this referral was archived"
+    // record, not display noise), but AuditLog::record() itself already
+    // defers its write until after the response is sent, so they no
+    // longer add to this call's own query count either way.
     public static function archiveActive(array $where, string $why): int
     {
-        $referrals = static::where($where)->where('is_archived', false)->notTmduOwned()->get();
+        $referrals = static::where($where)->where('is_archived', false)->notTmduOwned()->get(['id', 'referral_code']);
+        if ($referrals->isEmpty()) {
+            return 0;
+        }
+
+        static::whereIn('id', $referrals->pluck('id'))->update(['is_archived' => true]);
 
         foreach ($referrals as $referral) {
-            $referral->update(['is_archived' => true]);
             AuditLog::record('archived', "Archived referral {$referral->referral_code}: {$why}.", $referral);
         }
 
@@ -292,6 +304,26 @@ class Referral extends Model
         if ($this->isLocked()) {
             abort(422, 'This Student Information File is closed and can no longer be edited.');
         }
+    }
+
+    // B#, 11/4/2026: whoever sent a referral (staff or student) can ask to
+    // cancel it only once it's been acknowledged, and only up through
+    // 'scheduled'. A still-unacknowledged referral is cancelled directly
+    // instead (see referrerCanEdit() - delete, don't request), and once a
+    // unit has moved it to 'in_progress', resolved it, or branch-exited it
+    // (Referred TMDU/External), it's already being acted on, so
+    // cancellation is no longer an option from the sender's side - only
+    // staff can end it from there. Gated on acknowledged_at rather than
+    // status === 'acknowledged' because acknowledge() always sets both
+    // together in real use, but this stays correct even if a referral's
+    // status is later pushed forward by hand (Override Status) without
+    // touching acknowledged_at.
+    public function canRequestCancellation(): bool
+    {
+        if ($this->is_archived || $this->void_requested_at || !$this->acknowledged_at) {
+            return false;
+        }
+        return !in_array($this->status, ['in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed', 'cancelled'], true);
     }
 
     // The referral's main pipeline, in order. 'in_review' is retired (B275 -

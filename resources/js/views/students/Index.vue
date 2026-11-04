@@ -513,9 +513,10 @@
                 class="ifi"
                 maxlength="15"
                 placeholder="e.g. 2302021"
-                :style="errorStyle('student_id')"
-                @input="addForm.student_id = onlyDigits(addForm.student_id); clearFieldError('student_id')"
+                :style="(fieldErrors.student_id || addStudentIdDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="addForm.student_id = onlyDigits(addForm.student_id); clearFieldError('student_id'); queueAddDuplicateCheck()"
               />
+              <div v-if="addStudentIdDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">This Student ID is already in use.</div>
             </div>
             <div>
               <label class="ifl">Sex <span style="color:var(--red)">*</span></label>
@@ -538,7 +539,7 @@
                 maxlength="20"
                 placeholder="Dela Cruz"
                 :style="errorStyle('last_name')"
-                @input="addForm.last_name = titleCase(onlyLetters(addForm.last_name)); clearFieldError('last_name')"
+                @input="addForm.last_name = titleCase(onlyLetters(addForm.last_name)); clearFieldError('last_name'); queueAddDuplicateCheck()"
               />
             </div>
             <div>
@@ -549,12 +550,13 @@
                 maxlength="20"
                 placeholder="Juan"
                 :style="errorStyle('first_name')"
-                @input="addForm.first_name = titleCase(onlyLetters(addForm.first_name)); clearFieldError('first_name')"
+                @input="addForm.first_name = titleCase(onlyLetters(addForm.first_name)); clearFieldError('first_name'); queueAddDuplicateCheck()"
               />
+              <div v-if="addNameDuplicateHint" style="font-size:11px;color:var(--amber);margin-top:4px">{{ addNameDuplicateHint }}</div>
             </div>
             <div>
               <label class="ifl">Middle Name</label>
-              <input v-model="addForm.middle_name" class="ifi" maxlength="20" placeholder="Santos" @input="addForm.middle_name = titleCase(onlyLetters(addForm.middle_name))" />
+              <input v-model="addForm.middle_name" class="ifi" maxlength="20" placeholder="Santos" @input="addForm.middle_name = titleCase(onlyLetters(addForm.middle_name)); queueAddDuplicateCheck()" />
             </div>
             <div>
               <label class="ifl">Suffix</label>
@@ -618,11 +620,14 @@
                 v-model="addForm.email"
                 class="ifi"
                 placeholder="e.g. student@gmail.com (any email)"
-                :style="errorStyle('email')"
-                @input="clearFieldError('email')"
+                :style="(fieldErrors.email || addEmailDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="clearFieldError('email'); queueAddDuplicateCheck()"
               />
               <div v-if="addErrors.email" style="font-size:11px;color:var(--red);margin-top:4px">
                 {{ addErrors.email }}
+              </div>
+              <div v-else-if="addEmailDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">
+                This email address is already in use.
               </div>
             </div>
             <div>
@@ -1121,6 +1126,7 @@ import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValid
 // Admin/Dean types it, the same check already used on the student's own
 // self-registration and account-edit forms (resources/js/utils/emailCheck.js).
 import { emailProblem as checkEmailTypo } from '../../utils/emailCheck';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const toast   = inject('toast');
 
@@ -1387,6 +1393,48 @@ function contactNumberBlockingNonZero(value) {
 
 const isAddFormEmpty = computed(() => Object.values(addForm.value).every(v => !v));
 
+// B#, 11/4/2026: live duplicate detection for Student ID, First/Middle/Last
+// Name, and Email on the Add Student form - before this, only the name was
+// checked, and only once, at submit time. ID and Email are hard
+// uniqueness violations (block proceeding to the preview step, same as a
+// missing required field); a name match stays a soft hint here since two
+// different real students can share a name - the actual "is this the same
+// person?" decision still happens via the confirmation modal at submit.
+const addStudentIdDuplicate = ref(false);
+const addEmailDuplicate     = ref(false);
+const addNameDuplicateHint  = ref('');
+let addDuplicateDebounce = null;
+function queueAddDuplicateCheck() {
+  clearTimeout(addDuplicateDebounce);
+  addDuplicateDebounce = setTimeout(async () => {
+    const f = addForm.value;
+    const params = {};
+    if (f.student_id) params.student_id = f.student_id;
+    if (f.email) params.email = f.email;
+    if (f.first_name && f.last_name) {
+      params.first_name = f.first_name;
+      params.last_name = f.last_name;
+      if (f.middle_name) params.middle_name = f.middle_name;
+    }
+    if (!params.student_id && !params.email && !params.first_name) {
+      addStudentIdDuplicate.value = false;
+      addEmailDuplicate.value = false;
+      addNameDuplicateHint.value = '';
+      return;
+    }
+    try {
+      const res = await studentAPI.checkDuplicateName(params);
+      addStudentIdDuplicate.value = params.student_id ? !!res.data.student_id_exists : false;
+      addEmailDuplicate.value     = params.email      ? !!res.data.email_exists      : false;
+      addNameDuplicateHint.value  = (params.first_name && res.data.duplicate_found && res.data.existing_student)
+        ? `A student named ${res.data.existing_student.last_name}, ${res.data.existing_student.first_name} (ID: ${res.data.existing_student.student_id}) may already exist.`
+        : '';
+    } catch (e) {
+      // A failed check never blocks typing - the preview step re-checks for real.
+    }
+  }, 350);
+}
+
 const addErrors = computed(() => {
   const f = addForm.value;
   const errs = {};
@@ -1465,6 +1513,11 @@ function validateAddForm() {
 
   const missing = requiredFields.filter(([key]) => !addForm.value[key]).map(([, label]) => label);
   if (missing.length) return 'Please make sure to fill in necessary fields.';
+  // B#, 11/4/2026: the live duplicate check above (student_id/email) is
+  // the final gate too - catches the case where the debounced check
+  // hasn't resolved yet when "Next" is clicked.
+  if (addStudentIdDuplicate.value) { fieldErrors.value = { ...fieldErrors.value, student_id: true }; return 'This Student ID is already in use.'; }
+  if (addEmailDuplicate.value) { fieldErrors.value = { ...fieldErrors.value, email: true }; return 'This email address is already in use.'; }
   { const emailIssue = checkEmailTypo(addForm.value.email); if (emailIssue) return emailIssue; }
   if (!isValidPHContact(addForm.value.contact_number)) return 'Contact number must start with 09 and be 11 digits long.';
   if (!isValidPHContact(addForm.value.guardian_contact)) return 'Guardian contact number must start with 09 and be 11 digits long.';
@@ -1685,8 +1738,8 @@ function onSearchInput() {
   searchTimeout = setTimeout(() => fetchStudents(), 400);
 }
 
-async function fetchStudents(page = 1) {
-  loading.value = true;
+async function fetchStudents(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = { ...filters.value, page };
     if (params.status === '') delete params.status;
@@ -1698,9 +1751,9 @@ async function fetchStudents(page = 1) {
     students.value   = [...res.data.data].sort((a, b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
     pagination.value = res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -1727,6 +1780,9 @@ function clearAddForm() {
   };
   fieldErrors.value = {};
   addError.value = '';
+  addStudentIdDuplicate.value = false;
+  addEmailDuplicate.value = false;
+  addNameDuplicateHint.value = '';
 }
 
 async function saveStudent() {
@@ -2050,6 +2106,13 @@ onMounted(() => {
   // User Management > Add > Student lands here with ?add=1.
   if (new URLSearchParams(window.location.search).get('add') === '1') openAddModal();
 });
+// Keeps the list current without a manual reload. Skipped while any form
+// is open so it can't reorder the table behind an in-progress add/edit.
+useAutoRefresh(() => {
+  if (!showAddModal.value && !showEditModal.value && !showViewModal.value && !showImportModal.value && !showGraduateModal.value) {
+    fetchStudents(pagination.value?.current_page || 1, true);
+  }
+}, 25000);
 
 // Cancel asks before throwing away a changed form (B401).
 const cancelEditStudent = useDiscardGuard(showEditModal, editForm, () => { showEditModal.value = false; });

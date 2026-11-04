@@ -10,6 +10,21 @@
             <span v-for="(c, i) in infoChips" :key="i" class="hero-chip">{{ c }}</span>
           </div>
           <div v-if="termLabel" class="hero-term">{{ termLabel }}</div>
+          <!-- Counts of the referrals the student themselves sent (self-
+               referrals), same My Referrals/Awaiting/Received/Completed
+               split the staff Dashboard uses for its own "Sent Referrals"
+               stat cards - clicking one opens Sent Referrals pre-filtered
+               to that status group. -->
+          <div class="hero-stats">
+            <button v-for="stat in referralStats" :key="stat.label" type="button" class="hero-stat" @click="goToStat(stat)">
+              <span class="hero-stat-top">
+                <span class="hero-stat-icon"><svg viewBox="0 0 24 24" v-html="stat.icon"></svg></span>
+                <span class="hero-stat-period">{{ stat.period }}</span>
+              </span>
+              <span class="hero-stat-num">{{ stat.value }}</span>
+              <span class="hero-stat-label">{{ stat.label }}</span>
+            </button>
+          </div>
         </div>
         <div class="hero-actions hero-actions-side">
           <router-link :to="{ name: 'student-appointments' }" class="hero-btn"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>My Appointments</router-link>
@@ -105,9 +120,12 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
 import { formatTime12, formatDateShort } from '../../utils/validators';
+
+const router = useRouter();
 
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -124,6 +142,26 @@ const referrals = ref([]);
 const parentConferenceSlips = ref([]);
 function formatSlipDate(d) { return d ? new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '-'; }
 const pendingAppointments = ref([]);
+const referralStatsRaw = ref({});
+
+// Same My Referrals/Awaiting/Received/Completed stat-card set the staff
+// Dashboard shows for Dean/Dept Chair/Faculty (Dashboard.vue's `stats`
+// computed) - here it's scoped to only the referrals the student
+// themselves sent (self-referrals), per `referral_stats` from the
+// student/dashboard endpoint. Clicking a card opens Sent Referrals
+// pre-filtered to that status group, same as the staff version.
+const referralStats = computed(() => {
+  const s = referralStatsRaw.value || {};
+  return [
+    { label: 'My Referrals', value: s.total     ?? 0, period: 'Total',    icon: '<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>', status: '' },
+    { label: 'Awaiting',     value: s.awaiting  ?? 0, period: 'Pending',  icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', status: 'submitted' },
+    { label: 'Received',     value: s.received  ?? 0, period: 'Acknowledged', icon: '<polyline points="20 6 9 17 4 12"/>', status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' },
+    { label: 'Completed',    value: s.completed ?? 0, period: 'Resolved', icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', status: 'completed,closed' },
+  ];
+});
+function goToStat(stat) {
+  router.push({ name: 'student-sent-referrals', query: stat.status ? { status: stat.status } : {} });
+}
 
 const term = ref(null);
 // ID · College · Program · Year level · Section, then "AY 2026–2027 · 1st Semester".
@@ -180,12 +218,17 @@ function isExpiredReferral(referral) {
     return matches && a.token_expires_at && new Date(a.token_expires_at) < now;
   });
 }
+// B#, 11/4/2026: same "Cancellation Request" override as student/
+// Referrals.vue's badge, for consistency between the two places a
+// student sees their own referrals' status.
 function referralBadgeKind(r) {
+  if (r.void_requested_at) return 'ibadge-cancellation_request';
   const s = simplifiedStatus(r.status);
   if (s === 'cancelled' || s === 'closed') return 'ibadge-' + s;
   return isExpiredReferral(r) ? 'ibadge-expired' : 'ibadge-pending';
 }
 function referralBadgeLabel(r) {
+  if (r.void_requested_at) return 'Cancellation Request';
   const s = simplifiedStatus(r.status);
   if (s === 'cancelled') return 'Cancelled';
   if (s === 'closed') return 'Closed';
@@ -202,6 +245,7 @@ async function fetchData(silent = false) {
     const res = await axios.get(`${API_BASE}/student/dashboard`, authHeaders());
     appointments.value = res.data.appointments || [];
     referrals.value = res.data.referrals || [];
+    referralStatsRaw.value = res.data.referral_stats || {};
     parentConferenceSlips.value = res.data.parent_conference_slips || [];
     term.value = res.data.term || null;
     if (res.data.student) {

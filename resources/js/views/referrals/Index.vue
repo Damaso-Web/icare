@@ -35,10 +35,6 @@
         <option value="completed">Completed</option>
         <option value="closed">Closed</option>
       </select>
-      <select v-model="filters.unit" class="fsm" @change="onUnitChange">
-        <option value="GCU">GCU</option>
-        <option value="TMDU">TMDU</option>
-      </select>
       <select v-model="filters.type" class="fsm" @change="fetchReferrals">
         <option value="">All Services</option>
         <option v-for="svc in availableServices" :key="svc.value" :value="svc.value">{{ svc.label }}</option>
@@ -142,9 +138,13 @@ const referrals  = ref([]);
 const loading    = ref(true);
 const pagination = ref({});
 // Bug (10/25/2026): the "All Units" option (and SDU) were removed from this
-// filter - this page now always shows GCU or TMDU referrals, never a mixed
+// filter - this page always showed GCU or TMDU referrals, never a mixed
 // unfiltered list, and never SDU's (disciplinary referrals live elsewhere).
-const filters = ref({ search: '', status: '', unit: 'GCU', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
+// B#, 11/4/2026: the GCU/TMDU dropdown itself is removed per request - GCU
+// and TMDU-pending referrals now show together with no toggle needed (SDU's
+// Acts of Misconduct still never surface here; see availableServices below
+// and ReferralController::index()'s unconditional exclusion).
+const filters = ref({ search: '', status: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' });
 
 // Dean: the programs of their own college (Management > Programs).
 const auth = useAuthStore();
@@ -186,18 +186,13 @@ async function fetchFilterOptions() {
 }
 
 // GCU vs TMDU is now a real tag set per-service in Management, not guessed.
-const availableServices = computed(() => {
-  if (filters.value.unit === 'GCU' || filters.value.unit === 'TMDU') {
-    return wellnessOptionsRaw.value.filter(o => o.unit === filters.value.unit);
-  }
-  return [];
-});
-
-function onUnitChange() {
-  filters.value.type = '';
-  filters.value.violation_type = '';
-  fetchReferrals();
-}
+// B#, 11/4/2026: no longer filtered by a selected unit (the dropdown is
+// gone) - both GCU- and TMDU-tagged services show together in this "All
+// Services" filter; SDU-tagged ones (Acts of Misconduct) are still left out,
+// same as before.
+const availableServices = computed(() =>
+  wellnessOptionsRaw.value.filter(o => o.unit === 'GCU' || o.unit === 'TMDU')
+);
 
 function onSearchInput() {
   filters.value.search = safeSearchInput(filters.value.search);
@@ -218,7 +213,7 @@ async function fetchReferrals(page = 1, silent = false) {
 }
 
 function resetFilters() {
-  filters.value = { search: '', status: '', unit: 'GCU', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
+  filters.value = { search: '', status: '', type: '', violation_type: '', sort: 'desc', date_from: '', date_to: '', archived: false, department: '', program: '' };
   fetchReferrals();
 }
 

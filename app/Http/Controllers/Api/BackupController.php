@@ -14,11 +14,13 @@ class BackupController extends Controller
 {
     public function index(Request $request)
     {
+        // B#, 11/4/2026: matches Students' own page size (10) instead of 20
+        // - the frontend now actually exposes Prev/Next for this list too.
         return response()->json(
             BackupRecord::with('initiatedBy')
                 ->when($request->type, fn ($q) => $q->where('type', $request->type))
                 ->latest()
-                ->paginate(20)
+                ->paginate(10)
         );
     }
 

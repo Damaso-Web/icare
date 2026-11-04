@@ -15,7 +15,7 @@
     </div>
 
     <div v-else style="display:flex;flex-direction:column;gap:14px">
-      <div v-for="r in records" :key="r.id" class="icard" style="padding:18px 20px">
+      <div v-for="r in pagedRecords" :key="r.id" class="icard" style="padding:18px 20px">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px">
           <div>
             <div style="font-size:14px;font-weight:600;color:var(--ink)">Testing Referral #{{ r.id }}</div>
@@ -76,12 +76,19 @@
           </button>
         </div>
       </div>
+      <div v-if="totalPages > 1" style="padding:12px 2px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--stone)">Page {{ currentPage }} of {{ totalPages }}</span>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === 1" @click="page = currentPage - 1">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === totalPages" @click="page = currentPage + 1">Next</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, inject } from 'vue';
+import { ref, computed, onMounted, inject } from 'vue';
 import { studentTestingAPI } from '../../api/index';
 import { saveBlob } from '../../utils/download';
 
@@ -140,6 +147,18 @@ function statusMessage(status) {
     test_results_issued: 'Your PAR has been released. You can keep a copy of it below.',
   }[status] || '';
 }
+
+// B#, 11/5/2026: client-side pagination, 2 per page - each record renders
+// as a tall detail card (status explainer, upload/download sections), so 2
+// at a time keeps the page from growing very long with several referrals.
+const PER_PAGE = 2;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(records.value.length / PER_PAGE)));
+const currentPage = computed(() => Math.min(page.value, totalPages.value));
+const pagedRecords = computed(() => {
+  const start = (currentPage.value - 1) * PER_PAGE;
+  return records.value.slice(start, start + PER_PAGE);
+});
 
 async function fetchRecords() {
   loading.value = true;

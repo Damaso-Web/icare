@@ -55,42 +55,33 @@
           <div class="priv-sub">Office of Student Services, Benguet State University</div>
         </div>
         <div class="priv-body">
-          <h4>Purpose</h4>
+          <h4>Data Privacy Notice</h4>
           <p>
-            This notice explains how the Office of Student Services (OSS) collects, uses and protects your
-            personal information in iCARE, in line with the Data Privacy Act of 2012 (RA 10173).
+            Pursuant to the Data Privacy Act of 2012, its Implementing Rules and Regulations (IRR), and the
+            Benguet State University (BSU) Data Privacy Policy, the Office of Student Services (OSS),
+            including the Student Discipline Unit (SDU), Guidance and Counseling Unit (GCU), and Testing and
+            Materials Development Unit (TMDU) at the La Trinidad Campus, is committed to keeping all
+            sensitive personal information collected from students with the utmost confidentiality.
           </p>
-          <h4>Scope</h4>
           <p>
-            This notice covers every student who registers for an iCARE account and anyone referred to the
-            OSS through it, for as long as the OSS holds a record connected to you.
+            Personal information is collected, accessed, used, and disclosed strictly on a "need to know
+            basis" and only as reasonably required. Confidential information will not be communicated within
+            or outside the University except to authorized personnel. Furthermore, only authorized hardware,
+            software, and equipment shall be used in accessing, processing, and transmitting your personal
+            data.
           </p>
-          <h4>Information we collect</h4>
-          <ul>
-            <li>Your Student ID and the email address you register with</li>
-            <li>Your profile and background information (e.g. program, section, family and contact details you provide in your account)</li>
-            <li>Referrals made for or by you, and any complaints filed</li>
-            <li>Appointments you request or attend, and their schedules</li>
-            <li>Case notes and other support records created while your request is handled</li>
-          </ul>
-          <h4>How it is used</h4>
+          <h4>Student's Agreement, Consent, and Authorization</h4>
           <p>
-            Your information is used to register and verify your account, process referrals, schedule and
-            manage appointments, and deliver the counseling, testing or disciplinary support you request or
-            are referred for. It is seen only by OSS personnel handling your case, kept accurate, stored
-            securely, and kept no longer than needed for these purposes.
+            I have read and understood the Data Privacy Notice of Benguet State University (BSU). I hereby
+            grant my full consent to the OSS-SDU, OSS-GCU, and OSS-TMDU to collect, process, and utilize
+            necessary and relevant personal data through this medium for official university support
+            purposes.
           </p>
-          <h4>Your rights as a data subject</h4>
-          <ul>
-            <li>To be informed how your data is collected and used</li>
-            <li>To access the personal information held about you</li>
-            <li>To object to the processing of your data</li>
-            <li>To correct inaccurate or outdated information</li>
-            <li>To have your data erased or blocked when it is no longer needed or was unlawfully obtained</li>
-            <li>To data portability, a copy of your data in a usable format</li>
-            <li>To claim compensation for damages caused by misuse of your data</li>
-            <li>To file a complaint with the National Privacy Commission</li>
-          </ul>
+          <p>
+            I understand that the aforementioned units will abide by the data privacy policies, except in
+            cases mandated by law or outside of institutional control. By proceeding, I authorize the secure
+            handling of my information across these designated student support units.
+          </p>
           <h4>Read more</h4>
           <p class="priv-links">
             <a href="https://privacy.gov.ph/data-privacy-act/" target="_blank" rel="noopener noreferrer">National Privacy Commission: Data Privacy Act</a>

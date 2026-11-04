@@ -44,19 +44,6 @@
         </div>
       </div>
 
-      <!-- Link to the appointment awaiting scheduling -->
-      <div v-if="pendingAppointmentId" class="icard" style="border:2px solid var(--moss)">
-        <div class="icard-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:var(--ink)">An appointment is waiting for you</div>
-            <div style="font-size:12px;color:var(--stone);margin-top:2px">Please choose your preferred date and time.</div>
-          </div>
-          <router-link :to="{ name: 'student-appointment-show', params: { id: pendingAppointmentId } }" class="ibtn ibtn-p">
-            View Appointment
-          </router-link>
-        </div>
-      </div>
-
       <!-- Your own copy of the Admission Slip, once GCU has issued one. -->
       <div v-if="isClassAttendance && referral.admission_issued_at" class="icard" style="margin-bottom:20px">
         <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
@@ -104,7 +91,6 @@ const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.
 const loading = ref(true);
 const referral = ref({});
 
-const pendingAppointmentId = computed(() => referral.value.pending_appointment?.id || null);
 const isClassAttendance = computed(() => referral.value.referral_type === 'class_attendance');
 
 // The slip as the paper form has it (see components/AdmissionSlipPaper.vue) -

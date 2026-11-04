@@ -49,6 +49,25 @@ return new class extends Migration
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'users'"
         )->sql;
 
+        // B#, 11/4/2026: $createSql above is only the CREATE TABLE text -
+        // Laravel's SQLite grammar creates ->unique() columns (email,
+        // employee_id) as their own separate CREATE UNIQUE INDEX
+        // statements, which sqlite_master stores as their own 'index' rows,
+        // not as part of the table's CREATE TABLE text. DROP TABLE users
+        // below drops those indexes along with it, and since nothing here
+        // ever recreated them, every local/CI sqlite run permanently lost
+        // both unique constraints the moment this migration ran - a real
+        // account could be duplicated by email or Employee ID with no DB-
+        // level objection, in SQLite only (MySQL/production never ran this
+        // branch, so its real constraints were never touched). Found while
+        // chasing why a masterlist upload's duplicate-Employee-ID safety
+        // net never fired in a test. Captured here, before the drop, and
+        // replayed after the rename below so every index actually survives
+        // the rebuild, not just the two known ones.
+        $indexSqls = array_column(DB::select(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'users' AND sql IS NOT NULL"
+        ), 'sql');
+
         // Build the replacement under a TEMPORARY name first, rather than
         // renaming the real "users" table away. Renaming "users" itself
         // would trigger SQLite's automatic (and here, unwanted) rewrite of
@@ -85,5 +104,12 @@ return new class extends Migration
         DB::statement('DROP TABLE users');
         DB::statement('ALTER TABLE users_role_rebuild_new RENAME TO users');
         DB::statement('PRAGMA foreign_keys = ON');
+
+        // The index SQL text already says `on "users" (...)`, which is
+        // correct again now that the table has been renamed back to that
+        // name - replay each one as-is.
+        foreach ($indexSqls as $indexSql) {
+            DB::statement($indexSql);
+        }
     }
 };

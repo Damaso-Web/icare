@@ -46,8 +46,9 @@ class ReferralController extends Controller
 
     $sortDirection = $request->sort === 'asc' ? 'asc' : 'desc';
 
-    $sduTypes  = ['disciplinary'];
-    $tmduTypes = ['psychological_testing'];
+    // B#, 11/4/2026: $tmduTypes is gone - it was only ever needed by the
+    // removed unit-filter branch below (see that comment).
+    $sduTypes = ['disciplinary'];
 
     $query = Referral::with(['student', 'referredBy', 'assignedTo'])
         ->where('is_archived', $request->boolean('archived'))
@@ -64,15 +65,16 @@ class ReferralController extends Controller
         ->when($request->status,          fn($q) => $q->where('status', $request->status))
         ->when($request->type,            fn($q) => $q->where('referral_type', $request->type))
         ->when($request->violation_type,  fn($q) => $q->where('referral_type', 'disciplinary')->where('violation_type', $request->violation_type))
-        ->when($request->unit && !$request->violation_type, function ($q) use ($request, $sduTypes, $tmduTypes) {
-            if ($request->unit === 'SDU') {
-                $q->whereIn('referral_type', $sduTypes);
-            } elseif ($request->unit === 'TMDU') {
-                $q->whereIn('referral_type', $tmduTypes);
-            } elseif ($request->unit === 'GCU') {
-                $q->whereNotIn('referral_type', array_merge($sduTypes, $tmduTypes));
-            }
-        })
+        // B#, 11/4/2026: the frontend's GCU/TMDU unit-filter dropdown is
+        // removed per request, so this used to be the only place SDU's Acts
+        // of Misconduct got excluded from this page (the "GCU" unit value
+        // excluded both sduTypes and tmduTypes) - now that nothing ever
+        // sends a `unit` param, that exclusion has to stand on its own so
+        // SDU's disciplinary referrals still never leak into this queue
+        // (same intent as the 10/25/2026 fix). GCU and TMDU-pending
+        // referrals (psychological_testing not yet owned by TMDU - see
+        // notTmduOwned() below) now simply show together, unconditionally.
+        ->when(!$request->violation_type, fn($q) => $q->whereNotIn('referral_type', $sduTypes))
         ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
         ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
         // B#, 11/4/2026: this only ever matched the student's name/ID - there
@@ -109,10 +111,11 @@ class ReferralController extends Controller
         $query->notTmduOwned();
     }
 
+    // B#, 11/4/2026: matches Students' own page size (10) instead of 20.
     return response()->json(
         $query->orderByRaw("CASE WHEN status IN ('completed','closed') THEN 1 ELSE 0 END ASC")
             ->orderBy('created_at', $sortDirection)
-            ->paginate(20)
+            ->paginate(10)
     );
 }
 
@@ -185,12 +188,24 @@ class ReferralController extends Controller
         $serviceOptions = \App\Models\ReferralFormOption::where('category', 'referral_type')->orderBy('sort_order')->get(['value', 'label']);
         $usedTypes      = (clone $base)->distinct()->pluck('referral_type')->all();
         $types = $serviceOptions->pluck('value')->merge($usedTypes)->unique()->filter()->values()->all();
-        $allStatuses = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed'];
+        // B#, 11/4/2026: "Referred TMDU" and "Referred External" are removed
+        // from the Status filter dropdown per request - updateStatus() above
+        // still accepts both as real status values (a referral can still
+        // legitimately end up in either), this just stops offering them as
+        // something to filter Sent Referrals by. Shared by both the staff
+        // and student "Sent Referrals" lists (see this method's own comment
+        // above), so removing them here covers both.
+        $allStatuses = ['submitted', 'acknowledged', 'scheduled', 'in_progress', 'completed', 'closed'];
         $usedStatuses = (clone $base)->distinct()->pluck('status')->all();
         $options = [
             'types'        => $types,
             'type_labels'  => $serviceOptions->pluck('label', 'value')->all(),
-            'statuses'     => collect($allStatuses)->merge($usedStatuses)->unique()->filter()->values()->all(),
+            // Excluded even if a referral in this list actually has one of
+            // these statuses right now - the dropdown is never supposed to
+            // offer them, not just when nothing happens to have them yet.
+            'statuses'     => collect($allStatuses)->merge($usedStatuses)
+                ->reject(fn($s) => in_array($s, ['referred_tmdu', 'referred_external'], true))
+                ->unique()->filter()->values()->all(),
         ];
         $q = $base->with('student:id,student_id,first_name,last_name,college');
         // B597: the Dean dashboard's metric cards link here with a status
@@ -213,7 +228,8 @@ class ReferralController extends Controller
         $request->input('sort') === 'oldest'
             ? $q->orderBy('created_at')->orderBy('id')
             : $q->orderByDesc('created_at')->orderByDesc('id');
-        return array_merge($q->paginate(20)->toArray(), ['filter_options' => $options]);
+        // B#, 11/4/2026: matches Students' own page size (10) instead of 20.
+        return array_merge($q->paginate(10)->toArray(), ['filter_options' => $options]);
     }
 
     // The sender corrects a referral that GCU has not acknowledged yet.
@@ -350,13 +366,25 @@ class ReferralController extends Controller
             // referral's own SIF page surface the PAR results once TMDU has
             // issued them, without needing to open the Testing Record itself.
             'testingRecord',
-            'case.referrals.testingRecord.documents',
+            // B#, 11/4/2026: `content` (base64 file bytes, can be several
+            // MB on both of these) is already hidden from JSON via each
+            // model's $hidden, but a plain select(*) still pulls it off
+            // the DB on every referral view - this page only ever reads
+            // id/filename/type off a document and id/category/filename
+            // off an attachment; the files themselves are served through
+            // their own dedicated download routes.
+            'case.referrals.testingRecord.documents' => fn($q) => $q->select([
+                'id', 'documentable_type', 'documentable_id', 'original_filename',
+                'document_type', 'mime_type', 'file_size', 'description',
+                'is_confidential', 'uploaded_by_user_id', 'created_at',
+            ]),
             'case.referrals.testingRecord.tester',
             // For a disciplinary referral filed together with a Complaint
             // ("Incident Report"), pull in the full complaint + its evidence
             // so referrals/Show.vue can render it in place of the normal
             // Referral Info panel once acknowledged.
-            'complaint.complainee', 'complaint.filedBy', 'complaint.attachments',
+            'complaint.complainee', 'complaint.filedBy',
+            'complaint.attachments' => fn($q) => $q->select(['id', 'complaint_id', 'category', 'original_filename', 'mime_type']),
             'appointments',
             // Immutable Feedback Slip send history, newest first.
             'feedbackSlips.sentBy',
@@ -598,12 +626,26 @@ class ReferralController extends Controller
         $referral->abortIfLocked();
         abort_if($referral->referrerCanEdit(), 422, 'This referral has not been acknowledged yet - you can delete it directly instead.');
         abort_if($referral->void_requested_at, 422, 'A cancellation request is already pending for this referral.');
+        // B#, 11/4/2026: cancellation can only be requested while the
+        // referral is still acknowledged or scheduled - once it moves to
+        // 'in_progress' or a branch exit (Referred TMDU/External), it's
+        // already being acted on and only staff can end it from there.
+        abort_unless($referral->canRequestCancellation(), 422, 'Cancellation can only be requested while the referral is acknowledged or scheduled.');
 
         $data = $request->validate([
             'reason' => ['required', 'string', 'min:10', 'max:1000'],
         ]);
 
-        $referral->update(['void_requested_at' => now(), 'void_reason' => $data['reason']]);
+        return static::submitVoidRequest($referral, $data['reason']);
+    }
+
+    // B#, 11/4/2026: shared by the staff requestVoid() above and the
+    // student's StudentOutreachController::requestCancellation() - a
+    // student requesting cancellation of their own self-referral notifies
+    // the same unit, the same way, as a staff member requesting it.
+    public static function submitVoidRequest(Referral $referral, string $reason)
+    {
+        $referral->update(['void_requested_at' => now(), 'void_reason' => $reason]);
         AuditLog::record('updated', "Requested cancellation/void of referral {$referral->referral_code}.", $referral);
 
         $sduTypes  = ['disciplinary'];
@@ -1233,22 +1275,19 @@ class ReferralController extends Controller
 
         AuditLog::record('feedback_sent', "Sent feedback slip for referral {$referral->referral_code} to referrer.", $referral);
 
-        // Lets the student know their copy is ready in the student portal.
-        $referral->student?->notify(new \App\Notifications\FeedbackSlipSentNotification($referral));
-
-        // Bug (10/29/2026): referrers never received anything when a
-        // feedback slip was sent - only the referred student did. Tell
-        // whoever referred the case too, staff or student, the same way
-        // an existing referrer is found elsewhere in this controller
-        // (reassignment notices): staff via referred_by_user_id, student
-        // via referred_by_student_id. Skip when the student-referrer IS
-        // the referred student (a self-referral) - that's the same
-        // person already notified just above, so don't double-send.
+        // B#, 11/5/2026: the feedback slip is addressed to the referrer,
+        // not the referred student - the student used to get their own
+        // "your copy is ready" notification here too, which doesn't match
+        // how the slip is actually used (the referrer is the one who acts
+        // on it). Only the referrer is notified now: staff via
+        // referred_by_user_id, student via referred_by_student_id. A
+        // self-referral (student referred themselves) still gets exactly
+        // one notification, since there's no longer a separate
+        // student-side notify to double up with.
         $referrer = $referral->referred_by_user_id
             ? User::find($referral->referred_by_user_id)
             : ($referral->referred_by_student_id ? \App\Models\Student::find($referral->referred_by_student_id) : null);
-        $isSelfReferral = $referrer instanceof \App\Models\Student && $referrer->id === $referral->student_id;
-        if ($referrer && !$isSelfReferral) {
+        if ($referrer) {
             $referrer->notify(new \App\Notifications\FeedbackSlipSentNotification($referral, forReferrer: true));
         }
 

@@ -80,6 +80,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { caseReferralAPI } from '../../api/index';
 import CaseReferralView from '../../components/CaseReferralView.vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const items = ref([]);
 const loading = ref(true);
@@ -133,17 +134,19 @@ function resetFilters() {
   fetchItems();
 }
 
-async function fetchItems() {
-  loading.value = true;
+async function fetchItems(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const res = await caseReferralAPI.index({ search: search.value || undefined, status: status.value || undefined, per_page: 200 });
     items.value = res.data.data || res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
 onMounted(fetchItems);
+// Keeps the list current without a manual reload.
+useAutoRefresh(() => fetchItems(true), 25000);
 </script>

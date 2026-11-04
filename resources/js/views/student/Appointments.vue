@@ -62,7 +62,7 @@
       </div>
       <div v-else>
         <div
-          v-for="a in appointments"
+          v-for="a in pagedAppointments"
           :key="a.id"
           style="padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer"
           @click="$router.push({ name: 'student-appointment-show', params: { id: a.id } })"
@@ -86,13 +86,20 @@
             :title="isExpiredPending(a) ? 'The 7-day window to pick an appointment time has passed. Contact GCU for a new scheduling link.' : toTitleCase(a.status)"
           >{{ badgeLabel(a) }}</span>
         </div>
+        <div v-if="totalPages > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--stone)">Page {{ currentPage }} of {{ totalPages }}</span>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === 1" @click="page = currentPage - 1">Prev</button>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === totalPages" @click="page = currentPage + 1">Next</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
@@ -143,6 +150,22 @@ function badgeKind(a) {
 function badgeLabel(a) {
   return isExpiredPending(a) ? 'Expired' : toTitleCase(a.status);
 }
+
+// B#, 11/5/2026: client-side pagination, 10 per page. `page` only moves on
+// an explicit Prev/Next click or a new search - NOT the 25s background
+// poll, which reassigns `appointments` (a new array reference) even when
+// nothing changed and would otherwise bounce the student back to page 1
+// while reading page 2. `currentPage` clamps to whatever range still
+// exists if the list did shrink.
+const PER_PAGE = 10;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(appointments.value.length / PER_PAGE)));
+const currentPage = computed(() => Math.min(page.value, totalPages.value));
+const pagedAppointments = computed(() => {
+  const start = (currentPage.value - 1) * PER_PAGE;
+  return appointments.value.slice(start, start + PER_PAGE);
+});
+watch(searchQuery, () => { page.value = 1; });
 
 function goToSchedule(appt) {
   if (!appt?.id) return;

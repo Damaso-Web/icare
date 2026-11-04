@@ -85,6 +85,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { safeSearchInput, blockSpecialKeypress } from '../../utils/validators';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const router = useRouter();
 
@@ -106,8 +107,8 @@ const loading = ref(false);
 const filters = ref({ search: '', status: '' });
 let searchTimeout = null;
 
-async function fetchReports() {
-  loading.value = true;
+async function fetchReports(silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = {};
     if (filters.value.search) params.search = filters.value.search;
@@ -117,10 +118,9 @@ async function fetchReports() {
     // The per-status totals in the dropdown are for the whole list, not the filtered one.
     if (!filters.value.status) counts.value = res.data.counts || {};
   } catch (e) {
-    console.error(e);
-    reports.value = [];
+    if (!silent) { console.error(e); reports.value = []; }
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -151,4 +151,6 @@ function formatDate(d) {
 }
 
 onMounted(fetchReports);
+// Keeps the list current without a manual reload.
+useAutoRefresh(() => fetchReports(true), 25000);
 </script>

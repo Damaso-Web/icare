@@ -224,9 +224,10 @@
               maxlength="15"
               placeholder="e.g. 12345"
               :readonly="isEditing"
-              :style="(isEditing ? 'background:var(--snow);color:var(--stone);' : '') + errorStyle('employee_id')"
-              @input="userForm.employee_id = onlyDigits(userForm.employee_id); clearFieldError('employee_id')"
+              :style="(isEditing ? 'background:var(--snow);color:var(--stone);' : '') + (fieldErrors.employee_id || employeeIdDuplicate ? 'border-color:var(--red);border-width:1.5px' : '')"
+              @input="userForm.employee_id = onlyDigits(userForm.employee_id); clearFieldError('employee_id'); queueDuplicateCheck()"
             />
+            <div v-if="employeeIdDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">Employee ID already exists. Please enter a unique Employee ID.</div>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div>
@@ -236,8 +237,8 @@
                 class="ifi"
                 maxlength="20"
                 placeholder="Reyes"
-                :style="errorStyle('last_name')"
-                @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name)); clearFieldError('last_name')"
+                :style="(fieldErrors.last_name || nameDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="userForm.last_name = titleCase(onlyLetters(userForm.last_name)); clearFieldError('last_name'); queueDuplicateCheck()"
               />
             </div>
             <div>
@@ -247,11 +248,12 @@
                 class="ifi"
                 maxlength="20"
                 placeholder="Maria"
-                :style="errorStyle('first_name')"
-                @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name)); clearFieldError('first_name')"
+                :style="(fieldErrors.first_name || nameDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''"
+                @input="userForm.first_name = titleCase(onlyLetters(userForm.first_name)); clearFieldError('first_name'); queueDuplicateCheck()"
               />
             </div>
           </div>
+          <div v-if="nameDuplicate" style="font-size:11px;color:var(--red);margin-top:-6px">An employee with this name already exists.</div>
           <div style="display:grid;grid-template-columns:2fr 1fr;gap:12px">
             <div>
               <label class="ifl">Middle Name</label>
@@ -260,7 +262,7 @@
                 class="ifi"
                 placeholder="Santos"
                 maxlength="20"
-                @input="userForm.middle_name = titleCase(onlyLetters(userForm.middle_name)).slice(0, 20)"
+                @input="userForm.middle_name = titleCase(onlyLetters(userForm.middle_name)).slice(0, 20); queueDuplicateCheck()"
               />
             </div>
             <div>
@@ -280,11 +282,14 @@
               type="email"
               class="ifi"
               placeholder="name@bsu.edu.ph"
-              :style="errorStyle('email')"
-              @input="clearFieldError('email')"
+              :style="(fieldErrors.email || emailDuplicate) ? 'border-color:var(--red);border-width:1.5px' : ''"
+              @input="clearFieldError('email'); queueDuplicateCheck()"
             />
             <div v-if="userErrors.email" style="font-size:11px;color:var(--red);margin-top:4px">
               {{ userErrors.email }}
+            </div>
+            <div v-else-if="emailDuplicate" style="font-size:11px;color:var(--red);margin-top:4px">
+              This email address is already in use.
             </div>
           </div>
 
@@ -649,6 +654,7 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { userAPI } from '../../api/index';
 import ReasonDialog from '../../components/ReasonDialog.vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
 import { EMPLOYEE_DEACTIVATE_REASONS, reactivationReasonsFor } from '../../constants/accountReasons';
 import { useAuthStore } from '../../stores/auth';
@@ -899,6 +905,46 @@ const userErrors = computed(() => {
   return errs;
 });
 
+// B#, 11/4/2026: live duplicate detection for Employee ID, First/Middle/
+// Last Name, and Email on the Add/Edit Employee form - this form never
+// checked any of these live before (Employee ID and Email were only ever
+// caught at submit; Name wasn't checked at all). Mirrors the same pattern
+// already used on the Faculty form (FacultyController::checkDuplicate()).
+// Debounced so it doesn't fire an API call on every keystroke.
+const employeeIdDuplicate = ref(false);
+const nameDuplicate       = ref(false);
+const emailDuplicate      = ref(false);
+let duplicateCheckTimeout = null;
+
+function queueDuplicateCheck() {
+  clearTimeout(duplicateCheckTimeout);
+  duplicateCheckTimeout = setTimeout(async () => {
+    const f = userForm.value;
+    const params = { ignore_id: isEditing.value ? f.id : undefined };
+    if (f.employee_id) params.employee_id = f.employee_id;
+    if (f.first_name && f.last_name) {
+      params.first_name = f.first_name;
+      params.last_name = f.last_name;
+      if (f.middle_name) params.middle_name = f.middle_name;
+    }
+    if (f.email) params.email = f.email;
+    if (!params.employee_id && !params.first_name && !params.email) {
+      employeeIdDuplicate.value = false;
+      nameDuplicate.value = false;
+      emailDuplicate.value = false;
+      return;
+    }
+    try {
+      const res = await userAPI.checkDuplicate(params);
+      employeeIdDuplicate.value = params.employee_id ? !!res.data.employee_id_exists : false;
+      nameDuplicate.value       = params.first_name  ? !!res.data.name_exists        : false;
+      emailDuplicate.value      = params.email       ? !!res.data.email_exists       : false;
+    } catch (e) {
+      // A failed check never blocks typing - submit still re-checks for real.
+    }
+  }, 350);
+}
+
 const isUserFormUnchanged = computed(() =>
   isEditing.value && JSON.stringify(userForm.value) === userFormSnapshot.value
 );
@@ -975,8 +1021,8 @@ function onSearchLetters() {
   fetchUsers();
 }
 
-async function fetchUsers(page = 1) {
-  loading.value = true;
+async function fetchUsers(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = { ...filters.value, page };
     if (isFacultyView.value) params.role = 'faculty';
@@ -989,9 +1035,9 @@ async function fetchUsers(page = 1) {
     users.value      = [...res.data.data].sort((a, b) => (b.is_active ? 1 : 0) - (a.is_active ? 1 : 0));
     pagination.value = res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -1060,6 +1106,9 @@ function resetUserForm() {
   };
   if (addRoleOptions.value.length === 1) userForm.value.role = addRoleOptions.value[0].value;
   fieldErrors.value = {};
+  employeeIdDuplicate.value = false;
+  nameDuplicate.value = false;
+  emailDuplicate.value = false;
   generatePassword();
 }
 
@@ -1091,6 +1140,9 @@ function openEdit(u) {
   isEditing.value = true;
   formError.value = '';
   fieldErrors.value = {};
+  employeeIdDuplicate.value = false;
+  nameDuplicate.value = false;
+  emailDuplicate.value = false;
   showUserPreview.value = false;
   userForm.value  = { ...u, password: '', password_confirmation: '' };
   userFormSnapshot.value = JSON.stringify(userForm.value);
@@ -1146,6 +1198,11 @@ function goToUserPreview() {
     formError.value = 'Contact number must start with 09 and be 11 digits long.';
     return;
   }
+  // B#, 11/4/2026: the live check above is the final gate too - catches the
+  // case where the debounced check hasn't resolved yet when "Next" is clicked.
+  if (employeeIdDuplicate.value) { formError.value = 'Employee ID already exists. Please enter a unique Employee ID.'; return; }
+  if (nameDuplicate.value) { formError.value = 'An employee with this name already exists.'; return; }
+  if (emailDuplicate.value) { formError.value = 'This email address is already in use.'; return; }
   showUserPreview.value = true;
 }
 
@@ -1301,6 +1358,9 @@ onMounted(() => {
   fetchUsers();
   fetchManagementData();
 });
+// Keeps the list current without a manual reload. Skipped while a form is
+// open so it can't reorder the table behind an in-progress add/edit.
+useAutoRefresh(() => { if (!showModal.value) fetchUsers(pagination.value?.current_page || 1, true); }, 25000);
 
 watch(() => route.name, () => {
   filters.value = { search: '', status: '', role: '', college: '', department: '', sort_by: 'created_at', sort_dir: 'desc' };

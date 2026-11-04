@@ -54,6 +54,7 @@ import ListFilters from '../../components/ListFilters.vue';
 import { useRoute } from 'vue-router';
 import api, { studentAPI } from '../../api/index';
 import ComplaintPrintModal from '../../components/ComplaintPrintModal.vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const route = useRoute();
 const isStudent = !!route.meta.student;
@@ -77,8 +78,8 @@ const filterSelects = computed(() => [
 
 const fmt = d => (d ? new Date(d).toLocaleDateString() : '-');
 
-async function load(p = 1) {
-  loading.value = true;
+async function load(p = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = { page: p, sort: filters.sort };
     if (filters.search) params.search = filters.search;
@@ -90,9 +91,9 @@ async function load(p = 1) {
     page.value = res.data.current_page || 1;
     last.value = res.data.last_page || 1;
   } catch (e) {
-    rows.value = [];
+    if (!silent) rows.value = [];
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -112,4 +113,6 @@ async function open(c, thenPrint = false) {
 }
 
 onMounted(() => load());
+// Keeps the list current without a manual reload.
+useAutoRefresh(() => load(page.value, true), 25000);
 </script>

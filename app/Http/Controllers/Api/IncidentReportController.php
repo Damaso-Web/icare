@@ -91,7 +91,7 @@ class IncidentReportController extends Controller
 
     public function show(Student $student)
     {
-        $complaints = Complaint::with(['filedBy:id,name', 'attachments'])
+        $complaints = Complaint::with(array_merge(['filedBy:id,name'], ComplaintController::attachmentsLight()))
             ->where('complainee_student_id', $student->id)
             ->orderByDesc('created_at')
             ->get();

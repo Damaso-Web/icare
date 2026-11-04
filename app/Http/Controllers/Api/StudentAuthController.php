@@ -252,7 +252,21 @@ class StudentAuthController extends Controller
             ->latest()
             ->get();
 
+        // B#, 11/4/2026: counts of the referrals the STUDENT THEMSELVES sent
+        // (is_self_referred - see ReferSelf.vue), not every referral tied to
+        // them (staff/faculty can refer a student too, via "referrals" above
+        // - those aren't counted here). Same bucketing as the Faculty/Dean/
+        // Dept Chair "My Referrals/Awaiting/Received/Completed" stat cards
+        // on the staff Dashboard (DashboardController::facultyDashboard()).
+        $selfReferrals = \App\Models\Referral::where('student_id', $student->id)->where('is_self_referred', true);
+
         return response()->json([
+        'referral_stats' => [
+            'total'     => (clone $selfReferrals)->count(),
+            'awaiting'  => (clone $selfReferrals)->where('status', 'submitted')->count(),
+            'received'  => (clone $selfReferrals)->whereIn('status', ['acknowledged', 'scheduled', 'in_progress', 'referred_tmdu', 'referred_external'])->count(),
+            'completed' => (clone $selfReferrals)->whereIn('status', ['completed', 'closed'])->count(),
+        ],
         'appointments'          => $student->appointments()
             ->with(['staff', 'referral', 'case.latestReferral'])
             ->when($request->search, function ($q) use ($request) {
@@ -568,8 +582,16 @@ public function showTestingRecord(Request $request, $id)
 {
     $student = $request->user('student');
 
+    // B#, 11/4/2026: `content` (base64 file bytes, can be several MB) is
+    // hidden from JSON via the model's $hidden, but select(*) still
+    // pulls it off the DB every time - the student's own copy of the PAR
+    // is served separately through downloadPar() below.
     $record = TestingRecord::where('student_id', $student->id)
-        ->with(['case.latestReferral', 'tester', 'documents', 'referral'])
+        ->with(['case.latestReferral', 'tester', 'documents' => fn($q) => $q->select([
+            'id', 'documentable_type', 'documentable_id', 'original_filename',
+            'document_type', 'mime_type', 'file_size', 'description',
+            'is_confidential', 'uploaded_by_user_id', 'created_at',
+        ]), 'referral'])
         ->findOrFail($id);
 
     return response()->json($record);

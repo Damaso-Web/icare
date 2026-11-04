@@ -155,10 +155,11 @@ class CaseController extends Controller
         // B623 reverted (10/25/2026): gcu_staff is back to unit-wide
         // visibility on the Student Information Files list ("team model").
 
+        // B#, 11/4/2026: matches Students' own page size (10) instead of 20.
         return response()->json(
             $query->orderByRaw("CASE WHEN status IN ('resolved','closed') THEN 1 ELSE 0 END ASC")
                 ->orderBy('created_at', 'desc')
-                ->paginate(20)
+                ->paginate(10)
         );
     }
 
@@ -184,7 +185,18 @@ class CaseController extends Controller
                 'testingRecord',
                 'handoffs.fromUser',
                 'handoffs.toUser',
-                'documents',
+                // B#, 11/4/2026: `content` (base64 file bytes, can be
+                // several MB) is already hidden from this JSON via the
+                // model's $hidden, but a plain select(*) still fetches it
+                // from the DB on every case view - nothing here reads
+                // anything but these columns; the file itself is served
+                // separately (DocumentController), which queries the
+                // single row fresh.
+                'documents' => fn($q) => $q->select([
+                    'id', 'documentable_type', 'documentable_id', 'original_filename',
+                    'document_type', 'mime_type', 'file_size', 'description',
+                    'is_confidential', 'uploaded_by_user_id', 'created_at',
+                ]),
                 'parentConferenceSlips.issuedBy',
                 'parentConferenceSlips.notesRecordedBy',
             ])->toArray(),

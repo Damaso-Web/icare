@@ -104,7 +104,10 @@ class ComplaintController extends Controller
             });
         }
         $this->applySort($query, $request);
-        return array_merge($query->paginate(20)->toArray(), ['filter_options' => $options]);
+        // B#, 11/4/2026: matches Students' own page size (10) instead of
+        // 20 - shared by both "Sent Complaints" lists (staff's mine() and
+        // the student's mineByStudent()), so this applies to both.
+        return array_merge($query->paginate(10)->toArray(), ['filter_options' => $options]);
     }
 
     public function store(Request $request)
@@ -174,9 +177,24 @@ class ComplaintController extends Controller
 
     private function presentMine(Complaint $complaint)
     {
-        $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
+        $complaint->load(array_merge(['complainee', 'filedBy', 'filedByStudent'], self::attachmentsLight()));
         $complaint->attachments->each->append('url');
         return $complaint;
+    }
+
+    // B#, 11/4/2026: attachments carry their file bytes in `content` (base64,
+    // can be several MB) - already hidden from JSON via the model's $hidden,
+    // but that doesn't stop a plain select(*) from fetching it over the wire
+    // from the DB every time this loads, on every complaint view. Nothing
+    // here (or in the frontend - see ComplaintDetail.vue) reads anything but
+    // these columns; the actual file is served separately via attachment(),
+    // which queries the single row fresh. complaint_id is kept so the
+    // relation can still match rows back to their complaint. Public so
+    // IncidentReportController::show() (same attachments, same display use)
+    // can reuse it instead of duplicating the column list.
+    public static function attachmentsLight(): array
+    {
+        return ['attachments' => fn($q) => $q->select(['id', 'complaint_id', 'category', 'original_filename', 'mime_type'])];
     }
 
     private function file(Request $request, array $filer)
@@ -332,12 +350,12 @@ class ComplaintController extends Controller
             $student->notify(new FillOutFormsNotification());
         }
 
-        return $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
+        return $complaint->load(array_merge(['complainee', 'filedBy', 'filedByStudent'], self::attachmentsLight()));
     }
 
     public function show(Complaint $complaint)
     {
-        $complaint->load(['complainee', 'filedBy', 'filedByStudent', 'attachments']);
+        $complaint->load(array_merge(['complainee', 'filedBy', 'filedByStudent'], self::attachmentsLight()));
         // The download link is an accessor, so it has to be asked for.
         $complaint->attachments->each->append('url');
 
@@ -382,6 +400,6 @@ class ComplaintController extends Controller
 
         $complaint->update($validated);
 
-        return $complaint->load(['complainee', 'filedBy', 'attachments']);
+        return $complaint->load(array_merge(['complainee', 'filedBy'], self::attachmentsLight()));
     }
 }

@@ -49,6 +49,31 @@ class FacultyDuplicateValidationTest extends TestCase
         $this->assertFalse($res->json('employee_id_exists'));
     }
 
+    // B#, 11/4/2026: Middle Name (folded into the name match) and Email
+    // are now checked too.
+    public function test_check_duplicate_treats_a_different_middle_name_as_not_a_match(): void
+    {
+        $dean = $this->dean();
+        User::factory()->create(['role' => 'faculty', 'college' => $dean->college, 'first_name' => 'Juan', 'middle_name' => 'Garcia', 'last_name' => 'Cruz']);
+        Sanctum::actingAs($dean);
+
+        $res = $this->getJson('/api/faculty/check-duplicate?first_name=Juan&last_name=Cruz&middle_name=Reyes')->assertOk();
+        $this->assertFalse($res->json('name_exists'));
+
+        $res = $this->getJson('/api/faculty/check-duplicate?first_name=Juan&last_name=Cruz&middle_name=garcia')->assertOk();
+        $this->assertTrue($res->json('name_exists'));
+    }
+
+    public function test_check_duplicate_flags_an_existing_email(): void
+    {
+        $dean = $this->dean();
+        User::factory()->create(['role' => 'faculty', 'college' => $dean->college, 'email' => 'maria.santos@bsu.edu.ph']);
+        Sanctum::actingAs($dean);
+
+        $res = $this->getJson('/api/faculty/check-duplicate?email=MARIA.SANTOS@bsu.edu.ph')->assertOk();
+        $this->assertTrue($res->json('email_exists'));
+    }
+
     public function test_check_duplicate_ignores_the_record_being_edited(): void
     {
         $dean = $this->dean();

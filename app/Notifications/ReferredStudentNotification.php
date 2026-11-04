@@ -76,9 +76,18 @@ class ReferredStudentNotification extends Notification
 
     public function toArray(object $notifiable): array
     {
+        // B#, 11/5/2026: this used to say "Please go to My Account and
+        // update your details" and the bell click routed every
+        // referred_student notification straight to My Account regardless
+        // of what it was about - a referral notice has nothing to do with
+        // profile fields. It now just states what happened plus the
+        // referral code, and includes referral_id so the frontend's
+        // studentNotificationTarget() can route to that referral instead
+        // (see resources/js/utils/notificationTarget.js).
         return [
-            'type'    => 'referred_student',
-            'message' => "You have been referred by {$this->referral->referrer_name} to the {$this->unit()}. Please go to My Account and update your details.",
+            'type'        => 'referred_student',
+            'referral_id' => $this->referral->id,
+            'message'     => "You have been referred by {$this->referral->referrer_name} to the {$this->unit()}. Referral code: {$this->referral->referral_code}.",
         ];
     }
 }

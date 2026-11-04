@@ -188,4 +188,26 @@ class StudentOutreachController extends Controller
             $request
         );
     }
+
+    // B#, 11/4/2026: a student can ask to cancel a self-referral they sent
+    // only while it is acknowledged or scheduled - same rule and same
+    // shared void-request flow as a staff referrer (see
+    // ReferralController::requestVoid()/submitVoidRequest() and
+    // Referral::canRequestCancellation()). While it's still unacknowledged
+    // ('submitted') they cancel it directly via updateSent() with
+    // is_archived instead.
+    public function requestCancellation(Request $request, $id)
+    {
+        $referral = Referral::where('referred_by_student_id', $request->user('student')->id)->findOrFail($id);
+        $referral->abortIfLocked();
+        abort_if($referral->referrerCanEdit(), 422, 'This referral has not been acknowledged yet - you can cancel it directly instead.');
+        abort_if($referral->void_requested_at, 422, 'A cancellation request is already pending for this referral.');
+        abort_unless($referral->canRequestCancellation(), 422, 'Cancellation can only be requested while the referral is acknowledged or scheduled.');
+
+        $data = $request->validate([
+            'reason' => ['required', 'string', 'min:10', 'max:1000'],
+        ]);
+
+        return ReferralController::submitVoidRequest($referral, $data['reason']);
+    }
 }

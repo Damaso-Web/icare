@@ -132,6 +132,45 @@ class UserController extends Controller
         );
     }
 
+    // B#, 11/4/2026: lets the Add/Edit User form (User Management - staff
+    // accounts, not Faculty/Students, which have their own equivalent
+    // checks) check Employee ID, Name, and Email for a duplicate as the
+    // admin types, before they submit - the same checks store()/update()
+    // enforce below (employeeIdUnique(), UniqueAccountEmail), plus a name
+    // check this form never had at all. Not scoped by college/department
+    // (unlike Faculty's own checkDuplicate()) - User Management spans
+    // every office (GCU, TMDU, SDU, admin), not one college.
+    public function checkDuplicate(Request $request)
+    {
+        $employeeId = trim((string) $request->query('employee_id', ''));
+        $firstName  = trim((string) $request->query('first_name', ''));
+        $middleName = trim((string) $request->query('middle_name', ''));
+        $lastName   = trim((string) $request->query('last_name', ''));
+        $email      = trim((string) $request->query('email', ''));
+        $ignoreId   = $request->query('ignore_id');
+
+        $employeeIdExists = $employeeId !== '' && User::where('employee_id', $employeeId)
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        $nameExists = $firstName !== '' && $lastName !== '' && User::query()
+            ->whereRaw('LOWER(first_name) = LOWER(?)', [$firstName])
+            ->whereRaw('LOWER(last_name) = LOWER(?)', [$lastName])
+            ->when($middleName !== '', fn($q) => $q->whereRaw('LOWER(middle_name) = LOWER(?)', [$middleName]))
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        $emailExists = $email !== '' && User::whereRaw('LOWER(email) = LOWER(?)', [$email])
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        return response()->json([
+            'employee_id_exists' => $employeeIdExists,
+            'name_exists'        => $nameExists,
+            'email_exists'       => $emailExists,
+        ]);
+    }
+
     public function index(Request $request)
     {
         $query = $this->scopeManaged(User::query(), $request->user())
@@ -155,7 +194,9 @@ class UserController extends Controller
             $query->orderBy($sortBy, $sortDir);
         }
 
-        return response()->json($query->paginate(20));
+        // B#, 11/4/2026: matches Students' own page size (StudentController
+        // already defaults to 10) instead of its own, different 20.
+        return response()->json($query->paginate(10));
     }
 
         public function store(Request $request)
@@ -948,6 +989,18 @@ class UserController extends Controller
         $skipped   = 0;
         $errors    = [];
         $passwords = [];
+        // B#, 11/4/2026: new rows used to go through User::create() one at a
+        // time - each one its own INSERT round-trip to the (remote, Aiven)
+        // database. That's fine for a handful of rows, but a 2500-row Faculty/
+        // Employee masterlist meant 2500 separate round-trips, which is what
+        // made clicking "Confirm" on a big upload feel like it hung. New rows
+        // are now collected here and bulk-inserted in chunks after the loop
+        // (StudentController::importConfirm() already does this). Existing
+        // rows still go through ->update() one at a time below - updates are
+        // normally a small minority of any upload, so that round-trip cost
+        // isn't the bottleneck the way thousands of new rows is.
+        $inserts   = [];
+        $now       = now();
 
         foreach ($rows as $i => $row) {
             $decision = $decisions[$i] ?? 'skip';
@@ -991,51 +1044,80 @@ class UserController extends Controller
                 'contact_number' => $row['contact_number'] ?? null,
             ];
 
+            if ($existingUser) {
+                // decision is 'update' (or 'create' re-hitting an existing
+                // email, which is also treated as an update to avoid a
+                // duplicate-email database error).
+                $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
+                $updated++;
+                continue;
+            }
+
+            // B#, 11/4/2026: this used to call Hash::make() twice at the
+            // full ~10-12 round cost for every new row - 300 new
+            // employees meant 600 full-cost bcrypt hashes, which is what
+            // made a big masterlist upload take minutes. password and
+            // temp_password are hashes of the exact same random string,
+            // so hash it once and reuse the result for both columns.
+            // Cost is also dropped to 4 rounds, same as
+            // StudentController::importConfirm()'s already-established
+            // fix for the same slowdown on the Student masterlist: this
+            // hash only ever needs to verify ONE login, because
+            // must_change_password forces a real (full-cost) password
+            // immediately after, so a cheaper cost here trades nothing
+            // meaningful for the huge speedup on a big upload.
+            $tempPassword = Str::random(10);
+            $tempPasswordHash = Hash::make($tempPassword, ['rounds' => 4]);
+            // Raw insert() below bypasses Eloquent events, so the 'name'
+            // computed by User::booted()'s saving() listener (first + middle
+            // + last + suffix, trimmed and filtered) is reproduced here by
+            // hand, rather than the first+last-only version in $payload above
+            // (kept as-is for the ->update() path, where the listener still
+            // runs and recomputes it anyway).
+            $inserts[] = array_merge($payload, [
+                'name'                  => implode(' ', array_filter(
+                    array_map('trim', [$row['first_name'] ?? '', $row['middle_name'] ?? '', $row['last_name'] ?? '', $row['suffix'] ?? '']),
+                    'strlen'
+                )),
+                'password'              => $tempPasswordHash,
+                // B643: hashed - the plaintext below is the only place this is shown.
+                'temp_password'         => $tempPasswordHash,
+                'must_change_password'  => true,
+                'is_active'             => true,
+                'created_at'            => $now,
+                'updated_at'            => $now,
+            ]);
+            $passwords[] = [
+                'email'         => $row['email'],
+                'name'          => $inserts[array_key_last($inserts)]['name'],
+                'temp_password' => $tempPassword,
+            ];
+            $created++;
+        }
+
+        // Bulk insert - one query per 500 rows instead of one per row. A
+        // chunk that fails (e.g. two rows in this same file share an
+        // Employee ID neither of us caught yet) falls back to inserting
+        // that chunk one row at a time, so only the actual offending row(s)
+        // are skipped instead of losing the whole chunk.
+        if (!empty($inserts)) {
+            foreach (array_chunk($inserts, 500) as $chunk) {
+                try {
+                    \Illuminate\Support\Facades\DB::transaction(function () use ($chunk) {
+                        User::insert($chunk);
+                    });
+                } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                    foreach ($chunk as $insertRow) {
                         try {
-                if ($existingUser) {
-                    // decision is 'update' (or 'create' re-hitting an existing
-                    // email, which is also treated as an update to avoid a
-                    // duplicate-email database error).
-                    $existingUser->update(array_filter($payload, fn($v) => $v !== null && $v !== ''));
-                    $updated++;
-                } else {
-                    // B#, 11/4/2026: this used to call Hash::make() twice at the
-                    // full ~10-12 round cost for every new row - 300 new
-                    // employees meant 600 full-cost bcrypt hashes, which is what
-                    // made a big masterlist upload take minutes. password and
-                    // temp_password are hashes of the exact same random string,
-                    // so hash it once and reuse the result for both columns.
-                    // Cost is also dropped to 4 rounds, same as
-                    // StudentController::importConfirm()'s already-established
-                    // fix for the same slowdown on the Student masterlist: this
-                    // hash only ever needs to verify ONE login, because
-                    // must_change_password forces a real (full-cost) password
-                    // immediately after, so a cheaper cost here trades nothing
-                    // meaningful for the huge speedup on a big upload.
-                    $tempPassword = Str::random(10);
-                    $tempPasswordHash = Hash::make($tempPassword, ['rounds' => 4]);
-                    $payload['password']             = $tempPasswordHash;
-                    // B643: hashed - the plaintext below is the only place this is shown.
-                    $payload['temp_password']        = $tempPasswordHash;
-                    $payload['must_change_password'] = true;
-                    $payload['is_active']            = true;
-
-                    $user = User::create($payload);
-
-                    $passwords[] = [
-                        'email'         => $user->email,
-                        'name'          => $user->name,
-                        'temp_password' => $tempPassword,
-                    ];
-                    $created++;
+                            User::insert([$insertRow]);
+                        } catch (\Illuminate\Database\UniqueConstraintViolationException $e2) {
+                            $created--;
+                            $skipped++;
+                            $errors[] = "Could not save {$insertRow['email']} - a unique field (such as Employee ID) is already in use.";
+                            $passwords = array_values(array_filter($passwords, fn($p) => $p['email'] !== $insertRow['email']));
+                        }
+                    }
                 }
-            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
-                // A duplicate value on some other unique column (e.g.
-                // employee_id reused across rows or already taken by an
-                // existing account) must not crash the whole batch - skip
-                // just this row and report it.
-                $skipped++;
-                $errors[] = 'Row ' . ($i + 2) . ": could not save {$row['email']} - a unique field (such as Employee ID) is already in use.";
             }
         }
 

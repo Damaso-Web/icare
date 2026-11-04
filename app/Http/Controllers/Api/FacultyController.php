@@ -90,11 +90,16 @@ class FacultyController extends UserController
     // duplicate as the Dean/Dept Chair types, before they submit - the same
     // checks store()/update() enforce below, just reachable without a save
     // attempt.
+    // B#, 11/4/2026: also checks Middle Name (folded into the name match
+    // whenever it's filled in, same as Students' own checkDuplicateName())
+    // and Email, neither of which were checked here before.
     public function checkDuplicate(Request $request)
     {
         $employeeId = trim((string) $request->query('employee_id', ''));
         $firstName  = trim((string) $request->query('first_name', ''));
+        $middleName = trim((string) $request->query('middle_name', ''));
         $lastName   = trim((string) $request->query('last_name', ''));
+        $email      = trim((string) $request->query('email', ''));
         $ignoreId   = $request->query('ignore_id');
 
         $employeeIdExists = $employeeId !== '' && User::where('employee_id', $employeeId)
@@ -104,12 +109,18 @@ class FacultyController extends UserController
         $nameExists = $firstName !== '' && $lastName !== '' && $this->scoped($request)
             ->whereRaw('LOWER(first_name) = LOWER(?)', [$firstName])
             ->whereRaw('LOWER(last_name) = LOWER(?)', [$lastName])
+            ->when($middleName !== '', fn($q) => $q->whereRaw('LOWER(middle_name) = LOWER(?)', [$middleName]))
+            ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
+            ->exists();
+
+        $emailExists = $email !== '' && User::whereRaw('LOWER(email) = LOWER(?)', [$email])
             ->when($ignoreId, fn($q) => $q->where('id', '!=', $ignoreId))
             ->exists();
 
         return response()->json([
             'employee_id_exists' => $employeeIdExists,
             'name_exists'        => $nameExists,
+            'email_exists'       => $emailExists,
         ]);
     }
 

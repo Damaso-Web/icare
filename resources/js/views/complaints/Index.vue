@@ -90,6 +90,7 @@ import ListFilters from '../../components/ListFilters.vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import ComplaintDetail from '../../components/ComplaintDetail.vue';
+import { useAutoRefresh } from '../../utils/useAutoRefresh';
 
 const router = useRouter();
 
@@ -109,8 +110,8 @@ const filterSelects = computed(() => [
   { key: 'filed_by', all: 'All Filers', options: options.value.filers },
 ]);
 
-async function fetchComplaints(page = 1) {
-  loading.value = true;
+async function fetchComplaints(page = 1, silent = false) {
+  if (!silent) loading.value = true;
   try {
     const params = { page };
     params.sort = filters.sort;
@@ -122,9 +123,9 @@ async function fetchComplaints(page = 1) {
     complaints.value = res.data.data;
     pagination.value = res.data;
   } catch (e) {
-    console.error(e);
+    if (!silent) console.error(e);
   } finally {
-    loading.value = false;
+    if (!silent) loading.value = false;
   }
 }
 
@@ -158,4 +159,7 @@ function openIncidentReport(c) {
 }
 
 onMounted(() => fetchComplaints());
+// Keeps the queue current without a manual reload (e.g. a newly filed
+// complaint appears on its own).
+useAutoRefresh(() => fetchComplaints(pagination.value?.current_page || 1, true), 25000);
 </script>

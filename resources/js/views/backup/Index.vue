@@ -91,6 +91,18 @@
           </tbody>
         </table>
       </div>
+      <!-- B#, 11/4/2026: the list was always just backupAPI.index()'s first
+           page (20 rows) with no way to see anything older - there was
+           never a Prev/Next control at all, so a 21st backup effectively
+           vanished from view. Added proper paging, same pattern as the
+           other list pages (Users, Cases, Complaints), at 10 per page. -->
+      <div v-if="pagination.last_page > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--stone)">Showing {{ pagination.from }}-{{ pagination.to }} of {{ pagination.total }}</span>
+        <div style="display:flex;gap:8px">
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === 1" @click="fetchBackups(pagination.current_page - 1)">Prev</button>
+          <button class="ibtn ibtn-o ibtn-sm" :disabled="pagination.current_page === pagination.last_page" @click="fetchBackups(pagination.current_page + 1)">Next</button>
+        </div>
+      </div>
     </div>
 
     <!-- Restore Confirmation Modal -->
@@ -129,6 +141,7 @@ const loading = ref(true);
 const running = ref(false);
 const restoring = ref(false);
 const backups = ref([]);
+const pagination = ref({});
 const latestVerified = ref({ data: null, config: null });
 
 const restoreTarget = ref(null);
@@ -146,13 +159,23 @@ function statusStyle(b) {
   return 'background:var(--cloud);color:var(--stone)';
 }
 
-async function fetchBackups() {
+async function fetchBackups(page = 1) {
   loading.value = true;
   try {
-    const res = await backupAPI.index();
+    const res = await backupAPI.index({ page });
     backups.value = res.data.data || res.data;
-    latestVerified.value.data = backups.value.find(b => b.type === 'data' && b.status === 'completed' && b.verified) || null;
-    latestVerified.value.config = backups.value.find(b => b.type === 'config' && b.status === 'completed' && b.verified) || null;
+    pagination.value = res.data;
+    // B#, 11/4/2026: the "most recent verified backup" cards above the
+    // history table used to be recomputed from whatever page was loaded -
+    // now that the history table actually pages, browsing to an older page
+    // would wrongly recompute these from only that page's (older) rows.
+    // Only page 1 - ordered newest-first - can contain the true most
+    // recent verified backup of each type, so only update these two off
+    // page 1; paging further just browses history, without disturbing them.
+    if (page === 1) {
+      latestVerified.value.data = backups.value.find(b => b.type === 'data' && b.status === 'completed' && b.verified) || null;
+      latestVerified.value.config = backups.value.find(b => b.type === 'config' && b.status === 'completed' && b.verified) || null;
+    }
   } catch (e) {
     console.error(e);
   } finally {

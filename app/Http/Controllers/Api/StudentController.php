@@ -973,24 +973,44 @@ class StudentController extends Controller
         return $rows;
     }
 
+    // B#, 11/4/2026: also checks Student ID and Email for a live, hard
+    // duplicate (either one is a straight-up uniqueness violation, unlike a
+    // name match - two different real students can share a name, which is
+    // why that stays a soft "is this the same person?" check instead of a
+    // hard block). first_name/last_name are no longer required here so the
+    // Add Student form can call this as soon as just a Student ID or Email
+    // is typed in, before any name is entered at all.
     public function checkDuplicateName(Request $request)
     {
         $request->validate([
-            'first_name' => 'required|string',
-            'last_name'  => 'required|string',
+            'first_name' => 'nullable|string',
+            'last_name'  => 'nullable|string|required_with:first_name',
+            'student_id' => 'nullable|string',
+            'email'      => 'nullable|string',
         ]);
 
-        $existingQuery = Student::where('first_name', $request->first_name)
-            ->where('last_name', $request->last_name)
-            ->when($request->filled('middle_name'), fn($q) => $q->where('middle_name', $request->middle_name));
+        $existing = null;
+        if ($request->filled('first_name') && $request->filled('last_name')) {
+            $existing = Student::where('first_name', $request->first_name)
+                ->where('last_name', $request->last_name)
+                ->when($request->filled('middle_name'), fn($q) => $q->where('middle_name', $request->middle_name))
+                // Bug (11/3/2026, reverted same day): this used to match the
+                // same college/department scope as student search - removed
+                // along with it, same team decision (see index()'s own
+                // comment).
+                ->first();
+        }
 
-        // Bug (11/3/2026, reverted same day): this used to match the same
-        // college/department scope as student search - removed along with
-        // it, same team decision (see index()'s own comment).
-        $existing = $existingQuery->first();
+        $studentIdExists = $request->filled('student_id')
+            && Student::where('student_id', trim((string) $request->student_id))->exists();
+
+        $emailExists = $request->filled('email')
+            && Student::whereRaw('LOWER(email) = LOWER(?)', [trim((string) $request->email)])->exists();
 
         return response()->json([
-            'duplicate_found' => (bool) $existing,
+            'duplicate_found'    => (bool) $existing,
+            'student_id_exists'  => $studentIdExists,
+            'email_exists'       => $emailExists,
             // Return only the fields consumed by the duplicate confirmation
             // dialog; never serialize the full Student model here.
             'existing_student' => $existing ? [

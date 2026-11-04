@@ -72,4 +72,22 @@ class SentListFiltersTest extends TestCase
         $this->assertContains('Cheating', $c->json('filter_options.violation_types'));
         $this->assertEqualsCanonicalizing(['pending', 'under_review', 'resolved'], $c->json('filter_options.statuses'));
     }
+
+    // B#, 11/4/2026: "Referred TMDU" and "Referred External" are removed
+    // from the Sent Referrals status filter dropdown - even for a referral
+    // that actually has one of those statuses right now.
+    public function test_sent_referrals_never_offers_referred_tmdu_or_referred_external_as_status_filters(): void
+    {
+        $gcu = User::factory()->create(['role' => 'gcu_staff', 'is_active' => true]);
+        Sanctum::actingAs($gcu);
+        \App\Models\Referral::factory()->create(['referred_by_user_id' => $gcu->id, 'status' => 'referred_tmdu']);
+        \App\Models\Referral::factory()->create(['referred_by_user_id' => $gcu->id, 'status' => 'referred_external']);
+
+        $res = $this->getJson('/api/my/referrals')->assertOk();
+        $this->assertNotContains('referred_tmdu', $res->json('filter_options.statuses'));
+        $this->assertNotContains('referred_external', $res->json('filter_options.statuses'));
+        // The referrals themselves still show up in the list - only the
+        // filter OPTION is gone, not the records or their real status.
+        $this->assertCount(2, $res->json('data'));
+    }
 }

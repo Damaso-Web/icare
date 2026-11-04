@@ -308,11 +308,11 @@
               <input v-model="scheduleForm.appointment_date" type="date" class="ifi" :min="todayStr" />
               <input v-model="scheduleForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
               <input v-model="scheduleForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
-              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent || !!scheduleBlockedMsg" @click="applyScheduleStudent">
+              <button class="ibtn ibtn-p ibtn-sm" style="justify-content:center;white-space:nowrap" :disabled="!scheduleForm.appointment_date || !scheduleForm.start_time || !scheduleForm.end_time || schedulingStudent || !!scheduleWarningMsg" @click="applyScheduleStudent">
                 {{ schedulingStudent ? 'Scheduling...' : 'Schedule Now' }}
               </button>
             </div>
-            <div v-if="scheduleBlockedMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ scheduleBlockedMsg }}</div>
+            <div v-if="scheduleWarningMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ scheduleWarningMsg }}</div>
           </div>
 
           <!-- Admin / GCU Staff only: manually override the appointment's status -->
@@ -519,11 +519,11 @@
               <input v-model="rescheduleNowForm.start_time" type="time" class="ifi" min="08:00" max="16:00" />
               <input v-model="rescheduleNowForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
             </div>
-            <div v-if="rescheduleNowBlockedMsg" style="font-size:11px;color:var(--red)">{{ rescheduleNowBlockedMsg }}</div>
+            <div v-if="rescheduleNowWarningMsg" style="font-size:11px;color:var(--red)">{{ rescheduleNowWarningMsg }}</div>
             <button
               class="ibtn ibtn-p ibtn-sm"
               style="justify-content:center"
-              :disabled="!rescheduleNowForm.appointment_date || !rescheduleNowForm.start_time || !rescheduleNowForm.end_time || reschedulingNow || !!rescheduleNowBlockedMsg"
+              :disabled="!rescheduleNowForm.appointment_date || !rescheduleNowForm.start_time || !rescheduleNowForm.end_time || reschedulingNow || !!rescheduleNowWarningMsg"
               @click="submitRescheduleNow"
             >
               {{ reschedulingNow ? 'Rescheduling...' : 'Reschedule Now' }}
@@ -643,6 +643,31 @@ const overrideForm = ref({ target: '', reason: '' });
 const overridingStatus = ref(false);
 async function applyOverride() {
   if (!detailTarget.value || overridingStatus.value) return;
+
+  // B#, 11/4/2026: overriding straight to a "handled" status (anything but
+  // back to awaiting_student) used to go through silently even when this
+  // appointment's case file never actually got a real appointment date -
+  // request_status is still awaiting_student, which means the
+  // appointment_date/start_time/end_time on this record are either empty
+  // or a stale leftover from before a reschedule request reopened it (see
+  // reopenForStudent() - those fields aren't cleared, they're just no
+  // longer current). A status override only changes the status column; it
+  // never sets a real date. Staff now get a heads-up before it goes
+  // through, so they're aware the student still needs an actual
+  // appointment either way.
+  if (detailTarget.value.request_status === 'awaiting_student' && overrideForm.value.target !== 'awaiting_student') {
+    const proceed = confirmAction
+      ? await confirmAction({
+          title: 'Student Has No Appointment Date Yet',
+          message: "This student's case file doesn't have a current appointment date - they're still waiting to pick (or be given) a schedule. Overriding the status here only changes the status; it does not set a date. The student still needs an actual appointment even after this override. Continue anyway?",
+          confirmText: 'Yes, Override Anyway',
+          cancelText: 'Never Mind',
+          danger: true,
+        })
+      : true;
+    if (!proceed) return;
+  }
+
   overridingStatus.value = true;
   try {
     const res = await appointmentAPI.overrideStatus(detailTarget.value.id, {
@@ -693,6 +718,44 @@ function dateOrTimeBlockedMsg(d, start, end) {
   return dateBlockedMsg(d) || officeHoursMessage(start, end);
 }
 const scheduleBlockedMsg = computed(() => dateOrTimeBlockedMsg(scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time));
+
+// ---- Live conflict checking (Schedule Now / Reschedule Now) ----
+// B#, 11/4/2026: before this, nothing checked whether a slot was actually
+// free until the Confirm/Reschedule Now button was clicked and the backend
+// rejected it with a 422 - staff had no way to know ahead of time. This
+// calls the same /appointments/check-conflict endpoint the student's own
+// self-booking already uses, with the exact same inputs the backend's
+// own unit-wide overlap check runs on (date + start_time + end_time),
+// excluding the appointment being scheduled/rescheduled itself so it
+// never conflicts with its own current slot.
+async function checkSlotConflict(unit, date, start, end, excludeId) {
+  if (!unit || !date || !start || !end) return '';
+  try {
+    const res = await appointmentAPI.checkConflict({
+      unit, appointment_date: date, start_time: start, end_time: end, exclude_id: excludeId,
+    });
+    if (res.data.blocked) return res.data.message || 'This date is not available.';
+    if (res.data.has_conflict) return 'This time slot conflicts with another appointment for this unit. Please pick another.';
+    return '';
+  } catch (e) {
+    return '';
+  }
+}
+
+let scheduleConflictDebounce = null;
+const scheduleConflictMsg = ref('');
+watch(() => [scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time], () => {
+  scheduleConflictMsg.value = '';
+  clearTimeout(scheduleConflictDebounce);
+  if (!detailTarget.value || scheduleBlockedMsg.value) return;
+  scheduleConflictDebounce = setTimeout(async () => {
+    scheduleConflictMsg.value = await checkSlotConflict(
+      detailTarget.value.unit, scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time, detailTarget.value.id
+    );
+  }, 350);
+});
+const scheduleWarningMsg = computed(() => scheduleBlockedMsg.value || scheduleConflictMsg.value);
+
 const schedulingStudent = ref(false);
 async function applyScheduleStudent() {
   if (!detailTarget.value || schedulingStudent.value) return;
@@ -1011,6 +1074,21 @@ async function submitReschedule() {
 const rescheduleNowForm = ref({ appointment_date: '', start_time: '', end_time: '' });
 const reschedulingNow = ref(false);
 const rescheduleNowBlockedMsg = computed(() => dateOrTimeBlockedMsg(rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time));
+
+// B#, 11/4/2026: same live conflict check as Schedule Now above.
+let rescheduleConflictDebounce = null;
+const rescheduleNowConflictMsg = ref('');
+watch(() => [rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time], () => {
+  rescheduleNowConflictMsg.value = '';
+  clearTimeout(rescheduleConflictDebounce);
+  if (!rescheduleTarget.value || rescheduleNowBlockedMsg.value) return;
+  rescheduleConflictDebounce = setTimeout(async () => {
+    rescheduleNowConflictMsg.value = await checkSlotConflict(
+      rescheduleTarget.value.unit, rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time, rescheduleTarget.value.id
+    );
+  }, 350);
+});
+const rescheduleNowWarningMsg = computed(() => rescheduleNowBlockedMsg.value || rescheduleNowConflictMsg.value);
 
 async function submitRescheduleNow() {
   reschedulingNow.value = true;

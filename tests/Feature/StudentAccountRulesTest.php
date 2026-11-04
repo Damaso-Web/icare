@@ -86,6 +86,32 @@ class StudentAccountRulesTest extends TestCase
         $this->getJson('/api/student/dashboard')->assertJsonPath('student.program', 'BS Nursing');
     }
 
+    // B#, 11/4/2026: the student dashboard's `referral_stats` counts only
+    // the referrals the STUDENT THEMSELVES sent (is_self_referred=true) -
+    // same Total/Awaiting/Received/Completed bucketing the staff Dashboard
+    // uses for Dean/Dept Chair/Faculty ("My Referrals" stat cards), scoped
+    // here to self-referrals only. A referral staff made ABOUT this
+    // student (is_self_referred=false) must not be counted.
+    public function test_dashboard_referral_stats_counts_only_self_sent_referrals(): void
+    {
+        $s = $this->student();
+        Sanctum::actingAs($s, [], 'student');
+
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => true, 'status' => 'submitted']);
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => true, 'status' => 'acknowledged']);
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => true, 'status' => 'referred_tmdu']);
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => true, 'status' => 'completed']);
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => true, 'status' => 'closed']);
+        // Staff referred this student (not self-referred) - must not count.
+        \App\Models\Referral::factory()->create(['student_id' => $s->id, 'is_self_referred' => false, 'status' => 'submitted']);
+
+        $r = $this->getJson('/api/student/dashboard')->assertOk();
+        $r->assertJsonPath('referral_stats.total', 5)
+            ->assertJsonPath('referral_stats.awaiting', 1)
+            ->assertJsonPath('referral_stats.received', 2)
+            ->assertJsonPath('referral_stats.completed', 2);
+    }
+
     // B522/B528: an implausibly young father/mother or an under-25 guardian is refused.
     public function test_parent_and_guardian_age_rules(): void
     {

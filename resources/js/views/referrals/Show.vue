@@ -35,7 +35,7 @@
 
       <!-- Override Status (GCU Head) -->
       <div v-if="refOverride.open" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="refOverride.open = false">
-        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:420px;overflow:hidden;box-shadow:var(--sh-lg)">
+        <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:480px;overflow:hidden;box-shadow:var(--sh-lg)">
           <div style="padding:20px 22px;border-bottom:1px solid var(--cloud);display:flex;align-items:center;justify-content:space-between">
             <div style="font-size:15px;font-weight:600;color:var(--ink)">Override Referral Status</div>
           </div>
@@ -54,10 +54,14 @@
                  same as "Schedule Now". -->
             <div v-if="refOverride.status === 'scheduled'" style="display:flex;flex-direction:column;gap:8px;background:var(--foam);border-radius:var(--r-sm);padding:10px 12px">
               <label class="ifl">Appointment Date &amp; Time <span style="color:var(--red)">*</span></label>
+              <!-- B#, 11/5/2026: at min-width:100px the native time input's
+                   AM/PM segment got clipped - widened instead of letting it
+                   wrap to its own line, so date + both times still read on
+                   one row. -->
               <div style="display:flex;flex-wrap:wrap;gap:8px">
-                <input v-model="refOverride.appointment_date" type="date" class="ifi" style="flex:1;min-width:130px" />
-                <input v-model="refOverride.start_time" type="time" class="ifi" style="flex:1;min-width:100px" />
-                <input v-model="refOverride.end_time" type="time" class="ifi" style="flex:1;min-width:100px" />
+                <input v-model="refOverride.appointment_date" type="date" class="ifi" style="flex:1;min-width:140px" />
+                <input v-model="refOverride.start_time" type="time" class="ifi" style="flex:1;min-width:130px" />
+                <input v-model="refOverride.end_time" type="time" class="ifi" style="flex:1;min-width:130px" />
               </div>
             </div>
             <div>
@@ -2890,10 +2894,14 @@ async function deleteReferral() {
 
 
 // Once acknowledged, the referrer can no longer delete outright - they can
-// ask the owning unit to void it instead, until it's resolved/closed/archived.
+// ask the owning unit to void it instead, but only up through 'scheduled'
+// (mirrors the backend's Referral::canRequestCancellation()). Once it
+// moves to 'in_progress', resolves, or branch-exits (Referred TMDU/
+// External), it's already being acted on, so this stops being offered.
 const canRequestVoid = computed(() => {
   const r = referral.value;
-  return isReferrerOfThis.value && !!r?.acknowledged_at && !isResolved.value && !r.void_requested_at;
+  return isReferrerOfThis.value && !!r?.acknowledged_at && !r?.void_requested_at && !r?.is_archived
+    && !['in_progress', 'referred_tmdu', 'referred_external', 'completed', 'closed', 'cancelled'].includes(r?.status);
 });
 const showVoidModal = ref(false);
 const voidReason = ref('');

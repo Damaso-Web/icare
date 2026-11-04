@@ -202,6 +202,28 @@ class StudentProfileManagementTest extends TestCase
         $this->assertFalse($res->json('duplicate_found'));
     }
 
+    // B#, 11/4/2026: Student ID and Email are now checked too (live, on the
+    // Add Student form), and no name is required to call this at all - a
+    // Student ID or Email alone is enough to check.
+    public function test_check_duplicate_name_also_reports_student_id_and_email_matches(): void
+    {
+        Student::factory()->create(['student_id' => '2302021', 'email' => 'juan@bsu.edu.ph']);
+        $this->actingAs($this->gcuStaff());
+
+        $res = $this->postJson('/api/students/check-duplicate-name', ['student_id' => '2302021'])->assertOk();
+        $this->assertTrue($res->json('student_id_exists'));
+        $this->assertFalse($res->json('email_exists'));
+
+        // Case-insensitive, same as Faculty's own email check.
+        $res = $this->postJson('/api/students/check-duplicate-name', ['email' => 'JUAN@bsu.edu.ph'])->assertOk();
+        $this->assertTrue($res->json('email_exists'));
+        $this->assertFalse($res->json('student_id_exists'));
+
+        $res = $this->postJson('/api/students/check-duplicate-name', ['student_id' => '9999999', 'email' => 'nobody@bsu.edu.ph'])->assertOk();
+        $this->assertFalse($res->json('student_id_exists'));
+        $this->assertFalse($res->json('email_exists'));
+    }
+
     // SIF client no.
     public function test_update_client_no_sets_and_rejects_duplicates(): void
     {

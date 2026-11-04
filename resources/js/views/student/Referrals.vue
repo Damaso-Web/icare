@@ -42,7 +42,7 @@
       </div>
       <div v-else>
         <div
-          v-for="r in filteredReferrals"
+          v-for="r in pagedReferrals"
           :key="r.id"
           :style="'padding:14px 18px;border-bottom:1px solid var(--cloud);cursor:pointer;' + (r.is_archived ? 'opacity: 0.6; background: var(--snow);' : '')"
           @click="$router.push({ name: 'student-referral-show', params: { id: r.id } })"
@@ -58,6 +58,13 @@
             :title="isExpiredPending(r) ? 'The 7-day window to pick an appointment time has passed. Contact GCU for a new scheduling link.' : toTitleCase(r.status)"
           >{{ badgeLabel(r) }}</span>          <span v-if="r.is_self_referred" class="ibadge" style="margin:6px 0 0 4px;display:inline-block;background:var(--blue-lt);color:var(--blue)">Self-referral</span>
         </div>
+        <div v-if="totalPages > 1" style="padding:12px 18px;border-top:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+          <span style="font-size:12px;color:var(--stone)">Page {{ currentPage }} of {{ totalPages }}</span>
+          <div style="display:flex;gap:8px">
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === 1" @click="page = currentPage - 1">Prev</button>
+            <button class="ibtn ibtn-o ibtn-sm" :disabled="currentPage === totalPages" @click="page = currentPage + 1">Next</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -66,7 +73,7 @@
 <script setup>
 import { SELF_REFERRAL_ENABLED } from '../../utils/features';
 import { REFERRAL_TYPES } from '../../constants/referralTypes';
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useAutoRefresh } from '../../utils/useAutoRefresh';
 import axios from 'axios';
 
@@ -99,43 +106,18 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-// Students see a simplified Pending/Cancelled/Closed badge instead of the
-// internal workflow stage (submitted, acknowledged, scheduled, in_progress,
-// completed, closed, cancelled). Bug (10/27/2026): only "closed" read as
-// Closed, so a referral GCU had already marked "completed" - resolved, same
-// as "closed" everywhere else in the system (see Referral::isResolved() on
-// the backend) - still showed "Pending" here. Both now read as Closed.
-//
-// Bug (11/4/2026): "cancelled" was never in that closed/completed list
-// either, so it fell through to the "everything else" default and also
-// showed as "Pending" - same bug, different status. The referral's own
-// detail page (ReferralShow.vue) shows the real, un-simplified status, so a
-// cancelled referral read "Cancelled" there but "Pending" on this list -
-// actively misleading, not just "less detailed", since Pending tells the
-// student it's still being worked on when it is not. Given its own bucket
-// now (matching the ibadge-cancelled style already used elsewhere), instead
-// of folding it into Closed, since "closed" implies resolved and a
-// cancelled referral is not that either.
-//
-// The Status filter above keeps the real, granular stages so staff-reported
-// stages are still filterable; only the badge text/color is simplified here.
-function simplifiedStatus(status) {
-  if (status === 'cancelled') return 'cancelled';
-  return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
-}
-
-// Bug (11/3/2026): a referral stuck at "Pending" looked identical whether
-// GCU just hadn't gotten to it yet, or the appointment slip they sent had
-// already blown past its 7-day scheduling window (same window
-// ensureSchedulingAppointment()/AppointmentController give every
-// "awaiting_student" appointment - see token_expires_at) - the student had
-// no way to tell "still waiting" from "this link won't work anymore,
-// contact GCU". Scoped to referral_id the same way the Override Status fix
-// is, with the same fallback for an appointment created before referral_id
-// was tracked: a referral_id match, or an unscoped (no referral_id)
-// appointment on the same case.
+// B#, 11/5/2026: this used to fold every non-terminal status (submitted,
+// acknowledged, scheduled, in_progress) into a single simplified "Pending"
+// badge here, while the referral's own detail page (ReferralShow.vue) shows
+// the real, un-simplified status - so the same referral could read
+// "Scheduled" on its detail page and "Pending" on this list, which looked
+// exactly like a bug (and in the "stuck at Pending forever" case, often was
+// one - see TestingRecordController::sendToGcu()). This list now shows the
+// same real status as the detail page; only cancellation-request and
+// expired-pending still override it, since those reflect something the
+// bare status field doesn't capture on its own.
 function isExpiredPending(referral) {
-  if (simplifiedStatus(referral.status) !== 'pending') return false;
+  if (['completed', 'closed', 'cancelled'].includes(referral.status)) return false;
   const now = new Date();
   return pendingAppointments.value.some(a => {
     const matches = a.referral_id === referral.id || (!a.referral_id && a.case_id === referral.case_id);
@@ -143,17 +125,21 @@ function isExpiredPending(referral) {
   });
 }
 
+// B#, 11/4/2026: a referral with a pending cancellation request (see
+// Sent Referrals' "Request Cancellation") shows that instead of its real
+// status, even though the status field underneath hasn't changed yet -
+// what's pending (a decision on the request) is what the student needs to
+// see here.
 function badgeKind(r) {
-  const s = simplifiedStatus(r.status);
-  if (s === 'cancelled' || s === 'closed') return s;
-  return isExpiredPending(r) ? 'expired' : 'pending';
+  if (r.void_requested_at) return 'cancellation_request';
+  if (isExpiredPending(r)) return 'expired';
+  return r.status;
 }
 
 function badgeLabel(r) {
-  const s = simplifiedStatus(r.status);
-  if (s === 'cancelled') return 'Cancelled';
-  if (s === 'closed') return 'Closed';
-  return isExpiredPending(r) ? 'Expired' : 'Pending';
+  if (r.void_requested_at) return 'Cancellation Request';
+  if (isExpiredPending(r)) return 'Expired';
+  return toTitleCase(r.status);
 }
 
 function formatDateTime(date) {
@@ -189,6 +175,24 @@ const filteredReferrals = computed(() => {
     return true;
   });
 });
+
+// B#, 11/5/2026: client-side pagination, 10 per page - the list is already
+// fetched in full off /student/dashboard, so no new API call is needed.
+// `page` only moves on an explicit Prev/Next click or a filter change -
+// NOT the 25s background poll, which reassigns `referrals` (a new array
+// reference) even when nothing actually changed and would otherwise bounce
+// the student back to page 1 while they're reading page 2. `currentPage`
+// clamps display/slicing to whatever range still exists if the filtered
+// set did shrink (e.g. a referral got archived out from under them).
+const PER_PAGE = 10;
+const page = ref(1);
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredReferrals.value.length / PER_PAGE)));
+const currentPage = computed(() => Math.min(page.value, totalPages.value));
+const pagedReferrals = computed(() => {
+  const start = (currentPage.value - 1) * PER_PAGE;
+  return filteredReferrals.value.slice(start, start + PER_PAGE);
+});
+watch(filters, () => { page.value = 1; }, { deep: true });
 
 function resetFilters() {
   filters.value = { status: '', type: '', date_from: '', date_to: '' };

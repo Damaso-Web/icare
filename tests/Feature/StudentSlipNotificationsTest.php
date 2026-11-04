@@ -56,18 +56,25 @@ class StudentSlipNotificationsTest extends TestCase
         Notification::assertSentTo($referral->student, AdmissionSlipIssuedNotification::class);
     }
 
-    public function test_student_notified_when_feedback_slip_is_sent(): void
+    // B#, 11/5/2026: the Feedback Slip is addressed to the referrer, not
+    // the referred student, so only the referrer is notified when one is
+    // sent - the student no longer gets a separate "your copy is ready"
+    // notification (there's no student-facing copy to tell them about).
+    public function test_referrer_notified_when_feedback_slip_is_sent_and_student_is_not(): void
     {
         Notification::fake();
         $gcu = User::factory()->create(['role' => 'gcu_staff', 'is_active' => true]);
+        $referrer = User::factory()->create(['role' => 'faculty', 'is_active' => true]);
         Sanctum::actingAs($gcu);
         $referral = $this->unlockedReferral('counseling');
+        $referral->update(['referred_by_user_id' => $referrer->id]);
 
         $this->postJson("/api/referrals/{$referral->id}/feedback", [
             'feedback_notes' => 'Met with the student twice.',
             'feedback_checklist' => ['counseling'],
         ])->assertOk();
 
-        Notification::assertSentTo($referral->student, FeedbackSlipSentNotification::class);
+        Notification::assertSentTo($referrer, FeedbackSlipSentNotification::class);
+        Notification::assertNotSentTo($referral->student, FeedbackSlipSentNotification::class);
     }
 }

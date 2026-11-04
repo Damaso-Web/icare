@@ -39,11 +39,23 @@ return new class extends Migration
         $newCreateSql = preg_replace('/check\s*\(\s*"role"\s+in\s*\([^)]*\)\)/i', 'check ("role" in (' . $quoted . '))', $createSql, 1);
         $newCreateSql = preg_replace('/create table\s+"?users"?/i', 'CREATE TABLE users_role_rebuild_new', $newCreateSql, 1);
 
+        // B#, 11/4/2026: see 2026_09_23_000005's comment - this rebuild also
+        // drops every index on "users" (both unique constraints included)
+        // without recreating them, in SQLite only. Captured here, replayed
+        // after the rename below.
+        $indexSqls = array_column(DB::select(
+            "SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'users' AND sql IS NOT NULL"
+        ), 'sql');
+
         DB::statement($newCreateSql);
         DB::statement('INSERT INTO users_role_rebuild_new SELECT * FROM users');
         DB::statement('PRAGMA foreign_keys = OFF');
         DB::statement('DROP TABLE users');
         DB::statement('ALTER TABLE users_role_rebuild_new RENAME TO users');
         DB::statement('PRAGMA foreign_keys = ON');
+
+        foreach ($indexSqls as $indexSql) {
+            DB::statement($indexSql);
+        }
     }
 };
