@@ -37,6 +37,7 @@
           maxlength="50"
           placeholder="Search by student name, ID, or appointment code..."
           style="width:100%"
+          @keypress="blockSpecialKeypress"
           @input="onSearchInput"
         />
       </div>
@@ -46,6 +47,13 @@
         <option value="confirmed">Confirmed</option>
         <option value="no_show">No Show</option>
         <option value="rescheduled">Rescheduled</option>
+        <!-- B#, 11/4/2026: "Expired" was only ever a badge/label computed
+             client-side (isApptExpired()) for an awaiting_student row whose
+             scheduling link had lapsed - there was no way to filter the list
+             down to just those, only to "Rescheduled" (every awaiting_student
+             row, expired or not). The backend now understands this value too
+             (AppointmentController::index()). -->
+        <option value="expired">Expired</option>
         <option value="cancelled">Cancelled</option>
         <option value="completed">Completed</option>
       </select>
@@ -532,7 +540,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, inject } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { appointmentAPI, userAPI } from '../../api/index';
-import { toTitleCase, formatTime12 } from '../../utils/validators';
+import { toTitleCase, formatTime12, blockSpecialKeypress } from '../../utils/validators';
 import { useAuthStore } from '../../stores/auth';
 import { officeHoursMessage } from '../../utils/blockedDates';
 import axios from 'axios';

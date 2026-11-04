@@ -66,13 +66,35 @@ api.interceptors.response.use(
     (error) => {
         notifyFailure(error);
         if (error.response?.status === 401) {
+            // B#, 11/4/2026: a background poll (e.g. Dashboard's 3s stat
+            // refresh) can still be in flight when the person clicks Log
+            // Out. auth.logout() clears the token and the app navigates to
+            // Login Choice immediately; this stale request then lands a
+            // moment later and gets its own 401. If the token is already
+            // gone, that 401 is just this race, not a real session expiry -
+            // the person already signed out and is already looking at the
+            // right screen, so there's nothing to redirect for. Without this
+            // check, the code below ran anyway and threw them onto a bare
+            // /login with no audience, which falls back to its old combined
+            // "BSU Personnel Sign In" label - reported as "redirected to the
+            // old sign in" after logging out (seen reliably on Dean because
+            // its dashboard query is the heaviest/slowest one, making the
+            // race far more likely, but the bug could hit any role).
+            const alreadySignedOut = !localStorage.getItem('token');
             localStorage.removeItem('token');
             localStorage.removeItem('user');
-            // Signing out (here or below) does not forget that this device
-            // already agreed to the Confidentiality Agreement / Data Privacy
-            // Notice - that's remembered per device for up to 7 days (see
-            // consentSkip.js), independent of any one login session.
-            window.location.href = '/login';
+            if (!alreadySignedOut) {
+                // Signing out (here or below) does not forget that this
+                // device already agreed to the Confidentiality Agreement /
+                // Data Privacy Notice - that's remembered per device for up
+                // to 7 days (see consentSkip.js), independent of any one
+                // login session.
+                // Redirect to /login-choice, not /login - this is a hard
+                // reload (not Vue Router) so it can run from anywhere, and
+                // /login-choice needs no audience param, so it never falls
+                // back to that stale "BSU Personnel" label either.
+                window.location.href = '/login-choice';
+            }
         }
         return Promise.reject(error);
     }

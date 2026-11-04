@@ -122,11 +122,24 @@ class CaseController extends Controller
             ->when($request->search, function ($q) use ($request) {
                 $search = $request->search;
                 $q->where(function ($qq) use ($search) {
+                    // B#, 11/4/2026: the placeholder says "case number", but
+                    // the one identifier actually shown on this page is the
+                    // "Ctrl No." column (e.g. "26-1-7545") - a year-term
+                    // prefix (set in Management, not stored per record) plus
+                    // the student's sif_client_no, computed client-side in
+                    // ctrlNo() (cases/Index.vue). It is NOT the same value as
+                    // the internal case_number column ("CASE-...") this
+                    // search already matched, so typing the Ctrl No. a staff
+                    // member actually sees on screen never found anything.
+                    // Matching sif_client_no too covers the number part they
+                    // see (the prefix is identical for every record this
+                    // term, so matching just the trailing number is enough).
                     $qq->where('case_number', 'like', "%{$search}%")
                        ->orWhereHas('student', fn($s) =>
                             $s->where('first_name', 'like', "%{$search}%")
                               ->orWhere('last_name', 'like', "%{$search}%")
                               ->orWhere('student_id', 'like', "%{$search}%")
+                              ->orWhere('sif_client_no', 'like', "%{$search}%")
                         );
                 });
             });

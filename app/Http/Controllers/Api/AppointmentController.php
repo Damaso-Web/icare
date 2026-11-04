@@ -69,8 +69,34 @@ class AppointmentController extends Controller
                 ->when($request->date,        fn($q) => $q->whereDate('appointment_date', $request->date))
                 ->when($request->unit,        fn($q) => $q->where('unit', $request->unit))
                 ->when($request->status, function ($q) use ($request) {
-                    if ($request->status === 'rescheduled') {
-                        $q->where('status', 'pending')->where('request_status', 'awaiting_student');
+                    if ($request->status === 'pending') {
+                        // B#, 11/4/2026: "Awaiting Confirmation", "Awaiting
+                        // Student" and "Expired" are all status='pending'
+                        // underneath - only request_status (and, for Expired,
+                        // token_expires_at) tells them apart. A plain
+                        // `where('status','pending')` swept up all three, so
+                        // picking "Pending" in the dropdown also showed every
+                        // Rescheduled and Expired row. Narrowed to just the
+                        // ones actually awaiting staff confirmation -
+                        // Rescheduled/Expired have their own filter values.
+                        $q->where('status', 'pending')->where('request_status', 'pending_confirmation');
+                    } elseif ($request->status === 'rescheduled') {
+                        // Same overlap, the other direction: this matched
+                        // every awaiting_student row regardless of whether
+                        // its scheduling link had lapsed, so "Rescheduled"
+                        // always included every "Expired" row too. Expired
+                        // is excluded now that it's its own filter value.
+                        $q->where('status', 'pending')->where('request_status', 'awaiting_student')
+                            ->where(fn($w) => $w->whereNull('token_expires_at')->orWhere('token_expires_at', '>=', now()));
+                    } elseif ($request->status === 'expired') {
+                        // "Expired" was only ever a label the frontend
+                        // derived client-side (isApptExpired() in
+                        // appointments/Index.vue) for a pending/awaiting_student
+                        // row whose scheduling_token has lapsed - there was no
+                        // way to actually filter the list down to just those.
+                        // Same condition, mirrored server-side.
+                        $q->where('status', 'pending')->where('request_status', 'awaiting_student')
+                            ->whereNotNull('token_expires_at')->where('token_expires_at', '<', now());
                     } elseif (str_contains($request->status, ',')) {
                         $q->whereIn('status', explode(',', $request->status));
                     } else {

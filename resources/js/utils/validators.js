@@ -64,12 +64,16 @@ export function isValidPHContact(value) {
   return /^09\d{9}$/.test(value);
 }
 
+// B#, 11/4/2026: neither of these allowed "-", so a referral/appointment
+// code (REF-2026-0052, APT-2026-0022) could never actually be typed into a
+// search box that uses them - every hyphen keystroke was silently dropped.
+// Added it alongside the existing allowed set (letters, digits, whitespace).
 export function safeSearchInput(value) {
-  return value.replace(/[^a-zA-Z0-9\s]/g, '');
+  return value.replace(/[^a-zA-Z0-9\s-]/g, '');
 }
 
 export function blockSpecialKeypress(e) {
-  const allowed = /^[a-zA-Z0-9\s]$/;
+  const allowed = /^[a-zA-Z0-9\s-]$/;
   if (!allowed.test(e.key)) {
     e.preventDefault();
   }

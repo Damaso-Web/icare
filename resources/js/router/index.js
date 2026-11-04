@@ -483,7 +483,20 @@ router.beforeEach((to, from, next) => {
         // The main address shows the landing page to visitors who are not signed in
         // (RootEntry renders it, so the address stays "/").
         if (!token && to.name === 'dashboard') return next();
-        if (!token) return next({ name: 'login-choice' });
+        if (!token) {
+            // B#, 11/4/2026: a STUDENT typing a staff-only URL (e.g. /users)
+            // has no staff `token`, so this used to send them to Login
+            // Choice - the same page a genuinely signed-out visitor sees.
+            // That's misleading: the student IS signed in, just not as
+            // staff, so "please log in" isn't actually true for them.
+            // Reported during pentest write-up (PT-12) as confusing. If
+            // they're carrying a student_token, send them to Unauthorized
+            // instead - same refusal, no route access gained either way,
+            // just an accurate message. A genuinely signed-out visitor
+            // (no student_token either) still gets Login Choice.
+            if (localStorage.getItem('student_token')) return next({ name: 'unauthorized' });
+            return next({ name: 'login-choice' });
+        }
 
         // System Admin has no Dashboard (it's student/referral/case data, which
         // System Admin is not permitted to view) - land them on Management instead

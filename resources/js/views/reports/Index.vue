@@ -1165,6 +1165,16 @@ onMounted(async () => {
   .rp-btn { flex: 1 1 auto; justify-content: center; }
   .rp-export { margin-left: 0; flex: 1 1 auto; }
   .rp-export > .ibtn { width: 100%; justify-content: center; }
+  /* B#, 11/4/2026: unlike audit/Index.vue's equivalent "Reset" button
+     (flex:none, so its Export wrapper keeps the whole remaining row), the
+     "Generate" button here is flex:1 1 auto too, so it and .rp-export split
+     the wrapped row roughly evenly - leaving .rp-export narrower than the
+     export menu's own 180px min-width, which could overflow past the left
+     edge on a narrow phone (same shape of bug fixed on the SDU Incident
+     Report page's status menu, just milder). Spanning the menu to its own
+     positioning parent's width keeps it inside whatever room that parent
+     actually has, regardless of how the row happens to split. */
+  .export-menu { left: 0; right: 0; width: auto; min-width: 0; }
 }
 /* Case Completion and Attendance */
 .cc-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }

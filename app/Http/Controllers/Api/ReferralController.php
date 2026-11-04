@@ -75,11 +75,20 @@ class ReferralController extends Controller
         })
         ->when($request->date_from, fn($q) => $q->whereDate('created_at', '>=', $request->date_from))
         ->when($request->date_to,   fn($q) => $q->whereDate('created_at', '<=', $request->date_to))
-        ->when($request->search, fn($q) => $q->whereHas('student', fn($s) =>
-            $s->where('first_name', 'like', "%{$request->search}%")
-              ->orWhere('last_name', 'like', "%{$request->search}%")
-              ->orWhere('student_id', 'like', "%{$request->search}%")
-        ));
+        // B#, 11/4/2026: this only ever matched the student's name/ID - there
+        // was no way to find a referral by its own code (REF-2026-0052), even
+        // though the Appointments page's equivalent search already supports
+        // its own code (appointment_code) alongside student name/ID. Wrapped
+        // in an outer where() so the referral_code OR and the student OR
+        // group combine correctly instead of the referral_code clause
+        // silently ANDing against everything above it.
+        ->when($request->search, fn($q) => $q->where(function ($qq) use ($request) {
+            $qq->whereHas('student', fn($s) =>
+                $s->where('first_name', 'like', "%{$request->search}%")
+                  ->orWhere('last_name', 'like', "%{$request->search}%")
+                  ->orWhere('student_id', 'like', "%{$request->search}%")
+            )->orWhere('referral_code', 'like', "%{$request->search}%");
+        }));
 
     if ($user->isFaculty() || $user->isSDUHead()) {
         // SDU Head: complaints are their module; the only referrals they see

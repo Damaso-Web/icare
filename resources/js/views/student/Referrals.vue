@@ -99,16 +99,28 @@ function formatDate(date) {
   return date ? new Date(date).toLocaleDateString() : '-';
 }
 
-// Students see a simplified Pending/Closed badge instead of the internal
-// workflow stage (submitted, acknowledged, scheduled, in_progress,
-// completed, closed). Bug (10/27/2026): only "closed" read as Closed, so a
-// referral GCU had already marked "completed" - resolved, same as "closed"
-// everywhere else in the system (see Referral::isResolved() on the backend)
-// - still showed "Pending" here. Both now read as Closed; everything
-// earlier in the workflow is still "Pending". The Status filter above
-// keeps the real, granular stages so staff-reported stages are still
-// filterable; only the badge text/color is simplified here.
+// Students see a simplified Pending/Cancelled/Closed badge instead of the
+// internal workflow stage (submitted, acknowledged, scheduled, in_progress,
+// completed, closed, cancelled). Bug (10/27/2026): only "closed" read as
+// Closed, so a referral GCU had already marked "completed" - resolved, same
+// as "closed" everywhere else in the system (see Referral::isResolved() on
+// the backend) - still showed "Pending" here. Both now read as Closed.
+//
+// Bug (11/4/2026): "cancelled" was never in that closed/completed list
+// either, so it fell through to the "everything else" default and also
+// showed as "Pending" - same bug, different status. The referral's own
+// detail page (ReferralShow.vue) shows the real, un-simplified status, so a
+// cancelled referral read "Cancelled" there but "Pending" on this list -
+// actively misleading, not just "less detailed", since Pending tells the
+// student it's still being worked on when it is not. Given its own bucket
+// now (matching the ibadge-cancelled style already used elsewhere), instead
+// of folding it into Closed, since "closed" implies resolved and a
+// cancelled referral is not that either.
+//
+// The Status filter above keeps the real, granular stages so staff-reported
+// stages are still filterable; only the badge text/color is simplified here.
 function simplifiedStatus(status) {
+  if (status === 'cancelled') return 'cancelled';
   return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
 }
 
@@ -123,7 +135,7 @@ function simplifiedStatus(status) {
 // was tracked: a referral_id match, or an unscoped (no referral_id)
 // appointment on the same case.
 function isExpiredPending(referral) {
-  if (simplifiedStatus(referral.status) === 'closed') return false;
+  if (simplifiedStatus(referral.status) !== 'pending') return false;
   const now = new Date();
   return pendingAppointments.value.some(a => {
     const matches = a.referral_id === referral.id || (!a.referral_id && a.case_id === referral.case_id);
@@ -132,12 +144,15 @@ function isExpiredPending(referral) {
 }
 
 function badgeKind(r) {
-  if (simplifiedStatus(r.status) === 'closed') return 'closed';
+  const s = simplifiedStatus(r.status);
+  if (s === 'cancelled' || s === 'closed') return s;
   return isExpiredPending(r) ? 'expired' : 'pending';
 }
 
 function badgeLabel(r) {
-  if (simplifiedStatus(r.status) === 'closed') return 'Closed';
+  const s = simplifiedStatus(r.status);
+  if (s === 'cancelled') return 'Cancelled';
+  if (s === 'closed') return 'Closed';
   return isExpiredPending(r) ? 'Expired' : 'Pending';
 }
 

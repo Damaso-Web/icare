@@ -282,5 +282,16 @@ onBeforeUnmount(() => document.removeEventListener('click', closeStatusMenu));
   .ir-title { font-size: 22px; }
   .ir-actions { margin-left: 0; width: 100%; }
   .ir-actions > *, .ir-actions .ibtn { flex: 1 1 auto; justify-content: center; }
+  /* B#, 11/4/2026: .ir-menu's `right:0` anchors it to the right edge of its
+     own narrow positioning parent (statusMenuEl, which wraps just the
+     "Update Status" button) - fine on desktop, where that wrapper sits well
+     clear of the screen edge, but on mobile .ir-actions' two children now
+     stretch to roughly half the screen each (flex:1 1 auto above), so the
+     230px-wide dropdown's right-anchored left edge bled off the left side
+     of the screen - reported as a UX bug (status options showing truncated,
+     e.g. "nding" instead of "Pending"). Spanning the menu to match its own
+     positioning parent's width instead keeps it fully inside whatever room
+     that parent actually has, at any screen width.*/
+  .ir-menu { left: 0; right: 0; width: auto; min-width: 0; }
 }
 </style>

@@ -161,11 +161,19 @@ function apptBadgeLabel(a) {
   return isExpiredAppointment(a) ? 'Expired' : toTitleCase(a.status);
 }
 
+// Bug (11/4/2026): "cancelled" was never in the completed/closed list below,
+// so it fell through to the "everything else" default and showed as
+// "Pending" on this dashboard card - same bug as student/Referrals.vue had,
+// fixed the same way there, mirrored here so the two agree instead of a
+// cancelled referral reading "Cancelled" on its own detail page but
+// "Pending" here. Not folded into "closed" either - "closed" implies
+// resolved, which a cancelled referral is not.
 function simplifiedStatus(status) {
+  if (status === 'cancelled') return 'cancelled';
   return ['completed', 'closed'].includes(status) ? 'closed' : 'pending';
 }
 function isExpiredReferral(referral) {
-  if (simplifiedStatus(referral.status) === 'closed') return false;
+  if (simplifiedStatus(referral.status) !== 'pending') return false;
   const now = new Date();
   return pendingAppointments.value.some(a => {
     const matches = a.referral_id === referral.id || (!a.referral_id && a.case_id === referral.case_id);
@@ -173,11 +181,14 @@ function isExpiredReferral(referral) {
   });
 }
 function referralBadgeKind(r) {
-  if (simplifiedStatus(r.status) === 'closed') return 'ibadge-closed';
+  const s = simplifiedStatus(r.status);
+  if (s === 'cancelled' || s === 'closed') return 'ibadge-' + s;
   return isExpiredReferral(r) ? 'ibadge-expired' : 'ibadge-pending';
 }
 function referralBadgeLabel(r) {
-  if (simplifiedStatus(r.status) === 'closed') return 'Closed';
+  const s = simplifiedStatus(r.status);
+  if (s === 'cancelled') return 'Cancelled';
+  if (s === 'closed') return 'Closed';
   return isExpiredReferral(r) ? 'Expired' : 'Pending';
 }
 
