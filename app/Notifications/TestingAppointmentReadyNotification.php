@@ -22,7 +22,7 @@ class TestingAppointmentReadyNotification extends Notification
             // a walk-in, not an appointment. The student pays, then uploads
             // their OR (requestTestingByStudent()), and TMDU sets the actual
             // testing date after that (scheduleTesting()).
-            'message'            => 'Your psychological testing referral has been acknowledged. Please proceed to TMDU to pick up your Assessment of Fees form.',
+            'message'            => 'Your psychological testing referral has been acknowledged. Please proceed to TMDU to pick up your Assessment of Fees form now.',
         ];
     }
 }

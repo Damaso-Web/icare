@@ -22,7 +22,7 @@ class ReferredToTmduNotification extends Notification
             'type'        => 'referred_to_tmdu',
             'case_id'     => $this->case->id,
             'case_number' => $this->case->case_number,
-            'message'     => 'Your counselor has referred you to the Testing and Measurement Development Unit (TMDU) for psychological testing. Please check your appointments for next steps.',
+            'message'     => 'Your counselor has referred you to the Testing and Measurement Development Unit (TMDU) for psychological testing.',
         ];
     }
 }

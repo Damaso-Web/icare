@@ -130,15 +130,15 @@ class AppointmentController extends Controller
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
                 // visibility on GCU appointments, not just their own caseload.
-                // B#, 11/4/2026: group order used to be Confirmed first, then
-                // everything still awaiting action, then Completed last -
-                // Confirmed sorted first because it needed no further
-                // action. Flipped per request: rows still awaiting
-                // something (pending/awaiting_student/no_show/rescheduled/
-                // cancelled) are what staff actually need to act on, so
-                // those belong on top; Confirmed (already handled) sinks
-                // below them, and Completed still sinks lowest of all.
-                ->orderByRaw("CASE WHEN status = 'completed' THEN 2 WHEN status = 'confirmed' THEN 1 ELSE 0 END")
+                // B#, 11/5/2026: reverted again. The 11/4 flip put Confirmed
+                // below the still-awaiting-action rows, but that buried it
+                // next to Completed at the bottom in practice - Confirmed is
+                // what staff look for first (it's today's/upcoming work),
+                // so it's back on top. Order is now: Confirmed, then
+                // everything still awaiting something (pending/
+                // awaiting_student/no_show/rescheduled/cancelled), then
+                // Completed last.
+                ->orderByRaw("CASE WHEN status = 'confirmed' THEN 0 WHEN status = 'completed' THEN 2 ELSE 1 END")
                 ->orderByDesc('created_at')
                 ->paginate($perPage)
         );
@@ -814,24 +814,35 @@ public function checkConflictByStudent(Request $request)
             abort(422, 'This appointment is ' . str_replace('_', ' ', $appointment->status) . ' and cannot be marked as attended.');
         }
 
-        $appointment->update([
-            'checked_in'            => true,
-            'checked_in_at'         => now(),
-            'checked_in_by_user_id' => $request->user()->id,
-            'status'                => 'completed',
-        ]);
+        // B#, 11/5/2026: the appointment update and the referral advance
+        // used to be two separate, unguarded writes - if anything threw
+        // between them, the appointment could be left "Completed" with the
+        // referral still stuck behind it (exactly the symptom reported:
+        // marking attended on the Appointments list didn't move the case
+        // off "Scheduled"). Wrapped in a transaction so either both happen
+        // or neither does, and the referral move is no longer silent -
+        // advanceStatusTo()'s own return value is checked so a failed move
+        // is visible in the logs instead of vanishing.
+        DB::transaction(function () use ($appointment, $request) {
+            $appointment->update([
+                'checked_in'            => true,
+                'checked_in_at'         => now(),
+                'checked_in_by_user_id' => $request->user()->id,
+                'status'                => 'completed',
+            ]);
 
-        // B275: "Student Attended" is what actually moves the referral to
-        // 'in_progress' - this is the point the SIF unlocks (see
-        // Referral::canEditSif(), which also requires an attended
-        // appointment). Forward-only via advanceStatusTo().
-        // Move the referral this appointment actually belongs to - not just
-        // the case's latest one, which is a different referral whenever the
-        // student has more than one under the same case.
-        $referral = $appointment->referral ?: $appointment->case?->latestReferral;
-        if ($referral) {
-            $referral->advanceStatusTo('in_progress');
-        }
+            // B275: "Student Attended" is what actually moves the referral to
+            // 'in_progress' - this is the point the SIF unlocks (see
+            // Referral::canEditSif(), which also requires an attended
+            // appointment). Forward-only via advanceStatusTo().
+            // Move the referral this appointment actually belongs to - not just
+            // the case's latest one, which is a different referral whenever the
+            // student has more than one under the same case.
+            $referral = $appointment->referral ?: $appointment->case?->latestReferral;
+            if ($referral && !$referral->advanceStatusTo('in_progress')) {
+                report(new \RuntimeException("checkIn(): referral #{$referral->id} (status={$referral->status}) did not advance to in_progress for appointment #{$appointment->id}."));
+            }
+        });
 
         AuditLog::record('checked_in', "Student checked in for appointment {$appointment->appointment_code}.", $appointment);
         return response()->json($appointment->fresh()->load('student', 'referral', 'case.latestReferral'));

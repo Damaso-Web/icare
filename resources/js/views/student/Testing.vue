@@ -29,11 +29,6 @@
           {{ statusMessage(r.status) }}
         </div>
 
-        <!-- Step: pick up Assessment of Fees form -->
-        <div v-if="r.status === 'pending'" style="font-size:12px;color:var(--stone)">
-          Check <router-link :to="{ name: 'student-appointments' }" style="color:var(--moss);font-weight:600">My Appointments</router-link> to set your Assessment of Fees form pickup schedule.
-        </div>
-
         <!-- Step: upload OR photo to request testing schedule -->
         <div v-if="r.status === 'fee_form_pending'" style="border:1px solid var(--mint);background:var(--foam);border-radius:var(--r-md);padding:14px;display:flex;flex-direction:column;gap:10px">
           <div style="font-size:12px;font-weight:600;color:var(--moss)">Request Your Testing Schedule</div>
@@ -134,7 +129,7 @@ function statusBadge(status) {
 
 function statusMessage(status) {
   return {
-    pending:          "Your counselor has referred you to TMDU for psychological testing. Next, you'll set an appointment to pick up your Assessment of Fees form.",
+    pending:          'Your counselor has referred you to TMDU for psychological testing.',
     fee_form_pending: 'Please pick up your Assessment of Fees form, then pay at the Cashier and upload your OR below to request your testing schedule.',
     or_submitted:     'Your OR has been submitted. TMDU will review it and set your testing appointment.',
     scheduled:        'Your psychological testing appointment has been set. Remember to bring your OR and two sharpened pencils with eraser, and arrive 15 minutes early.',
