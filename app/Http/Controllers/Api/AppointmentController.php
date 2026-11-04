@@ -130,16 +130,20 @@ class AppointmentController extends Controller
                 ->when(in_array($user->role, ['admin', 'gcu_staff'], true), fn($q) => $q->where('unit', '!=', 'TMDU')->where('unit', '!=', 'SDU'))
                 // B625 reverted (10/25/2026): gcu_staff is back to unit-wide
                 // visibility on GCU appointments, not just their own caseload.
-                // B#, 11/5/2026: reverted again. The 11/4 flip put Confirmed
-                // below the still-awaiting-action rows, but that buried it
-                // next to Completed at the bottom in practice - Confirmed is
-                // what staff look for first (it's today's/upcoming work),
-                // so it's back on top. Order is now: Confirmed, then
-                // everything still awaiting something (pending/
-                // awaiting_student/no_show/rescheduled/cancelled), then
-                // Completed last.
-                ->orderByRaw("CASE WHEN status = 'confirmed' THEN 0 WHEN status = 'completed' THEN 2 ELSE 1 END")
-                ->orderByDesc('created_at')
+                // B#, 11/5/2026: Awaiting Confirmation (status=pending,
+                // request_status=pending_confirmation) is the one row type
+                // that always needs a staff decision before anything else
+                // can happen to it, so it now sorts above even Confirmed.
+                // Below that: Confirmed, then everything else still
+                // awaiting something (awaiting_student/no_show/
+                // rescheduled/cancelled), then Completed last. Within each
+                // group, rows now sort by appointment date/time ascending
+                // (soonest first) instead of newest-created first - staff
+                // care about what's coming up next, not what was most
+                // recently booked.
+                ->orderByRaw("CASE WHEN status = 'pending' AND request_status = 'pending_confirmation' THEN 0 WHEN status = 'confirmed' THEN 1 WHEN status = 'completed' THEN 3 ELSE 2 END")
+                ->orderBy('appointment_date')
+                ->orderBy('start_time')
                 ->paginate($perPage)
         );
     }
