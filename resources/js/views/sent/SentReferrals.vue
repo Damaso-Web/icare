@@ -317,7 +317,7 @@ async function pickStudent(s) {
 async function cancelReferral() {
   let ok = true;
   if (confirmAction) {
-    ok = await confirmAction({ title: 'Cancel Referral?', message: 'Are you sure you want to cancel this referral? It will be moved to the archive.', confirmText: 'Yes, Cancel', cancelText: 'Never Mind' });
+    ok = await confirmAction({ title: 'Cancel Referral?', message: 'Are you sure you want to cancel this referral? It will be moved to the archive.', confirmText: 'Yes, Cancel', cancelText: 'Cancel' });
   } else {
     ok = window.confirm('Are you sure you want to cancel this referral?');
   }

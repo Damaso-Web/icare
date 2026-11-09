@@ -626,7 +626,7 @@
             <div style="display:flex;flex-direction:column;gap:8px">
               <button v-if="!callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
               <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" @click="callSlipConfirming = true">Issue Call Slip (Escalate to College Dean)</button>
-              <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
+              <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Cancel</button>
             </div>
           </div>
         </div>

@@ -293,7 +293,7 @@
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="submitCancel">Yes, Cancel Appointment</button>
-            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showCancelModal = false">Never Mind</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showCancelModal = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -313,7 +313,7 @@
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" :disabled="submittingNoShow" @click="submitNoShow">
               {{ submittingNoShow ? 'Marking...' : 'Yes, Mark No-Show' }}
             </button>
-            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showNoShowModal = false">Never Mind</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showNoShowModal = false">Cancel</button>
           </div>
         </div>
       </div>

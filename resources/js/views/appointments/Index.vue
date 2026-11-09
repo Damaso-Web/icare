@@ -462,7 +462,7 @@
           </div>
           <div style="display:flex;gap:8px">
             <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="submitCancel">Yes, Cancel Appointment</button>
-            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showCancelModal = false">Never Mind</button>
+            <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="showCancelModal = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -677,7 +677,7 @@ async function applyOverride() {
           title: 'Student Has No Appointment Date Yet',
           message: "This student's case file doesn't have a current appointment date - they're still waiting to pick (or be given) a schedule. Overriding the status here only changes the status; it does not set a date. The student still needs an actual appointment even after this override. Continue anyway?",
           confirmText: 'Yes, Override Anyway',
-          cancelText: 'Never Mind',
+          cancelText: 'Cancel',
           danger: true,
         })
       : true;

@@ -1757,7 +1757,7 @@
             <div style="display:flex;flex-direction:column;gap:8px">
               <button class="ibtn" style="justify-content:center;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)" @click="submitCaseNoShow('reschedule')">Mark & Ask Student to Reschedule</button>
               <button class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" v-if="!caseNoShowTarget?.no_show_escalated" @click="requestCallSlip(caseNoShowTarget)">Issue Call Slip (Escalate to College Dean)</button>
-              <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Never Mind</button>
+              <button class="ibtn ibtn-o" style="justify-content:center" @click="showCaseNoShowModal = false">Cancel</button>
             </div>
           </div>
         </div>
@@ -1855,7 +1855,7 @@
               <textarea v-model="apptCancelReason" class="ifta" style="min-height:70px" placeholder="Why is this appointment being cancelled?" maxlength="1000"></textarea>
               <div style="display:flex;gap:8px">
                 <button class="ibtn" style="flex:1;justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="confirmApptCancel">Yes, Cancel Appointment</button>
-                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptCancelling = false">Never Mind</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptCancelling = false">Cancel</button>
               </div>
             </div>
 
@@ -1875,7 +1875,7 @@
               </div>
               <div style="display:flex;gap:8px">
                 <button class="ibtn ibtn-p" style="flex:1;justify-content:center" @click="confirmApptFromDetail">Yes, Confirm Appointment</button>
-                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptConfirming = false">Never Mind</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptConfirming = false">Cancel</button>
               </div>
             </div>
 
@@ -1887,7 +1887,7 @@
               <textarea v-model="apptRescheduleReason" class="ifta" style="min-height:70px" placeholder="Why does this need to be rescheduled?" maxlength="1000"></textarea>
               <div style="display:flex;gap:8px">
                 <button class="ibtn" style="flex:1;justify-content:center;background:var(--blue-lt);color:var(--blue);border:1.5px solid var(--blue)" @click="confirmApptReschedule">Yes, Request Reschedule</button>
-                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptRescheduling = false">Never Mind</button>
+                <button class="ibtn ibtn-o" style="flex:1;justify-content:center" @click="apptRescheduling = false">Cancel</button>
               </div>
             </div>
 
