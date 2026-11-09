@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, computed, inject, onMounted } from 'vue';
-import { useBlockedDates } from '../utils/blockedDates';
+import { useBlockedDates, officeHoursMessage } from '../utils/blockedDates';
 import { testingAPI } from '../api/index';
 import { formatTime12 } from '../utils/validators';
 
@@ -104,14 +104,15 @@ const formError = computed(() => {
     if (blockedMessageFor(f.appointment_date)) return blockedMessageFor(f.appointment_date);
   }
   if (f.start_time && f.end_time) {
-    // Panel fix (11/10/2026): checks both bounds on both fields now, not
-    // just a too-early start or a too-late end - see the matching comment
-    // in blockedDates.js's officeHoursMessage() for why that let an
-    // overnight range (e.g. 8:51 PM to 4:41 AM) slip through unnoticed.
-    if (f.start_time < '08:00' || f.start_time >= '16:00' || f.end_time <= '08:00' || f.end_time > '16:00') {
-      return 'PAR release must be between 8:00 AM and 4:00 PM.';
-    }
-    if (f.start_time >= f.end_time) return 'The end time must be after the start time.';
+    // Panel fix (11/10/2026): now calls the same officeHoursMessage() the
+    // main GCU appointment screens use, instead of keeping its own copy of
+    // the check - see the matching comment in testing/Show.vue's
+    // timeErrorFor() for why the old copy let an overnight range slip
+    // through unnoticed, and why sharing one implementation matters.
+    const hoursMsg = officeHoursMessage(f.start_time, f.end_time);
+    if (hoursMsg) return hoursMsg === 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'
+      ? 'PAR release must be between 8:00 AM and 4:00 PM.'
+      : 'The end time must be after the start time.';
   }
   return '';
 });

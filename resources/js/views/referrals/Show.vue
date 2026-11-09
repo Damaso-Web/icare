@@ -116,8 +116,11 @@
 
       <!-- Status Pipeline - full width, not confined to the left column -->
       <div class="icard" style="margin-bottom:16px">
-        <div class="icard-header"><span class="icard-title">{{ isIncidentReport ? 'Incident Report Status' : 'Referral Status' }}</span></div>
-        <div style="padding:16px 18px">
+        <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('referral_status')">
+          <span class="icard-title">{{ isIncidentReport ? 'Incident Report Status' : 'Referral Status' }}</span>
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('referral_status') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div v-show="isSifSectionOpen('referral_status')" style="padding:16px 18px">
           <div class="pipe" style="display:flex;gap:0;overflow-x:auto">
             <div
               v-for="(step, i) in pipeline"
@@ -147,10 +150,11 @@
                referral (disciplinary, filed via ComplaintController::store())
                has been acknowledged. -->
           <div class="icard" v-if="isIncidentReport">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('incident_report')">
               <span class="icard-title">Incident Report</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('incident_report') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
-            <div class="icard-body">
+            <div v-show="isSifSectionOpen('incident_report')" class="icard-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
                 <div>
                   <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:3px">Complainant</div>
@@ -228,18 +232,20 @@
                  its own line and the buttons wrap together as a unit - see
                  .icard-header .ref-actions in app.css for the mobile rule
                  that makes them share a tidy, evenly-sized row underneath. -->
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('referral_info')">
               <span class="icard-title">{{ isCaseReferralSlip ? 'Case Referral Slip' : 'Referral Info' }}</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin:0 2px;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('referral_info') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
               <div class="ref-actions" style="margin-left:auto;display:flex;flex-wrap:wrap;gap:8px">
-                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" @click="openReferralEdit">Edit Referral</button>
+                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" @click.stop="openReferralEdit">Edit Referral</button>
                 <!-- Delete only while unacknowledged - once GCU/SDU/TMDU
                      acknowledges it, it's their record and the referrer can
                      only ask to void it (the button below instead). -->
-                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
-                <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click="showVoidModal = true">Request Cancellation/Void of Referral</button>
+                <button v-if="canEditSubmittedReferral" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" :disabled="deletingReferral" @click.stop="deleteReferral">{{ deletingReferral ? 'Deleting...' : 'Delete Referral' }}</button>
+                <button v-if="canRequestVoid" class="ibtn ibtn-o ibtn-sm" style="color:var(--red);border-color:#f5c0c0" @click.stop="showVoidModal = true">Request Cancellation/Void of Referral</button>
               </div>
             </div>
 
+            <div v-show="isSifSectionOpen('referral_info')">
             <!-- Pending cancellation/void request - shown to the referrer
                  (status) and to the reviewing unit (Approve/Deny). -->
             <div v-if="referral.void_requested_at" style="margin:0 18px 14px;background:var(--amber-lt);border:1px solid var(--amber);border-radius:var(--r-sm);padding:12px 14px">
@@ -341,6 +347,7 @@
                 </div>
               </div>
             </div>
+            </div>
           </div>
 
 
@@ -348,8 +355,11 @@
                this referral's Feedback Slip and Admission Slip, and a way to
                ask GCU for the Feedback Slip once the referral is completed. -->
           <div class="icard" v-if="isReferrer && !fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('feedback_slip')">
+              <span class="icard-title">Feedback Slip</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('feedback_slip') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('feedback_slip')" class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <template v-if="!referral.feedback_slips?.length">
                 <div style="font-size:13px;color:var(--stone)">
                   {{ ['completed', 'closed'].includes(referral.status)
@@ -375,8 +385,11 @@
             </div>
           </div>
           <div class="icard" v-if="isReferrer && !fromCases && isClassAttendance && referral.admission_issued_at">
-            <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
-            <div class="icard-body">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('admission_slip')">
+              <span class="icard-title">Admission Slip</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('admission_slip') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('admission_slip')" class="icard-body">
               <AdmissionSlipPaper
                 readonly
                 :model-value="issuedAdmissionSlip"
@@ -397,8 +410,12 @@
                column now (ReferralController::saveAdmissionSlip()) instead
                of digging through case interventions. -->
           <div class="icard" v-if="isClassAttendance && referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Admission Slip</span></div>
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('admission_slip')">
+              <span class="icard-title">Admission Slip</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('admission_slip') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
 
+            <div v-show="isSifSectionOpen('admission_slip')">
             <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
               <div style="font-size:11px;color:var(--stone)">
                 <div><strong>Document Code:</strong> QF-OSS-GCU-09</div>
@@ -445,6 +462,7 @@
               />
               <div v-else style="font-size:13px;color:var(--stone)">No admission slip has been issued yet.</div>
             </div>
+            </div>
           </div>
 
           <!-- Issue / Update Admission Slip (paper format) -->
@@ -476,8 +494,11 @@
                same pattern as Previous Interventions but without the
                excused/unexcused remarks or locking logic. -->
           <div class="icard" v-if="isIncidentReport && referral.case && fromCases">
-            <div class="icard-header"><span class="icard-title">Sanction/s Given</span></div>
-            <div class="icard-body">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('sanctions')">
+              <span class="icard-title">Sanction/s Given</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('sanctions') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('sanctions')" class="icard-body">
               <div v-if="canManageIncidentReport" style="margin-bottom:16px">
                 <label class="ifl">Sanction</label>
                 <textarea v-model="sanctionForm.text" class="ifta" style="min-height:70px" placeholder="Describe the sanction given..." maxlength="2000"></textarea>
@@ -503,8 +524,11 @@
           <!-- Detailed Report - Incident Report only. Same append-only log
                pattern as Session Notes, typed as 'detailed_report'. -->
           <div class="icard" v-if="isIncidentReport && referral.case && fromCases">
-            <div class="icard-header"><span class="icard-title">Detailed Report</span></div>
-            <div class="icard-body">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('detailed_report')">
+              <span class="icard-title">Detailed Report</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('detailed_report') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('detailed_report')" class="icard-body">
               <div v-if="canManageIncidentReport" style="margin-bottom:16px">
                 <label class="ifl">Report Entry</label>
                 <textarea v-model="detailedReportForm.text" class="ifta" style="min-height:80px" placeholder="Write a detailed report entry..." maxlength="3000"></textarea>
@@ -530,8 +554,12 @@
                details); still available from Student Information Files.
                Removed entirely for an Incident Report. -->
           <div class="icard" v-if="fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('feedback_slip')">
+              <span class="icard-title">Feedback Slip</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('feedback_slip') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
 
+            <div v-show="isSifSectionOpen('feedback_slip')">
             <!-- Document Code Header - read only. Revision No. / Effectivity /
                  Ctrl No. are edited in Management by admin. -->
             <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
@@ -623,6 +651,7 @@
                 />
               </div>
             </div>
+            </div>
           </div>
 
           <!-- PAR Results - staff only, Student Information Files only.
@@ -630,8 +659,11 @@
                issued it, without GCU needing to open the sibling
                psychological_testing referral's own Testing Record. -->
           <div class="icard" v-if="isGCU && fromCases && tmduTestingRecord && tmduTestingRecord.status === 'test_results_issued'">
-            <div class="icard-header"><span class="icard-title">Psychological Assessment Report (PAR)</span></div>
-            <div class="icard-body">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('par')">
+              <span class="icard-title">Psychological Assessment Report (PAR)</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('par') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('par')" class="icard-body">
               <div v-if="tmduTestingRecord.tests_administered?.length" style="margin-bottom:12px">
                 <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Psychological Tests Administered</div>
                 <div style="display:flex;flex-wrap:wrap;gap:6px">
@@ -659,16 +691,18 @@
           <!-- Session Notes - staff only, Student Information Files only.
                Replaced by Detailed Report for an Incident Report. -->
           <div class="icard" v-if="isGCU && fromCases && !isIncidentReport">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('session_notes')">
               <span class="icard-title">Session Notes</span>
-              <button v-if="!isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin:0 2px;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('session_notes') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+              <button v-if="!isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click.stop="showSessionModal = true">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Add Notes
               </button>
-              <div v-else-if="!isResolved && !canEditSif" style="font-size:11px;color:var(--stone)">
+              <div v-else-if="!isResolved && !canEditSif" style="font-size:11px;color:var(--stone);margin-left:auto">
                 ⚠ Must be acknowledged with an attended appointment first
               </div>
             </div>
+            <div v-show="isSifSectionOpen('session_notes')">
             <div v-if="!isResolved" style="padding:8px 18px;background:var(--amber-lt);border-bottom:1px solid var(--cloud);font-size:12px;color:var(--amber)">
               <strong>Required:</strong> Session notes must be filled out before this referral can be resolved.
             </div>
@@ -700,21 +734,24 @@
                 <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === sessionNotesTotalPages" @click="sessionNotesPage++">Next</button>
               </div>
             </div>
+            </div>
           </div>
 
           <!-- Follow-up Session - Student Information Files only. Removed
                entirely for an Incident Report. -->
           <div class="icard" v-if="fromCases && !isIncidentReport">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('follow_up')">
               <span class="icard-title">Follow-up Session</span>
-              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="openFollowUpModal">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin:0 2px;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('follow_up') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click.stop="openFollowUpModal">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Schedule Follow-up
               </button>
-              <div v-else-if="isGCU && !isResolved && !canEditSif" style="font-size:11px;color:var(--stone)">
+              <div v-else-if="isGCU && !isResolved && !canEditSif" style="font-size:11px;color:var(--stone);margin-left:auto">
                 ⚠ Must be acknowledged with an attended appointment first
               </div>
             </div>
+            <div v-show="isSifSectionOpen('follow_up')">
             <div v-if="followUps.length === 0" class="empty-state">
               <h3>No follow-up scheduled</h3>
               <p>Schedule a follow-up session to keep tracking this referral.</p>
@@ -742,6 +779,7 @@
                 <span style="font-size:11.5px;color:var(--fog)">Page {{ followUpsPage }} of {{ followUpsTotalPages }}</span>
                 <button class="ibtn ibtn-o ibtn-sm" :disabled="followUpsPage === followUpsTotalPages" @click="followUpsPage++">Next</button>
               </div>
+            </div>
             </div>
           </div>
 
@@ -800,11 +838,12 @@
 
           <!-- Student Info -->
           <div class="icard">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('student')">
               <span class="icard-title">Student</span>
-              <button v-if="isGCU" class="ibtn ibtn-g ibtn-sm" @click="showProfileModal = true">Profile</button>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin:0 2px;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('student') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+              <button v-if="isGCU" class="ibtn ibtn-g ibtn-sm" style="margin-left:auto" @click.stop="showProfileModal = true">Profile</button>
             </div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:10px">
+            <div v-show="isSifSectionOpen('student')" class="icard-body" style="display:flex;flex-direction:column;gap:10px">
               <div style="display:flex;align-items:center;gap:10px">
                 <div class="qav" style="width:40px;height:40px;font-size:15px">
                   {{ initials(referral.student?.first_name, referral.student?.last_name) }}
@@ -1040,8 +1079,11 @@
                card collapses to a view-only notice - no further SIF action
                (scheduling, referring to TMDU, or re-resolving) is available. -->
           <div class="icard" v-if="isGCU && referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Case Action</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:12px;padding:18px">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('case_action')">
+              <span class="icard-title">Case Action</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('case_action') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('case_action')" class="icard-body" style="display:flex;flex-direction:column;gap:12px;padding:18px">
               <div v-if="isResolved" style="padding:8px 12px;background:var(--mist);border-radius:var(--r-sm);font-size:12px;color:var(--moss);text-align:center">
                 ✓ {{ lockedText }}
               </div>
@@ -1139,12 +1181,15 @@
                Information Files only. Removed entirely for an Incident
                Report. -->
           <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header"><span class="icard-title">Appointments</span></div>
-            <div v-if="!referralAppointments.length" class="empty-state">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('appointments')">
+              <span class="icard-title">Appointments</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('appointments') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+            <div v-show="isSifSectionOpen('appointments')" v-if="!referralAppointments.length" class="empty-state">
               <h3>No appointments yet</h3>
               <p>No appointments have been scheduled for this referral.</p>
             </div>
-            <div v-else>
+            <div v-show="isSifSectionOpen('appointments')" v-else>
               <!-- Clicking the card opens the Appointment Details modal below
                    (openApptDetail) so staff can confirm/check-in/no-show/
                    cancel right here, without leaving the SIF for the
@@ -1190,18 +1235,19 @@
                Student Information Files only. Removed entirely for an
                Incident Report. -->
           <div class="icard" v-if="referral.case && fromCases && !isIncidentReport">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="toggleSifSection('parent_conference')">
               <span class="icard-title">Parent Conference</span>
-              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" @click="openParentConferenceModal">
+              <button v-if="isGCU && !isResolved && canEditSif" class="ibtn ibtn-p ibtn-sm" style="margin-left:auto" @click.stop="openParentConferenceModal">
                 <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 Issue Slip
               </button>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:8px;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('parent_conference') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
-            <div v-if="!referralParentConferenceSlips.length" class="empty-state">
+            <div v-show="isSifSectionOpen('parent_conference')" v-if="!referralParentConferenceSlips.length" class="empty-state">
               <h3>No parent conference slips yet</h3>
               <p>No Parent Conference Slip has been issued for this referral.</p>
             </div>
-            <div v-else>
+            <div v-show="isSifSectionOpen('parent_conference')" v-else>
               <div
                 v-for="s in referralParentConferenceSlips"
                 :key="s.id"
@@ -2498,6 +2544,21 @@ function initials(first, last) {
   return ((first?.[0] || '') + (last?.[0] || '')).toUpperCase() || '?';
 }
 
+// Panel fix (11/10/2026, item #5 follow-up): every top-level SIF section
+// below (Referral Info, Referral Status, Admission Slip, Feedback Slip,
+// Session Notes, Follow-up Session, Appointments, Parent Conference, Case
+// Action, PAR, Incident Report/Sanctions/Detailed Report) is now
+// collapsible the same way - only "Referral Info" and "Student" start
+// open, so the page isn't a wall of expanded cards on load. A section not
+// listed here defaults to collapsed (see isSifSectionOpen() below).
+const sifSectionsOpen = ref({ referral_info: true, student: true });
+function toggleSifSection(key) {
+  sifSectionsOpen.value = { ...sifSectionsOpen.value, [key]: !isSifSectionOpen(key) };
+}
+function isSifSectionOpen(key) {
+  return sifSectionsOpen.value[key] === true;
+}
+
 // Student Profile Modal - opens in place of navigating away to the
 // Student Profile page (B-: "Profile" button used to redirect out of the
 // SIF). Family/Siblings/Education collapse behind a dropdown toggle, same
@@ -2698,6 +2759,10 @@ function slipFromReferral(r) {
   return {
     admission_dates:    admissionDatesFromReferral(r, d),
     excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
+    // Panel fix (11/10/2026, items #6/#7): left undefined for a slip saved
+    // before this change (or a brand new one) - AdmissionSlipPaper treats
+    // that as "every date covered", same as before.
+    excused_dates:      Array.isArray(d.excused_dates) ? [...d.excused_dates] : undefined,
     remarks:            r.admission_remarks || '',
     causes:             Array.isArray(d.causes) ? [...d.causes] : [],
     cause_activity:     d.cause_activity || '',
@@ -2742,9 +2807,15 @@ async function saveAdmissionSlip() {
     : !f.actions.length ? 'Tick at least one action taken.'
     : (f.actions.includes('others') && !f.action_others.trim()) ? 'Write the other action taken.'
     : f.excused === '' ? 'Mark the slip as Excused or Unexcused.'
+    : (Array.isArray(f.excused_dates) && f.excused_dates.length === 0) ? 'Select at least one date this verdict covers.'
     : '';
   if (problem) { admissionError.value = problem; return; }
   admissionError.value = '';
+
+  // Panel fix (11/10/2026, items #6/#7): excused_dates is undefined until
+  // GCU unchecks a date (meaning "every date is covered") - materialize it
+  // here so the backend always gets an explicit list to store and show back.
+  const excusedDates = Array.isArray(f.excused_dates) ? f.excused_dates : dates.map(e => e.date);
 
   const unexcused = f.excused === '0';
   const sure = await confirmAction?.({
@@ -2774,6 +2845,7 @@ async function saveAdmissionSlip() {
         cause_others:   f.causes.includes('others') ? f.cause_others.trim() : null,
         actions:        f.actions,
         action_others:  f.actions.includes('others') ? f.action_others.trim() : null,
+        excused_dates:  excusedDates,
       },
     });
     referral.value = { ...referral.value, ...res.data };

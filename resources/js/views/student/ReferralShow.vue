@@ -107,6 +107,10 @@ const issuedAdmissionSlip = computed(() => {
   return {
     admission_dates,
     excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
+    // Panel fix (11/10/2026, items #6/#7): left undefined for a slip saved
+    // before this change - AdmissionSlipPaper treats that as "every date
+    // covered", same as before.
+    excused_dates:      Array.isArray(d.excused_dates) ? [...d.excused_dates] : undefined,
     remarks:            r.admission_remarks || '',
     causes:             Array.isArray(d.causes) ? [...d.causes] : [],
     cause_activity:     d.cause_activity || '',

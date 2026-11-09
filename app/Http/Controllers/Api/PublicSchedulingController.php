@@ -141,9 +141,16 @@ class PublicSchedulingController extends Controller
             return 'This time has already passed. Please choose another date or time.';
         }
 
+        // Panel fix (11/10/2026): says which bound was actually violated,
+        // matching the same split message AppointmentController now uses
+        // (see its durationViolation()), instead of one combined message
+        // that didn't say whether the window was too short or too long.
         $minutes = \Carbon\Carbon::createFromFormat('H:i', $start)->diffInMinutes(\Carbon\Carbon::createFromFormat('H:i', $end));
-        if ($minutes < 60 || $minutes > 120) {
-            return 'Appointments must be between 1 and 2 hours long.';
+        if ($minutes < 60) {
+            return 'The minimum appointment length is 1 hour.';
+        }
+        if ($minutes > 120) {
+            return 'The maximum appointment length is 2 hours.';
         }
 
         return null;

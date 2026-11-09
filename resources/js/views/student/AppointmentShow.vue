@@ -164,8 +164,8 @@
           <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}</div>
           <div v-else-if="availabilityChecked && isAvailable" style="display:flex;flex-direction:column;gap:6px">
             <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
-            <!-- Panel fix (11/10/2026, item #8): same live slot count as the new-booking screen. -->
-            <div v-if="slotCap && slotCount > 0" style="font-size:11.5px;color:var(--stone)">ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.</div>
+            <!-- Panel fix (11/10/2026, item #8): same live slot count as the new-booking screen, always shown once known. -->
+            <div v-if="slotCap !== null" style="font-size:11.5px;color:var(--stone)">ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.</div>
           </div>
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">

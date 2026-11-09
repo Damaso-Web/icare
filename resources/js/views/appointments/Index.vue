@@ -758,7 +758,12 @@ async function checkSlotConflict(unit, date, start, end, excludeId) {
     const slotCount = res.data.slot_count ?? 0;
     const slotCap = res.data.slot_cap ?? null;
     if (res.data.blocked) return { message: res.data.message || 'This date is not available.', slotCount, slotCap };
-    if (res.data.has_conflict) return { message: 'This time slot conflicts with another appointment for this unit. Please pick another.', slotCount, slotCap };
+    // Panel fix (11/10/2026): this used to always show the generic
+    // "conflicts with another appointment" text, discarding a more
+    // specific backend message (e.g. the 1-2 hour duration bound) whenever
+    // one was sent - so picking, say, a 20-minute window reported the
+    // wrong reason.
+    if (res.data.has_conflict) return { message: res.data.message || 'This time slot conflicts with another appointment for this unit. Please pick another.', slotCount, slotCap };
     return { message: '', slotCount, slotCap };
   } catch (e) {
     return { message: '', slotCount: 0, slotCap: null };
@@ -785,10 +790,11 @@ watch(() => [scheduleForm.value.appointment_date, scheduleForm.value.start_time,
   }, 350);
 });
 const scheduleWarningMsg = computed(() => scheduleBlockedMsg.value || scheduleConflictMsg.value);
-// Panel fix (11/10/2026, item #8): shown only when there's no blocking
-// warning, so GCU sees how many students already share this slot while
-// still being able to add this one too.
-const scheduleSlotInfo = computed(() => (!scheduleWarningMsg.value && scheduleSlotCap.value && scheduleSlotCount.value > 0)
+// Panel fix (11/10/2026, item #8): shown whenever a count is known (even
+// "0 of 5"), as long as there's no blocking warning in the way, so GCU
+// always sees how many students already share this slot, not only once
+// someone else happens to already be in it.
+const scheduleSlotInfo = computed(() => (!scheduleWarningMsg.value && scheduleSlotCap.value !== null)
   ? `${scheduleSlotCount.value} of ${scheduleSlotCap.value} students already booked this exact date and time.`
   : '');
 
@@ -1168,8 +1174,8 @@ watch(() => [rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.s
   }, 350);
 });
 const rescheduleNowWarningMsg = computed(() => rescheduleNowBlockedMsg.value || rescheduleNowConflictMsg.value);
-// Panel fix (11/10/2026, item #8): same live slot-count indicator as Schedule Now above.
-const rescheduleNowSlotInfo = computed(() => (!rescheduleNowWarningMsg.value && rescheduleNowSlotCap.value && rescheduleNowSlotCount.value > 0)
+// Panel fix (11/10/2026, item #8): same live slot-count indicator as Schedule Now above, always shown once known.
+const rescheduleNowSlotInfo = computed(() => (!rescheduleNowWarningMsg.value && rescheduleNowSlotCap.value !== null)
   ? `${rescheduleNowSlotCount.value} of ${rescheduleNowSlotCap.value} students already booked this exact date and time.`
   : '');
 

@@ -638,7 +638,7 @@
 
 <script setup>
 import { ref, computed, onMounted, inject } from 'vue';
-import { useBlockedDates } from '../../utils/blockedDates';
+import { useBlockedDates, officeHoursMessage } from '../../utils/blockedDates';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { testingAPI, userAPI, appointmentAPI, referralAPI, caseReferralAPI } from '../../api/index';
@@ -818,19 +818,15 @@ function dateErrorFor(dateStr, { disallowPast = false } = {}) {
   return blockedMessageFor(dateStr);
 }
 
+// Panel fix (11/10/2026): now calls the same officeHoursMessage() the main
+// GCU appointment screens use (resources/js/utils/blockedDates.js) instead
+// of keeping its own copy of the check - this used to only test `start <
+// 08:00 || end > 16:00`, which let an overnight range like 8:51 PM to 4:41
+// AM through unnoticed, since "20:51" > "08:00" and "04:41" < "16:00" as
+// plain strings. Sharing the one implementation means TMDU/PAR can't drift
+// out of sync with the GCU flow's own fix again.
 function timeErrorFor(startTime, endTime) {
-  if (!startTime || !endTime) return '';
-  // Panel fix (11/10/2026): this only ever checked `start < 08:00 || end >
-  // 16:00`, matching the same bug already fixed elsewhere (see
-  // blockedDates.js's officeHoursMessage()) - a start of 20:51 (8:51 PM)
-  // and end of 04:41 (4:41 AM) both passed, since "20:51" > "08:00" and
-  // "04:41" < "16:00" as plain strings. Checking both bounds on both
-  // fields actually constrains the whole window to 08:00-16:00.
-  if (startTime < '08:00' || startTime >= '16:00' || endTime <= '08:00' || endTime > '16:00') {
-    return 'Appointments must be scheduled between 8:00 AM and 4:00 PM.';
-  }
-  if (startTime >= endTime) return 'End time must be after start time.';
-  return '';
+  return officeHoursMessage(startTime, endTime);
 }
 
 const testingDateError = computed(() => dateErrorFor(testingForm.value.appointment_date, { disallowPast: true }));

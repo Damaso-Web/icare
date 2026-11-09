@@ -63,7 +63,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => $this->nextWeekday()->toDateString(),
             'start_time'       => '09:00',
             'end_time'         => '09:30',
-        ])->assertStatus(422)->assertJson(['message' => 'Appointments must be between 1 and 2 hours long.']);
+        ])->assertStatus(422)->assertJson(['message' => 'The minimum appointment length is 1 hour.']);
     }
 
     public function test_public_link_rejects_a_slot_longer_than_two_hours(): void
@@ -74,7 +74,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => $this->nextWeekday()->toDateString(),
             'start_time'       => '09:00',
             'end_time'         => '12:00',
-        ])->assertStatus(422)->assertJson(['message' => 'Appointments must be between 1 and 2 hours long.']);
+        ])->assertStatus(422)->assertJson(['message' => 'The maximum appointment length is 2 hours.']);
     }
 
     public function test_public_link_accepts_a_valid_future_slot_within_bounds(): void
@@ -99,7 +99,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
         ])->assertOk();
 
         $this->assertFalse($res->json('available'));
-        $this->assertSame('Appointments must be between 1 and 2 hours long.', $res->json('message'));
+        $this->assertSame('The minimum appointment length is 1 hour.', $res->json('message'));
     }
 
     // --- Logged-in student self-booking ---
@@ -131,7 +131,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => $this->nextWeekday()->toDateString(),
             'start_time'       => '09:00',
             'end_time'         => '09:30',
-        ])->assertStatus(422)->assertJson(['message' => 'Appointments must be between 1 and 2 hours long.']);
+        ])->assertStatus(422)->assertJson(['message' => 'The minimum appointment length is 1 hour.']);
     }
 
     public function test_student_check_conflict_also_flags_a_passed_time(): void

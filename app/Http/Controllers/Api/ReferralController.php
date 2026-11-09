@@ -1354,6 +1354,16 @@ class ReferralController extends Controller
             'admission_details.actions'        => 'required|array|min:1',
             'admission_details.actions.*'      => 'in:' . implode(',', $actions),
             'admission_details.action_others'  => 'nullable|string|max:255',
+            // Panel fix (11/10/2026, items #6/#7): which of the dates above
+            // this Excused/Unexcused verdict covers - a subset of
+            // admission_dates, not retyped. Checked against the actual
+            // dates list below, after the dedupe/normalize pass. Omitted
+            // entirely (older clients, or the frontend's lazy "every date
+            // covered" default) means every date on the slip is covered -
+            // so this is optional, not required, and only validated when
+            // actually present.
+            'admission_details.excused_dates'    => 'nullable|array|min:1',
+            'admission_details.excused_dates.*'  => 'required|date',
         ], [
             'admission_dates.required'              => 'Add at least one date absent/tardy.',
             'admission_dates.*.date.required'        => 'Each date entry needs a date.',
@@ -1361,6 +1371,7 @@ class ReferralController extends Controller
             'admission_details.causes.required'      => 'Tick at least one cause of absence.',
             'admission_details.actions.required'     => 'Tick at least one action taken.',
             'admission_dates.*.time_out.after'        => 'The end time must be after the start time.',
+            'admission_details.excused_dates.min'    => 'Select at least one date this verdict covers.',
         ]);
         $d = $validated['admission_details'];
         if (in_array('official_activity', $d['causes'], true) && !trim((string) ($d['cause_activity'] ?? ''))) {
@@ -1393,6 +1404,20 @@ class ReferralController extends Controller
         }
         usort($dates, fn($a, $b) => strcmp($a['date'], $b['date']));
 
+        // Panel fix (11/10/2026, items #6/#7): excused_dates must actually
+        // be a subset of the dates just normalized above - never a date
+        // that isn't on this slip at all. Not sent at all -> every date on
+        // this slip is covered (the implicit default).
+        $validDates = array_column($dates, 'date');
+        $excusedDates = isset($d['excused_dates'])
+            ? array_values(array_unique($d['excused_dates']))
+            : $validDates;
+        foreach ($excusedDates as $ed) {
+            if (!in_array($ed, $validDates, true)) {
+                abort(422, 'The dates this verdict covers must be chosen from the dates added above.');
+            }
+        }
+
         // Number of day/s absent/tardy is now counted automatically from the
         // dates added (Whole Day = 1, Half Day = 0.5) instead of free text.
         $dayTotal = array_sum(array_map(fn($e) => $e['duration'] === 'half' ? 0.5 : 1, $dates));
@@ -1416,6 +1441,7 @@ class ReferralController extends Controller
                 'cause_others'   => $d['cause_others'] ?? null,
                 'actions'        => $d['actions'],
                 'action_others'  => $d['action_others'] ?? null,
+                'excused_dates'  => $excusedDates,
             ],
             'admission_issued_at'         => now(),
             'admission_issued_by_user_id' => $user->id,

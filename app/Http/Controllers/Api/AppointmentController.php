@@ -208,10 +208,19 @@ class AppointmentController extends Controller
             || $validated['end_time'] <= '08:00' || $validated['end_time'] > '16:00') {
             return response()->json(['message' => 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.'], 422);
         }
+        // Panel fix (11/10/2026): this endpoint never checked the 1-2 hour
+        // bound either - see the matching comment on checkConflict() above.
+        if ($violation = $this->durationViolation($validated['start_time'], $validated['end_time'])) {
+            return response()->json(['message' => $violation], 422);
+        }
 
+        // Panel fix (11/10/2026, item #8): matches the live check in
+        // checkConflict() - a GCU slot can hold up to
+        // Appointment::STUDENT_SAME_SLOT_CAP students, not just one.
+        $unitCap = $validated['unit'] === 'GCU' ? Appointment::STUDENT_SAME_SLOT_CAP : 1;
         $conflictFound = !empty($validated['staff_user_id'])
             ? Appointment::hasConflict($validated['staff_user_id'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'])
-            : Appointment::hasUnitConflict($validated['unit'], $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
+            : Appointment::hasUnitConflict($validated['unit'], $validated['appointment_date'], $validated['start_time'], $validated['end_time'], null, $unitCap);
 
         if ($conflictFound) {
             return response()->json(['message' => 'Scheduling conflict: staff or unit is unavailable at this time.'], 422);
@@ -588,17 +597,19 @@ class AppointmentController extends Controller
             || $validated['end_time'] <= '08:00' || $validated['end_time'] > '16:00') {
             abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
         }
+        // Panel fix (11/10/2026): this staff path never checked the 1-2 hour
+        // bound at all before this (see the matching comment on
+        // checkConflict() above).
+        if ($violation = $this->durationViolation($validated['start_time'], $validated['end_time'])) {
+            abort(422, $violation);
+        }
         \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
 
-        $conflict = Appointment::where('unit', $appointment->unit)
-            ->where('appointment_date', $validated['appointment_date'])
-            ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled', 'rescheduled'])
-            ->where('request_status', '!=', 'awaiting_student')
-            ->where('start_time', '<', $validated['end_time'])
-            ->where('end_time', '>', $validated['start_time'])
-            ->exists();
-        if ($conflict) {
+        // Panel fix (11/10/2026, item #8): matches the live check in
+        // checkConflict() - a GCU slot can hold up to
+        // Appointment::STUDENT_SAME_SLOT_CAP students, not just one.
+        $cap = $appointment->unit === 'GCU' ? Appointment::STUDENT_SAME_SLOT_CAP : 1;
+        if (Appointment::hasUnitConflict($appointment->unit, $validated['appointment_date'], $validated['start_time'], $validated['end_time'], $appointment->id, $cap)) {
             abort(422, 'This time slot conflicts with another appointment for this unit. Please pick another.');
         }
 
@@ -861,9 +872,8 @@ private function studentDateTimeRuleViolation(string $date, string $start, strin
         return 'This time has already passed. Please choose another date or time.';
     }
 
-    $minutes = $this->calcDuration($start, $end);
-    if ($minutes < 60 || $minutes > 120) {
-        return 'Appointments must be between 1 and 2 hours long.';
+    if ($violation = $this->durationViolation($start, $end)) {
+        return $violation;
     }
 
     return null;
@@ -1218,19 +1228,23 @@ public function checkConflictByStudent(Request $request)
             || $data['end_time'] <= '08:00' || $data['end_time'] > '16:00') {
             abort(422, 'Appointments can only be scheduled between 8:00 AM and 4:00 PM.');
         }
+        // Panel fix (11/10/2026): this staff path never checked the 1-2 hour
+        // bound at all before this (see the matching comment on
+        // checkConflict() above).
+        if ($violation = $this->durationViolation($data['start_time'], $data['end_time'])) {
+            abort(422, $violation);
+        }
         if ($blocked = \App\Support\BlockedDates::message($data['appointment_date'])) {
             abort(422, $blocked);
         }
 
-        $conflict = Appointment::where('unit', $appointment->unit)
-            ->where('appointment_date', $data['appointment_date'])
-            ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled', 'rescheduled'])
-            ->where('request_status', '!=', 'awaiting_student')
-            ->where('start_time', '<', $data['end_time'])
-            ->where('end_time', '>', $data['start_time'])
-            ->exists();
-        if ($conflict) {
+        // Panel fix (11/10/2026, item #8): matches the live check in
+        // checkConflict() - a GCU slot can hold up to
+        // Appointment::STUDENT_SAME_SLOT_CAP students, not just one, so
+        // staff scheduling a student here isn't rejected for a slot the
+        // live count already said had room.
+        $cap = $appointment->unit === 'GCU' ? Appointment::STUDENT_SAME_SLOT_CAP : 1;
+        if (Appointment::hasUnitConflict($appointment->unit, $data['appointment_date'], $data['start_time'], $data['end_time'], $appointment->id, $cap)) {
             abort(422, 'This time slot conflicts with another appointment for this unit. Please pick another.');
         }
 
@@ -1305,13 +1319,29 @@ public function checkConflictByStudent(Request $request)
             'end_time'         => 'required',
         ]);
 
+        // Panel fix (11/10/2026): staff-initiated scheduling never checked
+        // the 1-2 hour bound at all before this - only an outright conflict
+        // was ever reported, so picking e.g. a 20-minute or 3-hour window
+        // surfaced the generic "conflicts with another appointment" message
+        // instead of saying what was actually wrong.
+        if ($request->start_time && $request->end_time && ($violation = $this->durationViolation($request->start_time, $request->end_time))) {
+            return response()->json(['has_conflict' => true, 'message' => $violation]);
+        }
+
         if ($blocked = \App\Support\BlockedDates::message($request->appointment_date)) {
             return response()->json(['has_conflict' => true, 'blocked' => true, 'message' => $blocked]);
         }
 
+        // Panel fix (11/10/2026, item #8): GCU's unit-wide check now shares
+        // the same cap (STUDENT_SAME_SLOT_CAP) the live count below reports
+        // on - before this, the count said "X of 5" while the actual
+        // accept/reject decision still treated any single existing
+        // appointment as a hard conflict (cap 1), so staff could be told a
+        // slot had room and then have it rejected anyway.
+        $cap = (empty($request->staff_user_id) && $request->unit === 'GCU') ? Appointment::STUDENT_SAME_SLOT_CAP : 1;
         $conflict = !empty($request->staff_user_id)
             ? Appointment::hasConflict($request->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id)
-            : (!empty($request->unit) ? Appointment::hasUnitConflict($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id) : false);
+            : (!empty($request->unit) ? Appointment::hasUnitConflict($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id, $cap) : false);
 
         // Panel fix (11/10/2026, item #8): same live slot count as the
         // student's own self-booking check, surfaced here too so GCU staff
@@ -1335,6 +1365,26 @@ public function checkConflictByStudent(Request $request)
     {
         return (int) Carbon::createFromFormat('H:i', $start)
             ->diffInMinutes(Carbon::createFromFormat('H:i', $end));
+    }
+
+    // Panel fix (11/10/2026): a specific message for which bound was
+    // actually violated ("at least 1 hour" vs "at most 2 hours"), instead
+    // of one combined "must be between 1 and 2 hours" message that doesn't
+    // say which end is wrong. Shared by every path that enforces this -
+    // see studentDateTimeRuleViolation() below and scheduleForStudent()/
+    // rescheduleNow()/checkConflict(), which didn't enforce it at all
+    // before this fix (staff-initiated scheduling only ever checked for an
+    // outright conflict, never the 1-2 hour bound).
+    private function durationViolation(string $start, string $end): ?string
+    {
+        $minutes = $this->calcDuration($start, $end);
+        if ($minutes < 60) {
+            return 'The minimum appointment length is 1 hour.';
+        }
+        if ($minutes > 120) {
+            return 'The maximum appointment length is 2 hours.';
+        }
+        return null;
     }
 
     /** The instructor / dean who referred the student also hears that an appointment was set (FR-10). Never throws. */

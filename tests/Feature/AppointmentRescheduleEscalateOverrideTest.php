@@ -151,7 +151,33 @@ class AppointmentRescheduleEscalateOverrideTest extends TestCase
     {
         $staff = $this->user('gcu_staff');
         $appointment = $this->appointment('GCU');
-        // A different GCU appointment already sits in the target slot.
+        // A different GCU appointment already sits in a slot that partially
+        // overlaps the target slot below. GCU exact-match slots can now be
+        // shared by up to Appointment::STUDENT_SAME_SLOT_CAP students, but a
+        // partial overlap with a different start/end is still a hard
+        // conflict regardless of that cap - so this uses an overlapping,
+        // not identical, slot to keep testing that rule.
+        $this->appointment('GCU', [
+            'appointment_date' => $this->nextWeekday(),
+            'start_time'       => '13:00',
+            'end_time'         => '14:00',
+        ]);
+        Sanctum::actingAs($staff);
+
+        $this->postJson("/api/appointments/{$appointment->id}/reschedule-now", [
+            'appointment_date' => $this->nextWeekday(),
+            'start_time'       => '13:30',
+            'end_time'         => '14:30',
+        ])->assertStatus(422);
+    }
+
+    public function test_reschedule_now_allows_sharing_an_exact_gcu_slot_within_cap(): void
+    {
+        $staff = $this->user('gcu_staff');
+        $appointment = $this->appointment('GCU');
+        // A different GCU appointment already sits in the exact target
+        // slot - allowed, since GCU slots can be shared by multiple
+        // students up to Appointment::STUDENT_SAME_SLOT_CAP.
         $this->appointment('GCU', [
             'appointment_date' => $this->nextWeekday(),
             'start_time'       => '13:00',
@@ -163,7 +189,7 @@ class AppointmentRescheduleEscalateOverrideTest extends TestCase
             'appointment_date' => $this->nextWeekday(),
             'start_time'       => '13:00',
             'end_time'         => '14:00',
-        ])->assertStatus(422);
+        ])->assertOk();
     }
 
     // ===================== escalateNoShow =====================

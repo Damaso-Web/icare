@@ -4,8 +4,14 @@
   show an issued slip (readonly = true).
 
   form: { admission_dates: [{ date, duration: 'whole'|'half', time_in, time_out }],
-          excused ('1' | '0' | ''), remarks, causes: [], cause_activity,
-          cause_others, actions: [], action_others }
+          excused ('1' | '0' | ''), excused_dates: [date, ...] | undefined,
+          remarks, causes: [], cause_activity, cause_others, actions: [],
+          action_others }
+
+  excused_dates is the subset of admission_dates' dates this Excused/
+  Unexcused verdict covers. Left undefined, every date counts as covered -
+  it's only materialized once a date is actually unchecked (see
+  isDateCovered()/toggleDateCovered() below).
 
   Panel fix (11/8/2026, items #6/#7): a slip can now carry several dates
   absent/tardy, each its own Whole Day/Half Day entry (Half Day may also
@@ -105,12 +111,19 @@
         <input type="radio" value="0" v-model="form.excused" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
         <span class="asp-k">Unexcused</span>
       </label>
-      <!-- Panel fix (items #6/#7): the verdict covers whichever dates/times
-           were already entered above - GCU selects them once, there, and
-           they're simply reused here instead of being retyped. -->
-      <div v-if="form.excused" class="asp-line asp-wrap">
+      <!-- Panel fix (11/10/2026, items #6/#7): which of the dates added
+           above this verdict covers - reusing that same list (never
+           retyped). Every date is covered by default; GCU can uncheck any
+           that this particular verdict doesn't apply to. -->
+      <div v-if="form.excused" class="asp-line asp-wrap" style="align-items:flex-start">
         <span class="asp-k">Covers:</span>
-        <span class="asp-v">{{ admissionDatesText }}</span>
+        <div v-if="readonly" class="asp-v" style="flex:1">{{ admissionDatesText }}</div>
+        <div v-else class="asp-datelist" style="flex:1;min-width:240px">
+          <label v-for="(e, i) in (form.admission_dates || [])" :key="i" class="asp-check" style="padding:4px 2px">
+            <input type="checkbox" :checked="isDateCovered(e.date)" @change="toggleDateCovered(e.date)" />
+            <span>{{ formatDateEntry(e) }}</span>
+          </label>
+        </div>
       </div>
       <div v-if="form.excused" class="asp-line">
         <span class="asp-k">Remarks:</span>
@@ -195,13 +208,46 @@ function addDate() {
     time_out: newDuration.value === 'half' ? (newTimeOut.value || '') : '',
   });
   list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  // Panel fix (11/10/2026, items #6/#7): a newly added date is covered by
+  // the verdict by default, same as every other date - only materialize
+  // excused_dates here if it's already been customized (undefined means
+  // "every date is covered", so a new date is already included implicitly).
+  if (Array.isArray(form.value.excused_dates)) {
+    form.value.excused_dates.push(newDate.value);
+  }
   newDate.value = '';
   newDuration.value = 'whole';
   newTimeIn.value = '';
   newTimeOut.value = '';
 }
 function removeDate(i) {
-  form.value.admission_dates.splice(i, 1);
+  const [removed] = form.value.admission_dates.splice(i, 1);
+  if (removed && Array.isArray(form.value.excused_dates)) {
+    const idx = form.value.excused_dates.indexOf(removed.date);
+    if (idx !== -1) form.value.excused_dates.splice(idx, 1);
+  }
+}
+
+// Panel fix (11/10/2026, items #6/#7): form.excused_dates is the explicit
+// subset of admission_dates this verdict covers. Left undefined (a brand
+// new slip, or one saved before this change), every date counts as
+// covered - the array is only created once GCU actually unchecks one.
+function isDateCovered(dateStr) {
+  if (!Array.isArray(form.value.excused_dates)) return true;
+  return form.value.excused_dates.includes(dateStr);
+}
+function toggleDateCovered(dateStr) {
+  if (!Array.isArray(form.value.excused_dates)) {
+    // First time this is touched: start from "every date covered" and
+    // remove just the one being unchecked.
+    form.value.excused_dates = (form.value.admission_dates || [])
+      .map(e => e.date)
+      .filter(d => d !== dateStr);
+    return;
+  }
+  const idx = form.value.excused_dates.indexOf(dateStr);
+  if (idx === -1) form.value.excused_dates.push(dateStr);
+  else form.value.excused_dates.splice(idx, 1);
 }
 
 // Live count, so staff see it update as dates are added/removed - the
@@ -232,7 +278,7 @@ function formatDateEntry(e) {
   return s;
 }
 const admissionDatesText = computed(() => {
-  const dates = form.value.admission_dates || [];
+  const dates = (form.value.admission_dates || []).filter(e => isDateCovered(e.date));
   return dates.length ? dates.map(formatDateEntry).join('; ') : '-';
 });
 </script>

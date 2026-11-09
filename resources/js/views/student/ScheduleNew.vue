@@ -73,10 +73,11 @@
           <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
             ✓ This time slot is available.
           </div>
-          <!-- Panel fix (11/10/2026, item #8): live count of how many other
-               students already picked this exact date and time, so this is
-               known up front rather than only surfacing once the slot fills. -->
-          <div v-if="slotCap && slotCount > 0" style="font-size:11.5px;color:var(--stone)">
+          <!-- Panel fix (11/10/2026, item #8): live count of how many
+               students already picked this exact date and time, always
+               shown once it's known (even "0 of 5") rather than only
+               appearing once someone else is already in the slot. -->
+          <div v-if="slotCap !== null" style="font-size:11.5px;color:var(--stone)">
             ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.
           </div>
         </div>

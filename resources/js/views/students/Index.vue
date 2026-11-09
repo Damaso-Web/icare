@@ -53,11 +53,17 @@
     <div class="icard">
       <!-- Panel fix (11/8/2026, item #9): select several accounts and
            deactivate them together with one shared reason, instead of
-           repeating the single-account Deactivate flow one at a time. -->
-      <div v-if="auth.isAdmin && selectedStudentIds.length" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud)">
-        <span style="font-size:12.5px;color:var(--slate)">{{ selectedStudentIds.length }} selected</span>
-        <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkDeactivateModal">Deactivate Selected</button>
-        <button class="ibtn ibtn-o ibtn-sm" @click="selectedStudentIds = []">Clear Selection</button>
+           repeating the single-account Deactivate flow one at a time.
+           Panel fix (11/10/2026): the only way to select everything used
+           to be the small checkbox in the table header, easy to miss - this
+           row (and its explicit Select All / Deselect All button) is now
+           always visible to Admin once there's at least one active student
+           on the page, not only after something is already selected. -->
+      <div v-if="auth.isAdmin && students.some(s => s.is_active)" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud);flex-wrap:wrap">
+        <span v-if="selectedStudentIds.length" style="font-size:12.5px;color:var(--slate)">{{ selectedStudentIds.length }} selected</span>
+        <button class="ibtn ibtn-o ibtn-sm" @click="toggleSelectAllOnPage">{{ allOnPageSelected ? 'Deselect All' : 'Select All' }}</button>
+        <button v-if="selectedStudentIds.length" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkDeactivateModal">Deactivate Selected</button>
+        <button v-if="selectedStudentIds.length" class="ibtn ibtn-o ibtn-sm" @click="selectedStudentIds = []">Clear Selection</button>
       </div>
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
