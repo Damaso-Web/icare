@@ -329,6 +329,7 @@
               </button>
             </div>
             <div v-if="scheduleWarningMsg" style="font-size:11px;color:var(--red);margin-top:4px">{{ scheduleWarningMsg }}</div>
+            <div v-else-if="scheduleSlotInfo" style="font-size:11px;color:var(--stone);margin-top:4px">ℹ {{ scheduleSlotInfo }}</div>
           </div>
 
           <!-- Admin / GCU Staff only: manually override the appointment's status -->
@@ -536,6 +537,7 @@
               <input v-model="rescheduleNowForm.end_time" type="time" class="ifi" min="08:00" max="16:00" />
             </div>
             <div v-if="rescheduleNowWarningMsg" style="font-size:11px;color:var(--red)">{{ rescheduleNowWarningMsg }}</div>
+            <div v-else-if="rescheduleNowSlotInfo" style="font-size:11px;color:var(--stone)">ℹ {{ rescheduleNowSlotInfo }}</div>
             <button
               class="ibtn ibtn-p ibtn-sm"
               style="justify-content:center"
@@ -745,32 +747,50 @@ const scheduleBlockedMsg = computed(() => dateOrTimeBlockedMsg(scheduleForm.valu
 // excluding the appointment being scheduled/rescheduled itself so it
 // never conflicts with its own current slot.
 async function checkSlotConflict(unit, date, start, end, excludeId) {
-  if (!unit || !date || !start || !end) return '';
+  if (!unit || !date || !start || !end) return { message: '', slotCount: 0, slotCap: null };
   try {
     const res = await appointmentAPI.checkConflict({
       unit, appointment_date: date, start_time: start, end_time: end, exclude_id: excludeId,
     });
-    if (res.data.blocked) return res.data.message || 'This date is not available.';
-    if (res.data.has_conflict) return 'This time slot conflicts with another appointment for this unit. Please pick another.';
-    return '';
+    // Panel fix (11/10/2026, item #8): live count of how many students
+    // already share this exact date and time, alongside the existing
+    // conflict message - shown even when there's no conflict yet.
+    const slotCount = res.data.slot_count ?? 0;
+    const slotCap = res.data.slot_cap ?? null;
+    if (res.data.blocked) return { message: res.data.message || 'This date is not available.', slotCount, slotCap };
+    if (res.data.has_conflict) return { message: 'This time slot conflicts with another appointment for this unit. Please pick another.', slotCount, slotCap };
+    return { message: '', slotCount, slotCap };
   } catch (e) {
-    return '';
+    return { message: '', slotCount: 0, slotCap: null };
   }
 }
 
 let scheduleConflictDebounce = null;
 const scheduleConflictMsg = ref('');
+const scheduleSlotCount = ref(0);
+const scheduleSlotCap = ref(null);
 watch(() => [scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time], () => {
   scheduleConflictMsg.value = '';
+  scheduleSlotCount.value = 0;
+  scheduleSlotCap.value = null;
   clearTimeout(scheduleConflictDebounce);
   if (!detailTarget.value || scheduleBlockedMsg.value) return;
   scheduleConflictDebounce = setTimeout(async () => {
-    scheduleConflictMsg.value = await checkSlotConflict(
+    const r = await checkSlotConflict(
       detailTarget.value.unit, scheduleForm.value.appointment_date, scheduleForm.value.start_time, scheduleForm.value.end_time, detailTarget.value.id
     );
+    scheduleConflictMsg.value = r.message;
+    scheduleSlotCount.value = r.slotCount;
+    scheduleSlotCap.value = r.slotCap;
   }, 350);
 });
 const scheduleWarningMsg = computed(() => scheduleBlockedMsg.value || scheduleConflictMsg.value);
+// Panel fix (11/10/2026, item #8): shown only when there's no blocking
+// warning, so GCU sees how many students already share this slot while
+// still being able to add this one too.
+const scheduleSlotInfo = computed(() => (!scheduleWarningMsg.value && scheduleSlotCap.value && scheduleSlotCount.value > 0)
+  ? `${scheduleSlotCount.value} of ${scheduleSlotCap.value} students already booked this exact date and time.`
+  : '');
 
 const schedulingStudent = ref(false);
 async function applyScheduleStudent() {
@@ -1130,17 +1150,28 @@ const rescheduleNowBlockedMsg = computed(() => dateOrTimeBlockedMsg(rescheduleNo
 // B#, 11/4/2026: same live conflict check as Schedule Now above.
 let rescheduleConflictDebounce = null;
 const rescheduleNowConflictMsg = ref('');
+const rescheduleNowSlotCount = ref(0);
+const rescheduleNowSlotCap = ref(null);
 watch(() => [rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time], () => {
   rescheduleNowConflictMsg.value = '';
+  rescheduleNowSlotCount.value = 0;
+  rescheduleNowSlotCap.value = null;
   clearTimeout(rescheduleConflictDebounce);
   if (!rescheduleTarget.value || rescheduleNowBlockedMsg.value) return;
   rescheduleConflictDebounce = setTimeout(async () => {
-    rescheduleNowConflictMsg.value = await checkSlotConflict(
+    const r = await checkSlotConflict(
       rescheduleTarget.value.unit, rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.start_time, rescheduleNowForm.value.end_time, rescheduleTarget.value.id
     );
+    rescheduleNowConflictMsg.value = r.message;
+    rescheduleNowSlotCount.value = r.slotCount;
+    rescheduleNowSlotCap.value = r.slotCap;
   }, 350);
 });
 const rescheduleNowWarningMsg = computed(() => rescheduleNowBlockedMsg.value || rescheduleNowConflictMsg.value);
+// Panel fix (11/10/2026, item #8): same live slot-count indicator as Schedule Now above.
+const rescheduleNowSlotInfo = computed(() => (!rescheduleNowWarningMsg.value && rescheduleNowSlotCap.value && rescheduleNowSlotCount.value > 0)
+  ? `${rescheduleNowSlotCount.value} of ${rescheduleNowSlotCap.value} students already booked this exact date and time.`
+  : '');
 
 async function submitRescheduleNow() {
   reschedulingNow.value = true;

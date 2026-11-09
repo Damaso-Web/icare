@@ -51,6 +51,14 @@
 
     <!-- Student List -->
     <div class="icard">
+      <!-- Panel fix (11/8/2026, item #9): select several accounts and
+           deactivate them together with one shared reason, instead of
+           repeating the single-account Deactivate flow one at a time. -->
+      <div v-if="auth.isAdmin && selectedStudentIds.length" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud)">
+        <span style="font-size:12.5px;color:var(--slate)">{{ selectedStudentIds.length }} selected</span>
+        <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkDeactivateModal">Deactivate Selected</button>
+        <button class="ibtn ibtn-o ibtn-sm" @click="selectedStudentIds = []">Clear Selection</button>
+      </div>
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -62,6 +70,9 @@
         <table class="itable">
           <thead>
             <tr>
+              <th v-if="auth.isAdmin" style="width:32px">
+                <input type="checkbox" :checked="allOnPageSelected" @change="toggleSelectAllOnPage" aria-label="Select all active students on this page" />
+              </th>
               <th>Student ID</th>
               <th>Full Name</th>
               <th>Status</th>
@@ -70,6 +81,15 @@
           </thead>
           <tbody>
             <tr v-for="s in students" :key="s.id" :style="!s.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
+              <td v-if="auth.isAdmin" @click.stop>
+                <input
+                  type="checkbox"
+                  :disabled="!s.is_active"
+                  :checked="selectedStudentIds.includes(s.id)"
+                  @change="toggleSelectOne(s.id)"
+                  :aria-label="`Select ${s.first_name} ${s.last_name}`"
+                />
+              </td>
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(s)">
                 {{ s.student_id }}
               </td>
@@ -1109,6 +1129,46 @@
       </div>
     </div>
 
+    <!-- Bulk Deactivate Modal (item #9): one shared reason applied to every
+         selected, still-active student account. -->
+    <div v-if="showBulkDeactivateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!bulkDeactivating && (showBulkDeactivateModal = false)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Deactivate {{ selectedStudentIds.length }} Student Account{{ selectedStudentIds.length === 1 ? '' : 's' }}?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Deactivating preserves each student's records, which can be reactivated later if needed. Any open case (SIF) belonging to a selected student will be closed. The same reason applies to all of them.
+          </div>
+          <div>
+            <label class="ifl">Reason for Deactivation <span style="color:var(--red)">*</span></label>
+            <select v-model="bulkReason" class="ifse">
+              <option value="" disabled hidden>Select a reason...</option>
+              <option v-for="r in REASON_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
+          </div>
+          <div v-if="bulkReasonDescription" style="background:var(--snow);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--slate);line-height:1.5">{{ bulkReasonDescription }}</div>
+          <div v-if="bulkReason === 'other'">
+            <label class="ifl">Explanation <span style="color:var(--red)">*</span></label>
+            <input v-model="bulkNotes" class="ifi" placeholder="Please describe the reason for deactivation briefly. Do not include sensitive personal details." maxlength="255" @input="bulkNotes = String(bulkNotes ?? '').replace(/[^a-zA-Z0-9À-ɏ'.,\x26()\- ]/g, '')" />
+          </div>
+          <div v-if="bulkDeactivating" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);background:var(--foam);border-radius:var(--r-sm);padding:10px 14px">
+            <span style="width:14px;height:14px;border:2px solid var(--cloud);border-top-color:var(--red);border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>
+            Processing deactivation, please wait...
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button
+              class="ibtn"
+              :style="canBulkDeactivate && !bulkDeactivating ? 'background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0' : 'background:var(--cloud);color:var(--fog);border:1.5px solid var(--cloud);cursor:not-allowed;opacity:.6'"
+              :disabled="!canBulkDeactivate || bulkDeactivating"
+              @click="doBulkDeactivate"
+            >{{ bulkDeactivating ? 'Deactivating...' : 'Deactivate Accounts' }}</button>
+            <button class="ibtn ibtn-o" :disabled="bulkDeactivating" @click="!bulkDeactivating && (showBulkDeactivateModal = false)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
@@ -1910,6 +1970,63 @@ async function doGraduate() {
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Please fill in all required fields.');
     return false;
+  }
+}
+
+// Bulk Deactivate (item #9): select several active accounts across the
+// current page and deactivate them together with one shared reason.
+const selectedStudentIds = ref([]);
+const allOnPageSelected = computed(() => {
+  const selectable = students.value.filter(s => s.is_active);
+  return selectable.length > 0 && selectable.every(s => selectedStudentIds.value.includes(s.id));
+});
+function toggleSelectAllOnPage() {
+  const selectable = students.value.filter(s => s.is_active).map(s => s.id);
+  selectedStudentIds.value = allOnPageSelected.value
+    ? selectedStudentIds.value.filter(id => !selectable.includes(id))
+    : [...new Set([...selectedStudentIds.value, ...selectable])];
+}
+function toggleSelectOne(id) {
+  selectedStudentIds.value = selectedStudentIds.value.includes(id)
+    ? selectedStudentIds.value.filter(x => x !== id)
+    : [...selectedStudentIds.value, id];
+}
+
+const showBulkDeactivateModal = ref(false);
+const bulkReason = ref('');
+const bulkNotes = ref('');
+const bulkDeactivating = ref(false);
+const bulkReasonDescription = computed(() => REASON_OPTIONS.find(r => r.value === bulkReason.value)?.description || '');
+const canBulkDeactivate = computed(() =>
+  selectedStudentIds.value.length > 0 &&
+  bulkReason.value &&
+  (bulkReason.value !== 'other' || bulkNotes.value.trim())
+);
+
+function openBulkDeactivateModal() {
+  bulkReason.value = '';
+  bulkNotes.value = '';
+  showBulkDeactivateModal.value = true;
+}
+
+async function doBulkDeactivate() {
+  if (!canBulkDeactivate.value || bulkDeactivating.value) return;
+  bulkDeactivating.value = true;
+  try {
+    const res = await studentAPI.bulkDeactivate({
+      student_ids: selectedStudentIds.value,
+      deactivation_reason: bulkReason.value,
+      deactivation_notes: bulkReason.value === 'other' ? bulkNotes.value.trim() : null,
+    });
+    const { deactivated = [], skipped = [] } = res.data || {};
+    showBulkDeactivateModal.value = false;
+    selectedStudentIds.value = [];
+    toast?.success(`Deactivated ${deactivated.length} student account${deactivated.length === 1 ? '' : 's'}.${skipped.length ? ` ${skipped.length} already inactive.` : ''}`);
+    fetchStudents();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to deactivate the selected accounts.');
+  } finally {
+    bulkDeactivating.value = false;
   }
 }
 

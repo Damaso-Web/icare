@@ -953,7 +953,16 @@ public function checkConflictByStudent(Request $request)
         Appointment::STUDENT_SAME_SLOT_CAP
     );
 
-    return response()->json(['has_conflict' => $hasConflict]);
+    // Panel fix (11/10/2026, item #8): a live count, not just a yes/no, so
+    // the student sees how many others already picked this exact slot
+    // before they submit - not only once the cap is hit.
+    $slotCount = Appointment::exactSlotCount('GCU', $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
+
+    return response()->json([
+        'has_conflict' => $hasConflict,
+        'slot_count'   => $slotCount,
+        'slot_cap'     => Appointment::STUDENT_SAME_SLOT_CAP,
+    ]);
 }
 
     public function checkIn(Request $request, Appointment $appointment)
@@ -1304,7 +1313,22 @@ public function checkConflictByStudent(Request $request)
             ? Appointment::hasConflict($request->staff_user_id, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id)
             : (!empty($request->unit) ? Appointment::hasUnitConflict($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id) : false);
 
-        return response()->json(['has_conflict' => $conflict]);
+        // Panel fix (11/10/2026, item #8): same live slot count as the
+        // student's own self-booking check, surfaced here too so GCU staff
+        // can see how many students already share this exact date and time
+        // while scheduling/rescheduling - only meaningful for the unit-wide
+        // (not staff-specific) check, and only GCU currently allows sharing
+        // a slot past one appointment (STUDENT_SAME_SLOT_CAP).
+        $slotCount = null;
+        $slotCap   = null;
+        if (empty($request->staff_user_id) && !empty($request->unit)) {
+            $slotCount = Appointment::exactSlotCount($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id);
+            if ($request->unit === 'GCU') {
+                $slotCap = Appointment::STUDENT_SAME_SLOT_CAP;
+            }
+        }
+
+        return response()->json(['has_conflict' => $conflict, 'slot_count' => $slotCount, 'slot_cap' => $slotCap]);
     }
 
     private function calcDuration(string $start, string $end): int

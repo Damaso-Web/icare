@@ -69,9 +69,16 @@
              style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">
           ⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}
         </div>
-        <div v-else-if="availabilityChecked && isAvailable"
-             style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
-          ✓ This time slot is available.
+        <div v-else-if="availabilityChecked && isAvailable" style="display:flex;flex-direction:column;gap:6px">
+          <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">
+            ✓ This time slot is available.
+          </div>
+          <!-- Panel fix (11/10/2026, item #8): live count of how many other
+               students already picked this exact date and time, so this is
+               known up front rather than only surfacing once the slot fills. -->
+          <div v-if="slotCap && slotCount > 0" style="font-size:11.5px;color:var(--stone)">
+            ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.
+          </div>
         </div>
 
         <div v-if="submitError"
@@ -113,6 +120,8 @@ const timeOrderError     = ref(false);
 const checkingAvailability = ref(false);
 const availabilityChecked  = ref(false);
 const isAvailable        = ref(false);
+const slotCount          = ref(0);
+const slotCap            = ref(null);
 
 const form = ref({
   concern: '',
@@ -166,9 +175,13 @@ async function checkAvailability() {
     });
     isAvailable.value = !res.data.has_conflict;
     availabilityMessage.value = res.data.message || '';
+    slotCount.value = res.data.slot_count ?? 0;
+    slotCap.value = res.data.slot_cap ?? null;
     availabilityChecked.value = true;
   } catch (e) {
     isAvailable.value = false;
+    slotCount.value = 0;
+    slotCap.value = null;
     availabilityChecked.value = true;
   } finally {
     checkingAvailability.value = false;

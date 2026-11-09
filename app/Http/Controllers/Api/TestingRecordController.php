@@ -632,7 +632,13 @@ class TestingRecordController extends Controller
             if ((int) date('N', strtotime($validated['appointment_date'])) > 5) {
                 abort(422, 'TMDU is closed on weekends. Please choose Monday to Friday.');
             }
-            if ($validated['start_time'] < '08:00' || $validated['end_time'] > '16:00') {
+            // Panel fix (11/10/2026): checks both bounds on both fields now,
+            // not just a too-early start or a too-late end - matching the
+            // same fix already made to AppointmentController's office-hours
+            // check (see its B628 comment). The old check let an overnight
+            // range (e.g. 8:51 PM to 4:41 AM) slip through unnoticed.
+            if ($validated['start_time'] < '08:00' || $validated['start_time'] >= '16:00'
+                || $validated['end_time'] <= '08:00' || $validated['end_time'] > '16:00') {
                 abort(422, 'PAR release can only be scheduled between 8:00 AM and 4:00 PM.');
             }
         }

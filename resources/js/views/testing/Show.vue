@@ -820,7 +820,15 @@ function dateErrorFor(dateStr, { disallowPast = false } = {}) {
 
 function timeErrorFor(startTime, endTime) {
   if (!startTime || !endTime) return '';
-  if (startTime < '08:00' || endTime > '16:00') return 'Appointments must be scheduled between 8:00 AM and 4:00 PM.';
+  // Panel fix (11/10/2026): this only ever checked `start < 08:00 || end >
+  // 16:00`, matching the same bug already fixed elsewhere (see
+  // blockedDates.js's officeHoursMessage()) - a start of 20:51 (8:51 PM)
+  // and end of 04:41 (4:41 AM) both passed, since "20:51" > "08:00" and
+  // "04:41" < "16:00" as plain strings. Checking both bounds on both
+  // fields actually constrains the whole window to 08:00-16:00.
+  if (startTime < '08:00' || startTime >= '16:00' || endTime <= '08:00' || endTime > '16:00') {
+    return 'Appointments must be scheduled between 8:00 AM and 4:00 PM.';
+  }
   if (startTime >= endTime) return 'End time must be after start time.';
   return '';
 }

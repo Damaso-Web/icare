@@ -162,7 +162,11 @@
           <div v-if="sameAsOriginalError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ fmt12(appointment.start_time) }}–{{ fmt12(appointment.end_time) }} on {{ formatDate(appointment.appointment_date) }} is the time being rescheduled, so it is no longer available. Please choose another date or time.</div>
           <div v-else-if="checkingAvailability" style="font-size:12px;color:var(--stone)">Checking availability...</div>
           <div v-else-if="availabilityChecked && !isAvailable && !timeRangeError" style="background:var(--red-lt);border:1px solid #f5c0c0;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--red)">⚠ {{ availabilityMessage || 'This time slot is already taken. Please choose another.' }}</div>
-          <div v-else-if="availabilityChecked && isAvailable" style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
+          <div v-else-if="availabilityChecked && isAvailable" style="display:flex;flex-direction:column;gap:6px">
+            <div style="background:var(--mist);border:1px solid var(--mint);border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:var(--moss)">✓ This time slot is available.</div>
+            <!-- Panel fix (11/10/2026, item #8): same live slot count as the new-booking screen. -->
+            <div v-if="slotCap && slotCount > 0" style="font-size:11.5px;color:var(--stone)">ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.</div>
+          </div>
           <div v-if="scheduleError" style="background:var(--red-lt);border:1px solid #f5c0c0;color:var(--red);padding:10px 12px;border-radius:var(--r-sm);font-size:12px">{{ scheduleError }}</div>
           <div style="display:flex;gap:8px">
             <button class="ibtn ibtn-p" @click="submitSchedule" :disabled="!canSubmit || submitting">
@@ -298,6 +302,8 @@ const timeOrderError = ref(false);
 const checkingAvailability = ref(false);
 const availabilityChecked = ref(false);
 const isAvailable = ref(false);
+const slotCount = ref(0);
+const slotCap = ref(null);
 const submitting = ref(false);
 const scheduleError = ref('');
 const timeRangeError = ref('');
@@ -539,9 +545,13 @@ async function checkAvailability() {
     );
     isAvailable.value = res.data.available;
     availabilityMessage.value = res.data.message || '';
+    slotCount.value = res.data.slot_count ?? 0;
+    slotCap.value = res.data.slot_cap ?? null;
     availabilityChecked.value = true;
     } catch (e) {
     isAvailable.value = false;
+    slotCount.value = 0;
+    slotCap.value = null;
     availabilityMessage.value = e.response?.data?.message || 'Could not verify availability. Please check your connection and try again.';
     availabilityChecked.value = true;
   } finally {

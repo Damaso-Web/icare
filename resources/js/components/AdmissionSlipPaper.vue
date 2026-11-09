@@ -99,16 +99,24 @@
     <div class="asp-verdict">
       <label class="asp-check wide">
         <input type="radio" value="1" v-model="form.excused" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
-        <span class="asp-k">Excused:</span>
-        <span v-if="readonly" class="asp-v">{{ form.excused === '1' ? form.remarks : '' }}</span>
-        <input v-else-if="form.excused === '1'" v-model="form.remarks" class="ifi asp-fill" maxlength="1000" placeholder="e.g. October 13, 2026, 8-9 AM only" />
+        <span class="asp-k">Excused</span>
       </label>
       <label class="asp-check wide">
         <input type="radio" value="0" v-model="form.excused" :disabled="readonly" :tabindex="readonly ? -1 : 0" />
-        <span class="asp-k">Unexcused:</span>
-        <span v-if="readonly" class="asp-v">{{ form.excused === '0' ? form.remarks : '' }}</span>
-        <input v-else-if="form.excused === '0'" v-model="form.remarks" class="ifi asp-fill" maxlength="1000" placeholder="details" />
+        <span class="asp-k">Unexcused</span>
       </label>
+      <!-- Panel fix (items #6/#7): the verdict covers whichever dates/times
+           were already entered above - GCU selects them once, there, and
+           they're simply reused here instead of being retyped. -->
+      <div v-if="form.excused" class="asp-line asp-wrap">
+        <span class="asp-k">Covers:</span>
+        <span class="asp-v">{{ admissionDatesText }}</span>
+      </div>
+      <div v-if="form.excused" class="asp-line">
+        <span class="asp-k">Remarks:</span>
+        <span v-if="readonly" class="asp-v">{{ form.remarks || '-' }}</span>
+        <input v-else v-model="form.remarks" class="ifi asp-fill" maxlength="1000" placeholder="optional remarks (e.g. documents verified)" />
+      </div>
     </div>
 
     <div class="asp-sign">
@@ -204,6 +212,28 @@ const daysCountDisplay = computed(() => {
   const total = dates.reduce((s, e) => s + (e.duration === 'half' ? 0.5 : 1), 0);
   const str = String(parseFloat(total.toFixed(1)));
   return `${str} ${str === '1' ? 'day' : 'days'}`;
+});
+
+// Panel fix (items #6/#7): one formatted line summarizing the same dates
+// already entered in "Date/s Absent/Tardy" above, reused in the
+// Excused/Unexcused verdict so GCU never retypes a date/time there.
+function formatDateEntry(e) {
+  let s = longDate(e.date);
+  if (e.duration === 'half') {
+    s += ', ';
+    if (e.time_in) {
+      s += formatTime12(e.time_in);
+      if (e.time_out) s += ` - ${formatTime12(e.time_out)}`;
+    }
+    s += ' (Half Day)';
+  } else {
+    s += ' (Whole Day)';
+  }
+  return s;
+}
+const admissionDatesText = computed(() => {
+  const dates = form.value.admission_dates || [];
+  return dates.length ? dates.map(formatDateEntry).join('; ') : '-';
 });
 </script>
 

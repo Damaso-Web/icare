@@ -109,7 +109,16 @@ class PublicSchedulingController extends Controller
             return response()->json(['available' => false, 'replaced_slot' => true, 'message' => self::REPLACED_SLOT_MESSAGE]);
         }
 
-        return response()->json(['available' => !$conflict]);
+        // Panel fix (11/10/2026, item #8): same live slot count as the
+        // authenticated self-booking check, so this reschedule screen can
+        // show how many students already share this exact date and time.
+        $slotCount = Appointment::exactSlotCount($appointment->unit, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id);
+
+        return response()->json([
+            'available'  => !$conflict,
+            'slot_count' => $slotCount,
+            'slot_cap'   => Appointment::STUDENT_SAME_SLOT_CAP,
+        ]);
     }
 
     private const REPLACED_SLOT_MESSAGE = 'This time was already used and rescheduled, so it is no longer available. Please choose another date or time.';

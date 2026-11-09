@@ -175,6 +175,23 @@ public static function hasUnitConflict(string $unit, string $date, string $start
     return (clone $base)->count() >= $cap;
 }
 
+// Panel fix (11/10/2026, item #8): a live count of how many students are
+// already in this EXACT slot, separate from the accept/reject decision
+// hasUnitConflict() above makes - so a booking screen can show "3 of 5
+// already booked" as staff/students pick a date and time, instead of only
+// finding out once the cap is hit and the slot is rejected outright.
+public static function exactSlotCount(string $unit, string $date, string $start, string $end, ?int $excludeId = null): int
+{
+    return static::where('unit', $unit)
+        ->where('appointment_date', $date)
+        ->where('start_time', $start)
+        ->where('end_time', $end)
+        ->whereNotIn('status', ['cancelled', 'rescheduled'])
+        ->where('request_status', '!=', 'awaiting_student')
+        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+        ->count();
+}
+
 
     /**
      * Tell the people handling this appointment that the student acted on it:
