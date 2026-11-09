@@ -51,7 +51,13 @@ const isStudent = route.meta?.student === true;
 const API_BASE = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 const base = isStudent ? '/student/notifications' : '/notifications';
 const cfg = () => ({ headers: { Authorization: `Bearer ${localStorage.getItem(isStudent ? 'student_token' : 'token')}` } });
-const target = (n) => (isStudent ? studentNotificationTarget : staffNotificationTarget)(n.data || {});
+// Panel fix (11/9/2026): staffNotificationTarget needs the viewer's role to
+// route a Dean/Dean's Secretary/Dept Chair account away from GCU-only pages
+// (see utils/notificationTarget.js) - same role lookup goBack() already uses.
+function currentRole() {
+  try { return JSON.parse(localStorage.getItem('user') || '{}').role; } catch (e) { return null; }
+}
+const target = (n) => (isStudent ? studentNotificationTarget(n.data || {}) : staffNotificationTarget(n.data || {}, currentRole()));
 
 // Back to the page the user came from; straight to home when this was opened directly.
 function goBack() {

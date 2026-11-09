@@ -77,6 +77,10 @@ class PublicSchedulingController extends Controller
             return response()->json(['available' => false, 'message' => 'Appointments can only be scheduled Monday to Friday.']);
         }
 
+        if ($violation = $this->dateTimeRuleViolation($request->appointment_date, $request->start_time, $request->end_time)) {
+            return response()->json(['available' => false, 'message' => $violation]);
+        }
+
         // B628-equivalent: bounded on both ends (see AppointmentController)
         // so a too-late start (e.g. 20:51) or too-early end (e.g. 04:41)
         // can't slip through.
@@ -89,14 +93,17 @@ class PublicSchedulingController extends Controller
             return response()->json(['available' => false, 'blocked' => true, 'message' => $blocked]);
         }
 
-        $conflict = Appointment::where('unit', $appointment->unit)
-            ->where('appointment_date', $request->appointment_date)
-            ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled', 'rescheduled'])
-            ->where('request_status', '!=', 'awaiting_student')
-            ->where('start_time', '<', $request->end_time)
-            ->where('end_time', '>', $request->start_time)
-            ->exists();
+        // Panel fix (11/8/2026, item #8): up to Appointment::STUDENT_SAME_SLOT_CAP
+        // students can share one exact date+start+end before this is "taken" -
+        // see Appointment::hasUnitConflict() for the exact-vs-partial-overlap rule.
+        $conflict = Appointment::hasUnitConflict(
+            $appointment->unit,
+            $request->appointment_date,
+            $request->start_time,
+            $request->end_time,
+            $appointment->id,
+            Appointment::STUDENT_SAME_SLOT_CAP
+        );
 
         if (!$conflict && $this->overlapsReplacedSlot($appointment, $request->appointment_date, $request->start_time, $request->end_time)) {
             return response()->json(['available' => false, 'replaced_slot' => true, 'message' => self::REPLACED_SLOT_MESSAGE]);
@@ -106,6 +113,32 @@ class PublicSchedulingController extends Controller
     }
 
     private const REPLACED_SLOT_MESSAGE = 'This time was already used and rescheduled, so it is no longer available. Please choose another date or time.';
+
+    // Panel fix (11/8/2026): two gaps in the public scheduling form.
+    //   1) The month calendar only greyed out days strictly before today
+    //      (monthAvailability()'s $isPast check), so today itself always
+    //      looked bookable even after its own 8:00-16:00 window had
+    //      already passed, and a student could still submit an early-
+    //      morning slot (e.g. 8:00 AM) well after that time had gone by.
+    //   2) Nothing bounded how long a slot could be - a student could
+    //      submit a 15-minute or an 8-hour "appointment".
+    // Both checkAvailability() and submit() need the same two checks, so
+    // they're pulled out here rather than duplicated across the two
+    // response-shape differences (array message vs 422).
+    private function dateTimeRuleViolation(string $date, string $start, string $end): ?string
+    {
+        $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start);
+        if ($startsAt->isPast()) {
+            return 'This time has already passed. Please choose another date or time.';
+        }
+
+        $minutes = \Carbon\Carbon::createFromFormat('H:i', $start)->diffInMinutes(\Carbon\Carbon::createFromFormat('H:i', $end));
+        if ($minutes < 60 || $minutes > 120) {
+            return 'Appointments must be between 1 and 2 hours long.';
+        }
+
+        return null;
+    }
 
     // B471: every slot this appointment gave up stays unavailable to it - not just the latest one -
     // so repeated reschedules cannot land back on a slot that was already rescheduled.
@@ -231,6 +264,10 @@ class PublicSchedulingController extends Controller
             return response()->json(['message' => 'Appointments can only be scheduled Monday to Friday.'], 422);
         }
 
+        if ($violation = $this->dateTimeRuleViolation($request->appointment_date, $request->start_time, $request->end_time)) {
+            return response()->json(['message' => $violation], 422);
+        }
+
         // B628-equivalent: bounded on both ends (see AppointmentController).
         if ($request->start_time < '08:00' || $request->start_time >= '16:00'
             || $request->end_time <= '08:00' || $request->end_time > '16:00') {
@@ -241,14 +278,15 @@ class PublicSchedulingController extends Controller
             return response()->json(['message' => $blocked, 'blocked' => true], 422);
         }
 
-        $conflict = Appointment::where('unit', $appointment->unit)
-            ->where('appointment_date', $request->appointment_date)
-            ->where('id', '!=', $appointment->id)
-            ->whereNotIn('status', ['cancelled', 'rescheduled'])
-            ->where('request_status', '!=', 'awaiting_student')
-            ->where('start_time', '<', $request->end_time)
-            ->where('end_time', '>', $request->start_time)
-            ->exists();
+        // Panel fix (11/8/2026, item #8): same exact-match cap as checkAvailability() above.
+        $conflict = Appointment::hasUnitConflict(
+            $appointment->unit,
+            $request->appointment_date,
+            $request->start_time,
+            $request->end_time,
+            $appointment->id,
+            Appointment::STUDENT_SAME_SLOT_CAP
+        );
 
         if ($conflict) {
             return response()->json(['message' => 'This time slot is no longer available. Please pick another.'], 422);

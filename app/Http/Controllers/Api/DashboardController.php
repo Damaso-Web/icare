@@ -215,6 +215,14 @@ class DashboardController extends Controller
                 'pending'           => $this->facultyVisibleReferrals($user)->where('status', 'submitted')->count(),
                 'acknowledged'      => $this->facultyVisibleReferrals($user)->where('status', 'acknowledged')->count(),
                 'completed'         => $this->facultyVisibleReferrals($user)->whereIn('status', ['completed', 'closed'])->count(),
+                // Panel fix (11/8/2026, item #4): Call Slips is a Dept Chair
+                // thing, not plain Faculty (who have no Call Slips page at
+                // all - see the 'call-slips' route's role list) - this key
+                // is left out of $stats entirely for plain faculty so the
+                // frontend's `s.call_slips ?? 0` fallback is the only thing
+                // rendering a tile for them, which it won't (isFaculty()
+                // check there, not isDeptChair()).
+                ...$user->isDeptChair() ? ['call_slips' => $this->callSlipsQuery($user)->count()] : [],
             ],
             'recent_referrals' => $this->facultyVisibleReferrals($user)
                 ->with('student')
@@ -249,6 +257,30 @@ class DashboardController extends Controller
         return Referral::where('referred_by_user_id', $user->id)->whereNull('complaint_id');
     }
 
+    // Panel fix (11/8/2026, item #4): same filters as CallSlipController::
+    // index() so this count always matches what the Call Slips page
+    // actually lists for this user - a Dept Chair only ever sees what's
+    // been escalated to them (call_slip_stage = 'dept_chair') for their
+    // own department, while a Dean/Dean's Secretary sees every open call
+    // slip for their whole college.
+    private function callSlipsQuery($user)
+    {
+        return Appointment::where(function ($q) {
+                $q->where('no_show_escalated', true)
+                  ->orWhere('reschedule_count', '>=', 3);
+            })
+            ->when($user->isDeptChair(), function ($q) {
+                $q->where('call_slip_stage', 'dept_chair');
+            })
+            ->whereHas('student', function ($q) use ($user) {
+                $q->whereIn('college', \App\Support\CollegeName::equivalents($user->college));
+
+                if ($user->isDeptChair()) {
+                    \App\Support\DepartmentScope::whereProgramMatches($q, $user->department);
+                }
+            });
+    }
+
     private function deanSecretaryDashboard($user): array
     {
         $collegeReferrals = $this->deanSecretaryVisibleReferrals($user);
@@ -259,6 +291,7 @@ class DashboardController extends Controller
                 'pending'      => (clone $collegeReferrals)->where('status', 'submitted')->count(),
                 'acknowledged' => (clone $collegeReferrals)->where('status', 'acknowledged')->count(),
                 'completed'    => (clone $collegeReferrals)->whereIn('status', ['completed', 'closed'])->count(),
+                'call_slips'   => $this->callSlipsQuery($user)->count(),
             ],
             'recent_referrals' => (clone $collegeReferrals)->with('student')
                 ->latest()

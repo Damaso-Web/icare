@@ -421,6 +421,101 @@ class AppointmentController extends Controller
         return response()->json($appointment);
     }
 
+    // Panel fix (11/8/2026, item #8 follow-up): reassigning the counselor
+    // on an appointment used to only be possible at confirm() time - once
+    // confirmed, staff_user_id was stuck. Now that up to
+    // Appointment::STUDENT_SAME_SLOT_CAP students can land in one exact
+    // slot (see hasUnitConflict()), GCU needs to spread them across
+    // counselors manually afterward, so this exists as its own action,
+    // independent of status. Same conflict/availability checks confirm()
+    // already runs - just without touching status/request_status.
+    public function reassignStaff(Request $request, Appointment $appointment)
+    {
+        $this->authorizeUnit($appointment);
+        $validated = $request->validate([
+            'staff_user_id' => 'nullable|exists:users,id',
+        ]);
+
+        if (in_array($appointment->status, ['cancelled', 'rescheduled'], true)) {
+            abort(422, 'This appointment is ' . str_replace('_', ' ', $appointment->status) . ' and cannot be reassigned.');
+        }
+
+        $staffToAssign = $validated['staff_user_id'] ?? null;
+
+        if ($staffToAssign) {
+            $conflict = Appointment::findConflict(
+                $staffToAssign,
+                $appointment->appointment_date->format('Y-m-d'),
+                $appointment->start_time,
+                $appointment->end_time,
+                $this->rescheduleChainIds($appointment)
+            );
+
+            if ($conflict) {
+                $who = $conflict->student ? " ({$conflict->student->last_name}, {$conflict->student->first_name})" : '';
+                return response()->json([
+                    'message' => "This staff member already has a conflicting appointment at this time: {$conflict->appointment_code}{$who}, {$conflict->start_time}-{$conflict->end_time}, status {$conflict->status}.",
+                ], 422);
+            }
+
+            $dayOfWeek = Carbon::parse($appointment->appointment_date->format('Y-m-d'))->format('l');
+            $dayRows = StaffAvailability::where('user_id', $staffToAssign)
+                ->where('day_of_week', $dayOfWeek)
+                ->get();
+
+            if ($dayRows->isNotEmpty()) {
+                $fits = $dayRows->contains(fn ($row) =>
+                    $row->is_available
+                    && $appointment->start_time >= $row->start_time
+                    && $appointment->end_time <= $row->end_time
+                );
+
+                if (!$fits) {
+                    return response()->json(['message' => 'This staff member is not available at the selected date/time.'], 422);
+                }
+            }
+        }
+
+        $old = $appointment->toArray();
+        $appointment->update(['staff_user_id' => $staffToAssign]);
+        AuditLog::record('reassigned', "Reassigned appointment {$appointment->appointment_code}.", $appointment, $old, $appointment->toArray());
+
+        // Panel fix (11/8/2026, item #8 follow-up, round 2): the appointment's
+        // staff_user_id is NOT the same thing as the case's
+        // primary_counselor_id (CaseController::update() gates notes, "My
+        // Cases", and case-edit access on the latter, not the former) - so
+        // reassigning just the appointment used to leave the case itself,
+        // and everything gated on it, still pointing at nobody or the wrong
+        // counselor. CaseController::update() also makes case reassignment
+        // admin-only ("Only the GCU Head can reassign a case"), and any
+        // gcu_staff can call this endpoint - so this only ever CLAIMS an
+        // unowned case for the new counselor; it never takes a case away
+        // from whoever already owns it. Stealing an owned case still has to
+        // go through that admin-only path.
+        $caseNote = null;
+        if ($staffToAssign && $appointment->case) {
+            if (!$appointment->case->primary_counselor_id) {
+                $appointment->case->update(['primary_counselor_id' => $staffToAssign]);
+                $newCounselor = User::find($staffToAssign);
+                if ($newCounselor && $newCounselor->id !== $request->user()->id) {
+                    // Unlike CaseController::update()'s "...by the admin"
+                    // wording (accurate there, since that path really is
+                    // admin-only), this claim can be made by any gcu_staff -
+                    // so the message doesn't name a specific role.
+                    $newCounselor->notify(new \App\Notifications\CaseUpdateNotification(
+                        "The case {$appointment->case->case_number} was assigned to you.", null, $appointment->case->id
+                    ));
+                }
+            } elseif ((int) $appointment->case->primary_counselor_id !== (int) $staffToAssign) {
+                $owner = User::find($appointment->case->primary_counselor_id);
+                $caseNote = 'This case is still owned by ' . ($owner?->name ?? 'another counselor')
+                    . '. Ask the GCU Head to reassign the case if the new counselor should take it over too.';
+            }
+        }
+
+        return response()->json(array_merge($appointment->load('staff')->toArray(), ['case_note' => $caseNote]));
+    }
+
     // B234: a reschedule no longer mutates the original appointment in
     // place. It creates a separate, linked Appointment row (via
     // rescheduled_from_id) for the new slot, and marks the original row
@@ -753,6 +848,27 @@ class AppointmentController extends Controller
     return response()->json(['data' => $appointments]);
 }
 
+// Panel fix (11/8/2026): same two gaps as the public scheduling link (see
+// PublicSchedulingController::dateTimeRuleViolation()) - a student could
+// submit a time on today's date that had already passed, or a slot of
+// any length at all (no 1-2 hour bound). Shared with
+// checkConflictByStudent() below so the live availability check and the
+// actual submit agree.
+private function studentDateTimeRuleViolation(string $date, string $start, string $end): ?string
+{
+    $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start);
+    if ($startsAt->isPast()) {
+        return 'This time has already passed. Please choose another date or time.';
+    }
+
+    $minutes = $this->calcDuration($start, $end);
+    if ($minutes < 60 || $minutes > 120) {
+        return 'Appointments must be between 1 and 2 hours long.';
+    }
+
+    return null;
+}
+
 public function storeByStudent(Request $request)
 {
     $student = $request->user('student');
@@ -773,13 +889,19 @@ public function storeByStudent(Request $request)
         'end_time'         => 'required|date_format:H:i|after:start_time',
     ]);
 
+    if ($violation = $this->studentDateTimeRuleViolation($validated['appointment_date'], $validated['start_time'], $validated['end_time'])) {
+        return response()->json(['message' => $violation], 422);
+    }
+
     \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
 
     if (Appointment::hasUnitConflict(
         'GCU',
         $validated['appointment_date'],
         $validated['start_time'],
-        $validated['end_time']
+        $validated['end_time'],
+        null,
+        Appointment::STUDENT_SAME_SLOT_CAP
     )) {
         return response()->json(['message' => 'That time slot is already taken.'], 422);
     }
@@ -813,6 +935,10 @@ public function checkConflictByStudent(Request $request)
         'end_time'         => 'required|date_format:H:i',
     ]);
 
+    if ($violation = $this->studentDateTimeRuleViolation($validated['appointment_date'], $validated['start_time'], $validated['end_time'])) {
+        return response()->json(['has_conflict' => true, 'message' => $violation]);
+    }
+
     $blocked = \App\Support\BlockedDates::message($validated['appointment_date']);
     if ($blocked) {
         return response()->json(['has_conflict' => true, 'blocked' => true, 'message' => $blocked]);
@@ -822,7 +948,9 @@ public function checkConflictByStudent(Request $request)
         'GCU',
         $validated['appointment_date'],
         $validated['start_time'],
-        $validated['end_time']
+        $validated['end_time'],
+        null,
+        Appointment::STUDENT_SAME_SLOT_CAP
     );
 
     return response()->json(['has_conflict' => $hasConflict]);

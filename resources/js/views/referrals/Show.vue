@@ -1916,7 +1916,7 @@
                 class="ibtn ibtn-sm"
                 style="background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8"
                 :disabled="apptDetailTarget.no_show_escalated || sendingCallSlip"
-                :title="apptDetailTarget.no_show_escalated ? 'A Call-Slip was already sent for this appointment' : (apptDetailTarget.request_status === 'awaiting_student' ? 'The student has not picked a schedule yet - ask the Dean\'s Secretary to follow up' : '')"
+                :title="apptDetailTarget.no_show_escalated ? 'A Call-Slip was already sent for this appointment' : (apptDetailTarget.request_status === 'awaiting_student' ? 'The student has not picked a schedule yet - ask the College Dean to follow up' : '')"
                 @click="requestCallSlip(apptDetailTarget)"
               >{{ apptDetailTarget.no_show_escalated ? 'Call-Slip Sent' : (apptDetailTarget.request_status === 'awaiting_student' ? 'Send for Call Slip' : 'Send Call-Slip') }}</button>
               <button v-if="apptDetailTarget.status === 'confirmed'" class="ibtn ibtn-o ibtn-sm" @click="checkInApptFromDetail">Student Attended</button>
@@ -2667,16 +2667,38 @@ async function sendFeedback() {
 // rather than a plain boolean so "neither checked yet" is representable and
 // distinct from "explicitly Unexcused" - the backend only locks once it
 // actually receives false, not on an empty/undecided value.
+// Panel fix (11/8/2026, items #6/#7): a slip now holds a LIST of dates
+// absent/tardy, each its own Whole Day/Half Day entry. Older slips (saved
+// before this change) only have the single admission_date/time columns -
+// map those into a one-entry list so they still display and can still be
+// edited forward into the new multi-date shape.
+function admissionDatesFromReferral(r, d) {
+  if (Array.isArray(d.dates) && d.dates.length) {
+    return d.dates.map(e => ({
+      date:     e.date ? String(e.date).slice(0, 10) : '',
+      duration: e.duration === 'half' ? 'half' : 'whole',
+      time_in:  e.time_in ? String(e.time_in).slice(0, 5) : '',
+      time_out: e.time_out ? String(e.time_out).slice(0, 5) : '',
+    }));
+  }
+  if (r.admission_date) {
+    return [{
+      date:     String(r.admission_date).slice(0, 10),
+      duration: (r.admission_time_in || r.admission_time_out) ? 'half' : 'whole',
+      time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
+      time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    }];
+  }
+  return [];
+}
+
 // The slip as the paper form has it (see components/AdmissionSlipPaper.vue).
 function slipFromReferral(r) {
   const d = r.admission_details || {};
   return {
-    admission_date:     r.admission_date ? String(r.admission_date).slice(0, 10) : '',
-    admission_time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
-    admission_time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    admission_dates:    admissionDatesFromReferral(r, d),
     excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
     remarks:            r.admission_remarks || '',
-    days_count:         d.days_count || '',
     causes:             Array.isArray(d.causes) ? [...d.causes] : [],
     cause_activity:     d.cause_activity || '',
     cause_others:       d.cause_others || '',
@@ -2701,9 +2723,19 @@ const closeAdmissionSlip = useDiscardGuard(showAdmissionModal, admissionForm, ()
 
 async function saveAdmissionSlip() {
   const f = admissionForm.value;
+  const dates = f.admission_dates || [];
+  const seenDates = new Set();
+  let dupeDate = false;
+  for (const e of dates) {
+    if (seenDates.has(e.date)) { dupeDate = true; break; }
+    seenDates.add(e.date);
+  }
+  const badTime = dates.find(e => e.duration === 'half' && e.time_in && e.time_out && e.time_out <= e.time_in);
   const problem =
-    !f.admission_date ? 'Enter the date absent or tardy.'
-    : (f.admission_time_in && f.admission_time_out && f.admission_time_out <= f.admission_time_in) ? 'The end time must be after the start time.'
+    !dates.length ? 'Add at least one date absent/tardy.'
+    : dates.some(e => !e.date) ? 'Each date entry needs a date.'
+    : dupeDate ? 'The same date was added more than once.'
+    : badTime ? 'The end time must be after the start time.'
     : !f.causes.length ? 'Tick at least one cause of absence.'
     : (f.causes.includes('official_activity') && !f.cause_activity.trim()) ? 'Name the official co/extra-curricular activity.'
     : (f.causes.includes('others') && !f.cause_others.trim()) ? 'Write the other cause of absence.'
@@ -2728,13 +2760,15 @@ async function saveAdmissionSlip() {
   savingAdmission.value = true;
   try {
     const res = await referralAPI.saveAdmissionSlip(referral.value.id, {
-      admission_date:     f.admission_date,
-      admission_time_in:  f.admission_time_in || null,
-      admission_time_out: f.admission_time_out || null,
+      admission_dates: dates.map(e => ({
+        date:     e.date,
+        duration: e.duration,
+        time_in:  e.duration === 'half' ? (e.time_in || null) : null,
+        time_out: e.duration === 'half' ? (e.time_out || null) : null,
+      })),
       admission_excused:  f.excused === '1',
       admission_remarks:  f.remarks.trim() || null,
       admission_details: {
-        days_count:     f.days_count.trim() || null,
         causes:         f.causes,
         cause_activity: f.causes.includes('official_activity') ? f.cause_activity.trim() : null,
         cause_others:   f.causes.includes('others') ? f.cause_others.trim() : null,

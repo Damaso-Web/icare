@@ -49,7 +49,8 @@ class StudentSlipNotificationsTest extends TestCase
         $referral = $this->unlockedReferral('class_attendance');
 
         $this->postJson("/api/referrals/{$referral->id}/admission-slip", [
-            'admission_date' => today()->toDateString(), 'admission_excused' => true,
+            'admission_dates' => [['date' => today()->toDateString(), 'duration' => 'whole']],
+            'admission_excused' => true,
             'admission_details' => ['causes' => ['health'], 'actions' => ['counseling']],
         ])->assertOk();
 

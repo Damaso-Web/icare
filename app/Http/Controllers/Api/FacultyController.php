@@ -301,6 +301,62 @@ class FacultyController extends UserController
         return response()->json($user->fresh());
     }
 
+    // Panel fix (11/8/2026, item #9): deactivate several faculty accounts at
+    // once with ONE shared reason, instead of the single-account toggle one
+    // at a time. Scoped to the caller's own college/department the same way
+    // authorizeTarget() scopes a single account; an account outside that
+    // scope is simply not among $users below. Any account already inactive,
+    // or the caller's own account, is skipped rather than failing the batch.
+    public function bulkDeactivate(Request $request)
+    {
+        $validated = $request->validate([
+            'user_ids'   => ['required', 'array', 'min:1'],
+            'user_ids.*' => ['integer'],
+            'reason'     => ['required', \Illuminate\Validation\Rule::in(array_keys(\App\Support\EmployeeAccountReasons::DEACTIVATE))],
+            'note'       => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+        ], [
+            'user_ids.required' => 'Select at least one faculty member to deactivate.',
+            'reason.required'   => 'Please select a reason.',
+            'note.required_if'  => 'Please describe the reason when "Other" is selected.',
+            'note.regex'        => 'Please explain in words, not numbers only.',
+        ]);
+
+        $label = \App\Support\EmployeeAccountReasons::label('deactivate', $validated['reason']);
+        $note  = trim((string) ($validated['note'] ?? '')) ?: null;
+        $actor = $request->user();
+
+        $users = $this->scoped($request)->whereIn('id', $validated['user_ids'])->get();
+        $deactivated = [];
+        $skipped = [];
+
+        foreach ($users as $user) {
+            if ($user->id === $actor->id) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Cannot deactivate your own account.'];
+                continue;
+            }
+            if (!$user->is_active) {
+                $skipped[] = ['id' => $user->id, 'name' => $user->name, 'reason' => 'Already deactivated.'];
+                continue;
+            }
+
+            $user->update(['is_active' => false, 'deactivation_reason' => $label, 'deactivation_note' => $note, 'deactivated_at' => now()]);
+            \App\Models\UserStatusEvent::create([
+                'user_id' => $user->id, 'action' => 'deactivated', 'reason_key' => $validated['reason'],
+                'reason_label' => $label, 'note' => $note, 'actor_id' => $actor->id, 'actor_name' => $actor->name, 'created_at' => now(),
+            ]);
+            AuditLog::record('deactivated',
+                "Deactivated {$user->name} (account {$user->email}). Reason: {$label}." . ($note ? " Note: {$note}." : ''),
+                $user, ['is_active' => true], ['is_active' => false, 'reason' => $label, 'note' => $note]);
+
+            $deactivated[] = ['id' => $user->id, 'name' => $user->name];
+        }
+
+        return response()->json([
+            'deactivated' => $deactivated,
+            'skipped'     => $skipped,
+        ]);
+    }
+
     public function resetPassword(Request $request, User $user)
     {
         $this->authorizeTarget($request, $user);

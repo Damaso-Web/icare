@@ -55,6 +55,102 @@ class AppointmentActionsTest extends TestCase
         ], $attrs));
     }
 
+    // Panel fix (11/8/2026, item #8 follow-up): reassignStaff() - lets GCU
+    // move a confirmed appointment to a different counselor without
+    // touching its status, with the same conflict/availability checks
+    // confirm() already runs.
+    public function test_reassign_staff_moves_a_confirmed_appointment_to_a_different_counselor(): void
+    {
+        $staff = $this->gcuStaff();
+        $appt = $this->appointment(['status' => 'confirmed', 'start_time' => '09:00', 'end_time' => '10:00']);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => $staff->id])
+            ->assertOk()
+            ->assertJsonPath('staff_user_id', $staff->id);
+
+        $appt->refresh();
+        $this->assertSame($staff->id, $appt->staff_user_id);
+        $this->assertSame('confirmed', $appt->status);
+    }
+
+    public function test_reassign_staff_rejects_a_conflicting_counselor(): void
+    {
+        $staff = $this->gcuStaff();
+        $this->appointment(['staff_user_id' => $staff->id, 'start_time' => '09:00', 'end_time' => '10:00', 'status' => 'confirmed']);
+        $appt = $this->appointment(['status' => 'confirmed', 'start_time' => '09:30', 'end_time' => '10:30']);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => $staff->id])
+            ->assertStatus(422);
+
+        $appt->refresh();
+        $this->assertNull($appt->staff_user_id);
+    }
+
+    public function test_reassign_staff_can_unassign_back_to_null(): void
+    {
+        $staff = $this->gcuStaff();
+        $appt = $this->appointment(['staff_user_id' => $staff->id, 'status' => 'confirmed']);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => null])
+            ->assertOk()
+            ->assertJsonPath('staff_user_id', null);
+
+        $appt->refresh();
+        $this->assertNull($appt->staff_user_id);
+    }
+
+    public function test_reassign_staff_rejects_a_cancelled_appointment(): void
+    {
+        $staff = $this->gcuStaff();
+        $appt = $this->appointment(['status' => 'cancelled']);
+        $this->actingAs($this->gcuStaff());
+
+        $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => $staff->id])
+            ->assertStatus(422);
+    }
+
+    // Panel fix (11/8/2026, item #8 follow-up round 2): reassignStaff()
+    // claims an unowned case for the new counselor, but never takes an
+    // already-owned case away from someone (that's still admin-only, via
+    // CaseController::update()).
+    public function test_reassign_staff_claims_an_unowned_case_for_the_new_counselor(): void
+    {
+        $staff = $this->gcuStaff();
+        $appt = $this->appointment(['status' => 'confirmed']);
+        $this->assertNull($appt->case->primary_counselor_id);
+        $this->actingAs($this->gcuStaff());
+
+        $res = $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => $staff->id])
+            ->assertOk();
+
+        $this->assertNull($res->json('case_note'));
+        $appt->case->refresh();
+        $this->assertSame($staff->id, $appt->case->primary_counselor_id);
+    }
+
+    public function test_reassign_staff_does_not_steal_an_already_owned_case(): void
+    {
+        $originalCounselor = $this->gcuStaff();
+        $newStaff = $this->gcuStaff();
+        $appt = $this->appointment(['status' => 'confirmed']);
+        $appt->case->update(['primary_counselor_id' => $originalCounselor->id]);
+        $this->actingAs($this->gcuStaff());
+
+        $res = $this->postJson("/api/appointments/{$appt->id}/reassign-staff", ['staff_user_id' => $newStaff->id])
+            ->assertOk();
+
+        $this->assertNotNull($res->json('case_note'));
+        $appt->refresh();
+        $appt->case->refresh();
+        // The appointment itself still moved to the new counselor...
+        $this->assertSame($newStaff->id, $appt->staff_user_id);
+        // ...but the case stayed with its original owner.
+        $this->assertSame($originalCounselor->id, $appt->case->primary_counselor_id);
+    }
+
     // #18: confirm() - sets status, assigns staff, checks conflicts and availability.
     public function test_confirm_sets_status_and_notifies_the_student(): void
     {
@@ -219,9 +315,19 @@ class AppointmentActionsTest extends TestCase
         ])->assertStatus(422)->assertJsonValidationErrors(['appointment_date']);
     }
 
+    // Panel fix (11/8/2026, item #8): a single existing appointment on an
+    // exact slot no longer blocks a second student - up to
+    // Appointment::STUDENT_SAME_SLOT_CAP (5) can share one exact
+    // date+start+end before it's "taken". See
+    // StudentSchedulingTimeRulesTest for the dedicated cap coverage
+    // (5 allowed, 6th rejected, partial overlaps still a hard conflict).
+    // This test now fills the cap first so it still exercises the real
+    // "already taken" rejection path.
     public function test_student_self_booking_rejects_an_already_taken_slot(): void
     {
-        $this->appointment(['unit' => 'GCU', 'start_time' => '09:00', 'end_time' => '10:00', 'status' => 'confirmed']);
+        for ($i = 0; $i < 5; $i++) {
+            $this->appointment(['unit' => 'GCU', 'start_time' => '09:00', 'end_time' => '10:00', 'status' => 'confirmed']);
+        }
         $student = Student::factory()->create();
         Sanctum::actingAs($student, [], 'student');
 
@@ -234,7 +340,9 @@ class AppointmentActionsTest extends TestCase
 
     public function test_student_check_conflict_reports_blocked_and_taken_slots(): void
     {
-        $this->appointment(['unit' => 'GCU', 'start_time' => '09:00', 'end_time' => '10:00', 'status' => 'confirmed']);
+        for ($i = 0; $i < 5; $i++) {
+            $this->appointment(['unit' => 'GCU', 'start_time' => '09:00', 'end_time' => '10:00', 'status' => 'confirmed']);
+        }
         $student = Student::factory()->create();
         Sanctum::actingAs($student, [], 'student');
 

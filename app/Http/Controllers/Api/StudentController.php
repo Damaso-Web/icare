@@ -369,6 +369,76 @@ class StudentController extends Controller
         return response()->json($student);
     }
 
+    // Panel fix (11/8/2026, item #9): deactivate several student accounts at
+    // once with ONE shared reason, instead of repeating the single-student
+    // Deactivate flow one account at a time. Same per-student side effects
+    // as graduate() above (close open cases, archive active referrals) -
+    // this just loops that over a list and skips any account that is
+    // already inactive rather than failing the whole batch.
+    public function bulkDeactivate(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids'          => ['required', 'array', 'min:1'],
+            'student_ids.*'        => ['integer', 'exists:students,id'],
+            'deactivation_reason'  => ['required', \Illuminate\Validation\Rule::in(array_merge(array_keys(StudentAccountReasons::DEACTIVATE), array_keys(StudentAccountReasons::LEGACY)))],
+            'deactivation_notes'   => ['nullable', 'string', 'max:255', 'required_if:deactivation_reason,other', 'regex:' . self::TEXT_REGEX],
+        ], [
+            'student_ids.required'           => 'Select at least one student to deactivate.',
+            'deactivation_reason.required'    => 'Please select a reason for deactivation.',
+            'deactivation_notes.required_if'  => 'Please describe the reason when "Other" is selected.',
+        ]);
+
+        $label = StudentAccountReasons::deactivateLabel($validated['deactivation_reason']);
+        $note  = isset($validated['deactivation_notes']) ? trim($validated['deactivation_notes']) : null;
+        $note  = $note === '' ? null : $note;
+        $actor = $request->user();
+
+        $students = Student::whereIn('id', $validated['student_ids'])->get();
+        $deactivated = [];
+        $skipped = [];
+
+        foreach ($students as $student) {
+            if (!$student->is_active) {
+                $skipped[] = ['id' => $student->id, 'name' => trim("{$student->first_name} {$student->last_name}"), 'reason' => 'Already deactivated.'];
+                continue;
+            }
+
+            $closedCases = $student->cases()->whereNotIn('status', ['closed', 'resolved'])->get();
+            foreach ($closedCases as $case) {
+                $case->update(['status' => 'closed', 'closed_date' => today()]);
+                AuditLog::record('closed', "Closed case {$case->case_number} because the student was deactivated.", $case);
+            }
+
+            $student->update([
+                'is_active'           => false,
+                'deactivation_reason' => $validated['deactivation_reason'],
+                'deactivation_notes'  => $note,
+                'deactivated_at'      => now(),
+            ]);
+
+            StudentStatusEvent::create([
+                'student_id'   => $student->id,
+                'action'       => 'deactivated',
+                'reason_key'   => $validated['deactivation_reason'],
+                'reason_label' => $label,
+                'note'         => $note,
+                'actor_id'     => $actor->id,
+                'actor_name'   => $actor->name,
+                'created_at'   => now(),
+            ]);
+
+            AuditLog::record('graduated', "Deactivated student {$student->student_id} ({$student->first_name} {$student->last_name}). Reason: {$label}" . ($note ? " - {$note}" : '') . '.', $student);
+            Referral::archiveActive(['student_id' => $student->id], 'student account deactivated');
+
+            $deactivated[] = ['id' => $student->id, 'name' => trim("{$student->first_name} {$student->last_name}")];
+        }
+
+        return response()->json([
+            'deactivated' => $deactivated,
+            'skipped'     => $skipped,
+        ]);
+    }
+
     public function history(Student $student)
     {
         $user = request()->user();

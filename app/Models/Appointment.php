@@ -138,16 +138,41 @@ class Appointment extends Model
         return static::findConflict($staffId, $date, $start, $end, $excludeId) !== null;
     }
 
-public static function hasUnitConflict(string $unit, string $date, string $start, string $end, ?int $excludeId = null): bool
+// Panel fix (11/8/2026, item #8): a student booking their own GCU
+// appointment can now share one EXACT date+start+end with up to
+// self::STUDENT_SAME_SLOT_CAP other students - GCU accepts all of them
+// into the same hour and reassigns counselors manually afterward. Any
+// OTHER overlap (different boundaries that merely intersect this one)
+// is still a hard conflict, same as before. $cap stays 1 (old,
+// exclusive behavior) for every caller that doesn't pass a higher one -
+// staff-initiated booking/reschedule checks are unaffected.
+const STUDENT_SAME_SLOT_CAP = 5;
+
+public static function hasUnitConflict(string $unit, string $date, string $start, string $end, ?int $excludeId = null, int $cap = 1): bool
 {
-    return static::where('unit', $unit)
+    $base = static::where('unit', $unit)
         ->where('appointment_date', $date)
         ->whereNotIn('status', ['cancelled', 'rescheduled'])
         ->where('request_status', '!=', 'awaiting_student')
         ->where('start_time', '<', $end)
         ->where('end_time', '>', $start)
-        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
+        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId));
+
+    if ($cap <= 1) {
+        return $base->exists();
+    }
+
+    $partialOverlap = (clone $base)
+        ->where(function ($q) use ($start, $end) {
+            $q->where('start_time', '!=', $start)->orWhere('end_time', '!=', $end);
+        })
         ->exists();
+
+    if ($partialOverlap) {
+        return true;
+    }
+
+    return (clone $base)->count() >= $cap;
 }
 
 

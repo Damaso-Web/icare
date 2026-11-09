@@ -58,20 +58,6 @@
           />
         </div>
       </div>
-
-      <!-- Your own copy of every Feedback Slip GCU has sent for this referral. -->
-      <div v-if="referral.feedback_slips?.length" class="icard" style="margin-bottom:20px">
-        <div class="icard-header"><span class="icard-title">Feedback Slip</span></div>
-        <div class="icard-body" style="display:flex;flex-direction:column;gap:14px">
-          <FeedbackSlipPaper
-            v-for="slip in referral.feedback_slips"
-            :key="slip.id"
-            :slip="slip"
-            :student="referral.student"
-            :show-doc="false"
-          />
-        </div>
-      </div>
     </template>
   </div>
 </template>
@@ -82,7 +68,6 @@ import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { usePageSubtitleStore } from '../../stores/pageSubtitle';
 import AdmissionSlipPaper from '../../components/AdmissionSlipPaper.vue';
-import FeedbackSlipPaper from '../../components/FeedbackSlipPaper.vue';
 
 const route = useRoute();
 const pageSubtitle = usePageSubtitleStore();
@@ -95,16 +80,34 @@ const isClassAttendance = computed(() => referral.value.referral_type === 'class
 
 // The slip as the paper form has it (see components/AdmissionSlipPaper.vue) -
 // same mapping ReferralDetails (staff side) uses to show an issued slip.
+// Panel fix (11/8/2026, items #6/#7): a slip now holds a LIST of dates
+// absent/tardy; older slips only have the single admission_date/time
+// columns, so those are mapped into a one-entry list here too.
 const issuedAdmissionSlip = computed(() => {
   const r = referral.value;
   const d = r.admission_details || {};
+  let admission_dates;
+  if (Array.isArray(d.dates) && d.dates.length) {
+    admission_dates = d.dates.map(e => ({
+      date:     e.date ? String(e.date).slice(0, 10) : '',
+      duration: e.duration === 'half' ? 'half' : 'whole',
+      time_in:  e.time_in ? String(e.time_in).slice(0, 5) : '',
+      time_out: e.time_out ? String(e.time_out).slice(0, 5) : '',
+    }));
+  } else if (r.admission_date) {
+    admission_dates = [{
+      date:     String(r.admission_date).slice(0, 10),
+      duration: (r.admission_time_in || r.admission_time_out) ? 'half' : 'whole',
+      time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
+      time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    }];
+  } else {
+    admission_dates = [];
+  }
   return {
-    admission_date:     r.admission_date ? String(r.admission_date).slice(0, 10) : '',
-    admission_time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
-    admission_time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
+    admission_dates,
     excused:            r.admission_excused === true ? '1' : (r.admission_excused === false ? '0' : ''),
     remarks:            r.admission_remarks || '',
-    days_count:         d.days_count || '',
     causes:             Array.isArray(d.causes) ? [...d.causes] : [],
     cause_activity:     d.cause_activity || '',
     cause_others:       d.cause_others || '',

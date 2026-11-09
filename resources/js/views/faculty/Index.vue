@@ -53,6 +53,14 @@
 
     <!-- Faculty Table -->
     <div class="icard">
+      <!-- Panel fix (11/8/2026, item #9): select several faculty accounts
+           and deactivate them together with one shared reason, instead of
+           repeating the single-account Deactivate flow one at a time. -->
+      <div v-if="selectedFacultyIds.length" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud)">
+        <span style="font-size:12.5px;color:var(--slate)">{{ selectedFacultyIds.length }} selected</span>
+        <button class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkStatusAsk">Deactivate Selected</button>
+        <button class="ibtn ibtn-o ibtn-sm" @click="selectedFacultyIds = []">Clear Selection</button>
+      </div>
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
       </div>
@@ -64,6 +72,9 @@
         <table class="itable">
           <thead>
             <tr>
+              <th style="width:32px">
+                <input type="checkbox" :checked="allFacultyOnPageSelected" @change="toggleSelectAllFacultyOnPage" aria-label="Select all active faculty on this page" />
+              </th>
               <th>Employee ID</th>
               <!-- B610: the Employee ID alone didn't say who it belonged to
                    without opening the profile - Full Name sits right beside it. -->
@@ -74,6 +85,15 @@
           </thead>
           <tbody>
             <tr v-for="u in items" :key="u.id" :style="!u.is_active ? 'opacity:0.55;background:var(--snow)' : ''">
+              <td @click.stop>
+                <input
+                  type="checkbox"
+                  :disabled="!u.is_active"
+                  :checked="selectedFacultyIds.includes(u.id)"
+                  @change="toggleSelectOneFaculty(u.id)"
+                  :aria-label="`Select ${u.name}`"
+                />
+              </td>
               <td style="font-family:var(--mono);font-size:13px;font-weight:600;cursor:pointer" @click="openView(u)">{{ u.employee_id || '-' }}</td>
               <td style="cursor:pointer" @click="openView(u)">{{ u.last_name }}, {{ u.first_name }}{{ u.middle_name ? ' ' + u.middle_name : '' }}</td>
               <td>
@@ -285,6 +305,21 @@
       :error="statusError"
       @confirm="doStatus"
       @cancel="statusAsk = null"
+    />
+
+    <!-- Bulk Deactivate (item #9): one shared reason applied to every
+         selected, still-active faculty account. -->
+    <ReasonDialog
+      :open="showBulkStatusAsk"
+      :title="`Deactivate ${selectedFacultyIds.length} faculty account${selectedFacultyIds.length === 1 ? '' : 's'}?`"
+      :message="'They will no longer be able to sign in. The same reason applies to all of them.'"
+      :reasons="EMPLOYEE_DEACTIVATE_REASONS"
+      confirm-text="Yes, Deactivate"
+      :danger="true"
+      :busy="bulkSaving"
+      :error="bulkStatusError"
+      @confirm="doBulkStatus"
+      @cancel="showBulkStatusAsk = false"
     />
 
     <!-- Reset Password (reason required) -->
@@ -655,6 +690,45 @@ function askAction(kind, u, text) {
   confirm.value = { kind, u, text };
 }
 const apiMsg = (e, fallback) => { const errs = e.response?.data?.errors; return (errs && Object.values(errs)[0]?.[0]) || e.response?.data?.message || fallback; };
+// Bulk Deactivate (item #9): select several active accounts across the
+// current page and deactivate them together with one shared reason.
+const selectedFacultyIds = ref([]);
+const allFacultyOnPageSelected = computed(() => {
+  const selectable = items.value.filter(u => u.is_active);
+  return selectable.length > 0 && selectable.every(u => selectedFacultyIds.value.includes(u.id));
+});
+function toggleSelectAllFacultyOnPage() {
+  const selectable = items.value.filter(u => u.is_active).map(u => u.id);
+  selectedFacultyIds.value = allFacultyOnPageSelected.value
+    ? selectedFacultyIds.value.filter(id => !selectable.includes(id))
+    : [...new Set([...selectedFacultyIds.value, ...selectable])];
+}
+function toggleSelectOneFaculty(id) {
+  selectedFacultyIds.value = selectedFacultyIds.value.includes(id)
+    ? selectedFacultyIds.value.filter(x => x !== id)
+    : [...selectedFacultyIds.value, id];
+}
+const showBulkStatusAsk = ref(false);
+const bulkStatusError = ref('');
+const bulkSaving = ref(false);
+function openBulkStatusAsk() {
+  bulkStatusError.value = '';
+  showBulkStatusAsk.value = true;
+}
+async function doBulkStatus({ reason, note }) {
+  if (bulkSaving.value) return;
+  bulkSaving.value = true; bulkStatusError.value = '';
+  try {
+    const res = await facultyAPI.bulkDeactivate({ user_ids: selectedFacultyIds.value, reason, note });
+    const { deactivated = [], skipped = [] } = res.data || {};
+    showBulkStatusAsk.value = false;
+    selectedFacultyIds.value = [];
+    toast?.success(`Deactivated ${deactivated.length} faculty account${deactivated.length === 1 ? '' : 's'}.${skipped.length ? ` ${skipped.length} skipped.` : ''}`);
+    fetchItems();
+  } catch (e) { bulkStatusError.value = apiMsg(e, 'Action failed.'); }
+  finally { bulkSaving.value = false; }
+}
+
 async function doStatus({ reason, note }) {
   if (saving.value) return;
   saving.value = true; statusError.value = '';

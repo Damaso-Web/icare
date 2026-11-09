@@ -266,7 +266,23 @@
             </div>
             <div>
               <div class="ad-label">Staff</div>
-              <div class="ad-value">{{ detailTarget.staff?.name || 'TBA' }}</div>
+              <!-- Panel fix (11/8/2026, item #8 follow-up): reassign in place,
+                   any time (not just at Confirm) - now that up to 5 students
+                   can share one exact slot, GCU spreads them across
+                   counselors manually. Not offered on a cancelled/rescheduled
+                   appointment, matching reassignStaff()'s own guard. -->
+              <div v-if="!reassigningStaff" class="ad-value" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                {{ detailTarget.staff?.name || 'TBA' }}
+                <a v-if="!['cancelled', 'rescheduled'].includes(detailTarget.status)" href="#" style="font-size:11.5px;color:var(--moss);text-decoration:underline" @click.prevent="openReassignStaff">Reassign</a>
+              </div>
+              <div v-else style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                <select v-model="reassignStaffId" class="ifse" style="min-width:160px;padding:6px 26px 6px 8px;font-size:12.5px">
+                  <option value="">Unassigned</option>
+                  <option v-for="u in staffList" :key="u.id" :value="u.id">{{ u.name }}</option>
+                </select>
+                <button class="ibtn ibtn-p ibtn-sm" :disabled="submittingReassign" @click="submitReassignStaff">{{ submittingReassign ? 'Saving...' : 'Save' }}</button>
+                <button class="ibtn ibtn-o ibtn-sm" :disabled="submittingReassign" @click="reassigningStaff = false">Cancel</button>
+              </div>
             </div>
             <div>
               <div class="ad-label">Unit</div>
@@ -478,9 +494,9 @@
               {{ submittingNoShow ? 'Marking...' : 'Mark & Ask Student to Reschedule' }}
             </button>
             <button v-if="!noShowTarget?.no_show_escalated && !callSlipConfirming" class="ibtn" style="justify-content:center;background:var(--red-lt);color:var(--red);border:1.5px solid #f0a8a8" :disabled="submittingNoShow" @click="callSlipConfirming = true">
-              Issue Call Slip (Escalate to Dean\'s Secretary)
+              Issue Call Slip (Escalate to College Dean)
             </button>
-            <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Never Mind</button>
+            <button class="ibtn ibtn-o" style="justify-content:center" @click="showNoShowModal = false">Cancel</button>
           </div>
         </div>
       </div>
@@ -782,6 +798,7 @@ function openApptDetail(a) {
   overrideOpen.value = false;
   overrideForm.value = { target: '', reason: '' };
   scheduleForm.value = { appointment_date: '', start_time: '', end_time: '' };
+  reassigningStaff.value = false;
 }
 
 // 24h "HH:MM(:SS)" -> "h:mm AM/PM"
@@ -823,6 +840,12 @@ const confirmStaffId     = ref('');
 const confirmRequiredDocuments = ref('');
 const staffList          = ref([]);
 const staffAvailability  = ref(null);
+
+// Panel fix (11/8/2026, item #8 follow-up): reassign the counselor on an
+// already-confirmed appointment, from the Detail modal's Staff field.
+const reassigningStaff   = ref(false);
+const reassignStaffId    = ref('');
+const submittingReassign = ref(false);
 const loadingAvailability = ref(false);
 
 const today        = new Date();
@@ -946,6 +969,35 @@ async function submitConfirm() {
     fetchAllAppointments();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to confirm appointment.');
+  }
+}
+
+function openReassignStaff() {
+  reassignStaffId.value = detailTarget.value?.staff_user_id || '';
+  reassigningStaff.value = true;
+}
+
+async function submitReassignStaff() {
+  submittingReassign.value = true;
+  try {
+    const res = await appointmentAPI.reassignStaff(detailTarget.value.id, {
+      staff_user_id: reassignStaffId.value || null,
+    });
+    detailTarget.value.staff = res.data?.staff || null;
+    detailTarget.value.staff_user_id = res.data?.staff_user_id ?? null;
+    reassigningStaff.value = false;
+    // case_note is set when this appointment's case already belongs to a
+    // different counselor - the appointment still moved, but the case
+    // itself only changes hands through the admin-only case reassignment.
+    // No dedicated "info" toast style exists here (just success/error) -
+    // this isn't a failure, so success is still the right one to use.
+    toast?.success(res.data?.case_note || 'Counselor reassigned.');
+    fetchAppointments();
+    fetchAllAppointments();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to reassign counselor.');
+  } finally {
+    submittingReassign.value = false;
   }
 }
 

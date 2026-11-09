@@ -1335,13 +1335,18 @@ class ReferralController extends Controller
         $causes  = ['health', 'personal', 'filial', 'socio_cultural', 'environmental', 'behavioral', 'official_activity', 'others'];
         $actions = ['verified_documents', 'interviewed', 'life_coaching', 'parent_conference', 'counseling', 'others'];
         $validated = $request->validate([
-            'admission_date'     => 'required|date',
-            'admission_time_in'  => 'nullable|date_format:H:i',
-            'admission_time_out' => 'nullable|date_format:H:i|after:admission_time_in',
+            // Panel fix (11/8/2026, items #6/#7): one slip can now cover
+            // several dates absent/tardy, each its own Whole Day/Half Day
+            // entry (Half Day may carry a time range). The slip still has
+            // ONE Excused/Unexcused verdict covering every date on it.
+            'admission_dates'            => 'required|array|min:1',
+            'admission_dates.*.date'     => 'required|date',
+            'admission_dates.*.duration' => 'required|in:whole,half',
+            'admission_dates.*.time_in'  => 'nullable|date_format:H:i',
+            'admission_dates.*.time_out' => 'nullable|date_format:H:i|after:admission_dates.*.time_in',
             'admission_excused'  => 'required|boolean',
             'admission_remarks'  => 'nullable|string|max:1000',
             'admission_details'                => 'required|array',
-            'admission_details.days_count'     => 'nullable|string|max:50',
             'admission_details.causes'         => 'required|array|min:1',
             'admission_details.causes.*'       => 'in:' . implode(',', $causes),
             'admission_details.cause_activity' => 'nullable|string|max:255',
@@ -1350,10 +1355,12 @@ class ReferralController extends Controller
             'admission_details.actions.*'      => 'in:' . implode(',', $actions),
             'admission_details.action_others'  => 'nullable|string|max:255',
         ], [
-            'admission_excused.required'         => 'Mark the slip as Excused or Unexcused.',
-            'admission_details.causes.required'  => 'Tick at least one cause of absence.',
-            'admission_details.actions.required' => 'Tick at least one action taken.',
-            'admission_time_out.after'           => 'The end time must be after the start time.',
+            'admission_dates.required'              => 'Add at least one date absent/tardy.',
+            'admission_dates.*.date.required'        => 'Each date entry needs a date.',
+            'admission_excused.required'             => 'Mark the slip as Excused or Unexcused.',
+            'admission_details.causes.required'      => 'Tick at least one cause of absence.',
+            'admission_details.actions.required'     => 'Tick at least one action taken.',
+            'admission_dates.*.time_out.after'        => 'The end time must be after the start time.',
         ]);
         $d = $validated['admission_details'];
         if (in_array('official_activity', $d['causes'], true) && !trim((string) ($d['cause_activity'] ?? ''))) {
@@ -1366,8 +1373,50 @@ class ReferralController extends Controller
             abort(422, 'Write the other action taken.');
         }
 
+        // Normalize: a Whole Day entry carries no times even if some were
+        // submitted; reject a date added twice; sort chronologically.
+        $seenDates = [];
+        $dates = [];
+        foreach ($validated['admission_dates'] as $entry) {
+            $date = $entry['date'];
+            if (in_array($date, $seenDates, true)) {
+                abort(422, "The date {$date} was added more than once.");
+            }
+            $seenDates[] = $date;
+            $isHalf = $entry['duration'] === 'half';
+            $dates[] = [
+                'date'     => $date,
+                'duration' => $entry['duration'],
+                'time_in'  => $isHalf ? ($entry['time_in'] ?? null) : null,
+                'time_out' => $isHalf ? ($entry['time_out'] ?? null) : null,
+            ];
+        }
+        usort($dates, fn($a, $b) => strcmp($a['date'], $b['date']));
+
+        // Number of day/s absent/tardy is now counted automatically from the
+        // dates added (Whole Day = 1, Half Day = 0.5) instead of free text.
+        $dayTotal = array_sum(array_map(fn($e) => $e['duration'] === 'half' ? 0.5 : 1, $dates));
+        $dayTotal = rtrim(rtrim(sprintf('%.1f', $dayTotal), '0'), '.');
+        $daysCount = $dayTotal . ' ' . ($dayTotal === '1' ? 'day' : 'days');
+
         $referral->update([
-            ...$validated,
+            // admission_date keeps the earliest date for any older report or
+            // sort that still reads the single-date column; the full list
+            // lives in admission_details.dates below.
+            'admission_date'              => $dates[0]['date'],
+            'admission_time_in'           => null,
+            'admission_time_out'          => null,
+            'admission_excused'           => $validated['admission_excused'],
+            'admission_remarks'           => $validated['admission_remarks'] ?? null,
+            'admission_details'           => [
+                'dates'          => $dates,
+                'days_count'     => $daysCount,
+                'causes'         => $d['causes'],
+                'cause_activity' => $d['cause_activity'] ?? null,
+                'cause_others'   => $d['cause_others'] ?? null,
+                'actions'        => $d['actions'],
+                'action_others'  => $d['action_others'] ?? null,
+            ],
             'admission_issued_at'         => now(),
             'admission_issued_by_user_id' => $user->id,
         ]);

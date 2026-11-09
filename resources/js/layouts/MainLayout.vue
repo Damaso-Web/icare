@@ -223,7 +223,7 @@ async function markAllRead() {
 
 function openNotification(n) {
   markRead(n);
-  const target = staffNotificationTarget(n.data || {});
+  const target = staffNotificationTarget(n.data || {}, auth.user?.role);
   if (target) {
     router.push(target);
     showNotifs.value = false;

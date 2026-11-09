@@ -300,6 +300,32 @@
         </div>
       </div>
 
+      <!-- Panel fix (11/8/2026, item #4): the Dean/Dean's Secretary dashboard
+           only had a "Call Slips" nav shortcut, no actual content - a Dean
+           had to leave the dashboard to see whether anything was waiting.
+           Same panel pattern as the SDU cards above. -->
+      <div v-if="auth.isDean" class="sdu-panels dean-panels">
+        <div class="icard">
+          <div class="icard-header">
+            <span class="icard-title">Call Slips</span>
+            <a href="#" class="sdu-link" @click.prevent="router.push({ name: 'call-slips' })">View all</a>
+          </div>
+          <div v-if="deanCallSlipsLoading" class="icard-body" style="font-size:13px;color:var(--stone)">Loading...</div>
+          <div v-else-if="!deanCallSlips.length" class="icard-body" style="font-size:13px;color:var(--stone)">Nothing waiting - no open call slips.</div>
+          <div v-for="a in deanCallSlips" :key="a.id" class="sdu-row" @click="router.push({ name: 'call-slips' })">
+            <div style="min-width:0">
+              <div class="sdu-name">{{ a.student?.last_name }}, {{ a.student?.first_name }}</div>
+              <div class="sdu-meta">
+                <template v-if="a.no_show_escalated && a.status !== 'no_show' && a.call_slip_stage !== 'rescheduled'">Has not picked a schedule yet</template>
+                <template v-else-if="a.no_show_escalated">Missed appointment on {{ formatDate(a.appointment_date) }}</template>
+                <template v-else>Reschedule limit reached ({{ a.reschedule_count }}x)</template>
+              </div>
+            </div>
+            <span v-if="a.call_slip_stage" class="ibadge" style="background:var(--amber-lt);color:var(--amber);white-space:nowrap">{{ toTitleCase(a.call_slip_stage) }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Empty state -->
       <!-- B630 (10/24/2026): Dept Chair and Faculty (and Dean, same outbound-
            only role) have no incoming queue to "check" - they only ever
@@ -509,6 +535,9 @@ const stats = computed(() => {
       { label: 'Pending',       value: s.pending      ?? 0, period: 'Awaiting', iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },
       { label: 'Acknowledged',  value: s.acknowledged ?? 0, period: 'Received', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'sent-referrals', query: { status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' } },
       { label: 'Completed',     value: s.completed    ?? 0, period: 'Resolved', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'sent-referrals', query: { status: 'completed,closed' } },
+      // Panel fix (11/8/2026, item #4): count tile to match the new Call
+      // Slips card below - same college-scoped number either way.
+      { label: 'Call Slips',    value: s.call_slips   ?? 0, period: 'Open',     iconBg: 'var(--red-lt)',   iconColor: 'var(--red)',   icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', route: 'call-slips', query: {} },
     ];
   }
   // B607: a Dept Chair manages outbound cases too (no Referral Queue of
@@ -519,6 +548,10 @@ const stats = computed(() => {
       { label: 'Awaiting',  value: s.pending      ?? 0, period: 'Pending',      iconBg: 'var(--amber-lt)', iconColor: 'var(--amber)', icon: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', route: 'sent-referrals', query: { status: 'submitted' } },
       { label: 'Received',  value: s.acknowledged ?? 0, period: 'Acknowledged', iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<polyline points="20 6 9 17 4 12"/>', route: 'sent-referrals', query: { status: 'acknowledged,scheduled,in_progress,referred_tmdu,referred_external' } },
       { label: 'Resolved',  value: s.completed    ?? 0, period: 'Completed',   iconBg: 'var(--mist)',     iconColor: 'var(--moss)',  icon: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>', route: 'sent-referrals', query: { status: 'completed,closed' } },
+      // Panel fix (11/8/2026, item #4): a Dept Chair's count here only
+      // covers what's been escalated TO them (call_slip_stage='dept_chair')
+      // - see DashboardController::callSlipsQuery().
+      { label: 'Call Slips', value: s.call_slips   ?? 0, period: 'Open',       iconBg: 'var(--red-lt)',   iconColor: 'var(--red)',   icon: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', route: 'call-slips', query: {} },
     ];
   }
   // Bug (10/25/2026, B627): these cards pointed at the deprecated Referral
@@ -586,9 +619,28 @@ async function fetchDashboard(isInitial = false) {
   }
 }
 
+// Panel fix (11/8/2026, item #4): Dean dashboard's own Call Slips card -
+// same endpoint the Call Slips page uses (already scoped to the Dean's
+// college server-side), just the newest 6 shown inline.
+const deanCallSlips = ref([]);
+const deanCallSlipsLoading = ref(false);
+async function fetchDeanCallSlips() {
+  if (!auth.isDean) return;
+  deanCallSlipsLoading.value = true;
+  try {
+    const res = await api.get('/call-slips');
+    deanCallSlips.value = (res.data.data || []).slice(0, 6);
+  } catch (e) {
+    /* the "nothing waiting" state still shows */
+  } finally {
+    deanCallSlipsLoading.value = false;
+  }
+}
+
 onMounted(() => {
   fetchDashboard(true);
   fetchSduPanels();
+  fetchDeanCallSlips();
   refreshTimer = setInterval(() => fetchDashboard(false), 3000);
 });
 
@@ -608,6 +660,7 @@ onUnmounted(() => {
 .sdu-meta { font-size: 11.5px; color: var(--stone); overflow: hidden; text-overflow: ellipsis; }
 .sdu-link { font-size: 12px; color: var(--moss); text-decoration: underline; }
 @media (max-width: 860px) { .sdu-panels { grid-template-columns: 1fr; } }
+.dean-panels { grid-template-columns: 1fr; }
 
 /* B553: brief pulse on a stat card's number after a background refresh
    actually changes it, so the auto-update is noticeable without having to

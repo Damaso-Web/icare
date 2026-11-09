@@ -3,8 +3,16 @@
   layout is used to fill it in (readonly = false, v-model on the form) and to
   show an issued slip (readonly = true).
 
-  form: { admission_date, admission_time_in, admission_time_out, excused ('1' | '0' | ''),
-          remarks, days_count, causes: [], cause_activity, cause_others, actions: [], action_others }
+  form: { admission_dates: [{ date, duration: 'whole'|'half', time_in, time_out }],
+          excused ('1' | '0' | ''), remarks, causes: [], cause_activity,
+          cause_others, actions: [], action_others }
+
+  Panel fix (11/8/2026, items #6/#7): a slip can now carry several dates
+  absent/tardy, each its own Whole Day/Half Day entry (Half Day may also
+  carry a time range). The slip still has ONE Excused/Unexcused verdict that
+  covers every date on it. "Number of day/s absent/tardy" is counted
+  automatically from the dates added (Whole Day = 1, Half Day = 0.5) - it is
+  no longer a free-text field.
 -->
 <template>
   <div class="asp" :class="{ ro: readonly }">
@@ -21,23 +29,43 @@
       <div class="asp-line"><span class="asp-k">Sex:</span><span class="asp-v">{{ student?.sex || '-' }}</span></div>
     </div>
 
-    <div class="asp-line asp-wrap">
+    <div class="asp-line asp-wrap" style="align-items:flex-start">
       <span class="asp-k">Date/s Absent/Tardy:</span>
-      <template v-if="readonly">
-        <span class="asp-v">{{ longDate(form.admission_date) }}<template v-if="form.admission_time_in">, {{ formatTime12(form.admission_time_in) }}<template v-if="form.admission_time_out"> - {{ formatTime12(form.admission_time_out) }}</template></template></span>
-      </template>
-      <span v-else class="asp-inputs">
-        <input v-model="form.admission_date" type="date" class="ifi" :max="today" aria-label="Date absent or tardy" />
-        <input v-model="form.admission_time_in" type="time" class="ifi" aria-label="Class time from" title="Class time (from)" />
-        <span style="color:var(--stone)">to</span>
-        <input v-model="form.admission_time_out" type="time" class="ifi" aria-label="Class time to" title="Class time (to)" />
-      </span>
+
+      <div v-if="readonly" class="asp-v" style="flex:1">
+        <template v-if="(form.admission_dates || []).length">
+          <div v-for="(e, i) in form.admission_dates" :key="i">
+            {{ longDate(e.date) }}<template v-if="e.duration === 'half'">, <template v-if="e.time_in">{{ formatTime12(e.time_in) }}<template v-if="e.time_out"> - {{ formatTime12(e.time_out) }}</template></template> (Half Day)</template><template v-else> (Whole Day)</template>
+          </div>
+        </template>
+        <template v-else>-</template>
+      </div>
+
+      <div v-else style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:240px">
+        <div v-if="(form.admission_dates || []).length" class="asp-datelist">
+          <div v-for="(e, i) in form.admission_dates" :key="i" class="asp-dateitem">
+            <span>{{ longDate(e.date) }}<template v-if="e.duration === 'half'">, <template v-if="e.time_in">{{ formatTime12(e.time_in) }}<template v-if="e.time_out"> - {{ formatTime12(e.time_out) }}</template></template> (Half Day)</template><template v-else> (Whole Day)</template></span>
+            <button type="button" class="asp-datedel" @click="removeDate(i)" aria-label="Remove this date">&times;</button>
+          </div>
+        </div>
+        <div class="asp-addrow">
+          <input v-model="newDate" type="date" class="ifi" :max="today" aria-label="Date absent or tardy" />
+          <label class="asp-radioinline"><input type="radio" value="whole" v-model="newDuration" /> Whole Day</label>
+          <label class="asp-radioinline"><input type="radio" value="half" v-model="newDuration" /> Half Day</label>
+          <template v-if="newDuration === 'half'">
+            <input v-model="newTimeIn" type="time" class="ifi" aria-label="Class time from" title="Class time (from)" />
+            <span style="color:var(--stone)">to</span>
+            <input v-model="newTimeOut" type="time" class="ifi" aria-label="Class time to" title="Class time (to)" />
+          </template>
+          <button type="button" class="ibtn ibtn-o ibtn-sm" @click="addDate">+ Add Date</button>
+        </div>
+        <div v-if="addDateError" style="font-size:11.5px;color:var(--red)">{{ addDateError }}</div>
+      </div>
     </div>
 
     <div class="asp-line">
       <span class="asp-k">Number of day/s absent/tardy:</span>
-      <span v-if="readonly" class="asp-v">{{ form.days_count || '-' }}</span>
-      <input v-else v-model="form.days_count" class="ifi asp-fill" maxlength="50" placeholder="e.g. 1 day, or 8-9 AM" />
+      <span class="asp-v">{{ daysCountDisplay }}</span>
     </div>
 
     <div class="asp-sub">Cause/s of Absences:</div>
@@ -91,7 +119,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import { formatTime12 } from '../utils/validators';
 
 const props = defineProps({
@@ -133,37 +161,93 @@ const studentName = computed(() => {
 });
 const programYear = computed(() => [props.student?.program, props.student?.year_level && `Year ${props.student.year_level}`].filter(Boolean).join(', ') || '-');
 const issuedOn = computed(() => longDate(props.issuedAt || today));
+
+// "Add Date" row - an entry is only pushed onto form.admission_dates once
+// it passes these checks, so the list itself is always clean.
+const newDate     = ref('');
+const newDuration = ref('whole');
+const newTimeIn   = ref('');
+const newTimeOut  = ref('');
+const addDateError = ref('');
+
+function addDate() {
+  addDateError.value = '';
+  if (!newDate.value) { addDateError.value = 'Pick a date first.'; return; }
+  if (!Array.isArray(form.value.admission_dates)) { form.value.admission_dates = []; }
+  const list = form.value.admission_dates;
+  if (list.some(e => e.date === newDate.value)) { addDateError.value = 'That date was already added.'; return; }
+  if (newDuration.value === 'half' && newTimeIn.value && newTimeOut.value && newTimeOut.value <= newTimeIn.value) {
+    addDateError.value = 'The end time must be after the start time.';
+    return;
+  }
+  list.push({
+    date:     newDate.value,
+    duration: newDuration.value,
+    time_in:  newDuration.value === 'half' ? (newTimeIn.value || '') : '',
+    time_out: newDuration.value === 'half' ? (newTimeOut.value || '') : '',
+  });
+  list.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  newDate.value = '';
+  newDuration.value = 'whole';
+  newTimeIn.value = '';
+  newTimeOut.value = '';
+}
+function removeDate(i) {
+  form.value.admission_dates.splice(i, 1);
+}
+
+// Live count, so staff see it update as dates are added/removed - the
+// backend recomputes the same way and that's what actually gets saved.
+const daysCountDisplay = computed(() => {
+  const dates = form.value.admission_dates || [];
+  if (!dates.length) return '-';
+  const total = dates.reduce((s, e) => s + (e.duration === 'half' ? 0.5 : 1), 0);
+  const str = String(parseFloat(total.toFixed(1)));
+  return `${str} ${str === '1' ? 'day' : 'days'}`;
+});
 </script>
 
 <style scoped>
-.asp{background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:16px 18px;font-size:13px;color:var(--ink);display:flex;flex-direction:column;gap:10px}
+.asp{background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:22px 26px;font-size:13.5px;color:var(--ink);display:flex;flex-direction:column;gap:14px}
 .asp-doc{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--stone);border-bottom:1px solid var(--cloud);padding-bottom:8px}
-.asp-title{text-align:center;font-weight:700;letter-spacing:.8px;text-transform:uppercase;font-size:13px}
-.asp-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:6px 16px}
-.asp-line{display:flex;align-items:baseline;gap:6px;min-width:0}
+.asp-title{text-align:center;font-weight:700;letter-spacing:.8px;text-transform:uppercase;font-size:14px;margin-bottom:2px}
+.asp-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:10px 24px}
+.asp-line{display:flex;align-items:baseline;gap:8px;min-width:0;padding-bottom:2px}
 .asp-wrap{flex-wrap:wrap}
 .asp-k{font-weight:600;white-space:nowrap}
-.asp-v{flex:1;min-width:40px;border-bottom:1px solid var(--silver);padding:0 4px 1px;color:var(--forest);font-style:italic}
+.asp-v{flex:1;min-width:40px;border-bottom:1px solid var(--silver);padding:0 4px 3px;color:var(--forest);font-style:italic}
 .asp-inputs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;flex:1}
 .asp-inputs .ifi{width:auto;flex:0 1 150px;padding:6px 8px}
 .asp-fill{flex:1;min-width:120px;padding:6px 8px}
-.asp-sub{font-weight:700;margin-top:4px}
-.asp-checks{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;padding-left:6px}
-.asp-checks.one{grid-template-columns:1fr}
-.asp-check{display:flex;align-items:center;gap:8px;min-width:0}
+.asp-sub{font-weight:700;margin-top:6px}
+.asp-checks{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 32px;padding-left:4px}
+.asp-checks.one{grid-template-columns:minmax(0,1fr)}
+.asp-check{display:flex;align-items:center;gap:9px;min-width:0}
 .asp-check.wide{grid-column:1/-1}
+.asp-check span{overflow-wrap:anywhere}
 .asp-check input[type=checkbox],.asp-check input[type=radio]{width:15px;height:15px;accent-color:var(--moss);flex-shrink:0}
 /* A saved slip: ticks stay visible, but nothing can be changed - not even by
    clicking the label text (that used to toggle the box). Editing happens only
    in the "Update Admission Slip" window. */
 .asp.ro input,.asp.ro label{pointer-events:none;cursor:default}
 .asp.ro input:disabled{opacity:1}
-.asp-verdict{display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--cloud);padding-top:10px}
-.asp-sign{align-self:center;text-align:center;margin-top:10px;min-width:220px}
+.asp-verdict{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--cloud);padding-top:14px}
+.asp-sign{align-self:center;text-align:center;margin-top:14px;min-width:220px}
 .asp-signname{font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--ink);padding:0 10px 2px}
 .asp-signlabel{font-size:11.5px;color:var(--stone);margin-top:3px}
+/* Date/s added so far - same underlined-row look as the rest of the paper
+   form, not a web-app "badge" list, so a slip with several dates still
+   reads like one document. */
+.asp-datelist{display:flex;flex-direction:column}
+.asp-dateitem{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid var(--silver);padding:4px 2px 6px;font-size:13px;font-style:italic;color:var(--forest)}
+.asp-datedel{border:none;background:transparent;color:var(--stone);font-size:17px;line-height:1;cursor:pointer;padding:0 2px;font-style:normal}
+.asp-datedel:hover{color:var(--red)}
+.asp-addrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:2px}
+.asp-addrow .ifi{width:auto;flex:0 1 150px;padding:6px 8px}
+.asp-radioinline{display:flex;align-items:center;gap:4px;font-size:12.5px;white-space:nowrap}
+.asp-radioinline input{width:14px;height:14px;accent-color:var(--moss)}
 @media (max-width:600px){
-  .asp-grid,.asp-checks{grid-template-columns:1fr}
+  .asp-grid,.asp-checks{grid-template-columns:minmax(0,1fr)}
   .asp-doc{flex-direction:column}
 }
 </style>

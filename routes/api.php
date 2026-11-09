@@ -95,6 +95,9 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         Route::post('students/bulk-client-no',   [StudentController::class, 'bulkUpdateClientNo']);
         // Activating and deactivating a student account is for the GCU Head (admin) only.
         Route::post('students/{student}/toggle-active', [StudentController::class, 'toggleActive'])->middleware('role:admin');
+        // Panel fix (11/8/2026, item #9): deactivate several selected student
+        // accounts at once with one shared reason.
+        Route::post('students/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->middleware('role:admin');
         Route::get('students/{student}/status-history', [StudentController::class, 'statusHistory']);
         Route::post('students/{student}/graduate', [StudentController::class, 'graduate'])->middleware('role:admin');
         Route::post('students/import-preview', [StudentController::class, 'importPreview']);
@@ -208,6 +211,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::get('appointments/availability',              [AppointmentController::class, 'availability']);
     Route::apiResource('appointments', AppointmentController::class)->except(['destroy']);
     Route::post('appointments/{appointment}/confirm',    [AppointmentController::class, 'confirm']);
+    // Panel fix (11/8/2026, item #8 follow-up): reassign the counselor on
+    // an appointment any time after confirm() - needed now that up to 5
+    // students can share one exact slot and GCU spreads them manually.
+    Route::post('appointments/{appointment}/reassign-staff', [AppointmentController::class, 'reassignStaff']);
     Route::post('appointments/{appointment}/reschedule', [AppointmentController::class, 'reschedule']);
     Route::post('appointments/{appointment}/reschedule-now', [AppointmentController::class, 'rescheduleNow']);
     Route::post('appointments/{appointment}/cancel',     [AppointmentController::class, 'cancel']);
@@ -316,6 +323,10 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         Route::get('check-duplicate',               [FacultyController::class, 'checkDuplicate']);
         Route::post('import-preview',               [FacultyController::class, 'importPreview']);
         Route::post('import-confirm',               [FacultyController::class, 'importConfirm']);
+        // Panel fix (11/8/2026, item #9): deactivate several selected faculty
+        // accounts at once - a static path, listed ahead of '{user}' below
+        // for the same reason check-duplicate is (B638).
+        Route::post('bulk-deactivate',               [FacultyController::class, 'bulkDeactivate']);
         Route::put('{user}',                        [FacultyController::class, 'update']);
         Route::post('{user}/toggle-active',         [FacultyController::class, 'toggle']);
         Route::post('{user}/reset-password',        [FacultyController::class, 'resetPassword']);

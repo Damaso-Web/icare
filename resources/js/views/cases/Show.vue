@@ -99,17 +99,24 @@
           </div>
 
           <!-- Full Referral Form View -->
+          <!-- Panel fix (11/8/2026, item #5 follow-up): every static section
+               on this page is collapsible now, not just the four collapsed
+               by default above - Referral Form, Appointments, Service Slips
+               and Case Actions default OPEN (expanded="core" content) but
+               can still be folded away the same way. -->
           <div class="icard" v-if="caseFile.latest_referral">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="showReferralForm = !showReferralForm">
               <span class="icard-title">Referral Form</span>
               <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
                 <span class="ibadge" :class="'ibadge-' + caseFile.latest_referral?.status">{{ toTitleCase(caseFile.latest_referral?.status) }}</span>
-                <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click="openReferralStatusModal">
+                <button v-if="isGCU" class="ibtn ibtn-o ibtn-sm" @click.stop="openReferralStatusModal">
                   <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                   Update Status
                 </button>
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showReferralForm ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
               </div>
             </div>
+            <div v-show="showReferralForm">
 
             <!-- Document Code Header -->
             <div class="doc-header-hidden" style="padding:10px 18px;border-bottom:1px solid var(--cloud);display:flex;justify-content:space-between;align-items:center;background:var(--snow)">
@@ -252,15 +259,27 @@
               </div>
 
             </div>
+            </div>
           </div>
 
           <!-- Referral History (B86, B93) -->
+          <!-- Panel fix (11/8/2026, item #5): a long-standing case can carry
+               many historical, lower-priority sections (Related Referrals,
+               Session Notes, and - in the sidebar below - Parent Conference
+               Slip History, Endorsement History) that pile up and push the
+               actionable content (Referral Form, Appointments, Case
+               Actions) further down. Those four are now collapsed by
+               default, with the header still showing a count so nothing
+               is hidden information, just hidden until asked for. -->
           <div class="icard" v-if="caseFile.referrals?.length">
-            <div class="icard-header">
+            <div class="icard-header" style="cursor:pointer" @click="showRelatedReferrals = !showRelatedReferrals">
               <span class="icard-title">Related Referrals</span>
-              <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ caseFile.referrals.length }} total</span>
+              <span style="display:flex;align-items:center;gap:8px">
+                <span class="ibadge" style="background:var(--mist);color:var(--moss)">{{ caseFile.referrals.length }} total</span>
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showRelatedReferrals ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
             </div>
-            <div>
+            <div v-show="showRelatedReferrals">
               <div
                 v-for="r in caseFile.referrals"
                 :key="r.id"
@@ -280,70 +299,80 @@
 
           <!-- Appointments -->
           <div class="icard" v-if="isGCU">
-            <div class="icard-header"><span class="icard-title">Appointments</span></div>
-            <div v-if="appointments.length === 0" class="empty-state">
-              <h3>No appointments yet</h3>
+            <div class="icard-header" style="cursor:pointer" @click="showAppointmentsSection = !showAppointmentsSection">
+              <span class="icard-title">Appointments<span v-if="appointments.length" style="color:var(--fog);font-weight:500"> ({{ appointments.length }})</span></span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showAppointmentsSection ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div v-else>
-              <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
-                <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
-                  <div>
-                    <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }} – {{ formatTime12(a.end_time) }}</div>
-                    <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ toTitleCase(a.appointment_type) }} · {{ a.staff?.name || 'TBA' }}</div>
+            <div v-show="showAppointmentsSection">
+              <div v-if="appointments.length === 0" class="empty-state">
+                <h3>No appointments yet</h3>
+              </div>
+              <div v-else>
+                <div v-for="a in appointments" :key="a.id" style="padding:14px 18px;border-bottom:1px solid var(--cloud)">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+                    <div>
+                      <div style="font-size:13px;font-weight:600;color:var(--ink)">{{ formatDate(a.appointment_date) }} · {{ formatTime12(a.start_time) }} – {{ formatTime12(a.end_time) }}</div>
+                      <div style="font-size:11px;color:var(--stone);margin-top:2px">{{ toTitleCase(a.appointment_type) }} · {{ a.staff?.name || 'TBA' }}</div>
+                    </div>
+                    <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
                   </div>
-                  <span class="ibadge" :class="'ibadge-' + a.status">{{ toTitleCase(a.status) }}</span>
+                  <button
+                    v-if="a.status === 'confirmed'"
+                    class="ibtn ibtn-sm"
+                    style="margin-top:8px;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
+                    @click="escalateNoShow(a)"
+                  >
+                    Mark as Missed / No-Show
+                  </button>
                 </div>
-                <button
-                  v-if="a.status === 'confirmed'"
-                  class="ibtn ibtn-sm"
-                  style="margin-top:8px;background:var(--amber-lt);color:var(--amber);border:1.5px solid var(--amber)"
-                  @click="escalateNoShow(a)"
-                >
-                  Mark as Missed / No-Show
-                </button>
               </div>
             </div>
           </div>
 
           <!-- Session Notes - GCU only -->
           <div class="icard" v-if="isGCU">
-            <div class="icard-header">
-              <span class="icard-title">Session Notes</span>
-              <button class="ibtn ibtn-p ibtn-sm" @click="showSessionModal = true">
-                <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Add Notes
-              </button>
+            <div class="icard-header" style="cursor:pointer" @click="showSessionNotesList = !showSessionNotesList">
+              <span class="icard-title">Session Notes<span v-if="sessionNotes.length" style="color:var(--fog);font-weight:500"> ({{ sessionNotes.length }})</span></span>
+              <span style="display:flex;align-items:center;gap:8px">
+                <button class="ibtn ibtn-p ibtn-sm" @click.stop="showSessionModal = true">
+                  <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  Add Notes
+                </button>
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showSessionNotesList ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+              </span>
             </div>
             <div v-if="caseFile.status !== 'closed'" style="padding:8px 18px;background:var(--amber-lt);border-bottom:1px solid var(--cloud);font-size:12px;color:var(--amber)">
               <strong>Required:</strong> Session notes must be filled out before this case can be closed.
             </div>
-            <div v-if="sessionNotes.length === 0" class="empty-state">
-              <h3>No sessions yet</h3>
-              <p>Log the first session to start tracking progress.</p>
-            </div>
-            <div v-else>
-              <div v-for="note in pagedSessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-                  <div style="font-size:13px;font-weight:600;color:var(--ink)">
-                    Session #{{ note.session_number }} - {{ toTitleCase(note.session_type) }}
-                  </div>
-                  <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
-                </div>
-                <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
-                  {{ formatTime12(note.session_start_time) }} – {{ formatTime12(note.session_end_time) }}
-                </div>
-                <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Observations</div>
-                <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ note.observations }}</div>
-                <div v-if="note.next_steps">
-                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Next Steps</div>
-                  <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
-                </div>
-                <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
+            <div v-show="showSessionNotesList">
+              <div v-if="sessionNotes.length === 0" class="empty-state">
+                <h3>No sessions yet</h3>
+                <p>Log the first session to start tracking progress.</p>
               </div>
-              <div v-if="sessionNotesTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
-                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === 1" @click="sessionNotesPage--">Prev</button>
-                <span style="font-size:11.5px;color:var(--fog)">Page {{ sessionNotesPage }} of {{ sessionNotesTotalPages }}</span>
-                <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === sessionNotesTotalPages" @click="sessionNotesPage++">Next</button>
+              <div v-else>
+                <div v-for="note in pagedSessionNotes" :key="note.id" style="padding:16px 18px;border-bottom:1px solid var(--cloud)">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <div style="font-size:13px;font-weight:600;color:var(--ink)">
+                      Session #{{ note.session_number }} - {{ toTitleCase(note.session_type) }}
+                    </div>
+                    <div style="font-size:11px;color:var(--fog)">{{ formatDate(note.session_date) }}</div>
+                  </div>
+                  <div v-if="note.session_start_time && note.session_end_time" style="font-size:11px;color:var(--stone);margin-bottom:8px">
+                    {{ formatTime12(note.session_start_time) }} – {{ formatTime12(note.session_end_time) }}
+                  </div>
+                  <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Observations</div>
+                  <div style="font-size:13px;color:var(--slate);line-height:1.6;background:var(--snow);padding:10px 12px;border-radius:var(--r-sm);border-left:2px solid var(--silver);margin-bottom:8px">{{ note.observations }}</div>
+                  <div v-if="note.next_steps">
+                    <div style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--fog);margin-bottom:4px">Next Steps</div>
+                    <div style="font-size:13px;color:var(--slate)">{{ note.next_steps }}</div>
+                  </div>
+                  <div style="font-size:11px;color:var(--fog);margin-top:6px">Recorded by {{ note.recorded_by?.name }}</div>
+                </div>
+                <div v-if="sessionNotesTotalPages > 1" style="padding:10px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === 1" @click="sessionNotesPage--">Prev</button>
+                  <span style="font-size:11.5px;color:var(--fog)">Page {{ sessionNotesPage }} of {{ sessionNotesTotalPages }}</span>
+                  <button class="ibtn ibtn-o ibtn-sm" :disabled="sessionNotesPage === sessionNotesTotalPages" @click="sessionNotesPage++">Next</button>
+                </div>
               </div>
             </div>
           </div>
@@ -355,8 +384,11 @@
 
           <!-- Service Slips -->
           <div class="icard">
-            <div class="icard-header"><span class="icard-title">Service Slips</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+            <div class="icard-header" style="cursor:pointer" @click="showServiceSlips = !showServiceSlips">
+              <span class="icard-title">Service Slips</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showServiceSlips ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="icard-body" v-show="showServiceSlips" style="display:flex;flex-direction:column;gap:8px">
               <button class="ibtn ibtn-o" style="width:100%;justify-content:center" @click="printSlip('admission')">
                 <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Admission Slip
@@ -382,8 +414,11 @@
 
           <!-- GCU Case Actions -->
           <div class="icard" v-if="isGCU">
-            <div class="icard-header"><span class="icard-title">Case Actions</span></div>
-            <div class="icard-body" style="display:flex;flex-direction:column;gap:8px">
+            <div class="icard-header" style="cursor:pointer" @click="showCaseActions = !showCaseActions">
+              <span class="icard-title">Case Actions</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showCaseActions ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="icard-body" v-show="showCaseActions" style="display:flex;flex-direction:column;gap:8px">
               <router-link
                 v-if="caseFile.latest_referral?.status !== 'submitted'"
                 :to="{ name: 'appointments' }"
@@ -421,8 +456,11 @@
 
           <!-- Parent Conference Slip History -->
           <div class="icard" v-if="caseFile.parent_conference_slips?.length">
-            <div class="icard-header"><span class="icard-title">Parent Conference Slip History</span></div>
-            <div>
+            <div class="icard-header" style="cursor:pointer" @click="showParentConferenceHistory = !showParentConferenceHistory">
+              <span class="icard-title">Parent Conference Slip History ({{ caseFile.parent_conference_slips.length }})</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showParentConferenceHistory ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div v-show="showParentConferenceHistory">
               <div v-for="s in caseFile.parent_conference_slips" :key="s.id" style="padding:12px 16px;border-bottom:1px solid var(--cloud)">
                 <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ formatDate(s.conference_date) }} · {{ formatTime12(s.conference_time) }}</div>
                 <div style="font-size:12px;color:var(--slate);margin-top:3px">{{ s.reason }}</div>
@@ -434,8 +472,11 @@
 
           <!-- Handoff / Endorsement History -->
           <div class="icard" v-if="caseFile.handoffs?.length">
-            <div class="icard-header"><span class="icard-title">Endorsement History</span></div>
-            <div>
+            <div class="icard-header" style="cursor:pointer" @click="showEndorsementHistory = !showEndorsementHistory">
+              <span class="icard-title">Endorsement History ({{ caseFile.handoffs.length }})</span>
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;flex-shrink:0;transition:transform .15s" :style="showEndorsementHistory ? 'transform:rotate(180deg)' : ''"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div v-show="showEndorsementHistory">
               <div v-for="h in caseFile.handoffs" :key="h.id" style="padding:12px 16px;border-bottom:1px solid var(--cloud)">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
                   <div style="font-size:12.5px;font-weight:600;color:var(--ink)">{{ h.from_unit }} → {{ h.to_unit }}</div>
@@ -452,7 +493,7 @@
                   v-if="!h.acknowledged && h.to_user_id === auth.user?.id"
                   class="ibtn ibtn-p ibtn-sm"
                   style="margin-top:8px"
-                  @click="confirmHandoffReceipt(h)"
+                  @click.stop="confirmHandoffReceipt(h)"
                 >
                   Confirm
                 </button>
@@ -954,6 +995,16 @@ const isReassignedAway = computed(() =>
 const isGCU = computed(() => ['admin', 'gcu_staff'].includes(auth.user?.role) && !isReassignedAway.value);
 
 const loading              = ref(true);
+// Panel fix (11/8/2026, item #5): collapsed by default, see the template
+// comment above the Related Referrals card for why these four.
+const showReferralForm               = ref(true);
+const showRelatedReferrals          = ref(false);
+const showAppointmentsSection       = ref(true);
+const showSessionNotesList          = ref(false);
+const showServiceSlips              = ref(true);
+const showCaseActions               = ref(true);
+const showParentConferenceHistory   = ref(false);
+const showEndorsementHistory        = ref(false);
 const showSessionModal     = ref(false);
 const showCloseModal       = ref(false);
 const showCloseConfirm     = ref(false);
