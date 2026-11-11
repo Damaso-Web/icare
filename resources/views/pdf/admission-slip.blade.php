@@ -4,28 +4,34 @@
     <meta charset="utf-8">
     <title>Admission Slip</title>
     <style>
-        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
-        .container { width: 100%; max-width: 700px; margin: 0 auto; padding: 20px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .title { font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
-        .doc-info { width: 100%; font-size: 10px; color: #666; margin-bottom: 20px; border-bottom: 1px solid #ccc; padding-bottom: 10px; }
+        /* 1. Force page margins to be very small to fit one page */
+        @page { margin: 10mm; }
+        
+        /* 2. Reduced font size and line height */
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 10.5px; color: #333; line-height: 1.25; }
+        .container { width: 100%; max-width: 700px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 10px; }
+        .title { font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .doc-info { width: 100%; font-size: 9px; color: #666; margin-bottom: 12px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
         .doc-info td { vertical-align: top; }
         
-        .info-table { width: 100%; margin-bottom: 20px; }
-        .info-table td { padding: 4px 0; }
+        /* 3. Tightened spacing */
+        .info-table { width: 100%; margin-bottom: 10px; }
+        .info-table td { padding: 2px 0; }
         .label { font-weight: bold; width: 150px; }
         .value { border-bottom: 1px solid #999; font-style: italic; color: #111; }
         
-        .section-title { font-weight: bold; margin-top: 15px; margin-bottom: 8px; }
+        .section-title { font-weight: bold; margin-top: 10px; margin-bottom: 5px; }
         
-        .checkbox-list { width: 100%; margin-bottom: 15px; }
-        .checkbox-list td { width: 50%; padding: 3px 0; vertical-align: top; }
+        .checkbox-list { width: 100%; margin-bottom: 8px; }
+        .checkbox-list td { width: 50%; padding: 2px 0; vertical-align: top; }
         
-        .signature-area { text-align: center; margin-top: 50px; }
+        /* 4. Reduced signature spacing */
+        .signature-area { text-align: center; margin-top: 20px; }
         .signature-name { font-weight: bold; text-transform: uppercase; border-bottom: 1px solid #000; display: inline-block; padding: 0 30px 2px; }
-        .signature-title { font-size: 10px; color: #666; margin-top: 4px; }
+        .signature-title { font-size: 9px; color: #666; margin-top: 3px; }
         
-        .footer { text-align: center; font-size: 10px; font-style: italic; color: #666; margin-top: 40px; border-top: 1px dashed #ccc; padding-top: 10px; }
+        .footer { text-align: center; font-size: 9px; font-style: italic; color: #666; margin-top: 20px; border-top: 1px dashed #ccc; padding-top: 8px; }
     </style>
 </head>
 <body>
@@ -47,13 +53,13 @@
             <tr>
                 <td class="label">Name:</td>
                 <td class="value">{{ $student->first_name }} {{ $student->middle_name }} {{ $student->last_name }} {{ $student->suffix }}</td>
-                <td class="label" style="width: 50px;">Date:</td>
+                <td class="label" style="width: 40px;">Date:</td>
                 <td class="value">{{ \Carbon\Carbon::parse($referral->admission_issued_at)->format('F j, Y') }}</td>
             </tr>
             <tr>
                 <td class="label">Program & Year Level:</td>
                 <td class="value">{{ $student->program }}, Year {{ $student->year_level }}</td>
-                <td class="label" style="width: 50px;">Sex:</td>
+                <td class="label" style="width: 40px;">Sex:</td>
                 <td class="value">{{ $student->sex }}</td>
             </tr>
         </table>
@@ -64,8 +70,8 @@
                 <td class="value" style="border-bottom: none;">
                     @foreach($details['dates'] ?? [] as $d)
                         {{ \Carbon\Carbon::parse($d['date'])->format('F j, Y') }}, 
-                        {{ \Carbon\Carbon::parse($d['time_in'] ?? '08:00')->format('g:i A') }} - 
-                        {{ \Carbon\Carbon::parse($d['time_out'] ?? '17:00')->format('g:i A') }}<br>
+                        {{ !empty($d['time_in']) ? \Carbon\Carbon::parse($d['time_in'])->format('g:i A') : '8:00 AM' }} - 
+                        {{ !empty($d['time_out']) ? \Carbon\Carbon::parse($d['time_out'])->format('g:i A') : '5:00 PM' }}<br>
                     @endforeach
                 </td>
             </tr>
@@ -117,16 +123,27 @@
             </tr>
         </table>
 
-        <div class="section-title" style="margin-top: 20px;">
+        <div class="section-title" style="margin-top: 12px;">
             {!! $referral->admission_excused ? '&#9745;' : '&#9744;' !!} Excused &nbsp;&nbsp;&nbsp;&nbsp;
             {!! $referral->admission_excused === false ? '&#9745;' : '&#9744;' !!} Unexcused
         </div>
         
-        <table class="info-table" style="margin-top: 10px;">
+        <table class="info-table" style="margin-top: 8px;">
             <tr>
                 <td class="label">Covers:</td>
                 <td class="value" style="border-bottom: 1px solid #999;">
-                    {{ implode('; ', array_map(fn($d) => \Carbon\Carbon::parse($d)->format('F j, Y'), $details['excused_dates'] ?? [])) }}
+                    @php
+                        // 5. FIXED: Look up the dates in excused_dates and format them WITH times
+                        $excusedDatesFormatted = [];
+                        foreach ($details['dates'] ?? [] as $dateEntry) {
+                            if (in_array($dateEntry['date'], $details['excused_dates'] ?? [])) {
+                                $tIn = !empty($dateEntry['time_in']) ? \Carbon\Carbon::parse($dateEntry['time_in'])->format('g:i A') : '8:00 AM';
+                                $tOut = !empty($dateEntry['time_out']) ? \Carbon\Carbon::parse($dateEntry['time_out'])->format('g:i A') : '5:00 PM';
+                                $excusedDatesFormatted[] = \Carbon\Carbon::parse($dateEntry['date'])->format('F j, Y') . " ({$tIn} - {$tOut})";
+                            }
+                        }
+                    @endphp
+                    {{ implode('; ', $excusedDatesFormatted) }}
                 </td>
             </tr>
             <tr>
