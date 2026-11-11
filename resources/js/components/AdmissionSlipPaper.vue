@@ -1,23 +1,3 @@
-<!--
-  Admission Slip (QF-OSS-GCU-09), laid out like the paper form. The same
-  layout is used to fill it in (readonly = false, v-model on the form) and to
-  show an issued slip (readonly = true).
-
-  form: { absence_ranges: [{ startDate, endDate, isRange, startTime, endTime }],
-          admission_dates: [{ date, time_in, time_out }],
-          excused ('1' | '0' | ''), excused_dates: [date, ...] | undefined,
-          remarks, causes: [], cause_activity, cause_others, actions: [],
-          action_others }
-
-  absence_ranges is the editing UI - each row is either a single date or a
-  date range, with a class-time range. admission_dates is the expanded form
-  saved to the backend: one entry per calendar day in every range, carrying
-  that range's time_in/time_out. It's derived from absence_ranges on every
-  change (see syncAdmissionDates()).
-
-  Whole-day / half-day is gone - every date counts as 1 day, and every date
-  carries an explicit time range.
--->
 <template>
   <div class="asp" :class="{ ro: readonly }">
     <div v-if="showDoc" class="asp-doc doc-header-hidden">
@@ -36,6 +16,7 @@
     <div class="asp-line asp-wrap" style="align-items:flex-start">
       <span class="asp-k">Date/s Absent/Tardy:</span>
 
+      <!-- Read-Only View -->
       <div v-if="readonly" class="asp-v" style="flex:1">
         <template v-if="(form.admission_dates || []).length">
           <div v-for="(e, i) in form.admission_dates" :key="i">{{ formatDateEntry(e) }}</div>
@@ -43,19 +24,25 @@
         <template v-else>-</template>
       </div>
 
+      <!-- Edit View -->
       <div v-else style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:240px">
         <div v-if="(form.absence_ranges || []).length" class="asp-datelist">
           <div v-for="(range, i) in form.absence_ranges" :key="i" class="asp-rangeitem">
-            <input v-model="range.startDate" type="date" class="ifi" :max="today" @change="syncAdmissionDates" aria-label="Date" />
             
-            <template v-if="range.isRange">
+            <div class="asp-input-group">
+              <input v-model="range.startDate" type="date" class="ifi" :max="today" @change="syncAdmissionDates" aria-label="Date" />
+              <template v-if="range.isRange">
+                <span class="asp-range-to">to</span>
+                <input v-model="range.endDate" type="date" class="ifi" :max="today" :min="range.startDate" @change="syncAdmissionDates" aria-label="End date" />
+              </template>
+            </div>
+
+            <div class="asp-input-group">
+              <input v-model="range.startTime" type="time" class="ifi" @change="syncAdmissionDates" aria-label="Class time from" title="Class time (from)" />
               <span class="asp-range-to">to</span>
-              <input v-model="range.endDate" type="date" class="ifi" :max="today" :min="range.startDate" @change="syncAdmissionDates" aria-label="End date" />
-            </template>
-            
-            <input v-model="range.startTime" type="time" class="ifi" @change="syncAdmissionDates" aria-label="Class time from" title="Class time (from)" />
-            <span class="asp-range-to">to</span>
-            <input v-model="range.endTime" type="time" class="ifi" @change="syncAdmissionDates" aria-label="Class time to" title="Class time (to)" />
+              <input v-model="range.endTime" type="time" class="ifi" @change="syncAdmissionDates" aria-label="Class time to" title="Class time (to)" />
+            </div>
+
             <button type="button" class="asp-datedel" @click="removeRange(i)" aria-label="Remove this entry">&times;</button>
           </div>
         </div>
@@ -130,6 +117,11 @@
       <div class="asp-signname">{{ personnel || '-' }}</div>
       <div class="asp-signlabel">Attending OSS Personnel</div>
     </div>
+
+    <!-- Added Footer Note -->
+    <div class="asp-footer-note">
+      This document is not official unless signed by a guidance counselor.
+    </div>
   </div>
 </template>
 
@@ -195,9 +187,14 @@ watch(() => props.modelValue, (newVal) => {
         startDate: e.date,
         endDate:   e.date,
         isRange:   false,
-        startTime: e.time_in  || '',
-        endTime:   e.time_out || '',
+        startTime: e.time_in  || '08:00',
+        endTime:   e.time_out || '17:00',
       });
+    });
+  } else {
+    newVal.absence_ranges.forEach(r => {
+      if (!r.startTime) r.startTime = '08:00';
+      if (!r.endTime) r.endTime = '17:00';
     });
   }
 }, { immediate: true });
@@ -252,8 +249,8 @@ function expandRanges() {
         seen.add(dateStr);
         out.push({
           date:     dateStr,
-          time_in:  range.startTime || '',
-          time_out: range.endTime   || '',
+          time_in:  range.startTime || '08:00',
+          time_out: range.endTime   || '17:00',
         });
       }
       cur.setDate(cur.getDate() + 1);
@@ -301,17 +298,15 @@ const daysCountDisplay = computed(() => {
   return `${str} ${str === '1' ? 'day' : 'days'}`;
 });
 
+// Forces the time to display. If the DB has missing times, it defaults to 8:00 AM - 5:00 PM.
 function formatDateEntry(e) {
   let s = longDate(e.date);
-  if (e.time_in || e.time_out) {
-    s += ', ';
-    if (e.time_in) {
-      s += formatTime12(e.time_in);
-      if (e.time_out) s += ` - ${formatTime12(e.time_out)}`;
-    }
-  }
+  const tIn = formatTime12(e.time_in || '08:00');
+  const tOut = formatTime12(e.time_out || '17:00');
+  s += `, ${tIn} - ${tOut}`;
   return s;
 }
+
 const admissionDatesText = computed(() => {
   const dates = (form.value.admission_dates || []).filter(e => isDateCovered(e.date));
   return dates.length ? dates.map(formatDateEntry).join('; ') : '-';
@@ -341,18 +336,35 @@ const admissionDatesText = computed(() => {
 .asp-sign{align-self:center;text-align:center;margin-top:14px;min-width:220px}
 .asp-signname{font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--ink);padding:0 10px 2px}
 .asp-signlabel{font-size:11.5px;color:var(--stone);margin-top:3px}
-.asp-datelist{display:flex;flex-direction:column}
-.asp-rangeitem{display:flex;flex-wrap:wrap;gap:6px;align-items:center;border-bottom:1px solid var(--silver);padding:6px 2px 8px;font-size:13px}
-.asp-rangeitem .ifi{width:auto;flex:0 1 135px;padding:5px 7px;font-size:12px}
-.asp-range-to{color:var(--stone);font-size:11.5px;white-space:nowrap}
-.asp-rangeitem .asp-datedel{margin-left:auto}
-.asp-datedel{border:none;background:transparent;color:var(--stone);font-size:17px;line-height:1;cursor:pointer;padding:0 2px;font-style:normal}
-.asp-datedel:hover{color:var(--red)}
-.asp-addrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:2px}
+
+/* Footer Note */
+.asp-footer-note {
+  text-align: center;
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--stone);
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--silver);
+}
+
+/* Cleaned up layout for the edit modal */
+.asp-datelist{display:flex;flex-direction:column;gap:6px;}
+.asp-rangeitem{display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid var(--silver);padding:8px 2px;}
+.asp-input-group{display:flex;align-items:center;gap:6px;}
+.asp-rangeitem .ifi{width:auto;flex:0 1 135px;padding:5px 7px;font-size:12px;}
+.asp-rangeitem input[type="time"]{flex:0 1 100px;}
+.asp-range-to{color:var(--stone);font-size:11.5px;white-space:nowrap;}
+.asp-rangeitem .asp-datedel{margin-left:auto;}
+.asp-datedel{border:none;background:transparent;color:var(--stone);font-size:17px;line-height:1;cursor:pointer;padding:0 4px;font-style:normal;}
+.asp-datedel:hover{color:var(--red);}
+.asp-addrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:4px;}
+
 @media (max-width:600px){
   .asp-grid,.asp-checks{grid-template-columns:minmax(0,1fr)}
   .asp-doc{flex-direction:column}
-  .asp-rangeitem .ifi{flex:1 1 100%}
-  .asp-rangeitem .asp-datedel{margin-left:0}
+  .asp-input-group{flex:1 1 100%;}
+  .asp-rangeitem .ifi{flex:1 1 auto;}
+  .asp-rangeitem .asp-datedel{margin-left:0;}
 }
 </style>
