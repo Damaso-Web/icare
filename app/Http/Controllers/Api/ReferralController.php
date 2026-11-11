@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\Referral;
@@ -1490,5 +1491,30 @@ class ReferralController extends Controller
         if (!$user->isTMDUStaff() && $tmduOwned) {
             abort(403, 'This Case Referral Slip belongs to TMDU.');
         }
+    }
+
+        public function downloadAdmissionSlipPdf(Request $request, Referral $referral)
+    {
+        // Authorization (reuse the existing view rule)
+        $this->authorizeView($referral, $request->user());
+
+        if ($referral->referral_type !== 'class_attendance' || !$referral->admission_issued_at) {
+            abort(404, 'Admission slip not found or not issued yet.');
+        }
+
+        // Load the student and the personnel who issued it
+        $referral->load(['student', 'admissionIssuedBy']);
+
+        // Generate the PDF using the package already installed in your system
+        $pdf = Pdf::loadView('pdf.admission-slip', [
+            'referral' => $referral,
+            'details'  => $referral->admission_details,
+            'student'  => $referral->student,
+            'personnel'=> $referral->admissionIssuedBy?->name ?? 'Attending OSS Personnel',
+        ])->setPaper('a4', 'portrait');
+
+        // Stream the download back to the browser
+        $filename = 'Admission_Slip_' . $referral->student->student_id . '.pdf';
+        return $pdf->download($filename);
     }
 }

@@ -1,9 +1,26 @@
 <template>
   <div class="asp" :class="{ ro: readonly }">
-    <div v-if="showDoc" class="asp-doc doc-header-hidden">
-      <div><strong>Document Code:</strong> QF-OSS-GCU-09<br><strong>Revision No.:</strong> {{ doc.revision_no || '01' }}</div>
-      <div style="text-align:right"><strong>Effectivity:</strong> {{ doc.effectivity || '07/04/23' }}<br><strong>Ctrl No.:</strong> {{ doc.ctrl_no || '-' }}</div>
+    
+    <!-- Top Header Area -->
+    <div class="asp-header-wrap">
+      <div v-if="showDoc" class="asp-doc doc-header-hidden">
+        <div><strong>Document Code:</strong> QF-OSS-GCU-09<br><strong>Revision No.:</strong> {{ doc.revision_no || '01' }}</div>
+        <div style="text-align:right"><strong>Effectivity:</strong> {{ doc.effectivity || '07/04/23' }}<br><strong>Ctrl No.:</strong> {{ doc.ctrl_no || '-' }}</div>
+      </div>
+      
+      <!-- Action Buttons: Download PDF & Print -->
+      <div v-if="readonly && referralId" class="asp-actions">
+        <button @click="downloadPdf" class="asp-print-btn" :disabled="isDownloading">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          {{ isDownloading ? 'Downloading...' : 'Download PDF' }}
+        </button>
+        <button @click="printSlip" class="asp-print-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Print
+        </button>
+      </div>
     </div>
+
     <div class="asp-title">Admission Slip</div>
 
     <div class="asp-grid">
@@ -118,7 +135,6 @@
       <div class="asp-signlabel">Attending OSS Personnel</div>
     </div>
 
-    <!-- Added Footer Note -->
     <div class="asp-footer-note">
       This document is not official unless signed by a guidance counselor.
     </div>
@@ -128,6 +144,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { formatTime12 } from '../utils/validators';
+import api from '../api'; // Ensure this path matches your project structure!
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -137,6 +154,7 @@ const props = defineProps({
   doc:        { type: Object, default: () => ({}) },
   readonly:   { type: Boolean, default: false },
   showDoc:    { type: Boolean, default: true },
+  referralId: { type: [Number, String], default: null },
 });
 const form = computed(() => props.modelValue);
 
@@ -175,6 +193,37 @@ const studentName = computed(() => {
 });
 const programYear = computed(() => [props.student?.program, props.student?.year_level && `Year ${props.student.year_level}`].filter(Boolean).join(', ') || '-');
 const issuedOn = computed(() => longDate(props.issuedAt || today));
+
+const isDownloading = ref(false);
+
+function printSlip() {
+  window.print();
+}
+
+async function downloadPdf() {
+  if (!props.referralId) return;
+  isDownloading.value = true;
+  try {
+    const response = await api.get(`/referrals/${props.referralId}/admission-slip/pdf`, {
+      responseType: 'blob'
+    });
+    
+    // Create a blob URL and trigger download
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `Admission_Slip_${props.student?.student_id || 'Student'}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Download failed:', error);
+    alert('Failed to download the PDF. Please try again.');
+  } finally {
+    isDownloading.value = false;
+  }
+}
 
 // Initialize / migrate on every model swap.
 watch(() => props.modelValue, (newVal) => {
@@ -298,7 +347,6 @@ const daysCountDisplay = computed(() => {
   return `${str} ${str === '1' ? 'day' : 'days'}`;
 });
 
-// Forces the time to display. If the DB has missing times, it defaults to 8:00 AM - 5:00 PM.
 function formatDateEntry(e) {
   let s = longDate(e.date);
   const tIn = formatTime12(e.time_in || '08:00');
@@ -314,8 +362,27 @@ const admissionDatesText = computed(() => {
 </script>
 
 <style scoped>
-.asp{background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:22px 26px;font-size:13.5px;color:var(--ink);display:flex;flex-direction:column;gap:14px}
-.asp-doc{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--stone);border-bottom:1px solid var(--cloud);padding-bottom:8px}
+.asp{background:#fff;border:1px solid var(--cloud);border-radius:var(--r-sm);padding:22px 26px;font-size:13.5px;color:var(--ink);display:flex;flex-direction:column;gap:14px;position:relative;}
+
+.asp-header-wrap { display: flex; justify-content: space-between; align-items: flex-start; }
+.asp-actions { display: flex; gap: 8px; margin-top: -4px; }
+.asp-print-btn {
+  background: #fff;
+  border: 1px solid var(--silver);
+  color: var(--forest);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+.asp-print-btn:hover:not(:disabled) { background: var(--mint); border-color: var(--moss); color: var(--moss); }
+.asp-print-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.asp-doc{display:flex;justify-content:space-between;gap:12px;font-size:11px;color:var(--stone);border-bottom:1px solid var(--cloud);padding-bottom:8px; flex: 1; margin-right: 16px;}
 .asp-title{text-align:center;font-weight:700;letter-spacing:.8px;text-transform:uppercase;font-size:14px;margin-bottom:2px}
 .asp-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:10px 24px}
 .asp-line{display:flex;align-items:baseline;gap:8px;min-width:0;padding-bottom:2px}
@@ -337,7 +404,6 @@ const admissionDatesText = computed(() => {
 .asp-signname{font-weight:700;text-transform:uppercase;border-bottom:1px solid var(--ink);padding:0 10px 2px}
 .asp-signlabel{font-size:11.5px;color:var(--stone);margin-top:3px}
 
-/* Footer Note */
 .asp-footer-note {
   text-align: center;
   font-size: 11.5px;
@@ -348,7 +414,6 @@ const admissionDatesText = computed(() => {
   border-top: 1px dashed var(--silver);
 }
 
-/* Cleaned up layout for the edit modal */
 .asp-datelist{display:flex;flex-direction:column;gap:6px;}
 .asp-rangeitem{display:flex;flex-wrap:wrap;gap:12px;align-items:center;border-bottom:1px solid var(--silver);padding:8px 2px;}
 .asp-input-group{display:flex;align-items:center;gap:6px;}
@@ -363,8 +428,17 @@ const admissionDatesText = computed(() => {
 @media (max-width:600px){
   .asp-grid,.asp-checks{grid-template-columns:minmax(0,1fr)}
   .asp-doc{flex-direction:column}
+  .asp-header-wrap { flex-direction: column; gap: 10px; }
   .asp-input-group{flex:1 1 100%;}
   .asp-rangeitem .ifi{flex:1 1 auto;}
   .asp-rangeitem .asp-datedel{margin-left:0;}
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .asp, .asp * { visibility: visible; }
+  .asp { position: absolute; left: 0; top: 0; width: 100%; margin: 0; padding: 20px !important; border: none !important; box-shadow: none !important; }
+  .asp-print-btn, .ibtn, .asp-addrow, .asp-datedel, .asp-actions { display: none !important; }
+  .asp-doc { display: flex !important; }
 }
 </style>

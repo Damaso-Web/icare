@@ -669,5 +669,26 @@ public function downloadPar(Request $request, $id)
 
     return $doc->streamResponse();
 }
+    public function downloadAdmissionSlipPdf(Request $request, $id)
+    {
+        $student = $request->user('student');
+        $referral = $student->referrals()->findOrFail($id);
+
+        if ($referral->referral_type !== 'class_attendance' || !$referral->admission_issued_at) {
+            abort(404, 'Admission slip not found or not issued yet.');
+        }
+
+        $referral->load(['student', 'admissionIssuedBy']);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.admission-slip', [
+            'referral' => $referral,
+            'details'  => $referral->admission_details,
+            'student'  => $referral->student,
+            'personnel'=> $referral->admissionIssuedBy?->name ?? 'Attending OSS Personnel',
+        ])->setPaper('a4', 'portrait');
+
+        $filename = 'Admission_Slip_' . $student->student_id . '.pdf';
+        return $pdf->download($filename);
+    }
 
 }

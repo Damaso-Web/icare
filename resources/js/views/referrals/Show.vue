@@ -390,12 +390,13 @@
               <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:var(--stone);fill:none;stroke-width:2;margin-left:auto;transition:transform .15s;flex-shrink:0" :style="{ transform: isSifSectionOpen('admission_slip') ? 'rotate(90deg)' : 'rotate(0deg)' }"><polyline points="9 18 15 12 9 6"/></svg>
             </div>
             <div v-show="isSifSectionOpen('admission_slip')" class="icard-body">
-              <AdmissionSlipPaper
+                <AdmissionSlipPaper
                 readonly
                 :model-value="issuedAdmissionSlip"
                 :student="referral.student"
                 :personnel="referral.admission_issued_by?.name || ''"
                 :issued-at="referral.admission_issued_at"
+                :referral-id="referral.id"
                 :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
               />
             </div>
@@ -457,6 +458,7 @@
                 :student="referral.student"
                 :personnel="referral.admission_issued_by?.name || ''"
                 :issued-at="referral.admission_issued_at"
+                :referral-id="referral.id"
                 :show-doc="false"
                 :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
               />
