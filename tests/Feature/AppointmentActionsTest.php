@@ -335,7 +335,7 @@ class AppointmentActionsTest extends TestCase
             'concern' => 'Need help.',
             'appointment_date' => $this->nextWeekday()->toDateString(),
             'start_time' => '09:00', 'end_time' => '10:00',
-        ])->assertStatus(422)->assertJson(['message' => 'That time slot is already taken.']);
+        ])->assertStatus(422)->assertJson(['message' => 'This time is full: 5 of 5 students are already booked during this time. Please choose another time.']);
     }
 
     public function test_student_check_conflict_reports_blocked_and_taken_slots(): void

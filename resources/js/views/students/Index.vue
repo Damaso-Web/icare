@@ -59,11 +59,13 @@
            row (and its explicit Select All / Deselect All button) is now
            always visible to Admin once there's at least one active student
            on the page, not only after something is already selected. -->
-      <div v-if="auth.isAdmin && students.some(s => s.is_active)" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud);flex-wrap:wrap">
-        <span v-if="selectedStudentIds.length" style="font-size:12.5px;color:var(--slate)">{{ selectedStudentIds.length }} selected</span>
-        <button class="ibtn ibtn-o ibtn-sm" @click="toggleSelectAllOnPage">{{ allOnPageSelected ? 'Deselect All' : 'Select All' }}</button>
-        <button v-if="selectedStudentIds.length" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkDeactivateModal">Deactivate Selected</button>
-        <button v-if="selectedStudentIds.length" class="ibtn ibtn-o ibtn-sm" @click="selectedStudentIds = []">Clear Selection</button>
+      <div v-if="auth.isAdmin && students.length" style="display:flex;align-items:center;gap:10px;padding:10px 18px;background:var(--snow);border-bottom:1px solid var(--cloud);flex-wrap:wrap">
+        <span v-if="selectedStudentIds.length" style="font-size:12.5px;color:var(--slate)">{{ selectedStudentIds.length }} {{ selectionMode === 'inactive' ? 'inactive' : 'active' }} student{{ selectedStudentIds.length === 1 ? '' : 's' }} selected</span>
+        <button class="ibtn ibtn-o ibtn-sm" :disabled="!!selectingAll" @click="selectAllMatching('active')">{{ selectingAll === 'active' ? 'Selecting...' : 'Select All Active' }}</button>
+        <button class="ibtn ibtn-o ibtn-sm" :disabled="!!selectingAll" @click="selectAllMatching('inactive')">{{ selectingAll === 'inactive' ? 'Selecting...' : 'Select All Inactive' }}</button>
+        <button v-if="selectionMode === 'active'" class="ibtn ibtn-sm" style="background:var(--red-lt);color:var(--red);border:1.5px solid #f5c0c0" @click="openBulkDeactivateModal">Deactivate Selected</button>
+        <button v-if="selectionMode === 'inactive'" class="ibtn ibtn-sm" style="background:var(--mist);color:var(--moss);border:1.5px solid var(--mint)" @click="openBulkActivateModal">Activate Selected</button>
+        <button v-if="selectedStudentIds.length" class="ibtn ibtn-o ibtn-sm" @click="clearSelection">Deselect All</button>
       </div>
       <div v-if="loading" style="text-align:center;padding:44px">
         <div style="width:24px;height:24px;border:2px solid var(--mint);border-top-color:var(--moss);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto"></div>
@@ -77,7 +79,7 @@
           <thead>
             <tr>
               <th v-if="auth.isAdmin" style="width:32px">
-                <input type="checkbox" :checked="allOnPageSelected" @change="toggleSelectAllOnPage" aria-label="Select all active students on this page" />
+                <input type="checkbox" :checked="allOnPageSelected" @change="toggleSelectAllOnPage" aria-label="Select all students of the current type on this page" />
               </th>
               <th>Student ID</th>
               <th>Full Name</th>
@@ -90,9 +92,9 @@
               <td v-if="auth.isAdmin" @click.stop>
                 <input
                   type="checkbox"
-                  :disabled="!s.is_active"
+                  :disabled="!!selectionMode && modeOf(s) !== selectionMode"
                   :checked="selectedStudentIds.includes(s.id)"
-                  @change="toggleSelectOne(s.id)"
+                  @change="toggleSelectOne(s)"
                   :aria-label="`Select ${s.first_name} ${s.last_name}`"
                 />
               </td>
@@ -1175,18 +1177,52 @@
       </div>
     </div>
 
+    <!-- Bulk Activate -->
+    <div v-if="showBulkActivateModal" style="position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px" @click.self="!bulkActivating && (showBulkActivateModal = false)">
+      <div style="background:#fff;border-radius:var(--r-lg);width:100%;max-width:440px;box-shadow:var(--sh-lg)">
+        <div style="padding:20px 22px;border-bottom:1px solid var(--cloud)">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">Activate {{ selectedStudentIds.length }} Student Account{{ selectedStudentIds.length === 1 ? '' : 's' }}?</div>
+        </div>
+        <div style="padding:22px;display:flex;flex-direction:column;gap:14px">
+          <div style="font-size:13px;color:var(--slate);line-height:1.6">
+            Each selected student can log in again and keeps all of their records. Every student must set a new password at their next login. The same reason applies to all of them.
+          </div>
+          <div>
+            <label class="ifl">Reason for Reactivation <span style="color:var(--red)">*</span></label>
+            <select v-model="bulkActivateReason" class="ifse">
+              <option value="" disabled hidden>Select a reason...</option>
+              <option v-for="r in REACTIVATE_OPTIONS" :key="r.value" :value="r.value">{{ r.label }}</option>
+            </select>
+          </div>
+          <div v-if="bulkActivateDescription" style="background:var(--snow);border-radius:var(--r-sm);padding:10px 12px;font-size:12.5px;color:var(--slate);line-height:1.5">{{ bulkActivateDescription }}</div>
+          <div v-if="bulkActivateReason === 'other'">
+            <label class="ifl">Explanation <span style="color:var(--red)">*</span></label>
+            <input v-model="bulkActivateNote" class="ifi" placeholder="Please describe the reason for reactivation briefly." maxlength="255" />
+          </div>
+          <div v-if="bulkActivating" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--slate);background:var(--foam);border-radius:var(--r-sm);padding:10px 14px">
+            <span style="width:14px;height:14px;border:2px solid var(--cloud);border-top-color:var(--moss);border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>
+            Processing reactivation, please wait...
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:8px">
+            <button class="ibtn ibtn-p" :disabled="!canBulkActivate || bulkActivating" @click="doBulkActivate">{{ bulkActivating ? 'Activating...' : 'Activate Accounts' }}</button>
+            <button class="ibtn ibtn-o" :disabled="bulkActivating" @click="!bulkActivating && (showBulkActivateModal = false)">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup>
 import { useDiscardGuard } from '../../utils/discardGuard';
-import { ref, computed, inject, onMounted } from 'vue';
+import { ref, computed, inject, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { studentAPI } from '../../api/index';
 import { useAuthStore } from '../../stores/auth';
 import ReasonDialog from '../../components/ReasonDialog.vue';
 import ResetPasswordDialog from '../../components/ResetPasswordDialog.vue';
-import { STUDENT_DEACTIVATE_REASONS, studentReactivationReasonsFor, studentDeactivateLabel } from '../../constants/accountReasons';
+import { STUDENT_DEACTIVATE_REASONS, STUDENT_REACTIVATE_REASONS, studentReactivationReasonsFor, studentDeactivateLabel } from '../../constants/accountReasons';
 import { onlyLetters, onlyLettersStrict, onlyDigits, contactNumberInput, isValidPHContact, safeSearchInput, blockSpecialKeypress, titleCaseName } from '../../utils/validators';
 // Catches a likely typo in the domain (e.g. "student@gmial.com") as the
 // Admin/Dean types it, the same check already used on the student's own
@@ -1979,24 +2015,60 @@ async function doGraduate() {
   }
 }
 
-// Bulk Deactivate (item #9): select several active accounts across the
-// current page and deactivate them together with one shared reason.
+// Bulk Deactivate / Activate (item #9): select accounts and act on them with
+// one shared reason. A selection is all ACTIVE students (to deactivate) or all
+// INACTIVE ones (to activate), never a mix. "Select All Active / Inactive"
+// asks the server for every matching student across ALL pages (the list only
+// loads one page at a time), following the current search and college filter.
 const selectedStudentIds = ref([]);
+const selectionMode = ref(null);          // 'active' | 'inactive' | null
+const selectingAll = ref('');             // which Select All is running
+const modeOf = (s) => (s.is_active ? 'active' : 'inactive');
+const pageMode = computed(() => selectionMode.value || (students.value.some(s => s.is_active) ? 'active' : 'inactive'));
 const allOnPageSelected = computed(() => {
-  const selectable = students.value.filter(s => s.is_active);
-  return selectable.length > 0 && selectable.every(s => selectedStudentIds.value.includes(s.id));
+  const rows = students.value.filter(s => modeOf(s) === pageMode.value);
+  return rows.length > 0 && rows.every(s => selectedStudentIds.value.includes(s.id));
 });
+function clearSelection() {
+  selectedStudentIds.value = [];
+  selectionMode.value = null;
+}
 function toggleSelectAllOnPage() {
-  const selectable = students.value.filter(s => s.is_active).map(s => s.id);
+  const mode = pageMode.value;
+  const ids = students.value.filter(s => modeOf(s) === mode).map(s => s.id);
   selectedStudentIds.value = allOnPageSelected.value
-    ? selectedStudentIds.value.filter(id => !selectable.includes(id))
-    : [...new Set([...selectedStudentIds.value, ...selectable])];
+    ? selectedStudentIds.value.filter(id => !ids.includes(id))
+    : [...new Set([...selectedStudentIds.value, ...ids])];
+  selectionMode.value = selectedStudentIds.value.length ? mode : null;
 }
-function toggleSelectOne(id) {
-  selectedStudentIds.value = selectedStudentIds.value.includes(id)
-    ? selectedStudentIds.value.filter(x => x !== id)
-    : [...selectedStudentIds.value, id];
+function toggleSelectOne(s) {
+  if (selectionMode.value && selectionMode.value !== modeOf(s)) return;
+  selectedStudentIds.value = selectedStudentIds.value.includes(s.id)
+    ? selectedStudentIds.value.filter(x => x !== s.id)
+    : [...selectedStudentIds.value, s.id];
+  selectionMode.value = selectedStudentIds.value.length ? modeOf(s) : null;
 }
+async function selectAllMatching(mode) {
+  if (selectingAll.value) return;
+  selectingAll.value = mode;
+  try {
+    const params = { is_active: mode === 'active' };
+    if (filters.value.search) params.search = filters.value.search;
+    if (filters.value.college) params.college = filters.value.college;
+    const res = await studentAPI.matchingIds(params);
+    const ids = res.data?.ids || [];
+    selectedStudentIds.value = ids;
+    selectionMode.value = ids.length ? mode : null;
+    if (!ids.length) toast?.info?.(`No ${mode} students match the current search.`);
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Could not select all students. Please try again.');
+  } finally {
+    selectingAll.value = '';
+  }
+}
+// Changing the search or filters starts a fresh selection so nobody acts on
+// students that are no longer in view.
+watch(() => [filters.value.search, filters.value.college, filters.value.status], clearSelection);
 
 const showBulkDeactivateModal = ref(false);
 const bulkReason = ref('');
@@ -2026,13 +2098,52 @@ async function doBulkDeactivate() {
     });
     const { deactivated = [], skipped = [] } = res.data || {};
     showBulkDeactivateModal.value = false;
-    selectedStudentIds.value = [];
+    clearSelection();
     toast?.success(`Deactivated ${deactivated.length} student account${deactivated.length === 1 ? '' : 's'}.${skipped.length ? ` ${skipped.length} already inactive.` : ''}`);
     fetchStudents();
   } catch (e) {
     toast?.error(e.response?.data?.message || 'Failed to deactivate the selected accounts.');
   } finally {
     bulkDeactivating.value = false;
+  }
+}
+
+// Bulk Activate: the mirror of Bulk Deactivate.
+const REACTIVATE_OPTIONS = STUDENT_REACTIVATE_REASONS.map(r => ({ value: r.key, label: r.label, description: r.description }));
+const showBulkActivateModal = ref(false);
+const bulkActivateReason = ref('');
+const bulkActivateNote = ref('');
+const bulkActivating = ref(false);
+const bulkActivateDescription = computed(() => REACTIVATE_OPTIONS.find(r => r.value === bulkActivateReason.value)?.description || '');
+const canBulkActivate = computed(() =>
+  selectionMode.value === 'inactive' &&
+  selectedStudentIds.value.length > 0 &&
+  bulkActivateReason.value &&
+  (bulkActivateReason.value !== 'other' || bulkActivateNote.value.trim())
+);
+function openBulkActivateModal() {
+  bulkActivateReason.value = '';
+  bulkActivateNote.value = '';
+  showBulkActivateModal.value = true;
+}
+async function doBulkActivate() {
+  if (!canBulkActivate.value || bulkActivating.value) return;
+  bulkActivating.value = true;
+  try {
+    const res = await studentAPI.bulkActivate({
+      student_ids: selectedStudentIds.value,
+      reason: bulkActivateReason.value,
+      note: bulkActivateReason.value === 'other' ? bulkActivateNote.value.trim() : null,
+    });
+    const { activated = [], skipped = [] } = res.data || {};
+    showBulkActivateModal.value = false;
+    clearSelection();
+    toast?.success(`Activated ${activated.length} student account${activated.length === 1 ? '' : 's'}.${skipped.length ? ` ${skipped.length} already active.` : ''}`);
+    fetchStudents();
+  } catch (e) {
+    toast?.error(e.response?.data?.message || 'Failed to activate the selected accounts.');
+  } finally {
+    bulkActivating.value = false;
   }
 }
 

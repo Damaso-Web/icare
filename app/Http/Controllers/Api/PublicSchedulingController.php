@@ -96,14 +96,14 @@ class PublicSchedulingController extends Controller
         // Panel fix (11/8/2026, item #8): up to Appointment::STUDENT_SAME_SLOT_CAP
         // students can share one exact date+start+end before this is "taken" -
         // see Appointment::hasUnitConflict() for the exact-vs-partial-overlap rule.
-        $conflict = Appointment::hasUnitConflict(
+        $conflictMessage = Appointment::studentSlotConflictMessage(
             $appointment->unit,
             $request->appointment_date,
             $request->start_time,
             $request->end_time,
-            $appointment->id,
-            Appointment::STUDENT_SAME_SLOT_CAP
+            $appointment->id
         );
+        $conflict = $conflictMessage !== null;
 
         if (!$conflict && $this->overlapsReplacedSlot($appointment, $request->appointment_date, $request->start_time, $request->end_time)) {
             return response()->json(['available' => false, 'replaced_slot' => true, 'message' => self::REPLACED_SLOT_MESSAGE]);
@@ -111,11 +111,12 @@ class PublicSchedulingController extends Controller
 
         // Panel fix (11/10/2026, item #8): same live slot count as the
         // authenticated self-booking check, so this reschedule screen can
-        // show how many students already share this exact date and time.
-        $slotCount = Appointment::exactSlotCount($appointment->unit, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id);
+        // show how many students already booked during this time.
+        $slotCount = Appointment::peakOverlapCount($appointment->unit, $request->appointment_date, $request->start_time, $request->end_time, $appointment->id);
 
         return response()->json([
             'available'  => !$conflict,
+            'message'    => $conflictMessage,
             'slot_count' => $slotCount,
             'slot_cap'   => Appointment::STUDENT_SAME_SLOT_CAP,
         ]);
@@ -136,9 +137,15 @@ class PublicSchedulingController extends Controller
     // response-shape differences (array message vs 422).
     private function dateTimeRuleViolation(string $date, string $start, string $end): ?string
     {
-        $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start);
-        if ($startsAt->isPast()) {
-            return 'This time has already passed. Please choose another date or time.';
+        // Compared to the minute: Carbon::createFromFormat('Y-m-d H:i') fills
+        // the missing seconds with the CURRENT seconds, so picking the exact
+        // current minute used to land a few milliseconds "in the past" and
+        // get rejected. The student's chosen minute is valid until it ends.
+        $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start)->startOfMinute();
+        if ($startsAt->lt(now()->startOfMinute())) {
+            return $startsAt->isToday()
+                ? 'This time has already passed (it is now ' . now()->format('g:i A') . '). Please choose a later time or another date.'
+                : 'This date has already passed. Please choose another date.';
         }
 
         // Panel fix (11/10/2026): says which bound was actually violated,
@@ -295,17 +302,16 @@ class PublicSchedulingController extends Controller
         }
 
         // Panel fix (11/8/2026, item #8): same exact-match cap as checkAvailability() above.
-        $conflict = Appointment::hasUnitConflict(
+        $conflictMessage = Appointment::studentSlotConflictMessage(
             $appointment->unit,
             $request->appointment_date,
             $request->start_time,
             $request->end_time,
-            $appointment->id,
-            Appointment::STUDENT_SAME_SLOT_CAP
+            $appointment->id
         );
 
-        if ($conflict) {
-            return response()->json(['message' => 'This time slot is no longer available. Please pick another.'], 422);
+        if ($conflictMessage) {
+            return response()->json(['message' => $conflictMessage], 422);
         }
 
         if ($this->overlapsReplacedSlot($appointment, $request->appointment_date, $request->start_time, $request->end_time)) {

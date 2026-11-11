@@ -1341,7 +1341,6 @@ class ReferralController extends Controller
             // ONE Excused/Unexcused verdict covering every date on it.
             'admission_dates'            => 'required|array|min:1',
             'admission_dates.*.date'     => 'required|date',
-            'admission_dates.*.duration' => 'required|in:whole,half',
             'admission_dates.*.time_in'  => 'nullable|date_format:H:i',
             'admission_dates.*.time_out' => 'nullable|date_format:H:i|after:admission_dates.*.time_in',
             'admission_excused'  => 'required|boolean',
@@ -1384,8 +1383,7 @@ class ReferralController extends Controller
             abort(422, 'Write the other action taken.');
         }
 
-        // Normalize: a Whole Day entry carries no times even if some were
-        // submitted; reject a date added twice; sort chronologically.
+        // Normalize: reject a date added twice; sort chronologically.
         $seenDates = [];
         $dates = [];
         foreach ($validated['admission_dates'] as $entry) {
@@ -1394,12 +1392,10 @@ class ReferralController extends Controller
                 abort(422, "The date {$date} was added more than once.");
             }
             $seenDates[] = $date;
-            $isHalf = $entry['duration'] === 'half';
             $dates[] = [
                 'date'     => $date,
-                'duration' => $entry['duration'],
-                'time_in'  => $isHalf ? ($entry['time_in'] ?? null) : null,
-                'time_out' => $isHalf ? ($entry['time_out'] ?? null) : null,
+                'time_in'  => $entry['time_in'] ?? null,
+                'time_out' => $entry['time_out'] ?? null,
             ];
         }
         usort($dates, fn($a, $b) => strcmp($a['date'], $b['date']));
@@ -1420,9 +1416,10 @@ class ReferralController extends Controller
 
         // Number of day/s absent/tardy is now counted automatically from the
         // dates added (Whole Day = 1, Half Day = 0.5) instead of free text.
-        $dayTotal = array_sum(array_map(fn($e) => $e['duration'] === 'half' ? 0.5 : 1, $dates));
-        $dayTotal = rtrim(rtrim(sprintf('%.1f', $dayTotal), '0'), '.');
-        $daysCount = $dayTotal . ' ' . ($dayTotal === '1' ? 'day' : 'days');
+        // Number of day/s absent/tardy is counted automatically from the
+        // dates added (every date counts as 1 day).
+        $dayTotal = count($dates);
+        $daysCount = $dayTotal . ' ' . ($dayTotal === 1 ? 'day' : 'days');
 
         $referral->update([
             // admission_date keeps the earliest date for any older report or

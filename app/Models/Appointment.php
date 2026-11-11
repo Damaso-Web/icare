@@ -150,46 +150,70 @@ const STUDENT_SAME_SLOT_CAP = 5;
 
 public static function hasUnitConflict(string $unit, string $date, string $start, string $end, ?int $excludeId = null, int $cap = 1): bool
 {
-    $base = static::where('unit', $unit)
+    // One-at-a-time units (TMDU, SDU, anything staff-exclusive): any overlap blocks.
+    if ($cap <= 1) {
+        return static::overlappingInUnit($unit, $date, $start, $end, $excludeId)->exists();
+    }
+
+    // Shared units (GCU, up to STUDENT_SAME_SLOT_CAP students at once): a
+    // booking is accepted for ANY start/end time as long as fewer than $cap
+    // students are already booked at every moment inside it. A different but
+    // overlapping time is fine until 5 students overlap at the same moment.
+    return static::peakOverlapCount($unit, $date, $start, $end, $excludeId) >= $cap;
+}
+
+// Active bookings of the unit on that date that overlap [start, end).
+private static function overlappingInUnit(string $unit, string $date, string $start, string $end, ?int $excludeId = null)
+{
+    return static::where('unit', $unit)
         ->where('appointment_date', $date)
         ->whereNotIn('status', ['cancelled', 'rescheduled'])
         ->where('request_status', '!=', 'awaiting_student')
         ->where('start_time', '<', $end)
         ->where('end_time', '>', $start)
         ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId));
-
-    if ($cap <= 1) {
-        return $base->exists();
-    }
-
-    $partialOverlap = (clone $base)
-        ->where(function ($q) use ($start, $end) {
-            $q->where('start_time', '!=', $start)->orWhere('end_time', '!=', $end);
-        })
-        ->exists();
-
-    if ($partialOverlap) {
-        return true;
-    }
-
-    return (clone $base)->count() >= $cap;
 }
 
-// Panel fix (11/10/2026, item #8): a live count of how many students are
-// already in this EXACT slot, separate from the accept/reject decision
-// hasUnitConflict() above makes - so a booking screen can show "3 of 5
-// already booked" as staff/students pick a date and time, instead of only
-// finding out once the cap is hit and the slot is rejected outright.
-public static function exactSlotCount(string $unit, string $date, string $start, string $end, ?int $excludeId = null): int
+// The most students already booked at the SAME moment anywhere inside
+// [start, end). This is the "X of 5" the booking screens show, and the number
+// hasUnitConflict() compares to the cap. Concurrency only changes when a
+// booking starts, so it is enough to look at the requested start and at every
+// start that falls inside the requested window.
+public static function peakOverlapCount(string $unit, string $date, string $start, string $end, ?int $excludeId = null): int
 {
-    return static::where('unit', $unit)
-        ->where('appointment_date', $date)
-        ->where('start_time', $start)
-        ->where('end_time', $end)
-        ->whereNotIn('status', ['cancelled', 'rescheduled'])
-        ->where('request_status', '!=', 'awaiting_student')
-        ->when($excludeId, fn($q) => $q->where('id', '!=', $excludeId))
-        ->count();
+    $rows = static::overlappingInUnit($unit, $date, $start, $end, $excludeId)->get(['start_time', 'end_time']);
+    if ($rows->isEmpty()) {
+        return 0;
+    }
+
+    $norm = fn ($t) => strlen((string) $t) === 5 ? $t . ':00' : (string) $t;
+    $from = $norm($start);
+    $to   = $norm($end);
+
+    $points = $rows->map(fn ($r) => $norm($r->start_time))->push($from)
+        ->filter(fn ($t) => $t >= $from && $t < $to)
+        ->unique();
+
+    $peak = 0;
+    foreach ($points as $t) {
+        $active = $rows->filter(fn ($r) => $norm($r->start_time) <= $t && $norm($r->end_time) > $t)->count();
+        $peak = max($peak, $active);
+    }
+
+    return $peak;
+}
+
+// The reason a student can't take this GCU time, or null when it's open:
+// STUDENT_SAME_SLOT_CAP students are already booked at some moment inside it.
+public static function studentSlotConflictMessage(string $unit, string $date, string $start, string $end, ?int $excludeId = null): ?string
+{
+    $cap = self::STUDENT_SAME_SLOT_CAP;
+
+    if (!static::hasUnitConflict($unit, $date, $start, $end, $excludeId, $cap)) {
+        return null;
+    }
+
+    return "This time is full: {$cap} of {$cap} students are already booked during this time. Please choose another time.";
 }
 
 

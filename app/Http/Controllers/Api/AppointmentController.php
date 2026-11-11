@@ -867,9 +867,15 @@ class AppointmentController extends Controller
 // actual submit agree.
 private function studentDateTimeRuleViolation(string $date, string $start, string $end): ?string
 {
-    $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start);
-    if ($startsAt->isPast()) {
-        return 'This time has already passed. Please choose another date or time.';
+    // Compared to the minute: Carbon::createFromFormat('Y-m-d H:i') fills
+    // the missing seconds with the CURRENT seconds, so picking the exact
+    // current minute used to land a few milliseconds "in the past" and
+    // get rejected. The student's chosen minute is valid until it ends.
+    $startsAt = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $date . ' ' . $start)->startOfMinute();
+    if ($startsAt->lt(now()->startOfMinute())) {
+        return $startsAt->isToday()
+            ? 'This time has already passed (it is now ' . now()->format('g:i A') . '). Please choose a later time or another date.'
+            : 'This date has already passed. Please choose another date.';
     }
 
     if ($violation = $this->durationViolation($start, $end)) {
@@ -905,15 +911,8 @@ public function storeByStudent(Request $request)
 
     \App\Support\BlockedDates::assertOpen($validated['appointment_date']);
 
-    if (Appointment::hasUnitConflict(
-        'GCU',
-        $validated['appointment_date'],
-        $validated['start_time'],
-        $validated['end_time'],
-        null,
-        Appointment::STUDENT_SAME_SLOT_CAP
-    )) {
-        return response()->json(['message' => 'That time slot is already taken.'], 422);
+    if ($full = Appointment::studentSlotConflictMessage('GCU', $validated['appointment_date'], $validated['start_time'], $validated['end_time'])) {
+        return response()->json(['message' => $full], 422);
     }
 
     $appointment = Appointment::create([
@@ -954,22 +953,17 @@ public function checkConflictByStudent(Request $request)
         return response()->json(['has_conflict' => true, 'blocked' => true, 'message' => $blocked]);
     }
 
-    $hasConflict = Appointment::hasUnitConflict(
-        'GCU',
-        $validated['appointment_date'],
-        $validated['start_time'],
-        $validated['end_time'],
-        null,
-        Appointment::STUDENT_SAME_SLOT_CAP
-    );
+    // Says WHY: a full slot ("5 of 5") or an overlap with a different time.
+    $conflictMessage = Appointment::studentSlotConflictMessage('GCU', $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
 
     // Panel fix (11/10/2026, item #8): a live count, not just a yes/no, so
     // the student sees how many others already picked this exact slot
     // before they submit - not only once the cap is hit.
-    $slotCount = Appointment::exactSlotCount('GCU', $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
+    $slotCount = Appointment::peakOverlapCount('GCU', $validated['appointment_date'], $validated['start_time'], $validated['end_time']);
 
     return response()->json([
-        'has_conflict' => $hasConflict,
+        'has_conflict' => $conflictMessage !== null,
+        'message'      => $conflictMessage,
         'slot_count'   => $slotCount,
         'slot_cap'     => Appointment::STUDENT_SAME_SLOT_CAP,
     ]);
@@ -1345,14 +1339,14 @@ public function checkConflictByStudent(Request $request)
 
         // Panel fix (11/10/2026, item #8): same live slot count as the
         // student's own self-booking check, surfaced here too so GCU staff
-        // can see how many students already share this exact date and time
+        // can see how many students already booked during this time
         // while scheduling/rescheduling - only meaningful for the unit-wide
         // (not staff-specific) check, and only GCU currently allows sharing
         // a slot past one appointment (STUDENT_SAME_SLOT_CAP).
         $slotCount = null;
         $slotCap   = null;
         if (empty($request->staff_user_id) && !empty($request->unit)) {
-            $slotCount = Appointment::exactSlotCount($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id);
+            $slotCount = Appointment::peakOverlapCount($request->unit, $request->appointment_date, $request->start_time, $request->end_time, $request->exclude_id);
             if ($request->unit === 'GCU') {
                 $slotCap = Appointment::STUDENT_SAME_SLOT_CAP;
             }

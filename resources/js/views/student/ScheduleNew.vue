@@ -74,11 +74,11 @@
             ✓ This time slot is available.
           </div>
           <!-- Panel fix (11/10/2026, item #8): live count of how many
-               students already picked this exact date and time, always
+               students already booked during this time, always
                shown once it's known (even "0 of 5") rather than only
                appearing once someone else is already in the slot. -->
           <div v-if="slotCap !== null" style="font-size:11.5px;color:var(--stone)">
-            ℹ {{ slotCount }} of {{ slotCap }} students have already booked this exact date and time.
+            ℹ {{ slotCount }} of {{ slotCap }} students are already booked during this time.
           </div>
         </div>
 

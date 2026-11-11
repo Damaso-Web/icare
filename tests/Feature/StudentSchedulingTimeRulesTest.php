@@ -50,7 +50,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'end_time'         => '10:00',
         ]);
 
-        $res->assertStatus(422)->assertJson(['message' => 'This time has already passed. Please choose another date or time.']);
+        $res->assertStatus(422)->assertJson(['message' => 'This time has already passed (it is now 2:00 PM). Please choose a later time or another date.']);
 
         Carbon::setTestNow();
     }
@@ -116,7 +116,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => now()->toDateString(),
             'start_time'       => '09:00',
             'end_time'         => '10:00',
-        ])->assertStatus(422)->assertJson(['message' => 'This time has already passed. Please choose another date or time.']);
+        ])->assertStatus(422)->assertJson(['message' => 'This time has already passed (it is now 2:00 PM). Please choose a later time or another date.']);
 
         Carbon::setTestNow();
     }
@@ -148,7 +148,7 @@ class StudentSchedulingTimeRulesTest extends TestCase
         ])->assertOk();
 
         $this->assertTrue($res->json('has_conflict'));
-        $this->assertSame('This time has already passed. Please choose another date or time.', $res->json('message'));
+        $this->assertSame('This time has already passed (it is now 2:00 PM). Please choose a later time or another date.', $res->json('message'));
 
         Carbon::setTestNow();
     }
@@ -192,10 +192,10 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => $date,
             'start_time'       => '09:00',
             'end_time'         => '10:00',
-        ])->assertStatus(422)->assertJson(['message' => 'That time slot is already taken.']);
+        ])->assertStatus(422)->assertJson(['message' => 'This time is full: 5 of 5 students are already booked during this time. Please choose another time.']);
     }
 
-    public function test_a_partially_overlapping_slot_is_still_a_hard_conflict_even_with_room_in_the_cap(): void
+    public function test_a_partially_overlapping_time_is_accepted_while_fewer_than_five_students_overlap(): void
     {
         $date = $this->nextWeekday()->toDateString();
 
@@ -208,14 +208,53 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'end_time'         => '10:00',
         ])->assertStatus(201);
 
+        // A different start/end that overlaps is fine: only 1 student is
+        // booked during 09:30-10:30, well under the 5 allowed at once.
         $otherStudent = Student::factory()->create();
         Sanctum::actingAs($otherStudent, [], 'student');
         $this->postJson('/api/student/appointments', [
-            'concern'          => 'Different time, still overlaps.',
+            'concern'          => 'Different time, overlapping.',
             'appointment_date' => $date,
             'start_time'       => '09:30',
             'end_time'         => '10:30',
-        ])->assertStatus(422)->assertJson(['message' => 'That time slot is already taken.']);
+        ])->assertStatus(201);
+    }
+
+    public function test_a_partial_overlap_is_rejected_once_five_students_are_booked_at_the_same_moment(): void
+    {
+        $date = $this->nextWeekday()->toDateString();
+
+        // Three at 09:00-10:00 and two at 09:30-10:30 -> five students are
+        // booked together from 09:30 to 10:00.
+        $times = [['09:00', '10:00'], ['09:00', '10:00'], ['09:00', '10:00'], ['09:30', '10:30'], ['09:30', '10:30']];
+        foreach ($times as $i => [$start, $end]) {
+            Sanctum::actingAs(Student::factory()->create(), [], 'student');
+            $this->postJson('/api/student/appointments', [
+                'concern'          => "Need help #{$i}.",
+                'appointment_date' => $date,
+                'start_time'       => $start,
+                'end_time'         => $end,
+            ])->assertStatus(201);
+        }
+
+        $sixth = Student::factory()->create();
+        Sanctum::actingAs($sixth, [], 'student');
+
+        // Touches the full stretch (09:30-10:00) -> rejected.
+        $this->postJson('/api/student/appointments', [
+            'concern'          => 'Lands in the full stretch.',
+            'appointment_date' => $date,
+            'start_time'       => '09:45',
+            'end_time'         => '10:45',
+        ])->assertStatus(422)->assertJson(['message' => 'This time is full: 5 of 5 students are already booked during this time. Please choose another time.']);
+
+        // Starts after the full stretch ends (only the two 09:30 students overlap).
+        $this->postJson('/api/student/appointments', [
+            'concern'          => 'After the busy stretch.',
+            'appointment_date' => $date,
+            'start_time'       => '10:00',
+            'end_time'         => '11:00',
+        ])->assertStatus(201);
     }
 
     public function test_public_link_also_allows_five_students_on_the_exact_same_slot(): void
@@ -249,6 +288,128 @@ class StudentSchedulingTimeRulesTest extends TestCase
             'appointment_date' => $date,
             'start_time'       => '09:00',
             'end_time'         => '10:00',
-        ])->assertStatus(422)->assertJson(['message' => 'This time slot is no longer available. Please pick another.']);
+        ])->assertStatus(422)->assertJson(['message' => 'This time is full: 5 of 5 students are already booked during this time. Please choose another time.']);
+    }
+
+    // --- Follow-up (11/10/2026): exact-minute booking + accurate full message ---
+
+    public function test_choosing_the_exact_current_minute_is_accepted(): void
+    {
+        // 14:00:30 - the seconds used to make "14:00" count as already passed.
+        Carbon::setTestNow(Carbon::parse('next monday')->setTime(14, 0, 30));
+
+        $student = Student::factory()->create();
+        Sanctum::actingAs($student, [], 'student');
+
+        $res = $this->postJson('/api/student/appointments/check-conflict', [
+            'appointment_date' => now()->toDateString(),
+            'start_time'       => '14:00',
+            'end_time'         => '15:00',
+        ])->assertOk();
+        $this->assertFalse($res->json('has_conflict'));
+
+        $this->postJson('/api/student/appointments', [
+            'concern'          => 'Need help right now.',
+            'appointment_date' => now()->toDateString(),
+            'start_time'       => '14:00',
+            'end_time'         => '15:00',
+        ])->assertStatus(201);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_public_link_accepts_the_exact_current_minute(): void
+    {
+        Carbon::setTestNow(Carbon::parse('next monday')->setTime(14, 0, 45));
+
+        $appointment = $this->linkedAppointment();
+
+        $res = $this->postJson("/api/schedule/{$appointment->scheduling_token}/check-availability", [
+            'appointment_date' => now()->toDateString(),
+            'start_time'       => '14:00',
+            'end_time'         => '15:00',
+        ])->assertOk();
+        $this->assertTrue($res->json('available'));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_a_minute_that_has_ended_is_still_rejected_with_the_current_time(): void
+    {
+        Carbon::setTestNow(Carbon::parse('next monday')->setTime(14, 0, 30));
+
+        $student = Student::factory()->create();
+        Sanctum::actingAs($student, [], 'student');
+
+        $res = $this->postJson('/api/student/appointments/check-conflict', [
+            'appointment_date' => now()->toDateString(),
+            'start_time'       => '13:59',
+            'end_time'         => '14:59',
+        ])->assertOk();
+
+        $this->assertTrue($res->json('has_conflict'));
+        $this->assertSame('This time has already passed (it is now 2:00 PM). Please choose a later time or another date.', $res->json('message'));
+
+        Carbon::setTestNow();
+    }
+
+    public function test_availability_check_says_the_slot_is_full_with_the_count(): void
+    {
+        $date = $this->nextWeekday()->toDateString();
+
+        for ($i = 0; $i < 5; $i++) {
+            $student = Student::factory()->create();
+            Sanctum::actingAs($student, [], 'student');
+            $this->postJson('/api/student/appointments', [
+                'concern'          => "Need help #{$i}.",
+                'appointment_date' => $date,
+                'start_time'       => '09:00',
+                'end_time'         => '10:00',
+            ])->assertStatus(201);
+        }
+
+        $sixth = Student::factory()->create();
+        Sanctum::actingAs($sixth, [], 'student');
+
+        $res = $this->postJson('/api/student/appointments/check-conflict', [
+            'appointment_date' => $date,
+            'start_time'       => '09:00',
+            'end_time'         => '10:00',
+        ])->assertOk();
+
+        $this->assertTrue($res->json('has_conflict'));
+        $this->assertSame('This time is full: 5 of 5 students are already booked during this time. Please choose another time.', $res->json('message'));
+        $this->assertSame(5, $res->json('slot_count'));
+        $this->assertSame(5, $res->json('slot_cap'));
+    }
+
+    public function test_public_link_availability_check_says_the_slot_is_full(): void
+    {
+        $date = $this->nextWeekday()->toDateString();
+
+        for ($i = 0; $i < 5; $i++) {
+            $appointment = Appointment::factory()->create([
+                'scheduling_token' => "full-token-{$i}",
+                'token_expires_at' => now()->addDays(7),
+                'status'           => 'pending',
+                'request_status'   => 'awaiting_student',
+            ]);
+            $this->postJson("/api/schedule/{$appointment->scheduling_token}/submit", [
+                'appointment_date' => $date,
+                'start_time'       => '09:00',
+                'end_time'         => '10:00',
+            ])->assertOk();
+        }
+
+        $sixth = $this->linkedAppointment();
+
+        $res = $this->postJson("/api/schedule/{$sixth->scheduling_token}/check-availability", [
+            'appointment_date' => $date,
+            'start_time'       => '09:00',
+            'end_time'         => '10:00',
+        ])->assertOk();
+
+        $this->assertFalse($res->json('available'));
+        $this->assertSame('This time is full: 5 of 5 students are already booked during this time. Please choose another time.', $res->json('message'));
     }
 }

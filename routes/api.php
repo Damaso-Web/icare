@@ -84,6 +84,8 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     // would match "missing-client-no" as the {student} route-model-binding
     // parameter instead of reaching this route.
     Route::get('students/missing-client-no', [StudentController::class, 'missingClientNo'])->middleware('role:admin,gcu_staff');
+    // Registered BEFORE students/{student} for the same reason as missing-client-no above.
+    Route::get('students/matching-ids', [StudentController::class, 'matchingIds'])->middleware('role:admin');
     Route::apiResource('students', StudentController::class)->only(['index', 'show']);
     Route::get('students/{student}/history', [StudentController::class, 'history']);
     Route::post('students/check-duplicate-name', [StudentController::class, 'checkDuplicateName']);
@@ -98,6 +100,7 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
         // Panel fix (11/8/2026, item #9): deactivate several selected student
         // accounts at once with one shared reason.
         Route::post('students/bulk-deactivate', [StudentController::class, 'bulkDeactivate'])->middleware('role:admin');
+        Route::post('students/bulk-activate', [StudentController::class, 'bulkActivate'])->middleware('role:admin');
         Route::get('students/{student}/status-history', [StudentController::class, 'statusHistory']);
         Route::post('students/{student}/graduate', [StudentController::class, 'graduate'])->middleware('role:admin');
         Route::post('students/import-preview', [StudentController::class, 'importPreview']);

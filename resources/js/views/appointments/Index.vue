@@ -753,7 +753,7 @@ async function checkSlotConflict(unit, date, start, end, excludeId) {
       unit, appointment_date: date, start_time: start, end_time: end, exclude_id: excludeId,
     });
     // Panel fix (11/10/2026, item #8): live count of how many students
-    // already share this exact date and time, alongside the existing
+    // already booked during this time, alongside the existing
     // conflict message - shown even when there's no conflict yet.
     const slotCount = res.data.slot_count ?? 0;
     const slotCap = res.data.slot_cap ?? null;
@@ -795,7 +795,7 @@ const scheduleWarningMsg = computed(() => scheduleBlockedMsg.value || scheduleCo
 // always sees how many students already share this slot, not only once
 // someone else happens to already be in it.
 const scheduleSlotInfo = computed(() => (!scheduleWarningMsg.value && scheduleSlotCap.value !== null)
-  ? `${scheduleSlotCount.value} of ${scheduleSlotCap.value} students already booked this exact date and time.`
+  ? `${scheduleSlotCount.value} of ${scheduleSlotCap.value} students are already booked during this time.`
   : '');
 
 const schedulingStudent = ref(false);
@@ -1176,7 +1176,7 @@ watch(() => [rescheduleNowForm.value.appointment_date, rescheduleNowForm.value.s
 const rescheduleNowWarningMsg = computed(() => rescheduleNowBlockedMsg.value || rescheduleNowConflictMsg.value);
 // Panel fix (11/10/2026, item #8): same live slot-count indicator as Schedule Now above, always shown once known.
 const rescheduleNowSlotInfo = computed(() => (!rescheduleNowWarningMsg.value && rescheduleNowSlotCap.value !== null)
-  ? `${rescheduleNowSlotCount.value} of ${rescheduleNowSlotCap.value} students already booked this exact date and time.`
+  ? `${rescheduleNowSlotCount.value} of ${rescheduleNowSlotCap.value} students are already booked during this time.`
   : '');
 
 async function submitRescheduleNow() {

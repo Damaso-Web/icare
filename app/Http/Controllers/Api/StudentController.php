@@ -24,9 +24,12 @@ class StudentController extends Controller
     private const PHONE_REGEX = '/^[0-9\+\-\s]+$/';
     private const ID_REGEX    = '/^[A-Za-z0-9\-]+$/';
 
-    public function index(Request $request)
+    // The student list's search / college / year / active filters, shared by
+    // index() (one page) and matchingIds() (every page, for Select All).
+    private function filteredQuery(Request $request)
     {
-                $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+        $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+
 
         $applySearch = function ($q) use ($request, $nameOnly) {
             $terms = preg_split('/\s+/', trim((string) $request->search), -1, PREG_SPLIT_NO_EMPTY);
@@ -49,11 +52,28 @@ class StudentController extends Controller
         // other colleges, so no role is limited to their own college or
         // department when searching, referring, or filing a complaint.
         // Every role can search the full masterlist now.
-        $query = Student::query()
+        return Student::query()
             ->when($request->search, $applySearch)
             ->when($request->college, fn($q) => $q->where('college', $request->college))
             ->when($request->year_level, fn($q) => $q->where('year_level', $request->year_level))
             ->when($request->has('is_active'), fn($q) => $q->where('is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)));
+    }
+
+    // Every student id matching the list's filters across ALL pages, so the
+    // admin's "Select All" can reach students that are not on the page shown.
+    // Admin-only (same as bulk deactivate / activate).
+    public function matchingIds(Request $request)
+    {
+        $ids = $this->filteredQuery($request)->orderBy('id')->pluck('id');
+
+        return response()->json(['ids' => $ids, 'total' => $ids->count()]);
+    }
+
+    public function index(Request $request)
+    {
+        $nameOnly = filter_var($request->name_only, FILTER_VALIDATE_BOOLEAN);
+
+        $query = $this->filteredQuery($request);
 
         $sortBy  = in_array($request->sort_by, ['created_at', 'student_id', 'last_name']) ? $request->sort_by : 'created_at';
         $sortDir = $request->sort_dir === 'asc' ? 'asc' : 'desc';
@@ -278,10 +298,20 @@ class StudentController extends Controller
             'note.regex'       => 'Please explain in words, not numbers only.',
         ]);
 
-        $label = StudentAccountReasons::reactivateLabel($validated['reason']);
-        $note  = isset($validated['note']) ? trim($validated['note']) : null;
+        $this->reactivateOne($student, $validated['reason'], $validated['note'] ?? null, $request->user());
+
+        return response()->json($student->fresh());
+    }
+
+    // Reactivates one student account and records it (status history + audit
+    // trail). Shared by the single Reactivate and Bulk Activate so both do
+    // exactly the same thing: new password required at next login, sessions
+    // revoked, original deactivation reason kept in the history.
+    private function reactivateOne(Student $student, string $reasonKey, ?string $noteInput, $actor): void
+    {
+        $label = StudentAccountReasons::reactivateLabel($reasonKey);
+        $note  = $noteInput !== null ? trim($noteInput) : null;
         $note  = $note === '' ? null : $note;
-        $actor = $request->user();
 
         $originalLabel = $student->deactivation_reason ? StudentAccountReasons::deactivateLabel($student->deactivation_reason) : null;
         $originalNote  = $student->deactivation_notes;
@@ -295,7 +325,7 @@ class StudentController extends Controller
         StudentStatusEvent::create([
             'student_id'            => $student->id,
             'action'                => 'reactivated',
-            'reason_key'            => $validated['reason'],
+            'reason_key'            => $reasonKey,
             'reason_label'          => $label,
             'note'                  => $note,
             'previous_reason_label' => $originalLabel,
@@ -310,8 +340,39 @@ class StudentController extends Controller
             . "Reason for reactivation: {$label}" . ($note ? " - {$note}" : '') . '.'
             . ' A password change is required at the next login.';
         AuditLog::record('reactivated', $text, $student);
+    }
 
-        return response()->json($student->fresh());
+    // Bulk Activate: the mirror of bulkDeactivate(). One shared reason for every
+    // selected inactive account; students already active are skipped.
+    public function bulkActivate(Request $request)
+    {
+        $validated = $request->validate([
+            'student_ids'   => ['required', 'array', 'min:1'],
+            'student_ids.*' => ['integer', 'exists:students,id'],
+            'reason'        => ['required', \Illuminate\Validation\Rule::in(array_keys(StudentAccountReasons::REACTIVATE))],
+            'note'          => ['nullable', 'string', 'max:500', 'required_if:reason,other', 'regex:/\p{L}/u'],
+        ], [
+            'student_ids.required' => 'Select at least one student to activate.',
+            'reason.required'      => 'Please select a reason for reactivation.',
+            'note.required_if'     => 'Please describe the reason when "Other" is selected.',
+            'note.regex'           => 'Please explain in words, not numbers only.',
+        ]);
+
+        $actor = $request->user();
+        $activated = [];
+        $skipped = [];
+
+        foreach (Student::whereIn('id', $validated['student_ids'])->get() as $student) {
+            if ($student->is_active) {
+                $skipped[] = ['id' => $student->id, 'name' => trim("{$student->first_name} {$student->last_name}"), 'reason' => 'Already active.'];
+                continue;
+            }
+
+            $this->reactivateOne($student, $validated['reason'], $validated['note'] ?? null, $actor);
+            $activated[] = ['id' => $student->id, 'name' => trim("{$student->first_name} {$student->last_name}")];
+        }
+
+        return response()->json(['activated' => $activated, 'skipped' => $skipped]);
     }
 
     /** Deactivation / reactivation timeline of one student, newest first. */
