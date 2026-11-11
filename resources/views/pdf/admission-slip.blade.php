@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Admission Slip</title>
     <style>
-        body { font-family: Helvetica, Arial, sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
+        body { font-family: 'DejaVu Sans', sans-serif; font-size: 12px; color: #333; line-height: 1.5; }
         .container { width: 100%; max-width: 700px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; margin-bottom: 20px; }
         .title { font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 20px; }
