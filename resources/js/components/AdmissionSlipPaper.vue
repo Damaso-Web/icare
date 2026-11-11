@@ -155,6 +155,7 @@ const props = defineProps({
   readonly:   { type: Boolean, default: false },
   showDoc:    { type: Boolean, default: true },
   referralId: { type: [Number, String], default: null },
+  isStudent:  { type: Boolean, default: false },
 });
 const form = computed(() => props.modelValue);
 
@@ -208,7 +209,6 @@ async function downloadPdf() {
     ? `/student/referrals/${props.referralId}/admission-slip/pdf`
     : `/referrals/${props.referralId}/admission-slip/pdf`;
 
-  // Use the correct token depending on who is logged in
   const token = props.isStudent ? localStorage.getItem('student_token') : localStorage.getItem('token');
   const baseURL = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
 
@@ -218,7 +218,6 @@ async function downloadPdf() {
       headers: { Authorization: `Bearer ${token}` }
     });
     
-    // Create a blob URL and trigger download
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
@@ -229,7 +228,25 @@ async function downloadPdf() {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Download failed:', error);
-    alert('Failed to download the PDF. Please try again.');
+    
+    let errorMsg = 'Failed to download the PDF. Please try again.';
+    
+    // Read the real error message out of the Blob
+    if (error.response?.data instanceof Blob) {
+      try {
+        const text = await error.response.data.text();
+        try {
+          const json = JSON.parse(text);
+          errorMsg = `Server says: ${json.message || text}`;
+        } catch {
+          errorMsg = `Server Error (${error.response.status}). Check Laravel logs.`;
+        }
+      } catch (e) {
+        errorMsg = `Network Error (${error.response.status})`;
+      }
+    }
+    
+    alert(errorMsg);
   } finally {
     isDownloading.value = false;
   }
