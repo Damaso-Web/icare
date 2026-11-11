@@ -2739,7 +2739,6 @@ function admissionDatesFromReferral(r, d) {
   if (Array.isArray(d.dates) && d.dates.length) {
     return d.dates.map(e => ({
       date:     e.date ? String(e.date).slice(0, 10) : '',
-      duration: e.duration === 'half' ? 'half' : 'whole',
       time_in:  e.time_in ? String(e.time_in).slice(0, 5) : '',
       time_out: e.time_out ? String(e.time_out).slice(0, 5) : '',
     }));
@@ -2747,7 +2746,6 @@ function admissionDatesFromReferral(r, d) {
   if (r.admission_date) {
     return [{
       date:     String(r.admission_date).slice(0, 10),
-      duration: (r.admission_time_in || r.admission_time_out) ? 'half' : 'whole',
       time_in:  r.admission_time_in ? String(r.admission_time_in).slice(0, 5) : '',
       time_out: r.admission_time_out ? String(r.admission_time_out).slice(0, 5) : '',
     }];
@@ -2835,9 +2833,8 @@ async function saveAdmissionSlip() {
     const res = await referralAPI.saveAdmissionSlip(referral.value.id, {
       admission_dates: dates.map(e => ({
         date:     e.date,
-        duration: e.duration,
-        time_in:  e.duration === 'half' ? (e.time_in || null) : null,
-        time_out: e.duration === 'half' ? (e.time_out || null) : null,
+        time_in:  e.time_in || null,
+        time_out: e.time_out || null,
       })),
       admission_excused:  f.excused === '1',
       admission_remarks:  f.remarks.trim() || null,
