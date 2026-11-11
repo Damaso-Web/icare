@@ -144,7 +144,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { formatTime12 } from '../utils/validators';
-import api from '../api'; // Ensure this path matches your project structure!
+import axios from 'axios';
 
 const props = defineProps({
   modelValue: { type: Object, required: true },
@@ -203,9 +203,19 @@ function printSlip() {
 async function downloadPdf() {
   if (!props.referralId) return;
   isDownloading.value = true;
+  
+  const endpoint = props.isStudent 
+    ? `/student/referrals/${props.referralId}/admission-slip/pdf`
+    : `/referrals/${props.referralId}/admission-slip/pdf`;
+
+  // Use the correct token depending on who is logged in
+  const token = props.isStudent ? localStorage.getItem('student_token') : localStorage.getItem('token');
+  const baseURL = `${import.meta.env.VITE_API_URL || 'https://icare-backend-5jwe.onrender.com'}/api`;
+
   try {
-    const response = await api.get(`/referrals/${props.referralId}/admission-slip/pdf`, {
-      responseType: 'blob'
+    const response = await axios.get(`${baseURL}${endpoint}`, {
+      responseType: 'blob',
+      headers: { Authorization: `Bearer ${token}` }
     });
     
     // Create a blob URL and trigger download
