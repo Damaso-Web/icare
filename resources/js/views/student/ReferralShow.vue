@@ -54,8 +54,6 @@
             :student="referral.student"
             :personnel="referral.admission_issued_by?.name || ''"
             :issued-at="referral.admission_issued_at"
-            :referral-id="referral.id"
-            :is-student="true"
             :show-doc="false"
           />
         </div>

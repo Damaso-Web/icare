@@ -396,7 +396,6 @@
                 :student="referral.student"
                 :personnel="referral.admission_issued_by?.name || ''"
                 :issued-at="referral.admission_issued_at"
-                :referral-id="referral.id"
                 :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
               />
             </div>
@@ -458,7 +457,6 @@
                 :student="referral.student"
                 :personnel="referral.admission_issued_by?.name || ''"
                 :issued-at="referral.admission_issued_at"
-                :referral-id="referral.id"
                 :show-doc="false"
                 :doc="{ revision_no: admissionDoc.revision_no, effectivity: admissionDoc.effectivity_date ? formatDocDate(admissionDoc.effectivity_date) : '', ctrl_no: admissionDoc.ctrl_no }"
               />

@@ -535,7 +535,7 @@ class StudentController extends Controller
         // appointments; nobody else sees GCU cases or appointments here.
         if (!$user?->isAdmin() && !$user?->isGCUStaff()) {
             $referrals = $student->referrals()->notTmduOwned()->with('case:id,status');
-            if ($user?->isDeanSecretary()) {
+            if ($user?->isDean() || $user?->isDeptChair() || $user?->isDeanSecretary()) {
                 $referrals->visibleToDean($user);
             } else {
                 $referrals->where('referred_by_user_id', $user?->id);

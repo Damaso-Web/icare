@@ -158,7 +158,6 @@ Route::middleware(['auth:sanctum', 'actor:staff', 'password.fresh'])->group(func
     Route::post('referrals/{referral}/request-feedback', [ReferralController::class, 'requestFeedback']);
     Route::get('college-report', [ReportController::class, 'collegeSummary'])->middleware('role:dean,dean_secretary');
     Route::post('referrals/{referral}/admission-slip',  [ReferralController::class, 'saveAdmissionSlip']);
-    Route::get('referrals/{referral}/admission-slip/pdf', [ReferralController::class, 'downloadAdmissionSlipPdf']);
     Route::get('referrals/{referral}/session-notes',    [SessionNoteController::class, 'indexByReferral']);
     Route::post('referrals/{referral}/session-notes',   [SessionNoteController::class, 'storeByReferral'])
         ->middleware('role:admin,gcu_staff');

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\AuditLog;
 use App\Models\CaseFile;
 use App\Models\Referral;
@@ -93,14 +92,12 @@ class ReferralController extends Controller
             )->orWhere('referral_code', 'like', "%{$request->search}%");
         }));
 
-    if ($user->isFaculty() || $user->isSDUHead()) {
-        // SDU Head: complaints are their module; the only referrals they see
-        // are the ones they sent themselves.
-        $query->where('referred_by_user_id', $user->id);
-    } elseif ($user->isDeanSecretary()) {
-        // A college representative coordinates on behalf of their whole
-        // college - minus what other offices (GCU, TMDU, ...) submitted.
-        $query->visibleToDean($user);
+    if ($user->isDean() || $user->isDeptChair() || $user->isDeanSecretary()) {
+            // Deans, Dept Chairs, and Dean Secretaries see referrals for their whole college/department.
+            $query->visibleToDean($user);
+    } elseif ($user->isFaculty() || $user->isSDUHead()) {
+            // Faculty and SDU Head only see the ones they personally sent.
+            $query->where('referred_by_user_id', $user->id);
     } elseif ($user->isTMDUStaff()) {
         // TMDU only ever sees the Case Referral Slips GCU sent to it.
         $query->tmduOwned();
@@ -1472,10 +1469,12 @@ class ReferralController extends Controller
         if ($referral->referred_by_user_id && (int) $referral->referred_by_user_id === (int) $user->id) {
             return;
         }
-        if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
-            abort(403, 'Unauthorized.');
+        // Deans, Dept Chairs, and Dean Secretaries can view referrals within their college/department.
+        if (($user->isDean() || $user->isDeptChair() || $user->isDeanSecretary()) && $referral->isVisibleToDean($user)) {
+            return;
         }
-        if ($user->isDeanSecretary() && !$referral->isVisibleToDean($user)) {
+
+        if ($user->isFaculty() && $referral->referred_by_user_id !== $user->id) {
             abort(403, 'Unauthorized.');
         }
         // SDU Head only ever opens referrals they sent (handled above).
@@ -1493,28 +1492,4 @@ class ReferralController extends Controller
         }
     }
 
-        public function downloadAdmissionSlipPdf(Request $request, Referral $referral)
-    {
-        // Authorization (reuse the existing view rule)
-        $this->authorizeView($referral, $request->user());
-
-        if ($referral->referral_type !== 'class_attendance' || !$referral->admission_issued_at) {
-            abort(404, 'Admission slip not found or not issued yet.');
-        }
-
-        // Load the student and the personnel who issued it
-        $referral->load(['student', 'admissionIssuedBy']);
-
-        // Generate the PDF using the package already installed in your system
-        $pdf = Pdf::loadView('pdf.admission-slip', [
-            'referral' => $referral,
-            'details'  => $referral->admission_details,
-            'student'  => $referral->student,
-            'personnel'=> $referral->admissionIssuedBy?->name ?? 'Attending OSS Personnel',
-        ])->setPaper('a4', 'portrait');
-
-        // Stream the download back to the browser
-        $filename = 'Admission_Slip_' . $referral->student->student_id . '.pdf';
-        return $pdf->download($filename);
-    }
 }
