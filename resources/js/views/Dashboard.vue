@@ -378,11 +378,11 @@ const firstName = computed(() => auth.user?.name?.split(' ')[0] || 'there');
 const todayLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 const ROLE_TITLES = {
   admin: 'Admin · GCU Head', gcu_staff: 'Guidance and Counseling Unit', sdu_head: 'Student Discipline Unit',
-  tmdu_staff: 'Testing and Measurement Development Unit', faculty: 'Faculty', dean: 'Dean',
+  tmdu_staff: 'Testing and Materials Development Unit', faculty: 'Faculty', dean: 'Dean',
   dept_chair: 'Department Chair', dean_secretary: 'Dean',
   // B631 (10/26/2026): was the bare "TMDU Head", inconsistent with the full
   // designation already used for tmdu_staff just above.
-  tmdu_head: 'Testing and Measurement Development Unit Head', system_admin: 'System Administrator',
+  tmdu_head: 'Testing and Materials Development Unit Head', system_admin: 'System Administrator',
 };
 // B565: a faculty member's banner just said "Faculty" with no indication of
 // which department/college they belong to. Department is stored as a bare

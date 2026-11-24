@@ -762,7 +762,7 @@ const dateTo   = ref('');
 const UNITS = ['GCU', 'TMDU', 'SDU'];
 const UNIT_NAMES = {
   GCU:  'Guidance and Counseling Unit',
-  TMDU: 'Testing and Measurement Development Unit',
+  TMDU: 'Testing and Materials Development Unit',
   SDU:  'Student Discipline Unit',
 };
 const UNIT_BLURB = {

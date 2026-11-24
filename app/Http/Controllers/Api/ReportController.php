@@ -216,7 +216,7 @@ class ReportController extends Controller
         'admin'          => 'GCU Office (Admin / GCU Head)',
         'gcu_staff'      => 'GCU Staff',
         'sdu'            => 'Student Discipline Unit',
-        'tmdu'           => 'Testing and Measurement Development Unit',
+        'tmdu'           => 'Testing and Materials Development Unit',
         'none'           => 'Not specified',
     ];
 
@@ -834,7 +834,7 @@ class ReportController extends Controller
         $unit = $this->unit($request);
         $unitNames = [
             'GCU'  => 'Guidance and Counseling Unit',
-            'TMDU' => 'Testing and Measurement Development Unit',
+            'TMDU' => 'Testing and Materials Development Unit',
             'SDU'  => 'Student Discipline Unit',
         ];
         $range = ($request->date_from ? date('F j, Y', strtotime($request->date_from)) : 'Start of records')
